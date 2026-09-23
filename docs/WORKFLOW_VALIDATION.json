@@ -1,0 +1,89 @@
+{
+  "scope": "Chromium in-memory browser interaction; ANGLE SwiftShader software driver",
+  "checks": [
+    {
+      "name": "UI key creation, tracked control editing and interpolation",
+      "passed": true,
+      "details": {
+        "node": "planet",
+        "param": "radius",
+        "interpolation": "smooth",
+        "keys": [
+          {
+            "time": 0,
+            "value": 1.08
+          },
+          {
+            "time": 2,
+            "value": 1.4
+          }
+        ]
+      }
+    },
+    {
+      "name": "Undo/redo preserves animation model",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Cycle rejection restores model AND visible connection menu",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Raw floating-point field probe through editor",
+      "passed": true,
+      "details": "Raw Translate \u00b7 rotate \u00b7 scale at (-1.02560, 0.55179)\nx: -1.025595 \u00b7 y: 0.5517857"
+    },
+    {
+      "name": "Project JSON download and import round trip",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "PNG encoding + embedded UTF-8 project metadata",
+      "passed": true,
+      "details": {
+        "size": [
+          64,
+          40
+        ],
+        "time": 0.25
+      }
+    },
+    {
+      "name": "Four-frame deterministic PNG ZIP, CRCs, timestamps and visual change",
+      "passed": true,
+      "details": [
+        0,
+        0.25,
+        0.5,
+        0.75
+      ]
+    },
+    {
+      "name": "Actual MediaRecorder video download",
+      "passed": true,
+      "details": {
+        "bytes": 755,
+        "format": "WebM EBML container"
+      }
+    },
+    {
+      "name": "Context loss/recovery and float extension re-enablement",
+      "passed": true,
+      "details": [
+        0.20000000298023224,
+        -0.10000000149011612,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "No uncaught page errors",
+      "passed": true,
+      "details": []
+    }
+  ],
+  "browser_version": "144.0.7559.96"
+}

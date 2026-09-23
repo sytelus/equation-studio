@@ -1,0 +1,7 @@
+{
+  "root_http_status": 200,
+  "javascript_content_type": "text/javascript",
+  "loopback_address": "127.0.0.1",
+  "port_collision_handled": true,
+  "scope": "HTTP requests only, not browser navigation"
+}

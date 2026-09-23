@@ -1,0 +1,7 @@
+{
+  "python_atlas_export_test": "passed; eight layer sums and raw-field export checked in unittest suite",
+  "local_HTML_asset_and_link_check": "passed for every bundled HTML page",
+  "browser_end_to_end": "not completed",
+  "browser_limitation": "The execution environment blocked both file: and localhost HTTP navigation with ERR_BLOCKED_BY_ADMINISTRATOR. No browser policy was modified.",
+  "scope": "The viewer source and assets are bundled; interactive behavior was not verified in a live browser in this environment."
+}

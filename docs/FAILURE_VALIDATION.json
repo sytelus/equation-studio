@@ -1,0 +1,7 @@
+{
+  "no_webgl_failure_panel": true,
+  "export_rejected_without_gpu": true,
+  "uncaught_errors": [],
+  "outgoing_network_requests": [],
+  "scope": "in-memory standalone app with WebGL deliberately unavailable; no policy changes"
+}

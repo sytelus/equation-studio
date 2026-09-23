@@ -1,0 +1,70 @@
+{
+  "id": "marble",
+  "title": "Living mineral",
+  "description": "Coordinate warp → nested wave bands → palette. Five small nodes, no bespoke scene renderer.",
+  "status": "Component remix",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "warp",
+      "type": "domainwarp",
+      "label": "Turbulent coordinate warp",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "amplitude": 0.8,
+        "frequency": 2.1,
+        "speed": 0.12
+      },
+      "enabled": true
+    },
+    {
+      "id": "veins",
+      "type": "waves",
+      "label": "Nested cosine bands",
+      "inputs": {
+        "p": "warp"
+      },
+      "params": {
+        "frequency": 10,
+        "bend": 2.8,
+        "speed": 0.8
+      },
+      "enabled": true
+    },
+    {
+      "id": "final",
+      "type": "palette",
+      "label": "Two-color emission",
+      "inputs": {
+        "field": "veins"
+      },
+      "params": {
+        "low": "#081927",
+        "high": "#d09c55",
+        "gain": 1.2,
+        "power": 3
+      },
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1,
+  "tone": "filmic",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": []
+}

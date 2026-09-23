@@ -1,0 +1,45 @@
+{
+  "reference_sha256": "599f46ea15f19b3653adae48e3eab95d139a75e1001dc74308c1071ef138983e",
+  "render_sha256": "dc674e9c6063f2b24b720f3fdbcdb8dd64e0c81fd9c66c3fc6f13b68e4d6996d",
+  "source_size": [
+    1536,
+    1536
+  ],
+  "render_size": [
+    2000,
+    1200
+  ],
+  "crop_box_left_top_right_bottom_exclusive": [
+    0,
+    0,
+    1536,
+    922
+  ],
+  "resampling_results": {
+    "nearest": {
+      "mean_absolute_error_0_to_255": 10.049782327066763,
+      "root_mean_square_error_0_to_255": 19.035859079101968,
+      "flattened_RGB_Pearson_correlation": 0.961945817703408,
+      "PSNR_dB": 22.539353986832804
+    },
+    "bilinear": {
+      "mean_absolute_error_0_to_255": 4.923630411695589,
+      "root_mean_square_error_0_to_255": 7.8023327430023075,
+      "flattened_RGB_Pearson_correlation": 0.9931660690924695,
+      "PSNR_dB": 30.286314257560598
+    },
+    "bicubic": {
+      "mean_absolute_error_0_to_255": 5.695742526437093,
+      "root_mean_square_error_0_to_255": 9.261477312545813,
+      "flattened_RGB_Pearson_correlation": 0.9906643905698724,
+      "PSNR_dB": 28.79719826485992
+    },
+    "lanczos": {
+      "mean_absolute_error_0_to_255": 6.285884258631598,
+      "root_mean_square_error_0_to_255": 10.20577956098465,
+      "flattened_RGB_Pearson_correlation": 0.9886973901701794,
+      "PSNR_dB": 27.95387993698897
+    }
+  },
+  "interpretation": "Similarity measurements only. The supplied image is resized/JPEG-compressed; its original conversion pipeline is unknown. No pixel-identity claim."
+}

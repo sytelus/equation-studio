@@ -1,0 +1,79 @@
+{
+  "id": "kaleidoscope",
+  "title": "Kaleidoscope garden",
+  "description": "Angular mirror → domain warp → interference field → custom color expression. Fully editable typed equations.",
+  "status": "Component remix",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "fold",
+      "type": "kaleidoscope",
+      "label": "Angular mirror",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "sectors": 8,
+        "spin": 0.1
+      },
+      "enabled": true
+    },
+    {
+      "id": "warp",
+      "type": "domainwarp",
+      "label": "Turbulent coordinate warp",
+      "inputs": {
+        "p": "fold"
+      },
+      "params": {
+        "amplitude": 0.28,
+        "frequency": 2,
+        "speed": 0.1
+      },
+      "enabled": true
+    },
+    {
+      "id": "petals",
+      "type": "expression",
+      "label": "Custom scalar equation",
+      "inputs": {
+        "p": "warp"
+      },
+      "params": {
+        "expression": "pow(0.5+0.5*cos(x*14.0+sin(y*9.0-t)),4.0)"
+      },
+      "enabled": true
+    },
+    {
+      "id": "final",
+      "type": "colorExpression",
+      "label": "Custom color equation",
+      "inputs": {
+        "p": "space",
+        "a": "petals"
+      },
+      "params": {
+        "expression": "spectrum(r*0.3-t*0.05,0.25)*a*exp(-r*r*0.22)"
+      },
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1.6,
+  "tone": "filmic",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": []
+}

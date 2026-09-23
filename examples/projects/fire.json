@@ -1,0 +1,42 @@
+{
+  "id": "fire",
+  "title": "Fire · construction study",
+  "description": "A tapered envelope, upward-moving coordinate noise, wispy thresholds and a hot emission palette. Not a video transcription.",
+  "status": "Original tutorial study",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "flame",
+      "type": "fire",
+      "label": "Tapered flame field",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "height": 2,
+        "width": 0.8,
+        "turbulence": 1,
+        "speed": 1
+      },
+      "enabled": true
+    }
+  ],
+  "output": "flame",
+  "duration": 8,
+  "exposure": 1.1,
+  "tone": "filmic",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": []
+}

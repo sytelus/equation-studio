@@ -1,0 +1,114 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bipolar Nebula — readable, reusable reconstruction</title><style>
+:root{color-scheme:light}body{margin:0;color:#243142;background:#f5f4f0;font:17px/1.7 system-ui,sans-serif}
+main{max-width:1040px;margin:auto;padding:28px 32px 90px;background:white}nav{font-size:.9rem;border-bottom:1px solid #ccd1db;padding-bottom:18px;margin-bottom:30px}
+a{color:#713265}h1,h2,h3{line-height:1.25;letter-spacing:-.02em;color:#172438}h1{font-size:2.4rem}h2{font-size:1.7rem;margin-top:2.3em}h3{margin-top:1.9em}
+p,li{max-width:88ch}pre{padding:20px;overflow:auto;background:#f1f3f7;border-radius:8px;font-size:14px;line-height:1.6}code{font-family:ui-monospace,monospace;font-size:.9em}p code,td code{background:#f0eef4;padding:.1em .3em;border-radius:3px}
+table{width:100%;border-collapse:collapse;font-size:.9rem;display:block;overflow:auto}th,td{padding:11px 14px;border-bottom:1px solid #dfe3ea;text-align:left;vertical-align:top}th{background:#f0eef4}img{max-width:100%;height:auto;border-radius:8px}
+@media(max-width:650px){main{padding:20px 16px}body{font-size:16px}h1{font-size:2rem}}
+</style></head><body><main><nav><a href="README.html">Start / run instructions</a> · <a href="gallery/index.html">Layer viewer</a> · <a href="README.md">Markdown source</a></nav><h1>Bipolar Nebula — readable, reusable reconstruction</h1>
+<p>A documented Python/NumPy implementation of the equations in the supplied <strong>Bipolar Nebula</strong> image, credited there to <strong>Hamid Naderi Yeganeh</strong>.</p>
+<p><img src="gallery/preview.png" alt="Reconstruction computed from the equations" /></p>
+<p>This is a refactoring of a <strong>mathematical specification</strong>, not recovered source code from the artist. It preserves the printed construction, subject to the floating-point and undefined-point conventions in <a href="docs/NUMERICS_AND_VALIDATION.html">Numerics and validation</a>. Names such as “rim,” “filament,” and “turbulence” describe the formulas' observable roles; they are not claims about the artist's private design process.</p>
+<p>The central simplification is:</p>
+<pre><code class="language-python">geometry = build_geometry(x, y)          # Shapes and shell-following coordinates
+nebula = evaluate_nebula(x, y, geometry=geometry)
+stars = build_starfield(x, y)            # Independent of the nebula
+radiance = nebula.gas + nebula.core + stars
+pixels = to_rgb8(radiance)               # Convert only after adding the layers
+</code></pre>
+<p>No source-image pixels, texture files, star catalog, random generator, machine-learning model, 3-D mesh, or gas simulation enter the renderer. The bundled PNGs are outputs, not inputs.</p>
+<h2>Start here</h2>
+<p>Open <strong><code>START_HERE.html</code></strong> or <strong><code>gallery/index.html</code></strong> after extracting the archive. The offline viewer lets you switch the gas, central glow, and stars on/off; inspect the scalar geometry/texture fields; and zoom the images. It selects eight correctly precomputed layer combinations rather than incorrectly adding clipped PNGs. No local web server is required.</p>
+<p>Browsable HTML copies are included as <code>README.html</code> and <code>docs/WALKTHROUGH.html</code>; the Markdown files remain the editable documentation.</p>
+<p>Read <a href="docs/WALKTHROUGH.html">the illustrated walkthrough</a> to understand the image, <a href="docs/FORMULA_REFERENCE.md">the formula reference</a> to audit every source symbol, and <a href="docs/COMPOSITION.html">the composition guide</a> to reuse the parts.</p>
+<h2>Run it</h2>
+<p>Requires <strong>Python 3.10 or newer</strong>, NumPy, and Pillow. It renders on the CPU. A GPU, compiler, notebook, browser library, or external account is not required.</p>
+<p>From the extracted project directory, on macOS/Linux:</p>
+<pre><code class="language-bash">python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+
+# Original pixel grid and original parameters:
+python -m nebula render --output output/nebula.png
+</code></pre>
+<p>On Windows PowerShell, activation is optional:</p>
+<pre><code class="language-powershell">py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m nebula render --output output/nebula.png
+</code></pre>
+<p>The default output is <strong>2000 × 1200</strong>, one sample per pixel, matching the dimensions and coordinate mapping printed in the source. Each render also writes a JSON sidecar with its configuration, dimensions, library versions, and elapsed time. Run commands from the project directory, or install the package with <code>python -m pip install -e .</code> to import it elsewhere.</p>
+<p>Useful commands:</p>
+<pre><code class="language-bash"># Quick preview. Fewer output pixels, but all original formula terms remain.
+python -m nebula render --width 800 --output output/preview.png
+
+# Smoother preview. Averages 2x2 radiance samples; NOT original sampling.
+python -m nebula render --width 800 --supersample 2 --output output/smooth.png
+
+# Independently controllable parts and simple artistic variations:
+python -m nebula render --preset gas-only --width 1000 --output output/gas.png
+python -m nebula render --preset stars-only --width 1000 --output output/stars.png
+python -m nebula render --preset blue --width 1000 --output output/blue.png
+python -m nebula render --preset wide --width 1000 --output output/wide.png
+
+# Regenerate the explanatory viewer and optionally export raw float64 arrays:
+python -m nebula atlas --output-dir output/atlas --width 1000 --save-fields
+
+# Build two entirely new compositions:
+python -m examples.twin_nebulae
+python -m examples.custom_ring
+
+# Run the test suite (no additional test dependency):
+python -m unittest discover -s tests -v
+</code></pre>
+<p>Use <code>python -m nebula --help</code>, <code>python -m nebula render --help</code>, or <code>python -m nebula atlas --help</code> for options. If <code>--height</code> is omitted, it defaults to 60% of the width. Explicitly choosing a different aspect ratio stretches the same world-space rectangle; it does not crop it.</p>
+<h2>How the project is organized</h2>
+<pre><code class="language-text">nebula/
+  numeric.py       Safe exp(-exp(z)), coordinate rotation/folding, display F
+  config.py        Typed, immutable artistic settings
+  geometry.py      Warped shell family; texture warp S and rim envelope A
+  textures.py      Turbulence D/E, filament masks C/I, cloud color K
+  stars.py         Folded star lattices M/N, pointed centers B, star field T
+  composition.py   Coordinate transforms, tinting, masking, additive assembly
+  scene.py         Explicit gas/core/star layers; the original H expression
+  render.py        Pixel grid, tiled sampling, optional supersampling, PNG I/O
+  presets.py       Small configuration-only variations
+  atlas.py         Layer exports, normalized diagnostics, offline HTML viewer
+  __main__.py      Command-line interface and render provenance
+examples/
+  minimal.py       Smallest complete renderer
+  twin_nebulae.py  Two transformed objects over one shared star field
+  custom_ring.py   Completely replace the geometry, keep the cloud shader
+/tests              Independent scalar reference and behavioral tests
+/docs               Walkthrough, formulas, recipes, validation, test log
+/gallery            Native reconstruction, layer images, examples, viewer
+</code></pre>
+<p>The public API is exported by <code>nebula/__init__.py</code>. Functions work with scalar points, broadcastable point arrays, or image tiles. A scalar field has shape <code>(height, width)</code>; a color field has shape <code>(height, width, 3)</code>. Channel order is RGB, all angles are radians, and field calculations use float64.</p>
+<h2>Smallest editable example</h2>
+<pre><code class="language-python">from dataclasses import replace
+from nebula import SceneConfig, evaluate_scene, render, save_png
+
+config = replace(
+    SceneConfig(),
+    gas_tint=(0.4, 1.0, 1.5),  # RGB multipliers; do not clip here
+    star_gain=0.6,
+)
+
+def shader(x, y):
+    scene = evaluate_scene(x, y, config)
+    return scene.gas + scene.core + scene.stars
+
+save_png(&quot;output/my_nebula.png&quot;, render(shader, width=1000, height=600))
+</code></pre>
+<p>For stars alone, call <code>build_starfield</code> directly. For gas and its core without stars, call <code>evaluate_nebula</code>. For a new shape, supply your own <code>GeometryFields</code> to <code>evaluate_nebula</code>; the cloud algorithm does not require the original lobes. These are separate interfaces, not flags hiding one monolithic shader.</p>
+<h2>Performance and fidelity</h2>
+<p>The bundled native image was rendered successfully at 2000 × 1200. The measured run took about 21 seconds in the execution environment used for this delivery; your hardware and installed libraries will differ. Ordinary rendering is tiled, so large intermediate fields do not need to occupy memory for the whole image at once. Reduce <code>--tile-rows</code> from 48 to 16 when memory is constrained. The atlas deliberately retains diagnostic fields and should normally be generated at a moderate resolution.</p>
+<p>Tiny, directly evaluated previews can look grainier than the native image: the formula contains fine structures below their pixel spacing. Lower resolution, supersampling, resizing, and removing high-frequency bands are different operations. Do not interpret a small aliased preview as a formula error.</p>
+<p>The scalar-reference checks, rendering invariants, configuration checks, composition tests, and CLI/atlas tests passed: see <a href="docs/NUMERICS_AND_VALIDATION.html">the validation report</a> and <a href="docs/TEST_RESULTS.txt">the captured test log</a>. A resized JPEG supplied in a chat is not an authoritative, uncompressed pixel oracle; this package does not claim byte-for-byte identity with it.</p>
+<p>See <a href="ATTRIBUTION.html">ATTRIBUTION.md</a> for source attribution and the scope of this rewrite.</p>
+<h2>Rebuild the reading pages (optional)</h2>
+<p>The HTML reading pages are already bundled. After editing their Markdown sources:</p>
+<pre><code class="language-bash">python -m pip install -r requirements-docs.txt
+python -m tools.build_reading_pages
+</code></pre>
+<p>This optional documentation dependency is not needed for rendering or for opening the bundled viewer.</p>
+</main></body></html>

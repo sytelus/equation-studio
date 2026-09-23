@@ -1,0 +1,63 @@
+{
+  "id": "hedgehog",
+  "title": "Hedgehog · construction study",
+  "description": "Layered analytic shapes and a deterministic quill field. Not a reconstruction of the linked video.",
+  "status": "Original tutorial study",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "background",
+      "type": "solid",
+      "label": "Solid color",
+      "inputs": {},
+      "params": {
+        "color": "#040408",
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "animal",
+      "type": "hedgehog",
+      "label": "Hedgehog & quill field",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "quills": 0.28,
+        "density": 160,
+        "speed": 0.5
+      },
+      "enabled": true
+    },
+    {
+      "id": "final",
+      "type": "over",
+      "label": "Front over back",
+      "inputs": {
+        "front": "animal",
+        "back": "background"
+      },
+      "params": {},
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1.6,
+  "tone": "filmic",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": []
+}

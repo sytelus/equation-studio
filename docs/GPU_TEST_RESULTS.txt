@@ -1,0 +1,40 @@
+PASS render + finite values: bipolar {'energy': 46154596, 'ms': 15613.69999999972, 'nonfinite': 0}
+PASS render + finite values: water {'energy': 32974665, 'ms': 760.7000000001863, 'nonfinite': 0}
+PASS render + finite values: lensing {'energy': 14586200, 'ms': 866, 'nonfinite': 0}
+PASS render + finite values: aurora {'energy': 17042892, 'ms': 606.6000000000931, 'nonfinite': 0}
+PASS render + finite values: tidal {'energy': 12446071, 'ms': 494.90000000037253, 'nonfinite': 0}
+PASS render + finite values: peacock {'energy': 65157576, 'ms': 1015.0999999996275, 'nonfinite': 0}
+PASS render + finite values: fire {'energy': 22149873, 'ms': 278.40000000037253, 'nonfinite': 0}
+PASS render + finite values: hedgehog {'energy': 49076752, 'ms': 1019, 'nonfinite': 0}
+PASS render + finite values: ring {'energy': 31766386, 'ms': 11577.299999999814, 'nonfinite': 0}
+PASS render + finite values: marble {'energy': 92314020, 'ms': 154.09999999962747, 'nonfinite': 0}
+PASS render + finite values: kaleidoscope {'energy': 45280692, 'ms': 175.39999999990687, 'nonfinite': 0}
+PASS render + finite values: feather {'energy': 38052353, 'ms': 146.8000000002794, 'nonfinite': 0}
+PASS all 43 component types compile and render finite defaults 43
+PASS stateless visible animation: water {'change': 131124, 'repeat': 0}
+PASS stateless visible animation: lensing {'change': 371955, 'repeat': 0}
+PASS stateless visible animation: aurora {'change': 426018, 'repeat': 0}
+PASS stateless visible animation: tidal {'change': 58741, 'repeat': 0}
+PASS stateless visible animation: peacock {'change': 116877, 'repeat': 0}
+PASS stateless visible animation: fire {'change': 194774, 'repeat': 0}
+PASS stateless visible animation: hedgehog {'change': 13514, 'repeat': 0}
+PASS stateless visible animation: marble {'change': 1393571, 'repeat': 0}
+PASS stateless visible animation: kaleidoscope {'change': 1664291, 'repeat': 0}
+PASS raw float framebuffer + zero lens identity [0.75, -0.25, 0, 1]
+PASS uniform-only edits reuse linked shader None
+PASS 32 native-grid raw probes across seven field groups {'shell': {'max_abs_error': 1.5410313944919096e-06, 'mean_abs_error': 8.297622666176622e-08, 'rmse': 2.611847971300857e-07, 'cpu_abs_max': 1.0}, 'turbulence': {
+PASS 2000 × 1200 native GPU vs CPU image comparison {'dimensions': [2000, 1200], 'mae_0_255': 0.2937611111111111, 'rmse_0_255': 2.372531407121469, 'max_error': 145, 'p95_absolute_error': 1.0, 'p99_absolute_error'
+{
+  "dimensions": [
+    2000,
+    1200
+  ],
+  "mae_0_255": 0.2937611111111111,
+  "rmse_0_255": 2.372531407121469,
+  "max_error": 145,
+  "p95_absolute_error": 1.0,
+  "p99_absolute_error": 4.0,
+  "rgb_pearson_correlation": 0.9994216237510898,
+  "psnr_db": 40.62656420376929,
+  "software_backend_render_plus_readback_ms": 71318.20000000019
+}

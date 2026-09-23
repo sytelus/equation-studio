@@ -1,0 +1,127 @@
+{
+  "id": "water",
+  "title": "Stormy water planet",
+  "description": "A visible sphere, several cyclone coordinate maps, multiscale clouds, ocean light and an independent atmosphere.",
+  "status": "Interpretive study",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "stars",
+      "type": "scatterStars",
+      "label": "Seeded star field",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "density": 22,
+        "gain": 0.36,
+        "seed": 17,
+        "speed": 0.1
+      },
+      "enabled": true
+    },
+    {
+      "id": "planet",
+      "type": "planet",
+      "label": "Cyclonic water planet",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "radius": 1.08,
+        "cloud": 0.65,
+        "twist": 5,
+        "light": 2.25,
+        "speed": 0.5
+      },
+      "enabled": true
+    },
+    {
+      "id": "planetOverStars",
+      "type": "over",
+      "label": "Front over back",
+      "inputs": {
+        "front": "planet",
+        "back": "stars"
+      },
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "limb",
+      "type": "atmosphere",
+      "label": "Atmospheric rim",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "radius": 1.08,
+        "gain": 0.7
+      },
+      "enabled": true
+    },
+    {
+      "id": "final",
+      "type": "add",
+      "label": "Add light",
+      "inputs": {
+        "a": "planetOverStars",
+        "b": "limb"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "t1",
+      "type": "transform",
+      "label": "Translate · rotate · scale",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "x": 0,
+        "y": 0,
+        "angle": 0,
+        "scale": 1,
+        "stretch": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "t2",
+      "type": "transform",
+      "label": "Translate · rotate · scale",
+      "inputs": {
+        "p": "t1"
+      },
+      "params": {
+        "x": 0,
+        "y": 0,
+        "angle": 0,
+        "scale": 1,
+        "stretch": 1
+      },
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1.5,
+  "tone": "filmic",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": []
+}

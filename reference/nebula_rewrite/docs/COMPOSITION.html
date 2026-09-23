@@ -1,0 +1,194 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reuse the parts and create new structures</title><style>
+:root{color-scheme:light}body{margin:0;color:#243142;background:#f5f4f0;font:17px/1.7 system-ui,sans-serif}
+main{max-width:1040px;margin:auto;padding:28px 32px 90px;background:white}nav{font-size:.9rem;border-bottom:1px solid #ccd1db;padding-bottom:18px;margin-bottom:30px}
+a{color:#713265}h1,h2,h3{line-height:1.25;letter-spacing:-.02em;color:#172438}h1{font-size:2.4rem}h2{font-size:1.7rem;margin-top:2.3em}h3{margin-top:1.9em}
+p,li{max-width:88ch}pre{padding:20px;overflow:auto;background:#f1f3f7;border-radius:8px;font-size:14px;line-height:1.6}code{font-family:ui-monospace,monospace;font-size:.9em}p code,td code{background:#f0eef4;padding:.1em .3em;border-radius:3px}
+table{width:100%;border-collapse:collapse;font-size:.9rem;display:block;overflow:auto}th,td{padding:11px 14px;border-bottom:1px solid #dfe3ea;text-align:left;vertical-align:top}th{background:#f0eef4}img{max-width:100%;height:auto;border-radius:8px}
+@media(max-width:650px){main{padding:20px 16px}body{font-size:16px}h1{font-size:2rem}}
+</style></head><body><main><nav><a href="../README.html">Start / run instructions</a> · <a href="../gallery/index.html">Layer viewer</a> · <a href="COMPOSITION.md">Markdown source</a></nav><h1>Reuse the parts and create new structures</h1>
+<p>The renderer samples any function of the form <code>shader(x,y) -&gt; RGB radiance</code>. The nebula is one such function, not a special case hardwired into PNG output.</p>
+<p>Run examples from the extracted project root using <code>python -m examples.NAME</code>. Every composition below works on floating-point fields. Keep the display conversion at the end.</p>
+<h2>1. Reuse the star field by itself</h2>
+<pre><code class="language-python">from nebula import build_starfield, render, save_png
+
+save_png(
+    &quot;output/just_stars.png&quot;,
+    render(build_starfield, width=1000, height=600),
+)
+</code></pre>
+<p>It has no dependency on shell geometry or cloud calculations. Configure it separately when necessary:</p>
+<pre><code class="language-python">from nebula import StarConfig, build_starfield, render, save_png
+
+stars = StarConfig(bands=18, frequency_ratio=1.18)
+save_png(
+    &quot;output/fewer_star_bands.png&quot;,
+    render(lambda x, y: build_starfield(x, y, stars), width=1000, height=600),
+)
+</code></pre>
+<p><code>bands</code> counts entire lattices, not individual stars. Removing fine bands changes the density/size distribution. It is not a quality knob that preserves the same field.</p>
+<h2>2. Change material/color without changing the structure</h2>
+<pre><code class="language-python">from dataclasses import replace
+from nebula import SceneConfig, evaluate_scene, render, save_png
+
+settings = replace(
+    SceneConfig(),
+    gas_tint=(0.35, 1.05, 1.7),
+    core_color=(1.3, 2.1, 3.5),
+    star_gain=0.5,
+)
+
+save_png(
+    &quot;output/blue.png&quot;,
+    render(lambda x, y: evaluate_scene(x, y, settings).composite(), width=1000, height=600),
+)
+</code></pre>
+<p>The tint multiplies the original RGB cloud detail; it does not replace all the band's colors with one uniform color. A completely new palette can instead replace <code>filament_color</code> or map a scalar measure of <code>cloud_color</code> through your own color function.</p>
+<p>A monochrome cloud is straightforward: after <code>evaluate_nebula</code>, take the RGB mean as a scalar field and <code>colorize</code> it. That is deliberately a new material, not a faithful source reconstruction.</p>
+<h2>3. Place more than one nebula</h2>
+<p>The complete runnable example is <a href="../examples/twin_nebulae.py">examples/twin_nebulae.py</a>:</p>
+<pre><code class="language-bash">python -m examples.twin_nebulae --width 1000 --output output/twins.png
+</code></pre>
+<p><img src="../gallery/twin_nebulae.png" alt="Two transformed nebulae sharing one star field" /></p>
+<p>The important assembly is:</p>
+<pre><code class="language-python">left_x, left_y = transform_coordinates(
+    x, y, center=(-1.0, 0.3), angle=0.35, scale=0.52
+)
+right_x, right_y = transform_coordinates(
+    x, y, center=(1.0, -0.35), angle=-0.45, scale=0.52
+)
+left = evaluate_nebula(left_x, left_y, warm_settings)
+right = evaluate_nebula(right_x, right_y, cool_settings)
+stars = build_starfield(x, y)
+
+return add_emission(left.gas, left.core, right.gas, right.core, stars)
+</code></pre>
+<p><code>center</code> is in world coordinates. <code>angle</code> is in radians; positive angles rotate the object counterclockwise. <code>scale&gt;1</code> enlarges the object. These operations inverse-transform the sampling coordinates, so the procedural detail is regenerated at the new location rather than stretching an existing bitmap.</p>
+<p>The star field is generated once in scene coordinates. Calling the full <code>evaluate_scene</code> for each object would also stamp transformed copies of its background stars; that is a different visual effect and often an accidental one.</p>
+<p>The example applies intensity gains to avoid saturating the overlap excessively. Additive compositing makes overlapping emission brighter; it does not model one opaque object blocking another.</p>
+<h2>4. Replace the geometry, retain the cloud shader</h2>
+<p>The cloud shader needs a texture-coordinate field <code>warp</code> and an emission envelope <code>rim</code>. It does not require circles, lobes, or a particular number of shells. Supply a <code>GeometryFields</code> object to replace the entire original shape generator.</p>
+<p>The complete example <a href="../examples/custom_ring.py">examples/custom_ring.py</a> builds an elliptical ring:</p>
+<pre><code class="language-python">def ring_geometry(x, y):
+    radius = np.hypot(x / 1.45, y / 0.82)
+    residual = radius - 1.0
+    rim = 0.25 * np.exp(-(residual / 0.12) ** 2)
+    return GeometryFields(
+        warp=2.0 * residual,
+        rim=rim,
+        coverage=soft_cutoff(20.0 * residual),
+    )
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-python">ring = evaluate_nebula(x, y, settings, geometry=ring_geometry(x, y))
+return add_emission(ring.gas, 0.65 * build_starfield(x, y))
+</code></pre>
+<p><img src="../gallery/custom_ring.png" alt="Original cloud machinery applied to a new elliptical ring" /></p>
+<p>The fields must be finite NumPy arrays with the same shape as the broadcast <code>x,y</code> arrays. In the source, <code>rim</code> usually ranges between 0 and 1/4. Beginning with that scale avoids an unexpectedly overbright result. <code>coverage</code> is only diagnostic, but is still supplied so the interface can be inspected consistently.</p>
+<p>The ring example disables core emission. The <code>W</code>-based gas cutout is still present in <code>evaluate_nebula</code>; it is negligible at the ring's radius. To remove or reposition that cutout for a different custom shape, explicitly assemble gas from the returned <code>cloud_color</code> and your envelope rather than using <code>ring.gas</code>.</p>
+<h3>Useful alternative geometry contracts</h3>
+<p>A band around a curve can use <code>warp</code> equal to its signed residual and <code>rim</code> equal to a narrow Gaussian around zero. A set of arcs can multiply that rim by angular windows. A spiral can use a wrapped angle/radius relation as its residual, with care at the angular branch cut. A soft filled shape can supply a broad mask rather than a hollow rim.</p>
+<p>These suggestions describe new procedural designs. <code>shell_residual</code> and ellipse residuals are not generally true Euclidean distances, so a constant residual width need not produce constant visual thickness everywhere.</p>
+<h2>5. Reuse a single shell as a simpler motif</h2>
+<pre><code class="language-python">import numpy as np
+from nebula import shell_residual, render, save_png
+from nebula.composition import colorize
+
+
+def shader(x, y):
+    residual = shell_residual(x, y, index=12)
+    # exp(-infinity) = 0 on the explicitly extended singular contour.
+    rim = np.exp(-(residual / 0.035) ** 2)
+    return colorize(rim, (1.0, 0.4, 0.8))
+
+save_png(&quot;output/one_shell.png&quot;, render(shader, width=1000, height=600))
+</code></pre>
+<p>This isolates geometry from the expensive cloud machinery and is a useful way to understand <code>pinch_power</code>, shears, and shell size. The original scene uses ordered combinations of 27 such residuals; this example draws just one.</p>
+<h2>6. Practical artistic controls</h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>What it changes</th>
+<th>Caveat</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shells.pinch_power</code></td>
+<td>Narrowing around the shell's longitudinal zero line</td>
+<td>Lowering it toward zero removes the characteristic pinch</td>
+</tr>
+<tr>
+<td><code>shells.cross_scale</code></td>
+<td>Width of the transverse coordinate before the residual</td>
+<td>Larger values generally make the lobes narrower</td>
+</tr>
+<tr>
+<td><code>shells.radius_step</code></td>
+<td>Shell-size progression</td>
+<td>Also changes how the shells intersect and overlap</td>
+</tr>
+<tr>
+<td><code>shells.shear</code>, <code>shear_wobble</code></td>
+<td>Overall and shell-varying slant/deformation</td>
+<td>Separate from a rigid whole-object rotation</td>
+</tr>
+<tr>
+<td><code>shells.count</code></td>
+<td>Number of candidate shells</td>
+<td>Late shells also have the source's <code>fade_center</code>/<code>fade_rate</code> attenuation</td>
+</tr>
+<tr>
+<td><code>texture.turbulence_bands</code></td>
+<td>Number of modulation scales</td>
+<td>Alters <code>E</code>, which affects both gas and core boundary</td>
+</tr>
+<tr>
+<td><code>texture.filament_bands</code></td>
+<td>Number of cloud-detail scales</td>
+<td>Also removes those bands' color contributions</td>
+</tr>
+<tr>
+<td><code>stars.bands</code></td>
+<td>Number of star lattices</td>
+<td>Not a star count</td>
+</tr>
+<tr>
+<td><code>gas_gain</code>, <code>core_gain</code>, <code>star_gain</code></td>
+<td>Relative strength of visible layers</td>
+<td>Large values saturate after final conversion</td>
+</tr>
+<tr>
+<td><code>gas_tint</code>, <code>star_tint</code>, <code>core_color</code></td>
+<td>Layer-specific RGB weights</td>
+<td>Tinting and replacing the intrinsic palette are different operations</td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>dataclasses.replace</code> to change immutable settings, including nested settings:</p>
+<pre><code class="language-python">from dataclasses import replace
+from nebula import SceneConfig
+
+base = SceneConfig()
+new_shells = replace(base.shells, pinch_power=0.18, cross_scale=1.4)
+wide = replace(base, shells=new_shells)
+</code></pre>
+<h2>7. Export fields for another pipeline</h2>
+<pre><code class="language-bash">python -m nebula atlas --output-dir output/atlas --width 1000 --save-fields
+</code></pre>
+<pre><code class="language-python">import numpy as np
+from nebula import save_png, to_rgb8
+
+with np.load(&quot;output/atlas/fields.npz&quot;) as fields:
+    gas = fields[&quot;gas&quot;]
+    stars = fields[&quot;stars&quot;]
+    altered = 0.7 * gas * (0.5, 1.0, 1.5) + 0.8 * stars
+
+save_png(&quot;output/recolored.png&quot;, to_rgb8(altered))
+</code></pre>
+<p>The NPZ contains raw float64 fields. The diagnostic PNGs are normalized for human inspection and are not interchangeable with those arrays. Cached fields allow fast recoloring and layer assembly at the cached resolution. Changes to geometry or spatial texture parameters require recomputing the relevant fields.</p>
+<h2>8. Porting and extension boundaries</h2>
+<p>The numerical modules are pointwise array operations with finite loops and no I/O. They can be translated to another array backend or a fragment/compute shader. Preserve the coordinate convention, radians, double-exponential gates, ordered prefix weights, and phase grouping first; optimize after checking images and intermediate fields.</p>
+<p>A float32 GPU port may show different fine detail because the highest-frequency trigonometric phases amplify coordinate rounding. Reducing band counts, using fast approximations to trigonometric functions, or replacing <code>acos(cos(t))</code> with a modulo-based triangle wave are explicit numerical/artistic changes, not automatically pixel-preserving refactors.</p>
+<p>This package provides 2-D scalar/RGB fields, not a volumetric nebula or an interactively rotatable 3-D object. A three-dimensional version would require a new spatial model. Simply interpreting <code>L_s</code> as a distance field for sphere tracing would be incorrect.</p>
+</main></body></html>

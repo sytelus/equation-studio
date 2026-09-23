@@ -1,0 +1,311 @@
+{
+  "project": "Bipolar Nebula \u2014 readable, reusable reconstruction",
+  "file_count_excluding_manifest": 61,
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 78,
+      "sha256": "4099adffc2f5b75f6d4761548e66f8d5d684eb7023080404de7ab2490ff81470"
+    },
+    {
+      "path": "ATTRIBUTION.html",
+      "bytes": 3743,
+      "sha256": "5b3af19ed6cd4a2565acf033b8bc8167b1d3e384fce76b7173d337d1e77a199d"
+    },
+    {
+      "path": "ATTRIBUTION.md",
+      "bytes": 2237,
+      "sha256": "4d4a01c28ef0a623800ea5aa0dfbeb0b153702c5a9ff4acc09434739e3ab95a8"
+    },
+    {
+      "path": "README.html",
+      "bytes": 10515,
+      "sha256": "72fe8bf6caf738b9df658e19c4f99626a25d9406593cf57783796a0153c55c5d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 8304,
+      "sha256": "04f48e18a7ad28bd23f1d54ec3c59bbb5179753bee287f1ec4d2a2d6373eb7aa"
+    },
+    {
+      "path": "START_HERE.html",
+      "bytes": 389,
+      "sha256": "af66a5d11f9f775c9dae20851bcb9cb8574e6f04a86dee677c5849cb9e90a122"
+    },
+    {
+      "path": "docs/COMPOSITION.html",
+      "bytes": 12596,
+      "sha256": "1291d31c1623b0778b4c49a594d047b1acec803596eea520cffb6751d0c6b0ce"
+    },
+    {
+      "path": "docs/COMPOSITION.md",
+      "bytes": 9590,
+      "sha256": "2a20a19c276719a3d9443a729a426a23bc5f7df1325d9fe18af87c40990fdd81"
+    },
+    {
+      "path": "docs/FORMULA_REFERENCE.md",
+      "bytes": 7625,
+      "sha256": "fdc2f6382e1466f39b5b577c4c11b2f8f3ab2146402b3eee1fbc2154e99e3ce8"
+    },
+    {
+      "path": "docs/IMAGE_COMPARISON.json",
+      "bytes": 1511,
+      "sha256": "2b113054a91195f1b8ce9a67682327e58b0afa4a9be143a31b810dd6d8734366"
+    },
+    {
+      "path": "docs/NUMERICS_AND_VALIDATION.html",
+      "bytes": 11410,
+      "sha256": "ec0f16b0f3ca3412a79c843cd238096d465b2a34ce0263062c0be3de4b8a84a7"
+    },
+    {
+      "path": "docs/NUMERICS_AND_VALIDATION.md",
+      "bytes": 8783,
+      "sha256": "6c8ff7ae8379709886f1c2474dae8dea0231bff00b05ec05b6b432b27ab3875b"
+    },
+    {
+      "path": "docs/TEST_RESULTS.txt",
+      "bytes": 4260,
+      "sha256": "fc6cae602fb083d92c0db06a6709c6c7d9b96b8d3d7cdb4406b8ed472b0c15e2"
+    },
+    {
+      "path": "docs/VIEWER_VALIDATION.json",
+      "bytes": 525,
+      "sha256": "07c9407105f88e0a3a3e112c23c9ce56b41e33f2f5762f1c7e21bd3652f9c29e"
+    },
+    {
+      "path": "docs/WALKTHROUGH.html",
+      "bytes": 20029,
+      "sha256": "21e2b2a6e9ec157d65ed53fed02038dbaaaabb9bea9800ef3981ea4f0f88517b"
+    },
+    {
+      "path": "docs/WALKTHROUGH.md",
+      "bytes": 15567,
+      "sha256": "1b0d7e6ac12cd7a9b7e0d0a8ccf4fa9b0fbf5bbba11a32a16e653445f0c59da4"
+    },
+    {
+      "path": "examples/__init__.py",
+      "bytes": 81,
+      "sha256": "070b6468349e7ade13b102636c7341a645217557a004cd379255475dba4ce3d6"
+    },
+    {
+      "path": "examples/custom_ring.py",
+      "bytes": 1548,
+      "sha256": "4669f441d8e1dbddd0816960f0cea8e34c6d2a32d68adf18e7bace223b379b05"
+    },
+    {
+      "path": "examples/minimal.py",
+      "bytes": 452,
+      "sha256": "8fd7b11d9daa35525c7056579a9b7c75eb3f2ef5631145479896bd6d26175d76"
+    },
+    {
+      "path": "examples/twin_nebulae.py",
+      "bytes": 1537,
+      "sha256": "479c389594ad244c52ae0c5adf431fb166164fca12920a2dcda871a1ddb5bb91"
+    },
+    {
+      "path": "gallery/atlas.json",
+      "bytes": 1513,
+      "sha256": "f4c6e643e7fc470537078f6114b849e0860bcd473a0f8467c22fb8286f0e4288"
+    },
+    {
+      "path": "gallery/composite_000.png",
+      "bytes": 1824,
+      "sha256": "6d7e7f96e6431a90d31a83fa94d00e4884b54709094e0b4d4d45a617c039e68c"
+    },
+    {
+      "path": "gallery/composite_001.png",
+      "bytes": 372166,
+      "sha256": "707d31f6bed5472a0e54e007b780c13d97610aee39f9c08d01d3a4fc504a0b46"
+    },
+    {
+      "path": "gallery/composite_010.png",
+      "bytes": 30741,
+      "sha256": "ac3061594c6922e6bc283331cc44d7e3130b974c53e90a56124cbca73b8ae05a"
+    },
+    {
+      "path": "gallery/composite_011.png",
+      "bytes": 404887,
+      "sha256": "0e6cd2422d37327927cada7673bb65d80597dc1193145ae214be7d63fb6ac9f0"
+    },
+    {
+      "path": "gallery/composite_100.png",
+      "bytes": 895681,
+      "sha256": "a11e66719f66df3ff76ec1342bedf40ba577c0a943a50183c97db5c8f64aa365"
+    },
+    {
+      "path": "gallery/composite_101.png",
+      "bytes": 1127870,
+      "sha256": "1d9ac75694f5760889c3237db1bba50ff1f4af47870e31fa9388933f73ce970b"
+    },
+    {
+      "path": "gallery/composite_110.png",
+      "bytes": 889448,
+      "sha256": "d20cdc5886a09efe671bebf5790577bcf48dfbbcfcf5caec85b953e22ad92a46"
+    },
+    {
+      "path": "gallery/composite_111.png",
+      "bytes": 1121517,
+      "sha256": "b9107960f87883c729a025f21788609da36b56c53a8bcae7194eb8ea8612cfc3"
+    },
+    {
+      "path": "gallery/custom_ring.png",
+      "bytes": 641121,
+      "sha256": "3275b000d5cec1e388bfe5be49cff052f94d3bdd7b05a7ea42224bd6640a4302"
+    },
+    {
+      "path": "gallery/diagnostic_cloud.png",
+      "bytes": 1309938,
+      "sha256": "c5bed227dec4c77eec4e04fe162639b80383c28c1ce883c31b150080f91f0b05"
+    },
+    {
+      "path": "gallery/diagnostic_core_mask.png",
+      "bytes": 22725,
+      "sha256": "11704066f49a9996265ecc8cbffa2879fef5fc7f0c3f825eee63546890bc32cc"
+    },
+    {
+      "path": "gallery/diagnostic_coverage.png",
+      "bytes": 46150,
+      "sha256": "0f3b42b0187ff57bab58c9cb8bef0ac51eb2b003dc3b3244e24082d1934b9858"
+    },
+    {
+      "path": "gallery/diagnostic_rim.png",
+      "bytes": 81575,
+      "sha256": "25185555e8828e45f22ada91d33b6b110cb059022e526386e5bc88bb035e10ae"
+    },
+    {
+      "path": "gallery/diagnostic_turbulence.png",
+      "bytes": 702874,
+      "sha256": "e1a37a5cad4a62090cd0af64dbf3c276c11b990c3246936842c9a3a27021b0b4"
+    },
+    {
+      "path": "gallery/diagnostic_warp.png",
+      "bytes": 110801,
+      "sha256": "f9401b552262b5046bf04e9af8fed861a9c9c736892769e0caa84f2d6ccd943e"
+    },
+    {
+      "path": "gallery/index.html",
+      "bytes": 6000,
+      "sha256": "183f6bb2e2cdeeea98f12472c5335fe92341a91983b1b33d912ab6a7b48b10e8"
+    },
+    {
+      "path": "gallery/preview.png",
+      "bytes": 1292754,
+      "sha256": "e3cb7a7d7d8be2d7e846435f1527f31fe7a4c62e8726c5ee240325b132fec79c"
+    },
+    {
+      "path": "gallery/reconstruction_2000x1200.json",
+      "bytes": 1426,
+      "sha256": "0005f7b187d5aa82f0465184c1e2a0dbede3d11cdde463c2f2f59bb66043b8a6"
+    },
+    {
+      "path": "gallery/reconstruction_2000x1200.png",
+      "bytes": 4205763,
+      "sha256": "dc674e9c6063f2b24b720f3fdbcdb8dd64e0c81fd9c66c3fc6f13b68e4d6996d"
+    },
+    {
+      "path": "gallery/twin_nebulae.png",
+      "bytes": 810940,
+      "sha256": "4833f993b47877e95d68a4f752e941c961e46b15ddaf8c27743180cf6963fefe"
+    },
+    {
+      "path": "nebula/__init__.py",
+      "bytes": 875,
+      "sha256": "6cb744e34fca1df1db2ba3d3d113b53d160320a696c489671910e6a4624544bc"
+    },
+    {
+      "path": "nebula/__main__.py",
+      "bytes": 4247,
+      "sha256": "15133036158f7c690971117948222c6e37d6311747da7417c646fa6cee9da214"
+    },
+    {
+      "path": "nebula/atlas.py",
+      "bytes": 9858,
+      "sha256": "e0961cc54da5665df5ade6df01c42e2aca190c0f593804d4992658b9615c909d"
+    },
+    {
+      "path": "nebula/composition.py",
+      "bytes": 2870,
+      "sha256": "113b7f61ed0e29f3b06c59ad3c9116cc6709bb318c7ed9223c851fcf1d0cee3b"
+    },
+    {
+      "path": "nebula/config.py",
+      "bytes": 5433,
+      "sha256": "dcba3b8b79ff2309d124b44ea95e2b1607bada4695eaa57f75cdbbf53c4c03d3"
+    },
+    {
+      "path": "nebula/geometry.py",
+      "bytes": 4349,
+      "sha256": "c6094e2efb5bffc8808489a40b5e1ff029259420645360404f18dfb792d81dc1"
+    },
+    {
+      "path": "nebula/numeric.py",
+      "bytes": 3343,
+      "sha256": "3c8a56e4540d668fabaebbd4d6c4befbfe279e0d16277aada6ecd0ce044d06f2"
+    },
+    {
+      "path": "nebula/presets.py",
+      "bytes": 844,
+      "sha256": "0e0efdaefa4bff5ca4eff814b7bdb8e0f0f3bf64cb3168d06cbbebf1f30ba4bc"
+    },
+    {
+      "path": "nebula/render.py",
+      "bytes": 5425,
+      "sha256": "f89a29d13f98f5a7a898db2bf44091060fb17e0a44ad13ec563f34eca41bc926"
+    },
+    {
+      "path": "nebula/scene.py",
+      "bytes": 3462,
+      "sha256": "6188533dc33edc1255c4a7867e85d8b46d2f659d00269e36169a057874d4620a"
+    },
+    {
+      "path": "nebula/stars.py",
+      "bytes": 2873,
+      "sha256": "ccb1861a4ad6b7528c4204b42b0f65b5094f8384fe6536aca59ee1c77617309a"
+    },
+    {
+      "path": "nebula/textures.py",
+      "bytes": 4601,
+      "sha256": "2c36fc584a1c69edbf557e190656f85f83d6b5501eb8f85facb2397699f129cb"
+    },
+    {
+      "path": "pyproject.toml",
+      "bytes": 373,
+      "sha256": "d156dd72045bfd3aa0be79946419f089c58ffdd8cca1432fd0bc4432c4c89109"
+    },
+    {
+      "path": "requirements-docs.txt",
+      "bytes": 90,
+      "sha256": "7c7232ceca7a6b33b988f89b357e41e3f008da2d3214c3a0ff04a6ddaf834813"
+    },
+    {
+      "path": "requirements.txt",
+      "bytes": 23,
+      "sha256": "67a9c15a6fa737b3ea8f2920b6f8cf51cdbbbdaee9ee4545db64e21fa15ae7ac"
+    },
+    {
+      "path": "tests/reference_scalar.py",
+      "bytes": 3693,
+      "sha256": "c8ea1cfe789f68350ab8017e263fc66dfa3a3deb6d80822d2c4bc9b5fb993a26"
+    },
+    {
+      "path": "tests/test_nebula.py",
+      "bytes": 12806,
+      "sha256": "8661da63b4a5e81a8d868ce3a819c8c6a1d01070cea8655f805f22a17a7426a2"
+    },
+    {
+      "path": "tools/__init__.py",
+      "bytes": 72,
+      "sha256": "8697073589f42ddca1b36cd2e1a12051eb8b842420677f194e57f15fc67dd13c"
+    },
+    {
+      "path": "tools/build_reading_pages.py",
+      "bytes": 2917,
+      "sha256": "806c35bfffa4dd5c327f0a8cce64ee544f9aa57b1924b1d0b1b99d240f8b2b2e"
+    },
+    {
+      "path": "tools/compare_reference.py",
+      "bytes": 3081,
+      "sha256": "4a6061eaaa6187453addd8bf3dd6c63c6e02cd74815f0af807cf85ac63d54dc5"
+    }
+  ]
+}

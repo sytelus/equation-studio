@@ -1,0 +1,79 @@
+{
+  "id": "feather",
+  "title": "One feather, many possibilities",
+  "description": "Inspect the reusable stamp that makes the fan. Rotate, scale, mask, tint or repeat it in your own construction.",
+  "status": "Component study",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "background",
+      "type": "solid",
+      "label": "Solid color",
+      "inputs": {},
+      "params": {
+        "color": "#010305",
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "local",
+      "type": "transform",
+      "label": "Translate · rotate · scale",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "x": 0,
+        "y": -1.08,
+        "angle": 0,
+        "scale": 2.1,
+        "stretch": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "feather",
+      "type": "feather",
+      "label": "Single eyespot feather",
+      "inputs": {
+        "p": "local"
+      },
+      "params": {
+        "width": 0.19,
+        "eye": 1,
+        "speed": 0.2
+      },
+      "enabled": true
+    },
+    {
+      "id": "final",
+      "type": "over",
+      "label": "Front over back",
+      "inputs": {
+        "front": "feather",
+        "back": "background"
+      },
+      "params": {},
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1.8,
+  "tone": "filmic",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": []
+}

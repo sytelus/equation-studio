@@ -1,0 +1,158 @@
+{
+  "id": "tidal",
+  "title": "Tidal disruption",
+  "description": "A tapered stellar stream, a projected accretion disk and an illustrative central shadow. Not a physical simulation.",
+  "status": "Interpretive study",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "stars",
+      "type": "scatterStars",
+      "label": "Seeded star field",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "density": 22,
+        "gain": 0.4,
+        "seed": 17,
+        "speed": 0.1
+      },
+      "enabled": true
+    },
+    {
+      "id": "disk",
+      "type": "disk",
+      "label": "Accretion disk & shadow",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "radius": 0.34,
+        "inclination": 3,
+        "spin": 4,
+        "speed": 0.5
+      },
+      "enabled": true
+    },
+    {
+      "id": "stream",
+      "type": "tidal",
+      "label": "Stretched star & tidal stream",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "stretch": 2.5,
+        "size": 0.13,
+        "speed": 0.5
+      },
+      "enabled": true
+    },
+    {
+      "id": "emission",
+      "type": "add",
+      "label": "Add light",
+      "inputs": {
+        "a": "disk",
+        "b": "stream"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "shadowMask",
+      "type": "disc",
+      "label": "Soft disc / sphere mask",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "radius": 0.285,
+        "edge": 0.007
+      },
+      "enabled": true
+    },
+    {
+      "id": "outsideShadow",
+      "type": "expression",
+      "label": "Custom scalar equation",
+      "inputs": {
+        "p": "space",
+        "a": "shadowMask"
+      },
+      "params": {
+        "expression": "1.0-a"
+      },
+      "enabled": true
+    },
+    {
+      "id": "maskedStars",
+      "type": "mask",
+      "label": "Mask layer",
+      "inputs": {
+        "layer": "stars",
+        "mask": "outsideShadow"
+      },
+      "params": {
+        "strength": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "black",
+      "type": "solid",
+      "label": "Solid color",
+      "inputs": {},
+      "params": {
+        "color": "#000000",
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "background",
+      "type": "over",
+      "label": "Front over back",
+      "inputs": {
+        "front": "maskedStars",
+        "back": "black"
+      },
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "final",
+      "type": "add",
+      "label": "Add light",
+      "inputs": {
+        "a": "background",
+        "b": "emission"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1.4,
+  "tone": "filmic",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": []
+}

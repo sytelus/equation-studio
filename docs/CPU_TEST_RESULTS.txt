@@ -1,0 +1,47 @@
+test_color_index_is_not_mask_index (test_nebula.CompositionTests.test_color_index_is_not_mask_index) ... ok
+test_composition_rejects_shape_mismatch (test_nebula.CompositionTests.test_composition_rejects_shape_mismatch) ... ok
+test_emission_not_clipped (test_nebula.CompositionTests.test_emission_not_clipped) ... ok
+test_tint_and_mask (test_nebula.CompositionTests.test_tint_and_mask) ... ok
+test_transform_rotation (test_nebula.CompositionTests.test_transform_rotation) ... ok
+test_transform_translation_scale (test_nebula.CompositionTests.test_transform_translation_scale) ... ok
+test_atlas_contains_real_composites_and_raw_fields (test_nebula.ConfigurationAndCLITests.test_atlas_contains_real_composites_and_raw_fields) ... ok
+test_cli_small_render_and_metadata (test_nebula.ConfigurationAndCLITests.test_cli_small_render_and_metadata) ... ok
+test_presets_leave_defaults_unchanged (test_nebula.ConfigurationAndCLITests.test_presets_leave_defaults_unchanged) ... ok
+test_reject_invalid_config (test_nebula.ConfigurationAndCLITests.test_reject_invalid_config) ... ok
+test_broadcast_evaluation (test_nebula.GeometryTests.test_broadcast_evaluation) ... ok
+test_reject_mismatched_geometry (test_nebula.GeometryTests.test_reject_mismatched_geometry) ... ok
+test_reject_nonfinite_coordinates (test_nebula.GeometryTests.test_reject_nonfinite_coordinates) ... ok
+test_replace_geometry (test_nebula.GeometryTests.test_replace_geometry) ... ok
+test_scalar_evaluation (test_nebula.GeometryTests.test_scalar_evaluation) ... ok
+test_scene_layer_identity (test_nebula.GeometryTests.test_scene_layer_identity) ... ok
+test_shell_envelope_bounds (test_nebula.GeometryTests.test_shell_envelope_bounds) ... ok
+test_singular_contour_has_finite_aggregate (test_nebula.GeometryTests.test_singular_contour_has_finite_aggregate) ... ok
+test_undefined_intersection_convention (test_nebula.GeometryTests.test_undefined_intersection_convention) ... ok
+test_zero_star_gain (test_nebula.GeometryTests.test_zero_star_gain) ... ok
+test_display_extreme_finite (test_nebula.NumericalTests.test_display_extreme_finite) ... ok
+test_display_matches_scalar_formula (test_nebula.NumericalTests.test_display_matches_scalar_formula) ... ok
+test_display_rejects_nonfinite (test_nebula.NumericalTests.test_display_rejects_nonfinite) ... ok
+test_original_blue_coefficients_not_clamped (test_nebula.NumericalTests.test_original_blue_coefficients_not_clamped) ... ok
+test_soft_cutoff_decreasing (test_nebula.NumericalTests.test_soft_cutoff_decreasing) ... ok
+test_soft_cutoff_extremes_without_overflow (test_nebula.NumericalTests.test_soft_cutoff_extremes_without_overflow) ... ok
+test_soft_cutoff_midpoint (test_nebula.NumericalTests.test_soft_cutoff_midpoint) ... ok
+test_star_alternating_colors (test_nebula.NumericalTests.test_star_alternating_colors) ... ok
+test_star_kernel_at_lattice_origin (test_nebula.NumericalTests.test_star_kernel_at_lattice_origin) ... ok
+test_triangle_fold (test_nebula.NumericalTests.test_triangle_fold) ... ok
+test_independent_scalar_reference_at_32_source_pixels (test_nebula.ReferenceTests.test_independent_scalar_reference_at_32_source_pixels) ... ok
+test_coordinate_tiles_match_full_grid (test_nebula.RenderTests.test_coordinate_tiles_match_full_grid) ... ok
+test_custom_viewport (test_nebula.RenderTests.test_custom_viewport) ... ok
+test_grid_y_orientation (test_nebula.RenderTests.test_grid_y_orientation) ... ok
+test_original_grid_coordinates (test_nebula.RenderTests.test_original_grid_coordinates) ... ok
+test_png_roundtrip (test_nebula.RenderTests.test_png_roundtrip) ... ok
+test_progress_completes (test_nebula.RenderTests.test_progress_completes) ... ok
+test_reject_bad_dimensions (test_nebula.RenderTests.test_reject_bad_dimensions) ... ok
+test_reject_bad_shader_shape (test_nebula.RenderTests.test_reject_bad_shader_shape) ... ok
+test_supersampling_averages_before_display (test_nebula.RenderTests.test_supersampling_averages_before_display) ... ok
+test_supersampling_constant_field (test_nebula.RenderTests.test_supersampling_constant_field) ... ok
+test_tiled_render_is_pixel_identical (test_nebula.RenderTests.test_tiled_render_is_pixel_identical) ... ok
+
+----------------------------------------------------------------------
+Ran 42 tests in 1.371s
+
+OK

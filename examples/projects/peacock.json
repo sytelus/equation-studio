@@ -1,0 +1,87 @@
+{
+  "id": "peacock",
+  "title": "Peacock in full display",
+  "description": "One eyespot-feather kernel instanced across four fan rows, with an independent body, crest and background.",
+  "status": "Interpretive study",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "background",
+      "type": "solid",
+      "label": "Solid color",
+      "inputs": {},
+      "params": {
+        "color": "#010305",
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "fan",
+      "type": "fan",
+      "label": "Peacock feather fan",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "spread": 2.9,
+        "rows": 4,
+        "width": 0.095,
+        "speed": 0.3
+      },
+      "enabled": true
+    },
+    {
+      "id": "tail",
+      "type": "over",
+      "label": "Front over back",
+      "inputs": {
+        "front": "fan",
+        "back": "background"
+      },
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "body",
+      "type": "peacockBody",
+      "label": "Peacock body & crest",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "size": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "final",
+      "type": "over",
+      "label": "Front over back",
+      "inputs": {
+        "front": "body",
+        "back": "tail"
+      },
+      "params": {},
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1.7,
+  "tone": "filmic",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": []
+}

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Research, provenance, and what “from equations”
+establishes</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="../docs/reading.css" />
+</head>
+<body>
+<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#research-provenance-and-what-from-equations-establishes"
+id="toc-research-provenance-and-what-from-equations-establishes">Research,
+provenance, and what “from equations” establishes</a>
+<ul>
+<li><a href="#findings-about-the-artists-process"
+id="toc-findings-about-the-artists-process">Findings about the artist’s
+process</a></li>
+<li><a href="#exact-source-by-source-ledger"
+id="toc-exact-source-by-source-ledger">Exact source-by-source
+ledger</a></li>
+<li><a href="#the-evidence-standard-used-in-the-library"
+id="toc-the-evidence-standard-used-in-the-library">The evidence standard
+used in the library</a></li>
+<li><a href="#reproduction-pitfalls-addressed-in-the-port"
+id="toc-reproduction-pitfalls-addressed-in-the-port">Reproduction
+pitfalls addressed in the port</a></li>
+<li><a href="#technical-primary-references"
+id="toc-technical-primary-references">Technical primary
+references</a></li>
+<li><a href="#what-would-change-the-reconstruction-status"
+id="toc-what-would-change-the-reconstruction-status">What would change
+the reconstruction status?</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1
+id="research-provenance-and-what-from-equations-establishes">Research,
+provenance, and what “from equations” establishes</h1>
+<p>Research date: <strong>22 September 2026</strong>. This report
+separates recovered evidence, mathematical inference, and new
+implementation choices. The executable studies are documented in <a
+href="RECIPES.html">Recipes</a>; their formulas are not attributed to
+unretrieved source sheets.</p>
+<h2 id="findings-about-the-artists-process">Findings about the artist’s
+process</h2>
+<p>In his own 2017 essay, <a
+href="https://www.scientificamerican.com/blog/guest-blog/how-to-draw-with-math/">How
+to Draw with Math</a>, Hamid Naderi Yeganeh describes choosing a
+real-world subject and incrementally adding mathematical expressions to
+increase the resemblance. He explains why periodic, bounded, smooth sine
+and cosine functions are useful. This supports deliberate, iterative
+mathematical design; it does not imply that recognizable subjects appear
+without intent.</p>
+<p>His short article <a
+href="https://doi.org/10.1080/10724117.2024.2368373">Pictures from
+Networks of Mathematical Functions</a>, <em>Math Horizons</em> 32(1),
+22–23, first published online 29 August 2024, describes a multi-step
+construction scenario, repeated computer experiments with candidate
+functions, and auxiliary-function networks that keep the final
+definition compact. The short article’s text was retrieved through Exa;
+its DOI metadata was independently indexed. It supports a
+network-of-functions interpretation of the printed equations, not a
+claim that an automatic pixel optimizer, image-tracing pipeline, or
+generative model was used.</p>
+<p>The following is our distinction, not a quotation or a diagnosis of
+the artist’s private workflow:</p>
+<p><strong>Forward rendering</strong> evaluates a finished
+construction:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝒢</mi><mo>,</mo><mi>θ</mi><mo>,</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+I(x,y,t)=R(\mathcal G,\theta,x,y,t).
+</annotation></semantics></math></p>
+<p>Here
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝒢</mi><annotation encoding="application/x-tex">\mathcal G</annotation></semantics></math>
+is a graph of functions,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+its parameters, and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>R</mi><annotation encoding="application/x-tex">R</annotation></semantics></math>
+the evaluation procedure. This is exactly what the application does.</p>
+<p><strong>Inverse design</strong> works backward from a desired result
+toward
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝒢</mi><annotation encoding="application/x-tex">\mathcal G</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>.
+A human imagining a peacock and refining a feather equation is doing
+inverse design in this broad sense. That is compatible with the final
+renderer using nothing but mathematical functions.</p>
+<p><strong>Automatic fitting</strong> is a narrower, additional
+mechanism. One possible formulation would minimize an image discrepancy
+plus a complexity penalty:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mrow><mi>𝒢</mi><mo>,</mo><mi>θ</mi></mrow></munder><mi>L</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝒢</mi><mo>,</mo><mi>θ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><msub><mi>I</mi><mrow><mi mathvariant="normal">t</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">t</mi></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mo>+</mo><mi>λ</mi><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">m</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">x</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">y</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝒢</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\min_{\mathcal G,\theta} L\big(R(\mathcal G,\theta),I_{\mathrm{target}}\big)
++\lambda\,\mathrm{complexity}(\mathcal G).
+</annotation></semantics></math></p>
+<p>This equation illustrates a possible optimization problem. It is
+<strong>not</strong> evidence that the artist used it, and this
+application does not implement such an optimizer. The local reference
+overlay supports human comparison only.</p>
+<p>A finished expression ordinarily does not determine its history: the
+same function could be invented analytically, refined visually,
+optimized automatically, or copied from another source. Reproduction
+verifies the executable construction, not how it was discovered.
+Conversely, explaining an image by a function is most informative when
+the representation exposes reusable structure, not just a table of
+independent pixel values. Function sharing is therefore a central
+feature of the editor.</p>
+<h2 id="exact-source-by-source-ledger">Exact source-by-source
+ledger</h2>
+<p>Direct retrieval of the ten X URLs below was blocked; a batch Exa
+fetch also returned <code>SOURCE_NOT_AVAILABLE</code> for each. Searches
+recovered some primary captions and announcements, but <strong>a caption
+is not a formula sheet</strong>. The linked pages are retained as
+research leads, not treated as fully read documents.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Requested source</th>
+<th>Recovered evidence</th>
+<th>Not recovered / consequence</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a
+href="https://x.com/naderi_yeganeh/status/2099486463528153310">Stormy
+water planet</a></td>
+<td>Indexed artist-post caption identifying the subject</td>
+<td>Full-resolution artwork/equations unavailable. Our
+sphere/cyclone/cloud construction is interpretive.</td>
+</tr>
+<tr class="even">
+<td><a
+href="https://x.com/naderi_yeganeh/status/2098386890013479111">Galaxy
+lensed by a star cluster</a></td>
+<td>Indexed primary caption identifying the subject</td>
+<td>No original lens or galaxy equation sheet. We specify our own
+softened coordinate lens.</td>
+</tr>
+<tr class="odd">
+<td><a
+href="https://x.com/naderi_yeganeh/status/2094384568648261800">Spiral
+aurora / auroral vortex</a></td>
+<td>Indexed primary caption identifying the subject</td>
+<td>No original spiral/curtain equations. Our logarithmic ribbon is a
+new recipe.</td>
+</tr>
+<tr class="even">
+<td><a
+href="https://x.com/naderi_yeganeh/status/2089682273930998050">Black
+hole stretching a star</a></td>
+<td>Indexed primary caption; related artist caption also
+retrievable</td>
+<td>No complete original formula. Our illustration is not a derivation
+of that exact artwork or a relativistic solver.</td>
+</tr>
+<tr class="odd">
+<td><a
+href="https://x.com/naderi_yeganeh/status/2083165498674426049">Peacock
+in full display</a></td>
+<td>Indexed caption of the requested post; an older artist-posted
+peacock thumbnail was visible during research</td>
+<td>The older thumbnail is not the requested formula sheet and was not
+substituted for it. The delivered feather/fan recipe is new.</td>
+</tr>
+<tr class="even">
+<td><a
+href="https://x.com/naderi_yeganeh/status/1881707698640551955">Hedgehog
+video announcement</a></td>
+<td>Indexed announcement of a short construction-scenario animation;
+corroborating artist-channel title</td>
+<td>No inspected video frames or transcript. Our teaching example is not
+a transcription.</td>
+</tr>
+<tr class="odd">
+<td><a
+href="https://x.com/naderi_yeganeh/status/1884272742159057270">Fire
+video announcement</a></td>
+<td>Indexed announcement and corroborating artist-channel title</td>
+<td>No inspected video frames or transcript. Our advected flame field is
+not attributed to the video.</td>
+</tr>
+<tr class="even">
+<td><a
+href="https://x.com/naderi_yeganeh/status/1610740065763745792">2023
+explanation thread</a></td>
+<td>URL and description supplied by the user</td>
+<td>Full text not recovered. No invented quotation or reconstructed
+thread.</td>
+</tr>
+<tr class="odd">
+<td><a href="https://x.com/deedydas/status/1863051658022023477">Deedy’s
+Rust debugging post</a></td>
+<td>URL and description supplied by the user</td>
+<td>Code and exchange not recovered. No claim to have diagnosed that
+program.</td>
+</tr>
+<tr class="even">
+<td><a
+href="https://x.com/aussetg/status/2102138297623433273">Forward/inverse-design
+reply</a></td>
+<td>URL and description supplied by the user</td>
+<td>Reply text not recovered. Our distinction above is not represented
+as its exact wording.</td>
+</tr>
+</tbody>
+</table>
+<p>The <a href="https://www.youtube.com/@naderiyeganeh">artist’s YouTube
+channel</a> was also checked. Indexed listings corroborated the Hedgehog
+and Fire titles. Direct channel retrieval returned a shell rather than
+the video content. A presentation announcement is not equivalent to
+inspecting the presentation itself.</p>
+<h2 id="the-evidence-standard-used-in-the-library">The evidence standard
+used in the library</h2>
+<p>The supplied nebula has a readable equation sheet, a retained
+independent scalar transcription, the prior vectorized Python
+implementation, a native CPU image, and a new GPU implementation. It
+therefore supports a <strong>source-equation port</strong> label with
+explicit precision qualifications. The old CPU code remains unchanged
+and testable.</p>
+<p>The five newer subjects have high-level descriptions but not
+recovered formulas. Their executable implementations are
+<strong>subject-based studies</strong>. The decomposition into geometry,
+texture, light, and composition is a constructive design proposal. We do
+not claim numerical similarity to unseen images, exact matching to the
+artist’s private construction, or a recovered inverse-design search.</p>
+<p>Hedgehog and Fire are <strong>teaching studies</strong>. They
+demonstrate how a compact scenario can be assembled from familiar atoms,
+without pretending to reproduce inaccessible tutorial steps. Additional
+Ring Nebula, Marble, Kaleidoscope, and One Feather scenes expose reuse
+directly.</p>
+<h2 id="reproduction-pitfalls-addressed-in-the-port">Reproduction
+pitfalls addressed in the port</h2>
+<p>The retained nebula equations contain a nested network, not a single
+unstructured pixel expression. Several errors can remain visually
+plausible: swapping the rotated coordinate pair; moving a phase term
+inside a nested cosine; using the wrong angular argument order;
+confusing scalar threshold indices with RGB indices; suppressing
+negative per-band color coefficients; clipping layers before addition;
+ignoring the one-based source pixel grid; and using a prefix sum instead
+of the ordered prefix product.</p>
+<p>The GPU port adds a further issue: fixed large-angle trigonometric
+constants evaluated in shader float32 can shift very fine details. This
+was observed during development and reduced by computing those
+coordinate-independent constants once in JavaScript float64.
+Position-dependent fields remain GPU calculations. We tested both raw
+fields and the native final image; neither test alone establishes every
+aspect of transcription correctness. The full error distribution is
+summarized in <a href="VALIDATION.html">Validation</a>, including the
+worst outlier rather than only a favorable correlation score.</p>
+<p>These are lessons from this implementation and its reference,
+<strong>not</strong> asserted explanations of the unrecovered Rust
+debugging exchange.</p>
+<h2 id="technical-primary-references">Technical primary references</h2>
+<ul>
+<li><a
+href="https://registry.khronos.org/webgl/specs/latest/2.0/">Khronos
+WebGL 2 specification</a> — API, framebuffer, shader, precision, and
+context behavior. The <code>latest</code> document is an editor’s draft,
+not a claim of a newly finalized standard.</li>
+<li><a
+href="https://registry.khronos.org/webgl/extensions/EXT_color_buffer_float/">Khronos
+EXT_color_buffer_float</a> — optional floating-point render targets for
+raw field probes.</li>
+<li><a href="https://www.w3.org/TR/mediacapture-fromelement/">W3C Media
+Capture from DOM Elements</a> — canvas capture used for real-time video.
+Browser support is detected rather than assumed.</li>
+<li><a href="https://arxiv.org/abs/astro-ph/9912508">Bartelmann and
+Schneider, Weak Gravitational Lensing</a> — scientific background for
+lens mapping. Our dimensionless softened map is an illustrative
+simplification, not an implementation validated against that review, the
+artist’s formulas, or astronomical observations.</li>
+</ul>
+<h2 id="what-would-change-the-reconstruction-status">What would change
+the reconstruction status?</h2>
+<p>An exact new transcription needs the corresponding readable, complete
+equation sheet (and ideally a native uncompressed render). The source
+should first be recorded with attribution and dimensions. Then implement
+the equations independently, compare intermediate fields and source-grid
+pixels, and inspect disagreement maps before changing a preset’s
+provenance label. A successful subject resemblance alone is
+insufficient. This pipeline is already embodied by the original nebula
+reference and GPU tests.</p>
+</body>
+</html>

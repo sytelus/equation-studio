@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Portable examples</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="../docs/reading.css" />
+</head>
+<body>
+<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#portable-examples" id="toc-portable-examples">Portable
+examples</a>
+<ul>
+<li><a href="#three-useful-starting-points"
+id="toc-three-useful-starting-points">Three useful starting
+points</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="portable-examples">Portable examples</h1>
+<p><code>projects/</code> contains one validated JSON project for every
+built-in scene. Open any of them with <strong>Open project</strong> in
+the app. They are independent files; modifying one does not edit the
+preset’s source definition. JSON contains equations, topology,
+parameters and tracks, not image pixels.</p>
+<p><code>embedded.html</code> demonstrates using the renderer, presets
+and PNG metadata helper without the editor. Serve the project root using
+<code>python3 start.py</code>, then visit
+<code>http://127.0.0.1:8765/examples/embedded.html</code>. Unlike the
+bundled single-file application, this source-module example should be
+served rather than opened as <code>file://</code> because it uses
+ES-module imports.</p>
+<h2 id="three-useful-starting-points">Three useful starting points</h2>
+<p><strong>Ring Nebula</strong> (<code>projects/ring.json</code>)
+replaces the original geometry bundle without modifying the cloud
+generator. Compare its graph to <code>bipolar.json</code> and trace
+which node changed. This demonstrates interface-driven reuse rather than
+copying a monolithic formula.</p>
+<p><strong>One Feather</strong> (<code>projects/feather.json</code>)
+isolates the same analytic stamp that the Peacock fan repeatedly calls.
+Modify width/eyespot scale in the small scene before working on a dense
+full display.</p>
+<p><strong>Kaleidoscope</strong>
+(<code>projects/kaleidoscope.json</code>) combines coordinate symmetry
+with custom scalar and color expressions. It is a small, editable
+authoring example for effects unrelated to the supplied nebula.</p>
+<p>The full <a href="../docs/RECIPES.html">Recipes guide</a> explains how
+to apply a lens to a nebula, combine two nebular branches over shared
+stars, and build a new flower field. <a
+href="../docs/ARCHITECTURE.html">Architecture</a> describes adding a
+component with typed sockets and sliders.</p>
+</body>
+</html>

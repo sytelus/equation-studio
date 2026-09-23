@@ -1,0 +1,85 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Numerical fidelity, tests, and limitations</title><style>
+:root{color-scheme:light}body{margin:0;color:#243142;background:#f5f4f0;font:17px/1.7 system-ui,sans-serif}
+main{max-width:1040px;margin:auto;padding:28px 32px 90px;background:white}nav{font-size:.9rem;border-bottom:1px solid #ccd1db;padding-bottom:18px;margin-bottom:30px}
+a{color:#713265}h1,h2,h3{line-height:1.25;letter-spacing:-.02em;color:#172438}h1{font-size:2.4rem}h2{font-size:1.7rem;margin-top:2.3em}h3{margin-top:1.9em}
+p,li{max-width:88ch}pre{padding:20px;overflow:auto;background:#f1f3f7;border-radius:8px;font-size:14px;line-height:1.6}code{font-family:ui-monospace,monospace;font-size:.9em}p code,td code{background:#f0eef4;padding:.1em .3em;border-radius:3px}
+table{width:100%;border-collapse:collapse;font-size:.9rem;display:block;overflow:auto}th,td{padding:11px 14px;border-bottom:1px solid #dfe3ea;text-align:left;vertical-align:top}th{background:#f0eef4}img{max-width:100%;height:auto;border-radius:8px}
+@media(max-width:650px){main{padding:20px 16px}body{font-size:16px}h1{font-size:2rem}}
+</style></head><body><main><nav><a href="../README.html">Start / run instructions</a> · <a href="../gallery/index.html">Layer viewer</a> · <a href="NUMERICS_AND_VALIDATION.md">Markdown source</a></nav><h1>Numerical fidelity, tests, and limitations</h1>
+<h2>What was verified</h2>
+<p>The delivered implementation was executed, not only written. Its default settings rendered the complete <strong>2000 × 1200</strong> source grid to <code>gallery/reconstruction_2000x1200.png</code>. Every output tile passed the renderer's finite-radiance check before conversion to RGB bytes.</p>
+<p>The <strong>42-test</strong> standard-library <code>unittest</code> suite passed. The captured run is in <a href="TEST_RESULTS.txt">TEST_RESULTS.txt</a>. The suite covers an independent scalar formula reference at 32 source-grid pixels; intermediate fields <code>S,A,E,W,K,T,H</code>; final <code>F</code> values; scalar and broadcast evaluation; envelope bounds; singular-coordinate conventions; color coefficients; layer composition; custom geometry; source-grid indexing; tile-size invariance; supersampling; invalid inputs; PNG round-tripping; CLI metadata; and the atlas's eight correctly assembled combinations and raw-field export.</p>
+<p>The independent reference uses Python <code>math</code>, separate functions, literal per-channel formulas, and explicit prefix products. It does not import the production formula helpers. Intermediate comparisons use relative tolerance <code>2e-8</code> and absolute tolerance <code>2e-9</code>; final byte colors are compared exactly at the selected test pixels.</p>
+<p>This is not exhaustive formal verification. In particular, two implementations can share a transcription error. During development, comparison with the supplied image revealed misplaced phase offsets in an early reading of <code>D_s</code>; the delivered implementations, formula appendix, and renders use the corrected grouping. This is a concrete reason to keep both field-level tests and visual/source checks.</p>
+<h2>Viewer verification scope</h2>
+<p>The atlas's generated combinations, raw fields, and all local HTML asset/link targets were checked. Interactive browser testing was attempted, but this execution environment blocked both file URLs and localhost navigation with <code>ERR_BLOCKED_BY_ADMINISTRATOR</code>. No browser policy was changed. The browser UI therefore was not end-to-end verified here; this limitation is also recorded in <a href="VIEWER_VALIDATION.json">VIEWER_VALIDATION.json</a>.</p>
+<p>The viewer has no external scripts, fonts, network fetches, or server-side computation: it uses relative PNG paths and inline JavaScript. It is designed to open from an extracted folder in an ordinary browser. An organization-managed browser may apply additional local-file restrictions.</p>
+<h2>Comparison with the supplied image</h2>
+<p>The supplied file is a <strong>1536 × 1536 JPEG</strong> containing the artwork above its formulas. The comparison crops <code>[left=0, top=0, right=1536, bottom=922)</code> and resizes the native reconstruction to that rectangle. It does not optimize alignment, color correction, or crop position.</p>
+<p>Different resize filters produce different pixel errors. All four tested filters are retained in <a href="IMAGE_COMPARISON.json">IMAGE_COMPARISON.json</a>:</p>
+<table>
+<thead>
+<tr>
+<th>Native render resized with</th>
+<th style="text-align:right">Mean absolute channel error, 0–255 scale</th>
+<th style="text-align:right">RGB Pearson correlation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nearest neighbor</td>
+<td style="text-align:right">10.050</td>
+<td style="text-align:right">0.961946</td>
+</tr>
+<tr>
+<td>Bilinear</td>
+<td style="text-align:right">4.924</td>
+<td style="text-align:right">0.993166</td>
+</tr>
+<tr>
+<td>Bicubic</td>
+<td style="text-align:right">5.696</td>
+<td style="text-align:right">0.990664</td>
+</tr>
+<tr>
+<td>Lanczos</td>
+<td style="text-align:right">6.286</td>
+<td style="text-align:right">0.988697</td>
+</tr>
+</tbody>
+</table>
+<p>The bilinear comparison also has RMSE 7.802 and PSNR 30.286 dB. These are similarity measurements, not a “99.3% accurate” score or a proof that every formula character is correct. The source's native, uncompressed bitmap and original conversion pipeline were not available. JPEG compression, resizing, color handling, and arithmetic conventions prevent a justified byte-for-byte identity claim against the chat image.</p>
+<p>The bundled <code>preview.png</code> is a Lanczos reduction of the native reconstruction. The atlas's 1000 × 600 fields, in contrast, were evaluated directly at their own pixel centers. Their fine detail can differ through sampling alone.</p>
+<p>To repeat the comparison with a local copy of the supplied JPEG:</p>
+<pre><code class="language-bash">python -m tools.compare_reference \
+  --reference path/to/supplied.jpg \
+  --render gallery/reconstruction_2000x1200.png \
+  --crop-height 922 \
+  --output output/comparison.json
+</code></pre>
+<h2>Numerical decisions</h2>
+<h3>1. Stable nested exponentials</h3>
+<p><code>g(z)=exp(-exp(z))</code> is evaluated after clipping <code>z</code> to <code>[-745,7]</code>. At the upper endpoint the outer exponential already underflows to zero in float64; at the lower endpoint the result is already indistinguishable from one. This avoids overflowing an intermediate when the meaningful final result is zero. NaNs are not hidden.</p>
+<p><code>J_0</code> includes the factor <code>exp(-exp(25))</code>, which is mathematically positive but rounds to zero in float64. The prefix-product accumulator therefore starts at 1. This is a numerical simplification at the chosen precision, not a claim that the real-valued expression is literally zero.</p>
+<h3>2. Undefined shell coordinates</h3>
+<p>The source contains <code>abs(U_s)**(-0.3)</code> and is undefined on <code>U_s=0</code>.</p>
+<p>For <code>U_s=0</code> with nonzero transverse coordinate, the implementation takes the fixed-transverse-coordinate limit <code>L_s=+infinity</code>. Membership then vanishes. A masked multiply avoids evaluating <code>0*infinity</code> in the aggregate warp.</p>
+<p>At the isolated point where both transformed coordinates are zero, there is no unique two-dimensional limit. The implementation explicitly chooses the centerline value <code>L_s=-R_s</code>. That convention is tested and documented, not disguised by silently adding an arbitrary epsilon to every denominator. The default native grid does not sample that isolated point.</p>
+<h3>3. Undefined star angle</h3>
+<p>The source uses <code>atan(M_s/N_s)</code> with nonnegative folded coordinates. The implementation uses <code>atan2(M_s,N_s)</code>, preserving the ratio's angle where it is defined and supplying the correct axis limit when <code>N_s=0&lt;M_s</code>. At <code>M_s=N_s=0</code>, the angle is explicitly defined as zero.</p>
+<p>The argument order is intentional: swapping <code>M</code> and <code>N</code> changes the angular star detail.</p>
+<h3>4. Algebraic refactoring and floating-point order</h3>
+<p>Factors such as <code>5**s * 4**(-s)</code> become <code>(5/4)**s</code>; norms use <code>hypot</code>; repeated RGB geometry is computed once; and prefix products use a running remainder. These are real-arithmetic equivalences, but transcendental functions and rounding can produce last-bit differences across implementations, CPUs, and math libraries.</p>
+<p>A few individual cloud blue coefficients are negative in the source and are preserved. Only the final display conversion clips the byte range. No extra gamma correction, contrast stretch, or filmic tone mapping is introduced.</p>
+<p>The integer brackets in the source's <code>F</code> are interpreted as floor/truncation of the nonnegative expression. Different quantization conventions can change a boundary pixel by one channel level.</p>
+<h3>5. Supersampling is an optional change</h3>
+<p>The faithful default uses one sample per source pixel. <code>--supersample 2</code> evaluates four samples for each output pixel, averages <strong>radiance</strong>, and only then applies <code>F</code>. That is not the same operation as averaging already displayed RGB pixels, and it is not claimed to reconstruct an undocumented anti-aliasing choice by the artist.</p>
+<p>A shifted-mean implementation preserves constant fields exactly and avoids a one-byte change caused solely by a mean's rounding error landing just below a floor boundary.</p>
+<h2>Runtime and memory</h2>
+<p>The recorded native run took <strong>21.38 seconds</strong>, including PNG writing, in this execution environment. The JSON sidecar contains the precise measured duration and settings. The environment used Python 3.13.5, NumPy 2.3.5, and Pillow 12.3.0. The code targets Python 3.10+ and uses established NumPy/Pillow APIs, but the full version matrix was not tested.</p>
+<p>Ordinary rendering holds a tile's intermediate fields plus the final RGB image. Its major working arrays scale with <code>width * tile_rows * supersample**2</code>. Increasing both image dimensions roughly quadruples work; doubling supersampling also roughly quadruples the number of evaluated points. Runtime is hardware- and library-dependent.</p>
+<p>The atlas intentionally retains raw intermediate fields and can use much more memory than the tiled renderer. It is designed for moderate resolutions. Optional <code>fields.npz</code> exports are compressed float64 arrays; they are not necessary to render the default scene or view the bundled gallery.</p>
+<h2>Boundaries of the implementation</h2>
+<p>This is a deterministic, two-dimensional procedural artwork, not a physical nebula simulation, astronomical reconstruction, 3-D volumetric asset, or star catalog renderer. “Turbulence,” “rim,” and related names describe visual/computational roles.</p>
+<p>Small direct previews can alias fine detail. A different GPU backend, float32 precision, reduced band counts, fast trigonometric approximations, or a modulo-based replacement for <code>acos(cos(t))</code> can change the result. The supplied tests and field exports are intended to make those changes measurable, not to prohibit new artistic variations.</p>
+</main></body></html>

@@ -1,0 +1,64 @@
+{
+  "package_version": "1.0.0",
+  "width": 2000,
+  "height": 1200,
+  "supersample": 1,
+  "tile_rows": 48,
+  "preset": "original",
+  "seconds_including_png_write": 21.375867018000008,
+  "config": {
+    "shells": {
+      "count": 27,
+      "radius_step": 0.1,
+      "radius_wobble": 0.06,
+      "shear": 0.15,
+      "shear_wobble": 0.2,
+      "neck_offset": 0.0001,
+      "pinch_power": 0.3,
+      "cross_scale": 2.0,
+      "edge_sharpness": 10.0,
+      "fade_center": 23.0,
+      "fade_rate": 0.15,
+      "interior_falloff": 3.0
+    },
+    "texture": {
+      "turbulence_bands": 50,
+      "turbulence_frequency_ratio": 1.25,
+      "turbulence_decay": 0.95,
+      "filament_bands": 50,
+      "filament_frequency_ratio": 1.15,
+      "filament_decay": 0.95
+    },
+    "stars": {
+      "bands": 30,
+      "frequency_ratio": 1.2,
+      "frequency_scale": 2.0
+    },
+    "gas_gain": 1.1,
+    "core_gain": 1.0,
+    "star_gain": 1.0,
+    "gas_tint": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "core_color": [
+      2.0,
+      2.0,
+      3.0
+    ],
+    "star_tint": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "core_sharpness": 10.0,
+    "core_bias": 1.0,
+    "core_turbulence": 0.25
+  },
+  "python": "3.13.5",
+  "numpy": "2.3.5",
+  "pillow": "12.3.0",
+  "source": "User-supplied Bipolar Nebula formula, credited to Hamid Naderi Yeganeh",
+  "source_grid": "2000x1200, one sample/pixel; other sizes or supersampling change sampling"
+}

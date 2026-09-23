@@ -1,0 +1,137 @@
+{
+  "id": "bipolar",
+  "title": "Bipolar nebula",
+  "description": "The supplied equations, decomposed into their original fields. GPU float32 port; use the included Python oracle for float64 output.",
+  "status": "Source-equation port",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "shell",
+      "type": "nebulaGeometry",
+      "label": "Pinched shell family · S,A",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "pinch": 0.3,
+        "shear": 0.15,
+        "shells": 27
+      },
+      "enabled": true
+    },
+    {
+      "id": "turbulence",
+      "type": "nebulaTurbulence",
+      "label": "Nested-cosine turbulence · E",
+      "inputs": {
+        "p": "space",
+        "geometry": "shell"
+      },
+      "params": {
+        "bands": 50,
+        "speed": 0
+      },
+      "enabled": true
+    },
+    {
+      "id": "cloud",
+      "type": "nebulaCloud",
+      "label": "Filaments & haze · K",
+      "inputs": {
+        "p": "space",
+        "geometry": "shell",
+        "turbulence": "turbulence"
+      },
+      "params": {
+        "bands": 50,
+        "detail": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "gas",
+      "type": "nebulaGas",
+      "label": "Gas emission · Hgas",
+      "inputs": {
+        "p": "space",
+        "geometry": "shell",
+        "turbulence": "turbulence",
+        "cloud": "cloud"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "core",
+      "type": "nebulaCore",
+      "label": "Central glow · W",
+      "inputs": {
+        "p": "space",
+        "turbulence": "turbulence"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "stars",
+      "type": "nebulaStars",
+      "label": "Folded star lattices · T",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "bands": 30,
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "gascore",
+      "type": "add",
+      "label": "Add light",
+      "inputs": {
+        "a": "gas",
+        "b": "core"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "final",
+      "type": "add",
+      "label": "Add light",
+      "inputs": {
+        "a": "gascore",
+        "b": "stars"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1,
+  "tone": "source",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": []
+}

@@ -1,0 +1,2194 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Component catalog</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="../docs/reading.css" />
+</head>
+<body>
+<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#component-catalog" id="toc-component-catalog">Component
+catalog</a>
+<ul>
+<li><a href="#image-coordinates" id="toc-image-coordinates">Image
+coordinates</a></li>
+<li><a href="#translate-rotate-scale"
+id="toc-translate-rotate-scale">Translate · rotate · scale</a></li>
+<li><a href="#localized-vortex" id="toc-localized-vortex">Localized
+vortex</a></li>
+<li><a href="#turbulent-coordinate-warp"
+id="toc-turbulent-coordinate-warp">Turbulent coordinate warp</a></li>
+<li><a href="#polar-coordinates" id="toc-polar-coordinates">Polar
+coordinates</a></li>
+<li><a href="#angular-mirror" id="toc-angular-mirror">Angular
+mirror</a></li>
+<li><a href="#fractal-value-noise" id="toc-fractal-value-noise">Fractal
+value noise</a></li>
+<li><a href="#nested-cosine-bands" id="toc-nested-cosine-bands">Nested
+cosine bands</a></li>
+<li><a href="#soft-disc-sphere-mask" id="toc-soft-disc-sphere-mask">Soft
+disc / sphere mask</a></li>
+<li><a href="#gaussian-ring" id="toc-gaussian-ring">Gaussian
+ring</a></li>
+<li><a href="#soft-threshold" id="toc-soft-threshold">Soft
+threshold</a></li>
+<li><a href="#combine-scalar-fields"
+id="toc-combine-scalar-fields">Combine scalar fields</a></li>
+<li><a href="#custom-scalar-equation"
+id="toc-custom-scalar-equation">Custom scalar equation</a></li>
+<li><a href="#custom-coordinate-equation"
+id="toc-custom-coordinate-equation">Custom coordinate equation</a></li>
+<li><a href="#custom-color-equation"
+id="toc-custom-color-equation">Custom color equation</a></li>
+<li><a href="#two-color-emission" id="toc-two-color-emission">Two-color
+emission</a></li>
+<li><a href="#solid-color" id="toc-solid-color">Solid color</a></li>
+<li><a href="#tint-gain" id="toc-tint-gain">Tint &amp; gain</a></li>
+<li><a href="#mask-layer" id="toc-mask-layer">Mask layer</a></li>
+<li><a href="#add-light" id="toc-add-light">Add light</a></li>
+<li><a href="#front-over-back" id="toc-front-over-back">Front over
+back</a></li>
+<li><a href="#pinched-shell-family-sa"
+id="toc-pinched-shell-family-sa">Pinched shell family · S,A</a></li>
+<li><a href="#replacement-ring-geometry"
+id="toc-replacement-ring-geometry">Replacement ring geometry</a></li>
+<li><a href="#inspect-geometry-channel"
+id="toc-inspect-geometry-channel">Inspect geometry channel</a></li>
+<li><a href="#nested-cosine-turbulence-e"
+id="toc-nested-cosine-turbulence-e">Nested-cosine turbulence ·
+E</a></li>
+<li><a href="#filaments-haze-k" id="toc-filaments-haze-k">Filaments
+&amp; haze · K</a></li>
+<li><a href="#gas-emission-hgas" id="toc-gas-emission-hgas">Gas emission
+· Hgas</a></li>
+<li><a href="#central-glow-w" id="toc-central-glow-w">Central glow ·
+W</a></li>
+<li><a href="#folded-star-lattices-t"
+id="toc-folded-star-lattices-t">Folded star lattices · T</a></li>
+<li><a href="#seeded-star-field" id="toc-seeded-star-field">Seeded star
+field</a></li>
+<li><a href="#cyclonic-water-planet"
+id="toc-cyclonic-water-planet">Cyclonic water planet</a></li>
+<li><a href="#atmospheric-rim" id="toc-atmospheric-rim">Atmospheric
+rim</a></li>
+<li><a href="#star-cluster-lens-map"
+id="toc-star-cluster-lens-map">Star-cluster lens map</a></li>
+<li><a href="#foreground-cluster-stars"
+id="toc-foreground-cluster-stars">Foreground cluster stars</a></li>
+<li><a href="#logarithmic-spiral-galaxy"
+id="toc-logarithmic-spiral-galaxy">Logarithmic spiral galaxy</a></li>
+<li><a href="#spiral-auroral-curtain"
+id="toc-spiral-auroral-curtain">Spiral auroral curtain</a></li>
+<li><a href="#accretion-disk-shadow"
+id="toc-accretion-disk-shadow">Accretion disk &amp; shadow</a></li>
+<li><a href="#stretched-star-tidal-stream"
+id="toc-stretched-star-tidal-stream">Stretched star &amp; tidal
+stream</a></li>
+<li><a href="#single-eyespot-feather"
+id="toc-single-eyespot-feather">Single eyespot feather</a></li>
+<li><a href="#peacock-feather-fan" id="toc-peacock-feather-fan">Peacock
+feather fan</a></li>
+<li><a href="#peacock-body-crest" id="toc-peacock-body-crest">Peacock
+body &amp; crest</a></li>
+<li><a href="#tapered-flame-field" id="toc-tapered-flame-field">Tapered
+flame field</a></li>
+<li><a href="#hedgehog-quill-field"
+id="toc-hedgehog-quill-field">Hedgehog &amp; quill field</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="component-catalog">Component catalog</h1>
+<p>Generated from <code>src/catalog.js</code>. This is the same metadata
+used by the browser palette, inspector, graph type checker and shader
+compiler. Do not edit this file by hand. Run
+<code>node tools/generate_catalog.js</code> after changing the
+catalog.</p>
+<p><strong>43 component kinds; 12 scene presets.</strong>
+Unconnected/disabled outputs are typed zero. Color layers use straight
+RGB radiance and coverage, not pre-clipped pixels.</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Type ID</th>
+<th>Name</th>
+<th>Category</th>
+<th>Output</th>
+<th>Inputs</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>coordinates</code></td>
+<td>Image coordinates</td>
+<td>Coordinates</td>
+<td>coord</td>
+<td>none</td>
+</tr>
+<tr class="even">
+<td><code>transform</code></td>
+<td>Translate · rotate · scale</td>
+<td>Coordinates</td>
+<td>coord</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>vortex</code></td>
+<td>Localized vortex</td>
+<td>Coordinates</td>
+<td>coord</td>
+<td>p: coord</td>
+</tr>
+<tr class="even">
+<td><code>domainwarp</code></td>
+<td>Turbulent coordinate warp</td>
+<td>Coordinates</td>
+<td>coord</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>polar</code></td>
+<td>Polar coordinates</td>
+<td>Coordinates</td>
+<td>coord</td>
+<td>p: coord</td>
+</tr>
+<tr class="even">
+<td><code>kaleidoscope</code></td>
+<td>Angular mirror</td>
+<td>Coordinates</td>
+<td>coord</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>noise</code></td>
+<td>Fractal value noise</td>
+<td>Scalar fields</td>
+<td>scalar</td>
+<td>p: coord</td>
+</tr>
+<tr class="even">
+<td><code>waves</code></td>
+<td>Nested cosine bands</td>
+<td>Scalar fields</td>
+<td>scalar</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>disc</code></td>
+<td>Soft disc / sphere mask</td>
+<td>Scalar fields</td>
+<td>scalar</td>
+<td>p: coord</td>
+</tr>
+<tr class="even">
+<td><code>ring</code></td>
+<td>Gaussian ring</td>
+<td>Scalar fields</td>
+<td>scalar</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>threshold</code></td>
+<td>Soft threshold</td>
+<td>Scalar fields</td>
+<td>scalar</td>
+<td>field: scalar</td>
+</tr>
+<tr class="even">
+<td><code>fieldmath</code></td>
+<td>Combine scalar fields</td>
+<td>Scalar fields</td>
+<td>scalar</td>
+<td>a: scalar, b: scalar</td>
+</tr>
+<tr class="odd">
+<td><code>expression</code></td>
+<td>Custom scalar equation</td>
+<td>Authoring</td>
+<td>scalar</td>
+<td>p: coord, a: scalar, b: scalar</td>
+</tr>
+<tr class="even">
+<td><code>vectorExpression</code></td>
+<td>Custom coordinate equation</td>
+<td>Authoring</td>
+<td>coord</td>
+<td>p: coord, a: scalar, b: scalar</td>
+</tr>
+<tr class="odd">
+<td><code>colorExpression</code></td>
+<td>Custom color equation</td>
+<td>Authoring</td>
+<td>layer</td>
+<td>p: coord, a: scalar, b: scalar</td>
+</tr>
+<tr class="even">
+<td><code>palette</code></td>
+<td>Two-color emission</td>
+<td>Color &amp; composition</td>
+<td>layer</td>
+<td>field: scalar</td>
+</tr>
+<tr class="odd">
+<td><code>solid</code></td>
+<td>Solid color</td>
+<td>Color &amp; composition</td>
+<td>layer</td>
+<td>none</td>
+</tr>
+<tr class="even">
+<td><code>tint</code></td>
+<td>Tint &amp; gain</td>
+<td>Color &amp; composition</td>
+<td>layer</td>
+<td>layer: layer</td>
+</tr>
+<tr class="odd">
+<td><code>mask</code></td>
+<td>Mask layer</td>
+<td>Color &amp; composition</td>
+<td>layer</td>
+<td>layer: layer, mask: scalar</td>
+</tr>
+<tr class="even">
+<td><code>add</code></td>
+<td>Add light</td>
+<td>Color &amp; composition</td>
+<td>layer</td>
+<td>a: layer, b: layer</td>
+</tr>
+<tr class="odd">
+<td><code>over</code></td>
+<td>Front over back</td>
+<td>Color &amp; composition</td>
+<td>layer</td>
+<td>front: layer, back: layer</td>
+</tr>
+<tr class="even">
+<td><code>nebulaGeometry</code></td>
+<td>Pinched shell family · S,A</td>
+<td>Source nebula</td>
+<td>geometry</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>ringGeometry</code></td>
+<td>Replacement ring geometry</td>
+<td>Source nebula</td>
+<td>geometry</td>
+<td>p: coord</td>
+</tr>
+<tr class="even">
+<td><code>geometryField</code></td>
+<td>Inspect geometry channel</td>
+<td>Source nebula</td>
+<td>scalar</td>
+<td>geometry: geometry</td>
+</tr>
+<tr class="odd">
+<td><code>nebulaTurbulence</code></td>
+<td>Nested-cosine turbulence · E</td>
+<td>Source nebula</td>
+<td>scalar</td>
+<td>p: coord, geometry: geometry</td>
+</tr>
+<tr class="even">
+<td><code>nebulaCloud</code></td>
+<td>Filaments &amp; haze · K</td>
+<td>Source nebula</td>
+<td>layer</td>
+<td>p: coord, geometry: geometry, turbulence: scalar</td>
+</tr>
+<tr class="odd">
+<td><code>nebulaGas</code></td>
+<td>Gas emission · Hgas</td>
+<td>Source nebula</td>
+<td>layer</td>
+<td>p: coord, geometry: geometry, turbulence: scalar, cloud: layer</td>
+</tr>
+<tr class="even">
+<td><code>nebulaCore</code></td>
+<td>Central glow · W</td>
+<td>Source nebula</td>
+<td>layer</td>
+<td>p: coord, turbulence: scalar</td>
+</tr>
+<tr class="odd">
+<td><code>nebulaStars</code></td>
+<td>Folded star lattices · T</td>
+<td>Source nebula</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="even">
+<td><code>scatterStars</code></td>
+<td>Seeded star field</td>
+<td>Astronomical studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>planet</code></td>
+<td>Cyclonic water planet</td>
+<td>Astronomical studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="even">
+<td><code>atmosphere</code></td>
+<td>Atmospheric rim</td>
+<td>Astronomical studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>lens</code></td>
+<td>Star-cluster lens map</td>
+<td>Astronomical studies</td>
+<td>coord</td>
+<td>p: coord</td>
+</tr>
+<tr class="even">
+<td><code>clusterLights</code></td>
+<td>Foreground cluster stars</td>
+<td>Astronomical studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>galaxy</code></td>
+<td>Logarithmic spiral galaxy</td>
+<td>Astronomical studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="even">
+<td><code>aurora</code></td>
+<td>Spiral auroral curtain</td>
+<td>Astronomical studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>disk</code></td>
+<td>Accretion disk &amp; shadow</td>
+<td>Astronomical studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="even">
+<td><code>tidal</code></td>
+<td>Stretched star &amp; tidal stream</td>
+<td>Astronomical studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>feather</code></td>
+<td>Single eyespot feather</td>
+<td>Natural studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="even">
+<td><code>fan</code></td>
+<td>Peacock feather fan</td>
+<td>Natural studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>peacockBody</code></td>
+<td>Peacock body &amp; crest</td>
+<td>Natural studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="even">
+<td><code>fire</code></td>
+<td>Tapered flame field</td>
+<td>Natural studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+<tr class="odd">
+<td><code>hedgehog</code></td>
+<td>Hedgehog &amp; quill field</td>
+<td>Natural studies</td>
+<td>layer</td>
+<td>p: coord</td>
+</tr>
+</tbody>
+</table>
+<h2 id="image-coordinates">Image coordinates</h2>
+<p>ID: <code>coordinates</code> · <strong>coord</strong> ·
+Coordinates</p>
+<p>World-space coordinates. Native 2000 × 1200 sampling keeps the
+original +1/840 offset on each axis. All image layers share this
+field.</p>
+<p><strong>Expression / role:</strong> p = (pixel − center) ×
+worldUnitsPerPixel</p>
+<p>No parameters.</p>
+<h2 id="translate-rotate-scale">Translate · rotate · scale</h2>
+<p>ID: <code>transform</code> · <strong>coord</strong> · Coordinates</p>
+<p>Inverse-map world pixels into local object coordinates. This moves
+the object without stretching a stored picture.</p>
+<p><strong>Expression / role:</strong> q = R(−angle) (p − center) /
+scale</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>x</code></td>
+<td>number</td>
+<td>0</td>
+<td>-5 to 5, control step 0.01</td>
+<td>Center X</td>
+</tr>
+<tr class="even">
+<td><code>y</code></td>
+<td>number</td>
+<td>0</td>
+<td>-5 to 5, control step 0.01</td>
+<td>Center Y</td>
+</tr>
+<tr class="odd">
+<td><code>angle</code></td>
+<td>number</td>
+<td>0</td>
+<td>-6.28 to 6.28, control step 0.01</td>
+<td>Rotation</td>
+</tr>
+<tr class="even">
+<td><code>scale</code></td>
+<td>number</td>
+<td>1</td>
+<td>0.05 to 5, control step 0.01</td>
+<td>Scale</td>
+</tr>
+<tr class="odd">
+<td><code>stretch</code></td>
+<td>number</td>
+<td>1</td>
+<td>0.1 to 4, control step 0.01</td>
+<td>Vertical stretch</td>
+</tr>
+</tbody>
+</table>
+<h2 id="localized-vortex">Localized vortex</h2>
+<p>ID: <code>vortex</code> · <strong>coord</strong> · Coordinates</p>
+<p>A smooth local coordinate twist. Send any texture, star field or
+silhouette through this map.</p>
+<p><strong>Expression / role:</strong> q = R(strength · exp(−r²/radius²)
++ speed · t) p</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>strength</code></td>
+<td>number</td>
+<td>4</td>
+<td>-16 to 16, control step 0.1</td>
+<td>Twist</td>
+</tr>
+<tr class="even">
+<td><code>radius</code></td>
+<td>number</td>
+<td>1</td>
+<td>0.02 to 4, control step 0.02</td>
+<td>Influence radius</td>
+</tr>
+<tr class="odd">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0</td>
+<td>-2 to 2, control step 0.01</td>
+<td>Rotation speed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="turbulent-coordinate-warp">Turbulent coordinate warp</h2>
+<p>ID: <code>domainwarp</code> · <strong>coord</strong> ·
+Coordinates</p>
+<p>Independent smooth fields displace the two coordinate axes. A
+reusable alternative to drawing complicated boundaries directly.</p>
+<p><strong>Expression / role:</strong> q = p + amplitude · (noise₁(p,t),
+noise₂(p,t))</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>amplitude</code></td>
+<td>number</td>
+<td>0.4</td>
+<td>0 to 2, control step 0.01</td>
+<td>Displacement</td>
+</tr>
+<tr class="even">
+<td><code>frequency</code></td>
+<td>number</td>
+<td>2</td>
+<td>0.1 to 12, control step 0.1</td>
+<td>Frequency</td>
+</tr>
+<tr class="odd">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0.1</td>
+<td>-2 to 2, control step 0.01</td>
+<td>Flow speed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="polar-coordinates">Polar coordinates</h2>
+<p>ID: <code>polar</code> · <strong>coord</strong> · Coordinates</p>
+<p>Unroll angles and radii into a texture plane. There is a branch seam
+at ±π; integer angular repetition can hide it.</p>
+<p><strong>Expression / role:</strong> q = (atan2(y,x), length(p))</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>angleScale</code></td>
+<td>number</td>
+<td>1</td>
+<td>0.1 to 12, control step 0.1</td>
+<td>Angle scale</td>
+</tr>
+<tr class="even">
+<td><code>radiusScale</code></td>
+<td>number</td>
+<td>1</td>
+<td>0.1 to 12, control step 0.1</td>
+<td>Radius scale</td>
+</tr>
+</tbody>
+</table>
+<h2 id="angular-mirror">Angular mirror</h2>
+<p>ID: <code>kaleidoscope</code> · <strong>coord</strong> ·
+Coordinates</p>
+<p>Fold the angular coordinate into mirrored sectors. Reuse any source
+pattern to create symmetry.</p>
+<p><strong>Expression / role:</strong> a = |mod(theta + π/n, 2π/n) −
+π/n|</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sectors</code></td>
+<td>number</td>
+<td>6</td>
+<td>2 to 24, control step 1</td>
+<td>Sectors</td>
+</tr>
+<tr class="even">
+<td><code>spin</code></td>
+<td>number</td>
+<td>0.1</td>
+<td>-1 to 1, control step 0.01</td>
+<td>Rotation speed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="fractal-value-noise">Fractal value noise</h2>
+<p>ID: <code>noise</code> · <strong>scalar</strong> · Scalar fields</p>
+<p>Smooth deterministic multiscale noise. Not part of the original
+nebula formulas; useful for new organic surfaces.</p>
+<p><strong>Expression / role:</strong> f(p) = Σ 2⁻ᵏ noise(2ᵏ Rp +
+offset)</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>frequency</code></td>
+<td>number</td>
+<td>3</td>
+<td>0.1 to 30, control step 0.1</td>
+<td>Frequency</td>
+</tr>
+<tr class="even">
+<td><code>octaves</code></td>
+<td>number</td>
+<td>6</td>
+<td>1 to 8, control step 1</td>
+<td>Octaves</td>
+</tr>
+<tr class="odd">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0.1</td>
+<td>-2 to 2, control step 0.01</td>
+<td>Flow speed</td>
+</tr>
+<tr class="even">
+<td><code>seed</code></td>
+<td>number</td>
+<td>0</td>
+<td>0 to 100, control step 1</td>
+<td>Seed offset</td>
+</tr>
+</tbody>
+</table>
+<h2 id="nested-cosine-bands">Nested cosine bands</h2>
+<p>ID: <code>waves</code> · <strong>scalar</strong> · Scalar fields</p>
+<p>A compact example of phase modulation: one wave bends another. It
+becomes marbling under a coordinate warp.</p>
+<p><strong>Expression / role:</strong> f = ½ + ½ cos(kx + b sin(ky −
+t))</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>frequency</code></td>
+<td>number</td>
+<td>9</td>
+<td>0.1 to 80, control step 0.1</td>
+<td>Frequency</td>
+</tr>
+<tr class="even">
+<td><code>bend</code></td>
+<td>number</td>
+<td>4</td>
+<td>0 to 20, control step 0.1</td>
+<td>Phase bending</td>
+</tr>
+<tr class="odd">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0.5</td>
+<td>-4 to 4, control step 0.01</td>
+<td>Phase speed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="soft-disc-sphere-mask">Soft disc / sphere mask</h2>
+<p>ID: <code>disc</code> · <strong>scalar</strong> · Scalar fields</p>
+<p>Coverage mask. Connect to Mask layer, or use it to modulate another
+field.</p>
+<p><strong>Expression / role:</strong> mask = 1 − smoothstep(−edge,
+edge, |p| − radius)</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>radius</code></td>
+<td>number</td>
+<td>1</td>
+<td>0.02 to 3, control step 0.01</td>
+<td>Radius</td>
+</tr>
+<tr class="even">
+<td><code>edge</code></td>
+<td>number</td>
+<td>0.02</td>
+<td>0.001 to 0.6, control step 0.001</td>
+<td>Edge softness</td>
+</tr>
+</tbody>
+</table>
+<h2 id="gaussian-ring">Gaussian ring</h2>
+<p>ID: <code>ring</code> · <strong>scalar</strong> · Scalar fields</p>
+<p>A luminous rim with a hollow center. A Gaussian field, not a
+geometric mesh.</p>
+<p><strong>Expression / role:</strong> f = exp(−((|p| −
+radius)/width)²)</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>radius</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 3, control step 0.01</td>
+<td>Radius</td>
+</tr>
+<tr class="even">
+<td><code>width</code></td>
+<td>number</td>
+<td>0.1</td>
+<td>0.005 to 1, control step 0.005</td>
+<td>Width</td>
+</tr>
+</tbody>
+</table>
+<h2 id="soft-threshold">Soft threshold</h2>
+<p>ID: <code>threshold</code> · <strong>scalar</strong> · Scalar
+fields</p>
+<p>The same nested-exponential gate used by the source equations. Turns
+smooth variation into wisps, islands or filaments.</p>
+<p><strong>Expression / role:</strong> f = exp(−exp(−sharpness · (field
+− level)))</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>level</code></td>
+<td>number</td>
+<td>0.5</td>
+<td>-2 to 2, control step 0.01</td>
+<td>Threshold</td>
+</tr>
+<tr class="even">
+<td><code>sharpness</code></td>
+<td>number</td>
+<td>8</td>
+<td>0.1 to 60, control step 0.1</td>
+<td>Sharpness</td>
+</tr>
+</tbody>
+</table>
+<h2 id="combine-scalar-fields">Combine scalar fields</h2>
+<p>ID: <code>fieldmath</code> · <strong>scalar</strong> · Scalar
+fields</p>
+<p>One small arithmetic node supports sums, differences, products and
+threshold offsets.</p>
+<p><strong>Expression / role:</strong> f = wa·a + wb·b + wp·a·b +
+bias</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>weightA</code></td>
+<td>number</td>
+<td>1</td>
+<td>-5 to 5, control step 0.01</td>
+<td>A weight</td>
+</tr>
+<tr class="even">
+<td><code>weightB</code></td>
+<td>number</td>
+<td>1</td>
+<td>-5 to 5, control step 0.01</td>
+<td>B weight</td>
+</tr>
+<tr class="odd">
+<td><code>product</code></td>
+<td>number</td>
+<td>0</td>
+<td>-5 to 5, control step 0.01</td>
+<td>Product weight</td>
+</tr>
+<tr class="even">
+<td><code>bias</code></td>
+<td>number</td>
+<td>0</td>
+<td>-4 to 4, control step 0.01</td>
+<td>Bias</td>
+</tr>
+</tbody>
+</table>
+<h2 id="custom-scalar-equation">Custom scalar equation</h2>
+<p>ID: <code>expression</code> · <strong>scalar</strong> · Authoring</p>
+<p>Compile an editable GLSL scalar expression. x,y,r,theta are derived
+from p. Additional scalar sockets a and b can carry any fields.</p>
+<p><strong>Expression / role:</strong> float f(p,a,b,t) = your
+expression</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>expression</code></td>
+<td>expression</td>
+<td>0.5 + 0.5<em>cos(8.0</em>r - 3.0*theta - t)</td>
+<td>—</td>
+<td>Use p, x, y, r, theta, t, a and b. Expression only: no statements,
+loops, declarations, or JavaScript.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="custom-coordinate-equation">Custom coordinate equation</h2>
+<p>ID: <code>vectorExpression</code> · <strong>coord</strong> ·
+Authoring</p>
+<p>Author new coordinate maps without rewriting the renderer. Returns
+vec2; no JavaScript execution.</p>
+<p><strong>Expression / role:</strong> vec2 q(p,a,b,t) = your
+expression</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>expression</code></td>
+<td>expression</td>
+<td>rotate2(p, 0.5<em>sin(r</em>3.0-t))</td>
+<td>—</td>
+<td>Use p, x, y, r, theta, t, a and b. Expression only: no statements,
+loops, declarations, or JavaScript.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="custom-color-equation">Custom color equation</h2>
+<p>ID: <code>colorExpression</code> · <strong>layer</strong> ·
+Authoring</p>
+<p>Author RGB radiance. Returns vec3; alpha is set to one. Combine with
+a mask for transparency.</p>
+<p><strong>Expression / role:</strong> vec3 color(p,a,b,t) = your
+expression</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>expression</code></td>
+<td>expression</td>
+<td>spectrum(r - t<em>0.1, 0.0) </em> (0.5 +
+0.5<em>cos(theta</em>6.0))</td>
+<td>—</td>
+<td>Use p, x, y, r, theta, t, a and b. Expression only: no statements,
+loops, declarations, or JavaScript.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="two-color-emission">Two-color emission</h2>
+<p>ID: <code>palette</code> · <strong>layer</strong> · Color &amp;
+composition</p>
+<p>Color a scalar field. This returns straight RGB with full coverage;
+add a mask when the layer should be transparent.</p>
+<p><strong>Expression / role:</strong> RGB = gain · mix(low, high,
+clamp(field)^power)</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>low</code></td>
+<td>color</td>
+<td>#09212e</td>
+<td>—</td>
+<td>Linear radiance multiplier; display conversion happens only after
+composition.</td>
+</tr>
+<tr class="even">
+<td><code>high</code></td>
+<td>color</td>
+<td>#62edc3</td>
+<td>—</td>
+<td>Linear radiance multiplier; display conversion happens only after
+composition.</td>
+</tr>
+<tr class="odd">
+<td><code>gain</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 5, control step 0.01</td>
+<td>Emission</td>
+</tr>
+<tr class="even">
+<td><code>power</code></td>
+<td>number</td>
+<td>1</td>
+<td>0.1 to 8, control step 0.05</td>
+<td>Contrast power</td>
+</tr>
+</tbody>
+</table>
+<h2 id="solid-color">Solid color</h2>
+<p>ID: <code>solid</code> · <strong>layer</strong> · Color &amp;
+composition</p>
+<p>A background or constant radiance layer.</p>
+<p><strong>Expression / role:</strong> RGB = color × gain</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>color</code></td>
+<td>color</td>
+<td>#030712</td>
+<td>—</td>
+<td>Linear radiance multiplier; display conversion happens only after
+composition.</td>
+</tr>
+<tr class="even">
+<td><code>gain</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 4, control step 0.01</td>
+<td>Gain</td>
+</tr>
+</tbody>
+</table>
+<h2 id="tint-gain">Tint &amp; gain</h2>
+<p>ID: <code>tint</code> · <strong>layer</strong> · Color &amp;
+composition</p>
+<p>Multiply floating-point radiance before output conversion. Does not
+discard highlight detail.</p>
+<p><strong>Expression / role:</strong> RGB = incoming RGB × tint ×
+gain</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>color</code></td>
+<td>color</td>
+<td>#ffffff</td>
+<td>—</td>
+<td>Linear radiance multiplier; display conversion happens only after
+composition.</td>
+</tr>
+<tr class="even">
+<td><code>gain</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 5, control step 0.01</td>
+<td>Gain</td>
+</tr>
+</tbody>
+</table>
+<h2 id="mask-layer">Mask layer</h2>
+<p>ID: <code>mask</code> · <strong>layer</strong> · Color &amp;
+composition</p>
+<p>Changes coverage, not straight RGB. Use Over to honor alpha; Add
+intentionally sums emitted RGB regardless of coverage.</p>
+<p><strong>Expression / role:</strong> alpha = alpha × mix(1,
+clamp(mask), strength)</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>strength</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 1, control step 0.01</td>
+<td>Strength</td>
+</tr>
+</tbody>
+</table>
+<h2 id="add-light">Add light</h2>
+<p>ID: <code>add</code> · <strong>layer</strong> · Color &amp;
+composition</p>
+<p>Sum radiance before tone mapping. Alpha does not attenuate emission;
+use Over for opaque objects or alpha-masked layers.</p>
+<p><strong>Expression / role:</strong> RGB = A.rgb + gain · B.rgb</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>gain</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 5, control step 0.01</td>
+<td>B gain</td>
+</tr>
+</tbody>
+</table>
+<h2 id="front-over-back">Front over back</h2>
+<p>ID: <code>over</code> · <strong>layer</strong> · Color &amp;
+composition</p>
+<p>Correct straight-alpha composition. Use it to hide background stars
+behind a planet, feathers, or a silhouette.</p>
+<p><strong>Expression / role:</strong> alpha = af + ab(1−af); RGB = (af
+Cf + (1−af)ab Cb)/alpha</p>
+<p>No parameters.</p>
+<h2 id="pinched-shell-family-sa">Pinched shell family · S,A</h2>
+<p>ID: <code>nebulaGeometry</code> · <strong>geometry</strong> · Source
+nebula</p>
+<p>Exact structural port at defaults. Ordered soft first-hit selection
+produces S (texture coordinate), A (emission rim), and coverage. These
+are separate meanings.</p>
+<p><strong>Expression / role:</strong> Lₛ = sqrt(Uₛ² + (2Rₛ^0.3
+|Uₛ|^−0.3 Vₛ)²) − Rₛ</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>pinch</code></td>
+<td>number</td>
+<td>0.3</td>
+<td>0.05 to 0.8, control step 0.005</td>
+<td>Neck pinch</td>
+</tr>
+<tr class="even">
+<td><code>shear</code></td>
+<td>number</td>
+<td>0.15</td>
+<td>-0.5 to 0.6, control step 0.005</td>
+<td>Shell shear</td>
+</tr>
+<tr class="odd">
+<td><code>shells</code></td>
+<td>number</td>
+<td>27</td>
+<td>1 to 27, control step 1</td>
+<td>Shell count</td>
+</tr>
+</tbody>
+</table>
+<h2 id="replacement-ring-geometry">Replacement ring geometry</h2>
+<p>ID: <code>ringGeometry</code> · <strong>geometry</strong> · Source
+nebula</p>
+<p>New geometry with the same interface as the pinched shell family.
+Reuse the entire original cloud machinery unchanged.</p>
+<p><strong>Expression / role:</strong> S=2d; A=0.22 exp(−(d/width)²);
+d=|scaled p|−radius</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>radius</code></td>
+<td>number</td>
+<td>1.1</td>
+<td>0.1 to 2, control step 0.01</td>
+<td>Radius</td>
+</tr>
+<tr class="even">
+<td><code>width</code></td>
+<td>number</td>
+<td>0.16</td>
+<td>0.01 to 0.7, control step 0.01</td>
+<td>Rim width</td>
+</tr>
+<tr class="odd">
+<td><code>flatten</code></td>
+<td>number</td>
+<td>1.5</td>
+<td>0.2 to 3, control step 0.01</td>
+<td>Vertical compression</td>
+</tr>
+</tbody>
+</table>
+<h2 id="inspect-geometry-channel">Inspect geometry channel</h2>
+<p>ID: <code>geometryField</code> · <strong>scalar</strong> · Source
+nebula</p>
+<p>Extract one named field for diagnosis, masks or further composition.
+The rim and coverage are deliberately not interchangeable.</p>
+<p><strong>Expression / role:</strong> f = geometry.warp / rim /
+coverage</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>channel</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 2, control step 1</td>
+<td>0=warp · 1=rim · 2=coverage</td>
+</tr>
+<tr class="even">
+<td><code>gain</code></td>
+<td>number</td>
+<td>4</td>
+<td>0.1 to 10, control step 0.1</td>
+<td>Display gain</td>
+</tr>
+</tbody>
+</table>
+<h2 id="nested-cosine-turbulence-e">Nested-cosine turbulence · E</h2>
+<p>ID: <code>nebulaTurbulence</code> · <strong>scalar</strong> · Source
+nebula</p>
+<p>Original 50-band signed modulation. It perturbs the filament
+threshold and central glow. Motion is an optional new phase shift, zero
+in source mode.</p>
+<p><strong>Expression / role:</strong> E = Σ (19/20)ˢ Dₛ(S,Qₛ)</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>bands</code></td>
+<td>number</td>
+<td>50</td>
+<td>1 to 50, control step 1</td>
+<td>Bands</td>
+</tr>
+<tr class="even">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0</td>
+<td>-1 to 1, control step 0.01</td>
+<td>Phase speed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="filaments-haze-k">Filaments &amp; haze · K</h2>
+<p>ID: <code>nebulaCloud</code> · <strong>layer</strong> · Source
+nebula</p>
+<p>Original RGB field before the geometry rim and core cutout are
+applied. Preview looks over-bright because masking happens
+downstream.</p>
+<p><strong>Expression / role:</strong> Iₛ=45 C₁,ₛ+6 C₀,ₛ; Kᵥ=Σ Iₛ
+(19/20)ˢ κᵥ,ₛ</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>bands</code></td>
+<td>number</td>
+<td>50</td>
+<td>1 to 50, control step 1</td>
+<td>Bands</td>
+</tr>
+<tr class="even">
+<td><code>detail</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 3, control step 0.01</td>
+<td>Sharp filament gain</td>
+</tr>
+</tbody>
+</table>
+<h2 id="gas-emission-hgas">Gas emission · Hgas</h2>
+<p>ID: <code>nebulaGas</code> · <strong>layer</strong> · Source
+nebula</p>
+<p>Original gas contribution. A confines emission to shell rims; 1−W
+clears the central glow region.</p>
+<p><strong>Expression / role:</strong> Hgas = 1.1 (1−W) K A</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>gain</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 3, control step 0.01</td>
+<td>Gas gain</td>
+</tr>
+</tbody>
+</table>
+<h2 id="central-glow-w">Central glow · W</h2>
+<p>ID: <code>nebulaCore</code> · <strong>layer</strong> · Source
+nebula</p>
+<p>Original glow. The square root in the source contains x²+y² only, not
+−1 or E/4.</p>
+<p><strong>Expression / role:</strong> W=exp(−exp(10|p|−1+E/4));
+Hcore=W(2,2,3)</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>gain</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 3, control step 0.01</td>
+<td>Core gain</td>
+</tr>
+</tbody>
+</table>
+<h2 id="folded-star-lattices-t">Folded star lattices · T</h2>
+<p>ID: <code>nebulaStars</code> · <strong>layer</strong> · Source
+nebula</p>
+<p>Original deterministic stars with pointed centers. Folded-angle
+lattices, not random sprites or an astronomical catalog.</p>
+<p><strong>Expression / role:</strong> M,N=acos(cos(rotated
+coordinates)); T=Σ colored(center+halo)</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>bands</code></td>
+<td>number</td>
+<td>30</td>
+<td>1 to 30, control step 1</td>
+<td>Lattices</td>
+</tr>
+<tr class="even">
+<td><code>gain</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 3, control step 0.01</td>
+<td>Starlight</td>
+</tr>
+</tbody>
+</table>
+<h2 id="seeded-star-field">Seeded star field</h2>
+<p>ID: <code>scatterStars</code> · <strong>layer</strong> · Astronomical
+studies</p>
+<p>New deterministic jittered-cell stars. Three scales and warm/cool
+variation; distinct from the original folded lattice algorithm.</p>
+<p><strong>Expression / role:</strong> star = Gaussian core + halo +
+cross rays</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>density</code></td>
+<td>number</td>
+<td>22</td>
+<td>3 to 60, control step 1</td>
+<td>Density scale</td>
+</tr>
+<tr class="even">
+<td><code>gain</code></td>
+<td>number</td>
+<td>0.7</td>
+<td>0 to 3, control step 0.01</td>
+<td>Starlight</td>
+</tr>
+<tr class="odd">
+<td><code>seed</code></td>
+<td>number</td>
+<td>17</td>
+<td>0 to 100, control step 1</td>
+<td>Seed</td>
+</tr>
+<tr class="even">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0.1</td>
+<td>0 to 2, control step 0.01</td>
+<td>Twinkle speed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cyclonic-water-planet">Cyclonic water planet</h2>
+<p>ID: <code>planet</code> · <strong>layer</strong> · Astronomical
+studies</p>
+<p>Subject-inspired study, not the artist’s unretrieved formula. Rotated
+cloud coordinates, finite-octave noise, Lambert-like light, glint and
+rim scattering.</p>
+<p><strong>Expression / role:</strong> visible sphere → spherical
+coordinates → cyclone maps → clouds → lighting</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>radius</code></td>
+<td>number</td>
+<td>1.08</td>
+<td>0.1 to 2, control step 0.01</td>
+<td>Radius</td>
+</tr>
+<tr class="even">
+<td><code>cloud</code></td>
+<td>number</td>
+<td>0.65</td>
+<td>0 to 2, control step 0.01</td>
+<td>Cloud cover</td>
+</tr>
+<tr class="odd">
+<td><code>twist</code></td>
+<td>number</td>
+<td>5</td>
+<td>0 to 14, control step 0.1</td>
+<td>Cyclone twist</td>
+</tr>
+<tr class="even">
+<td><code>light</code></td>
+<td>number</td>
+<td>2.25</td>
+<td>0 to 6.28, control step 0.01</td>
+<td>Light angle</td>
+</tr>
+<tr class="odd">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0.5</td>
+<td>-2 to 2, control step 0.01</td>
+<td>Cloud drift</td>
+</tr>
+</tbody>
+</table>
+<h2 id="atmospheric-rim">Atmospheric rim</h2>
+<p>ID: <code>atmosphere</code> · <strong>layer</strong> · Astronomical
+studies</p>
+<p>An independent analytic limb glow; align its radius with the planet
+when composing them.</p>
+<p><strong>Expression / role:</strong> glow = Gaussian(|p|−radius)</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>radius</code></td>
+<td>number</td>
+<td>1.08</td>
+<td>0.1 to 2, control step 0.01</td>
+<td>Radius</td>
+</tr>
+<tr class="even">
+<td><code>gain</code></td>
+<td>number</td>
+<td>0.7</td>
+<td>0 to 3, control step 0.01</td>
+<td>Glow</td>
+</tr>
+</tbody>
+</table>
+<h2 id="star-cluster-lens-map">Star-cluster lens map</h2>
+<p>ID: <code>lens</code> · <strong>coord</strong> · Astronomical
+studies</p>
+<p>Illustrative softened thin-lens backward mapping. Zero strength is
+the identity. Feed the result into a galaxy; draw foreground lens stars
+in the unwarped plane.</p>
+<p><strong>Expression / role:</strong> β = θ − Σ
+mᵢ(θ−θᵢ)/(|θ−θᵢ|²+ε²)</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>strength</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 3, control step 0.01</td>
+<td>Deflection strength</td>
+</tr>
+<tr class="even">
+<td><code>count</code></td>
+<td>number</td>
+<td>7</td>
+<td>1 to 12, control step 1</td>
+<td>Lenses</td>
+</tr>
+<tr class="odd">
+<td><code>softening</code></td>
+<td>number</td>
+<td>0.015</td>
+<td>0.001 to 0.2, control step 0.001</td>
+<td>Softening</td>
+</tr>
+</tbody>
+</table>
+<h2 id="foreground-cluster-stars">Foreground cluster stars</h2>
+<p>ID: <code>clusterLights</code> · <strong>layer</strong> ·
+Astronomical studies</p>
+<p>Draw these AFTER lensing the background. Moving a background star
+image through this node would not model a foreground lens cluster.</p>
+<p><strong>Expression / role:</strong> centers share the lens map’s
+deterministic positions</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>gain</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 3, control step 0.01</td>
+<td>Brightness</td>
+</tr>
+<tr class="even">
+<td><code>count</code></td>
+<td>number</td>
+<td>7</td>
+<td>1 to 12, control step 1</td>
+<td>Stars</td>
+</tr>
+</tbody>
+</table>
+<h2 id="logarithmic-spiral-galaxy">Logarithmic spiral galaxy</h2>
+<p>ID: <code>galaxy</code> · <strong>layer</strong> · Astronomical
+studies</p>
+<p>New analytic spiral arms, Gaussian-like central bulge, radial fade,
+dusty modulation and emission knots. Its input coordinates can be
+gravitationally warped.</p>
+<p><strong>Expression / role:</strong> phase = arms·theta −
+pitch·log(r+0.1)</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>arms</code></td>
+<td>number</td>
+<td>3</td>
+<td>1 to 8, control step 1</td>
+<td>Spiral arms</td>
+</tr>
+<tr class="even">
+<td><code>pitch</code></td>
+<td>number</td>
+<td>7</td>
+<td>0.5 to 15, control step 0.1</td>
+<td>Winding</td>
+</tr>
+<tr class="odd">
+<td><code>radius</code></td>
+<td>number</td>
+<td>0.75</td>
+<td>0.1 to 2, control step 0.01</td>
+<td>Scale</td>
+</tr>
+<tr class="even">
+<td><code>dust</code></td>
+<td>number</td>
+<td>0.6</td>
+<td>0 to 1, control step 0.01</td>
+<td>Dust lanes</td>
+</tr>
+<tr class="odd">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0.2</td>
+<td>-2 to 2, control step 0.01</td>
+<td>Phase speed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="spiral-auroral-curtain">Spiral auroral curtain</h2>
+<p>ID: <code>aurora</code> · <strong>layer</strong> · Astronomical
+studies</p>
+<p>New projected spiral ribbon with green/purple emission and angular
+striations. It illustrates appearance, not an auroral plasma
+simulation.</p>
+<p><strong>Expression / role:</strong> ribbon = exp(−[sin(theta +
+turns·log(r+0.12))/width]²)</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>turns</code></td>
+<td>number</td>
+<td>4</td>
+<td>0.5 to 12, control step 0.1</td>
+<td>Winding</td>
+</tr>
+<tr class="even">
+<td><code>width</code></td>
+<td>number</td>
+<td>0.115</td>
+<td>0.01 to 0.4, control step 0.005</td>
+<td>Ribbon width</td>
+</tr>
+<tr class="odd">
+<td><code>curtain</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 3, control step 0.01</td>
+<td>Fine rays</td>
+</tr>
+<tr class="even">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0.5</td>
+<td>-2 to 2, control step 0.01</td>
+<td>Flow speed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="accretion-disk-shadow">Accretion disk &amp; shadow</h2>
+<p>ID: <code>disk</code> · <strong>layer</strong> · Astronomical
+studies</p>
+<p>New stylized construction. The bright-side weighting and bent arc are
+artistic terms, not a relativistic transfer calculation.</p>
+<p><strong>Expression / role:</strong> projected annulus + bent rear arc
+− central shadow</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>radius</code></td>
+<td>number</td>
+<td>0.34</td>
+<td>0.06 to 0.8, control step 0.005</td>
+<td>Shadow scale</td>
+</tr>
+<tr class="even">
+<td><code>inclination</code></td>
+<td>number</td>
+<td>3</td>
+<td>1 to 7, control step 0.05</td>
+<td>Projection flattening</td>
+</tr>
+<tr class="odd">
+<td><code>spin</code></td>
+<td>number</td>
+<td>4</td>
+<td>0 to 12, control step 0.1</td>
+<td>Texture winding</td>
+</tr>
+<tr class="even">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0.5</td>
+<td>-2 to 2, control step 0.01</td>
+<td>Flow speed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="stretched-star-tidal-stream">Stretched star &amp; tidal
+stream</h2>
+<p>ID: <code>tidal</code> · <strong>layer</strong> · Astronomical
+studies</p>
+<p>New narrow curved stream broadening toward a luminous star.
+Independent from the disk so it can be translated, masked or reused as a
+comet.</p>
+<p><strong>Expression / role:</strong> emission = Gaussian(distance to
+tapered centerline) + star core</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>stretch</code></td>
+<td>number</td>
+<td>2.5</td>
+<td>0.3 to 6, control step 0.05</td>
+<td>Taper power</td>
+</tr>
+<tr class="even">
+<td><code>size</code></td>
+<td>number</td>
+<td>0.13</td>
+<td>0.02 to 0.4, control step 0.005</td>
+<td>Star width</td>
+</tr>
+<tr class="odd">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0.5</td>
+<td>-2 to 2, control step 0.01</td>
+<td>Stream speed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="single-eyespot-feather">Single eyespot feather</h2>
+<p>ID: <code>feather</code> · <strong>layer</strong> · Natural
+studies</p>
+<p>Reusable analytic stamp. Base at (0,0), tip at (0,1). No texture. The
+fan node instances this exact kernel many times.</p>
+<p><strong>Expression / role:</strong> tapered local silhouette +
+oblique cosine barbs + nested eyespot rings</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>width</code></td>
+<td>number</td>
+<td>0.095</td>
+<td>0.02 to 0.3, control step 0.005</td>
+<td>Width</td>
+</tr>
+<tr class="even">
+<td><code>eye</code></td>
+<td>number</td>
+<td>1</td>
+<td>0.3 to 2, control step 0.01</td>
+<td>Eyespot scale</td>
+</tr>
+<tr class="odd">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0.2</td>
+<td>0 to 2, control step 0.01</td>
+<td>Barb motion</td>
+</tr>
+</tbody>
+</table>
+<h2 id="peacock-feather-fan">Peacock feather fan</h2>
+<p>ID: <code>fan</code> · <strong>layer</strong> · Natural studies</p>
+<p>New full-display construction, not a recovered 2026 formula.
+Outer-to-inner rows, shared feather kernels and staggered phase give
+repeated yet varied detail.</p>
+<p><strong>Expression / role:</strong> fan = Overᵢ
+feather(Rᵢ(p−base)/lengthᵢ)</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>spread</code></td>
+<td>number</td>
+<td>2.9</td>
+<td>0.4 to 3.5, control step 0.01</td>
+<td>Fan spread</td>
+</tr>
+<tr class="even">
+<td><code>rows</code></td>
+<td>number</td>
+<td>4</td>
+<td>1 to 4, control step 1</td>
+<td>Feather rows</td>
+</tr>
+<tr class="odd">
+<td><code>width</code></td>
+<td>number</td>
+<td>0.095</td>
+<td>0.03 to 0.2, control step 0.005</td>
+<td>Feather width</td>
+</tr>
+<tr class="even">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0.3</td>
+<td>0 to 2, control step 0.01</td>
+<td>Breeze speed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="peacock-body-crest">Peacock body &amp; crest</h2>
+<p>ID: <code>peacockBody</code> · <strong>layer</strong> · Natural
+studies</p>
+<p>A separate opaque silhouette over the feather fan, so changing the
+fan does not distort the bird.</p>
+<p><strong>Expression / role:</strong> body ellipses + curved neck +
+head + crest segments</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>size</code></td>
+<td>number</td>
+<td>1</td>
+<td>0.3 to 2, control step 0.01</td>
+<td>Size</td>
+</tr>
+</tbody>
+</table>
+<h2 id="tapered-flame-field">Tapered flame field</h2>
+<p>ID: <code>fire</code> · <strong>layer</strong> · Natural studies</p>
+<p>New explanatory fire study. Moving the sampling coordinates creates
+upward flow without storing a simulation state. Not a reconstruction of
+the linked video.</p>
+<p><strong>Expression / role:</strong> tapered silhouette + advected
+noise + heat palette</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>height</code></td>
+<td>number</td>
+<td>2</td>
+<td>0.2 to 3, control step 0.01</td>
+<td>Height</td>
+</tr>
+<tr class="even">
+<td><code>width</code></td>
+<td>number</td>
+<td>0.8</td>
+<td>0.1 to 2, control step 0.01</td>
+<td>Base width</td>
+</tr>
+<tr class="odd">
+<td><code>turbulence</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 2, control step 0.01</td>
+<td>Turbulence</td>
+</tr>
+<tr class="even">
+<td><code>speed</code></td>
+<td>number</td>
+<td>1</td>
+<td>0 to 3, control step 0.01</td>
+<td>Rise speed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="hedgehog-quill-field">Hedgehog &amp; quill field</h2>
+<p>ID: <code>hedgehog</code> · <strong>layer</strong> · Natural
+studies</p>
+<p>New constructive hedgehog example. Separate local stamps supply a
+readable silhouette and repeated surface detail; no claim about the
+inaccessible video steps.</p>
+<p><strong>Expression / role:</strong> elliptical body + repeated
+tapered segment quills + facial masks</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Kind</th>
+<th>Default</th>
+<th>Allowed interval</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>quills</code></td>
+<td>number</td>
+<td>0.28</td>
+<td>0.02 to 0.7, control step 0.01</td>
+<td>Quill length</td>
+</tr>
+<tr class="even">
+<td><code>density</code></td>
+<td>number</td>
+<td>160</td>
+<td>10 to 160, control step 1</td>
+<td>Quill count</td>
+</tr>
+<tr class="odd">
+<td><code>speed</code></td>
+<td>number</td>
+<td>0.5</td>
+<td>0 to 2, control step 0.01</td>
+<td>Breathing speed</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

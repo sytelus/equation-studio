@@ -1,0 +1,70 @@
+{
+  "id": "aurora",
+  "title": "Spiral aurora",
+  "description": "Logarithmic polar winding, a narrow luminous ribbon and hundreds of fine angular rays.",
+  "status": "Interpretive study",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "stars",
+      "type": "scatterStars",
+      "label": "Seeded star field",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "density": 22,
+        "gain": 0.35,
+        "seed": 17,
+        "speed": 0.1
+      },
+      "enabled": true
+    },
+    {
+      "id": "curtain",
+      "type": "aurora",
+      "label": "Spiral auroral curtain",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "turns": 4,
+        "width": 0.115,
+        "curtain": 1,
+        "speed": 0.5
+      },
+      "enabled": true
+    },
+    {
+      "id": "final",
+      "type": "add",
+      "label": "Add light",
+      "inputs": {
+        "a": "stars",
+        "b": "curtain"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1.4,
+  "tone": "filmic",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": []
+}

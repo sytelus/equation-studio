@@ -1,0 +1,471 @@
+{
+  "test_environment": "Chromium 144 / ANGLE SwiftShader software Vulkan, in-memory about:blank harness; no URL navigation or policy modification",
+  "checks": [
+    {
+      "name": "render + finite values: bipolar",
+      "passed": true,
+      "detail": {
+        "energy": 46154596,
+        "ms": 15613.69999999972,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: water",
+      "passed": true,
+      "detail": {
+        "energy": 32974665,
+        "ms": 760.7000000001863,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: lensing",
+      "passed": true,
+      "detail": {
+        "energy": 14586200,
+        "ms": 866,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: aurora",
+      "passed": true,
+      "detail": {
+        "energy": 17042892,
+        "ms": 606.6000000000931,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: tidal",
+      "passed": true,
+      "detail": {
+        "energy": 12446071,
+        "ms": 494.90000000037253,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: peacock",
+      "passed": true,
+      "detail": {
+        "energy": 65157576,
+        "ms": 1015.0999999996275,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: fire",
+      "passed": true,
+      "detail": {
+        "energy": 22149873,
+        "ms": 278.40000000037253,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: hedgehog",
+      "passed": true,
+      "detail": {
+        "energy": 49076752,
+        "ms": 1019,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: ring",
+      "passed": true,
+      "detail": {
+        "energy": 31766386,
+        "ms": 11577.299999999814,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: marble",
+      "passed": true,
+      "detail": {
+        "energy": 92314020,
+        "ms": 154.09999999962747,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: kaleidoscope",
+      "passed": true,
+      "detail": {
+        "energy": 45280692,
+        "ms": 175.39999999990687,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: feather",
+      "passed": true,
+      "detail": {
+        "energy": 38052353,
+        "ms": 146.8000000002794,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "all 43 component types compile and render finite defaults",
+      "passed": true,
+      "detail": 43
+    },
+    {
+      "name": "stateless visible animation: water",
+      "passed": true,
+      "detail": {
+        "change": 131124,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: lensing",
+      "passed": true,
+      "detail": {
+        "change": 371955,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: aurora",
+      "passed": true,
+      "detail": {
+        "change": 426018,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: tidal",
+      "passed": true,
+      "detail": {
+        "change": 58741,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: peacock",
+      "passed": true,
+      "detail": {
+        "change": 116877,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: fire",
+      "passed": true,
+      "detail": {
+        "change": 194774,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: hedgehog",
+      "passed": true,
+      "detail": {
+        "change": 13514,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: marble",
+      "passed": true,
+      "detail": {
+        "change": 1393571,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: kaleidoscope",
+      "passed": true,
+      "detail": {
+        "change": 1664291,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "raw float framebuffer + zero lens identity",
+      "passed": true,
+      "detail": [
+        0.75,
+        -0.25,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "uniform-only edits reuse linked shader",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "32 native-grid raw probes across seven field groups",
+      "passed": true,
+      "detail": {
+        "shell": {
+          "max_abs_error": 1.5410313944919096e-06,
+          "mean_abs_error": 8.297622666176622e-08,
+          "rmse": 2.611847971300857e-07,
+          "cpu_abs_max": 1.0
+        },
+        "turbulence": {
+          "max_abs_error": 0.010274365221194515,
+          "mean_abs_error": 0.001782105161645104,
+          "rmse": 0.002827032950238788,
+          "cpu_abs_max": 3.1676375353058255
+        },
+        "cloud": {
+          "max_abs_error": 0.023296325458524336,
+          "mean_abs_error": 0.0040215508112205105,
+          "rmse": 0.006759125842030421,
+          "cpu_abs_max": 22.430370156322986
+        },
+        "gas": {
+          "max_abs_error": 0.001056030232322036,
+          "mean_abs_error": 0.00013356282798650544,
+          "rmse": 0.0002575089955690292,
+          "cpu_abs_max": 1.4357905700808447
+        },
+        "core": {
+          "max_abs_error": 0.00027434595542796814,
+          "mean_abs_error": 7.159544167688944e-06,
+          "rmse": 3.857401649020856e-05,
+          "cpu_abs_max": 1.9707892922530443
+        },
+        "stars": {
+          "max_abs_error": 0.08887121654470498,
+          "mean_abs_error": 0.0027500072700373294,
+          "rmse": 0.012012164812753289,
+          "cpu_abs_max": 2.226625656852322
+        },
+        "final": {
+          "max_abs_error": 0.08883865565808424,
+          "mean_abs_error": 0.0028097546620440643,
+          "rmse": 0.011999310224781701,
+          "cpu_abs_max": 2.46899326533826
+        }
+      }
+    },
+    {
+      "name": "2000 \u00d7 1200 native GPU vs CPU image comparison",
+      "passed": true,
+      "detail": {
+        "dimensions": [
+          2000,
+          1200
+        ],
+        "mae_0_255": 0.2937611111111111,
+        "rmse_0_255": 2.372531407121469,
+        "max_error": 145,
+        "p95_absolute_error": 1.0,
+        "p99_absolute_error": 4.0,
+        "rgb_pearson_correlation": 0.9994216237510898,
+        "psnr_db": 40.62656420376929,
+        "software_backend_render_plus_readback_ms": 71318.20000000019
+      }
+    }
+  ],
+  "gpu": {
+    "backend": "WebGL 2 / GLSL ES 3.00",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "precisionBits": 23,
+    "rawFields": true,
+    "maxSize": 4096,
+    "maxUniformVectors": 4096
+  },
+  "raw_field_comparison": {
+    "sample_count": 32,
+    "native_pixels": [
+      [
+        1111,
+        217
+      ],
+      [
+        482,
+        1140
+      ],
+      [
+        694,
+        952
+      ],
+      [
+        1915,
+        995
+      ],
+      [
+        763,
+        816
+      ],
+      [
+        1796,
+        129
+      ],
+      [
+        1869,
+        114
+      ],
+      [
+        1048,
+        932
+      ],
+      [
+        1510,
+        1104
+      ],
+      [
+        614,
+        620
+      ],
+      [
+        198,
+        1122
+      ],
+      [
+        1279,
+        246
+      ],
+      [
+        1667,
+        705
+      ],
+      [
+        1654,
+        162
+      ],
+      [
+        652,
+        1157
+      ],
+      [
+        151,
+        977
+      ],
+      [
+        462,
+        895
+      ],
+      [
+        1312,
+        1093
+      ],
+      [
+        1471,
+        847
+      ],
+      [
+        1061,
+        1132
+      ],
+      [
+        1232,
+        514
+      ],
+      [
+        91,
+        434
+      ],
+      [
+        1458,
+        1079
+      ],
+      [
+        1244,
+        881
+      ],
+      [
+        1000,
+        600
+      ],
+      [
+        1001,
+        601
+      ],
+      [
+        1100,
+        580
+      ],
+      [
+        850,
+        675
+      ],
+      [
+        1300,
+        450
+      ],
+      [
+        650,
+        800
+      ],
+      [
+        1450,
+        360
+      ],
+      [
+        400,
+        910
+      ]
+    ],
+    "fields": {
+      "shell": {
+        "max_abs_error": 1.5410313944919096e-06,
+        "mean_abs_error": 8.297622666176622e-08,
+        "rmse": 2.611847971300857e-07,
+        "cpu_abs_max": 1.0
+      },
+      "turbulence": {
+        "max_abs_error": 0.010274365221194515,
+        "mean_abs_error": 0.001782105161645104,
+        "rmse": 0.002827032950238788,
+        "cpu_abs_max": 3.1676375353058255
+      },
+      "cloud": {
+        "max_abs_error": 0.023296325458524336,
+        "mean_abs_error": 0.0040215508112205105,
+        "rmse": 0.006759125842030421,
+        "cpu_abs_max": 22.430370156322986
+      },
+      "gas": {
+        "max_abs_error": 0.001056030232322036,
+        "mean_abs_error": 0.00013356282798650544,
+        "rmse": 0.0002575089955690292,
+        "cpu_abs_max": 1.4357905700808447
+      },
+      "core": {
+        "max_abs_error": 0.00027434595542796814,
+        "mean_abs_error": 7.159544167688944e-06,
+        "rmse": 3.857401649020856e-05,
+        "cpu_abs_max": 1.9707892922530443
+      },
+      "stars": {
+        "max_abs_error": 0.08887121654470498,
+        "mean_abs_error": 0.0027500072700373294,
+        "rmse": 0.012012164812753289,
+        "cpu_abs_max": 2.226625656852322
+      },
+      "final": {
+        "max_abs_error": 0.08883865565808424,
+        "mean_abs_error": 0.0028097546620440643,
+        "rmse": 0.011999310224781701,
+        "cpu_abs_max": 2.46899326533826
+      }
+    },
+    "interpretation": "Float32 vs float64 measurement, not an assertion of bitwise equivalence."
+  },
+  "native_image_comparison": {
+    "dimensions": [
+      2000,
+      1200
+    ],
+    "mae_0_255": 0.2937611111111111,
+    "rmse_0_255": 2.372531407121469,
+    "max_error": 145,
+    "p95_absolute_error": 1.0,
+    "p99_absolute_error": 4.0,
+    "rgb_pearson_correlation": 0.9994216237510898,
+    "psnr_db": 40.62656420376929,
+    "software_backend_render_plus_readback_ms": 71318.20000000019
+  }
+}

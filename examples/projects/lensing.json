@@ -1,0 +1,147 @@
+{
+  "id": "lensing",
+  "title": "Galaxy behind a star cluster",
+  "description": "Backward-map the background galaxy through a softened lens field. Foreground stars remain in the observer plane.",
+  "status": "Interpretive study",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "stars",
+      "type": "scatterStars",
+      "label": "Seeded star field",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "density": 22,
+        "gain": 0.32,
+        "seed": 17,
+        "speed": 0.1
+      },
+      "enabled": true
+    },
+    {
+      "id": "lens",
+      "type": "lens",
+      "label": "Star-cluster lens map",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "strength": 1.45,
+        "count": 7,
+        "softening": 0.015
+      },
+      "enabled": true
+    },
+    {
+      "id": "sourcePosition",
+      "type": "transform",
+      "label": "Translate · rotate · scale",
+      "inputs": {
+        "p": "lens"
+      },
+      "params": {
+        "x": 0.14,
+        "y": 0.065,
+        "angle": 0,
+        "scale": 0.63,
+        "stretch": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "galaxy",
+      "type": "galaxy",
+      "label": "Logarithmic spiral galaxy",
+      "inputs": {
+        "p": "sourcePosition"
+      },
+      "params": {
+        "arms": 3,
+        "pitch": 7,
+        "radius": 0.66,
+        "dust": 0.6,
+        "speed": 0.2
+      },
+      "enabled": true
+    },
+    {
+      "id": "cluster",
+      "type": "clusterLights",
+      "label": "Foreground cluster stars",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "gain": 1,
+        "count": 7
+      },
+      "enabled": true
+    },
+    {
+      "id": "backdrop",
+      "type": "add",
+      "label": "Add light",
+      "inputs": {
+        "a": "stars",
+        "b": "galaxy"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "final",
+      "type": "add",
+      "label": "Add light",
+      "inputs": {
+        "a": "backdrop",
+        "b": "cluster"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 2.1,
+  "tone": "filmic",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": [
+    {
+      "node": "lens",
+      "param": "strength",
+      "interpolation": "smooth",
+      "keys": [
+        {
+          "time": 0,
+          "value": 1.45
+        },
+        {
+          "time": 4,
+          "value": 0.05
+        },
+        {
+          "time": 8,
+          "value": 1.45
+        }
+      ]
+    }
+  ]
+}

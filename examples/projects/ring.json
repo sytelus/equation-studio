@@ -1,0 +1,137 @@
+{
+  "id": "ring",
+  "title": "Filament ring",
+  "description": "Replace only the geometry node, then reuse the source nebula’s turbulence, filaments, central glow and stars.",
+  "status": "Component remix",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "shell",
+      "type": "ringGeometry",
+      "label": "Replacement ring geometry",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "radius": 1.1,
+        "width": 0.16,
+        "flatten": 1.5
+      },
+      "enabled": true
+    },
+    {
+      "id": "turbulence",
+      "type": "nebulaTurbulence",
+      "label": "Nested-cosine turbulence · E",
+      "inputs": {
+        "p": "space",
+        "geometry": "shell"
+      },
+      "params": {
+        "bands": 50,
+        "speed": 0
+      },
+      "enabled": true
+    },
+    {
+      "id": "cloud",
+      "type": "nebulaCloud",
+      "label": "Filaments & haze · K",
+      "inputs": {
+        "p": "space",
+        "geometry": "shell",
+        "turbulence": "turbulence"
+      },
+      "params": {
+        "bands": 50,
+        "detail": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "gas",
+      "type": "nebulaGas",
+      "label": "Gas emission · Hgas",
+      "inputs": {
+        "p": "space",
+        "geometry": "shell",
+        "turbulence": "turbulence",
+        "cloud": "cloud"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "core",
+      "type": "nebulaCore",
+      "label": "Central glow · W",
+      "inputs": {
+        "p": "space",
+        "turbulence": "turbulence"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "stars",
+      "type": "nebulaStars",
+      "label": "Folded star lattices · T",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "bands": 30,
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "gascore",
+      "type": "add",
+      "label": "Add light",
+      "inputs": {
+        "a": "gas",
+        "b": "core"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "final",
+      "type": "add",
+      "label": "Add light",
+      "inputs": {
+        "a": "gascore",
+        "b": "stars"
+      },
+      "params": {
+        "gain": 1
+      },
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1,
+  "tone": "source",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": []
+}

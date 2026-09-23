@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Equation Studio — embedded renderer example</title>
+<style>
+body{margin:2rem;background:#101518;color:#dce7e3;font:16px system-ui}main{max-width:1100px;margin:auto}canvas{display:block;width:100%;background:#000;margin:1.2rem 0;border-radius:12px}button,select{font:inherit;padding:.5rem;background:#25312e;color:inherit;border:1px solid #50645c;border-radius:6px}a{color:#8edcbd}#status{white-space:pre-wrap}code{color:#bce6d6}
+</style><main><h1>The renderer without the editor</h1><p>Serve the project root with <code>python3 start.py</code>, then open this page through the same server. This example imports the editable ES modules directly.</p>
+<select id="scene" aria-label="Scene"></select> <button id="play">Play</button> <button id="save">Save PNG + project metadata</button>
+<canvas width="800" height="480"></canvas><p id="status"></p><p><a href="../index.html">Open the complete studio</a></p></main>
+<script type="module">
+import { Renderer } from '../src/renderer.js';
+import { presets, getPreset } from '../src/presets.js';
+import { embedPNGMetadata, download } from '../src/export.js';
+const canvas=document.querySelector('canvas'),select=document.querySelector('#scene'),status=document.querySelector('#status');
+for(const preset of presets){const option=document.createElement('option');option.value=preset.id;option.textContent=preset.title;select.append(option);}
+select.value='lensing';
+let project=getPreset(select.value),renderer=null,time=0,playing=false,previous=0,dirty=true;
+try{renderer=new Renderer(canvas);status.textContent=renderer.info.backend+' · '+renderer.info.renderer;}catch(e){status.textContent=e.message;}
+select.onchange=()=>{project=getPreset(select.value);time=0;dirty=true;};
+document.querySelector('#play').onclick=()=>{playing=!playing;document.querySelector('#play').textContent=playing?'Pause':'Play';};
+document.querySelector('#save').onclick=async()=>{
+    if(!renderer)return;
+    try{renderer.draw(project,time,800,480);const blob=await embedPNGMetadata(await renderer.png(),{project,time,width:800,height:480,target:project.output,backend:renderer.info});download(blob,project.id+'.png');}
+    catch(e){status.textContent=e.message;}
+};
+function tick(now){
+    if(playing){time=(time+Math.min((now-previous)/1000,.2))%project.duration;dirty=true;}
+    previous=now;
+    if(renderer&&dirty){dirty=false;try{renderer.draw(project,time,800,480);}catch(e){playing=false;status.textContent=e.message;}}
+    requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script></html>

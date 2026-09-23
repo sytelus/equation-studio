@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Animation, reproducibility and export</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="../docs/reading.css" />
+</head>
+<body>
+<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#animation-reproducibility-and-export"
+id="toc-animation-reproducibility-and-export">Animation, reproducibility
+and export</a>
+<ul>
+<li><a href="#a-frame-has-no-hidden-history"
+id="toc-a-frame-has-no-hidden-history">A frame has no hidden
+history</a></li>
+<li><a href="#two-complementary-kinds-of-motion"
+id="toc-two-complementary-kinds-of-motion">Two complementary kinds of
+motion</a></li>
+<li><a href="#interpolation"
+id="toc-interpolation">Interpolation</a></li>
+<li><a href="#seamless-loops-require-more-than-the-loop-checkbox"
+id="toc-seamless-loops-require-more-than-the-loop-checkbox">Seamless
+loops require more than the Loop checkbox</a></li>
+<li><a href="#still-png-with-project-metadata"
+id="toc-still-png-with-project-metadata">Still PNG with project
+metadata</a></li>
+<li><a href="#deterministic-png-sequence"
+id="toc-deterministic-png-sequence">Deterministic PNG sequence</a></li>
+<li><a href="#browser-video" id="toc-browser-video">Browser
+video</a></li>
+<li><a href="#practical-performance"
+id="toc-practical-performance">Practical performance</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="animation-reproducibility-and-export">Animation, reproducibility
+and export</h1>
+<h2 id="a-frame-has-no-hidden-history">A frame has no hidden
+history</h2>
+<p>The renderer evaluates <code>image = R(project, time)</code>. There
+is no evolving fluid grid or previous-frame feedback. This is why
+scrubbing backward, jumping between times, and regenerating a chosen
+frame works without replaying earlier frames. The GPU tests explicitly
+render <code>t=0</code>, <code>t=2.3</code>, then <code>t=0</code> again
+for nine moving presets: the middle frame changes, and the repeated
+first frame is identical on the tested backend.</p>
+<p>Determinism here means <strong>the same project, time, dimensions and
+backend</strong>, not bitwise equality across all GPU models or
+browsers. High-frequency trigonometric fields can differ with shader
+precision and math implementations. Archive your project, exported
+frames and backend metadata when exact historical output matters.</p>
+<h2 id="two-complementary-kinds-of-motion">Two complementary kinds of
+motion</h2>
+<p><strong>Procedural time</strong> is already present in many kernels.
+A coordinate drift <code>q=p-vt</code>, a phase
+<code>cos(kx-omega*t)</code>, or a small per-stamp oscillation gives
+continuous motion. Each corresponding speed slider scales the time
+passed to that kernel. Zero speed freezes that procedural motion.</p>
+<p><strong>Keyframes</strong> interpolate a component’s numeric
+parameter. Select a component, click its parameter’s ◆ at the current
+time, move the playhead, and change the control. Once a track exists,
+edits insert or replace keys at the current time. Numeric component
+parameters can be tracked; color pickers, the global exposure setting
+and graph connections are not keyframe tracks in this version.
+Count-like parameters can interpolate through fractional values even
+though the loop body uses integer indices; for discrete changes use Hold
+interpolation.</p>
+<p>The UI shows the evaluated tracked value at the playhead. A parameter
+edit also updates its base value. Removing the track therefore returns
+to the <strong>last edited base value</strong>, not automatically to the
+original preset’s value.</p>
+<h2 id="interpolation">Interpolation</h2>
+<p>Outside the keyed interval, the endpoint value is held. Between keys
+<code>(t0,v0)</code> and <code>(t1,v1)</code>, let
+<code>u=clamp((t-t0)/(t1-t0),0,1)</code>.</p>
+<pre class="text"><code>linear: v = v0 + (v1-v0)*u
+smooth: v = v0 + (v1-v0)*u*u*(3-2*u)
+hold:   v = v0 until the next key, then v1</code></pre>
+<p>Smooth is a zero-end-slope cubic easing <strong>for each
+interval</strong>, not a global cubic spline. It avoids overshooting the
+parameter bounds. Times are rounded to milliseconds when adding keys.
+Adding another key at that time replaces its value. Tracks and keys can
+be removed in the inspector. Shrinking project duration is rejected when
+existing keys would lie outside it; move or remove those keys first.</p>
+<h2 id="seamless-loops-require-more-than-the-loop-checkbox">Seamless
+loops require more than the Loop checkbox</h2>
+<p>The checkbox wraps the playhead. It does not change the mathematical
+phases. For a seamless loop of length <code>T</code>, key values should
+agree at <code>0</code> and <code>T</code>, and any procedural phase
+should return modulo its period. For example <code>sin(2*pi*t/T)</code>
+is periodic, while sampling a nonperiodic noise field at
+<code>p-(0,t)</code> generally is not. Equal lens-strength endpoint keys
+do not guarantee a seamless scene if the source galaxy independently
+keeps rotating. The bundled studies demonstrate animation, not a blanket
+seamless-loop guarantee.</p>
+<h2 id="still-png-with-project-metadata">Still PNG with project
+metadata</h2>
+<p>The Export dialog draws the requested target and dimensions at the
+current playhead, then adds an uncompressed UTF-8 PNG <code>iTXt</code>
+chunk with keyword <code>equation-studio</code>. The JSON contains the
+full project, time, target ID, width/height and backend information. The
+canvas pixels are not recompressed during metadata insertion.</p>
+<p>Most viewers ignore the metadata; some image editors strip it on
+save. The application’s own project files remain the most direct
+portable format. Recover a project from an exported PNG with:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/read_png_project.py my-image.png <span class="at">--output</span> recovered.json</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Or retain all render metadata:</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/read_png_project.py my-image.png <span class="at">--metadata</span> <span class="op">&gt;</span> render-settings.json</span></code></pre></div>
+<p>Then open <code>recovered.json</code> through the editor’s Open
+project action. Project labels and custom expressions are embedded, so
+inspect the metadata before sharing an image containing sensitive
+project information. A PNG generated through the low-level
+<code>renderer.png()</code> or
+<code>window.equationStudio.exportPNG()</code> API does not
+automatically receive this metadata; call
+<code>embedPNGMetadata()</code> explicitly or use the dialog.</p>
+<h2 id="deterministic-png-sequence">Deterministic PNG sequence</h2>
+<p>For duration <code>T</code> and frame rate <code>f</code>, the export
+generates <code>ceil(T*f)</code> samples at <code>t=i/f</code>, with
+<code>i</code> starting at zero. The end point is excluded to avoid an
+unnecessary duplicate when the construction loops. A duration not
+divisible by the frame interval can make the encoded sequence’s playback
+duration differ from <code>T</code> by less than one frame interval.</p>
+<p>The ZIP contains:</p>
+<pre class="text"><code>project.json
+manifest.json      dimensions, times, FPS, tone, exposure, target and backend
+frames/frame_00000.png
+frames/frame_00001.png
+...</code></pre>
+<p>PNG frames are already compressed. The ZIP uses the standard stored
+method rather than wasting time recompressing them. The writer validates
+paths, duplicate filenames, offsets, sizes and CRCs. Frames do not
+repeat the full project in every PNG; the shared JSON/manifest supplies
+provenance. Cancellation does not download a partial archive.</p>
+<p>Limits are 240 frames, 1280 pixels per side and 150 MB of frame
+bytes; the ZIP writer has a separate 160 MB total safety limit. The
+export currently holds compressed frames in memory rather than streaming
+them directly to disk. Use shorter sequences for large images. The UI
+restores the previous playhead and preview after success or failure.</p>
+<h2 id="browser-video">Browser video</h2>
+<p>The application checks <code>canvas.captureStream</code> and
+<code>MediaRecorder</code>, then chooses a supported WebM or MP4 MIME
+type. It records one pass through the timeline in wall-clock time. It
+does not wait for every theoretical frame number; rendering, encoding,
+tab visibility and browser scheduling can reduce the actual frame count.
+Use PNG sequence export when every frame time must be controlled.</p>
+<p>The tested Chromium/SwiftShader run produced a decodable VP9 WebM at
+64 × 40. The short tests recorded fewer decoded frames than their
+capture-rate requests on the software backend, illustrating why this
+mode is explicitly not advertised as a deterministic frame exporter.
+Other codecs/browsers were not tested. There is no audio track or
+audio-authoring feature in this application.</p>
+<h2 id="practical-performance">Practical performance</h2>
+<p>Preview width does not change formula band counts, but it changes
+sample spacing and pixel work. A source scene with tiny stars can look
+different at 480 versus 2000 pixels through aliasing, even though the
+same mathematical function is used. Hardware acceleration matters; the
+full source port is deliberately not replaced with a cheap approximate
+shader during motion.</p>
+<p>First-time graph compilation can be noticeable. Changing a numeric
+value reuses the linked program. A float field probe requires readback
+and should be used as an inspection action, not continuously every
+animation frame. The default UI’s time metric is <strong>submission
+time</strong>, not a GPU timer measurement. Frame-rate counters describe
+the current browser session, not a promised hardware capability.</p>
+</body>
+</html>

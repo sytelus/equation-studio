@@ -1,0 +1,9 @@
+INFO {'backend': 'WebGL 2 / GLSL ES 3.00', 'renderer': 'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)', 'precisionBits': 23, 'rawFields': True, 'maxSize': 4096, 'maxUniformVectors': 4096}
+errors []
+title Bipolar nebula
+isolation FIELD / Pinched shell family · S,A
+water inputs 10
+expr applied 0.5 + 0.5*cos(10.0*r - t)
+bad expression preserves project True
+sources 13
+all errors []

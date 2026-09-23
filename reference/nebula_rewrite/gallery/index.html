@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bipolar Nebula — a field-by-field explanation</title>
+<style>
+:root{color-scheme:dark}body{margin:0;background:#0e1018;color:#ececf3;font:16px/1.65 system-ui,sans-serif}
+main{max-width:1200px;margin:auto;padding:32px 24px 80px}h1{font-size:clamp(2rem,5vw,3.5rem);line-height:1.12;margin:10px 0 20px}
+.kicker{color:#d9acd7;letter-spacing:.14em;text-transform:uppercase;font-size:.8rem}p{max-width:85ch;color:#bfc5d5}
+a{color:#e0b4df}code{background:#25293a;padding:.15em .35em;border-radius:4px}section{margin:40px 0}
+.controls{display:flex;gap:24px;flex-wrap:wrap;background:#202433;padding:16px 20px;border-radius:10px;margin:20px 0}
+label{cursor:pointer}input{accent-color:#d091c9}.frame{overflow:auto;border:1px solid #32394d;background:black;border-radius:10px}
+#composite{display:block;width:100%;max-width:none}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:22px}
+article{padding:20px;background:#191d2a;border-radius:12px}article img{width:100%;display:block}article p{font-size:.92rem}h3{margin-top:0}
+.small{font-size:.85rem}footer{border-top:1px solid #34384b;padding-top:20px;color:#bfc5d5}
+</style></head><body><main>
+<div class="kicker">From equations to reusable graphics</div>
+<h1>Bipolar Nebula,<br>taken apart.</h1>
+<p>A reconstruction of the mathematical artwork credited in the supplied image to <strong>Hamid Naderi Yeganeh</strong>.
+Everything here was computed from the printed equations. No source-photo pixels, star catalog, random noise image, or 3-D scene are sampled.</p>
+<p>Read the project’s <code>README.html</code> and <code>docs/WALKTHROUGH.html</code> (or their Markdown versions) for the code and full explanation.
+The controls below use bundled PNGs and work offline, including through a <code>file:</code> URL.</p>
+<section><h2>The three visible contributions</h2>
+<div class="controls"><label><input id="gas" type="checkbox" checked> Gas and filaments</label>
+<label><input id="core" type="checkbox" checked> Central glow</label>
+<label><input id="stars" type="checkbox" checked> Stars</label>
+<label>Zoom <input id="zoom" type="range" min="100" max="250" value="100"> <span id="zoomlabel">100%</span></label></div>
+<div class="frame"><img id="composite" src="composite_111.png" alt="Selected nebula layers"></div>
+<p id="caption">Gas + central glow + stars</p>
+<p class="small">Each of the eight combinations was added in floating-point radiance before the original display conversion F.
+These controls switch pre-rendered combinations; they do not re-run the shader in JavaScript or incorrectly add clipped images.
+Turning off the core does not restore the gas suppressed by 1-W.</p></section>
+<section><h2>The fields underneath</h2><p>These are explanatory visualizations, not additional independent emission layers.
+Signed fields and unmasked cloud intensity need different display scales. Exact normalizations and numerical ranges are recorded in <a href="atlas.json">atlas.json</a>.</p>
+<div class="grid"><article><h3>A: glowing shell envelope</h3><img loading="lazy" src="diagnostic_rim.png" alt="A: glowing shell envelope"><p>Shown as 4*A in grayscale. Dark interiors and bright rims shape the lobes. This is an envelope, not an RGB layer.</p></article>
+<article><h3>S: shell-following texture coordinate</h3><img loading="lazy" src="diagnostic_warp.png" alt="S: shell-following texture coordinate"><p>Signed field centered on middle gray. The texture reads this as a coordinate; it is not emitted light.</p></article>
+<article><h3>E: multiscale modulation</h3><img loading="lazy" src="diagnostic_turbulence.png" alt="E: multiscale modulation"><p>Signed field centered on middle gray. This changes both filament thresholds and the central-glow boundary.</p></article>
+<article><h3>K: unmasked cloud color</h3><img loading="lazy" src="diagnostic_cloud.png" alt="K: unmasked cloud color"><p>Displayed at 0.05 times its raw intensity so its detail is visible. The final gas also multiplies K by 1.1*(1-W)*A.</p></article>
+<article><h3>W: central-glow mask</h3><img loading="lazy" src="diagnostic_core_mask.png" alt="W: central-glow mask"><p>Raw [0,1] values shown as grayscale. W adds the core; 1-W simultaneously removes gas from the same area.</p></article>
+<article><h3>Diagnostic shell coverage</h3><img loading="lazy" src="diagnostic_coverage.png" alt="Diagnostic shell coverage"><p>1-product(1-J_s), shown in grayscale. Not used directly as a source emission mask; replacing A with it fills in the shells.</p></article></div></section>
+<section><h2>Try a new composition</h2><p>Run <code>python -m examples.twin_nebulae</code> to place two independently transformed gas structures over one shared star field.
+Run <code>python -m examples.custom_ring</code> to replace the lobes with an elliptical ring while keeping the cloud shader.
+The source code is the editable model; this gallery is its visual explanation.</p></section>
+<footer>Original artistic formula: Hamid Naderi Yeganeh. Semantic labels are an interpretation of the formulas and their isolated renders, not quotations of the artist's intent.
+See the project’s <code>ATTRIBUTION.md</code> for attribution and scope.</footer></main>
+<script>
+const ids=['gas','core','stars'];
+function update(){const states=ids.map(id=>document.getElementById(id).checked);document.getElementById('composite').src='composite_'+states.map(Number).join('')+'.png';
+const names=['Gas','central glow','stars'];document.getElementById('caption').textContent=names.filter((_,i)=>states[i]).join(' + ')||'No emission layers';}
+ids.forEach(id=>document.getElementById(id).addEventListener('change',update));
+document.getElementById('zoom').addEventListener('input',e=>{document.getElementById('composite').style.width=e.target.value+'%';document.getElementById('zoomlabel').textContent=e.target.value+'%';});
+update();
+</script></body></html>
