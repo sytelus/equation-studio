@@ -9,13 +9,13 @@ from pathlib import Path
 import re
 ROOT=Path(__file__).resolve().parents[1]
 IMPORT=re.compile(r"^import\s*\{([^}]+)\}\s*from\s*['\"](.+?)['\"];?\s*$",re.M)
-EXPORT=re.compile(r'\bexport\s+(?:async\s+)?(?:const|let|class|function)\s+(\w+)')
+EXPORT=re.compile(r'\bexport\s+(?:async\s+)?(?:const|let|class|function)\s+([\w$]+)')
 def bundle(entry='app.js'):
     seen=set(); pieces=['const __modules = Object.create(null);']
     def visit(name):
         if name in seen:return
         seen.add(name)
-        source=(ROOT/'src'/name).read_text()
+        source=(ROOT/'src'/name).read_text(encoding='utf-8')
         imports=IMPORT.findall(source)
         for names,path in imports:
             if not path.startswith('./') or '/' in path[2:]:raise ValueError(f'Unsupported import {path}')
@@ -28,12 +28,12 @@ def bundle(entry='app.js'):
     visit(entry)
     return '\n'.join(pieces)
 def build():
-    js=bundle(); (ROOT/'studio.js').write_text(js)
-    html=(ROOT/'index.html').read_text()
-    css=(ROOT/'style.css').read_text()
+    js=bundle(); (ROOT/'studio.js').write_text(js, encoding='utf-8', newline='\n')
+    html=(ROOT/'index.html').read_text(encoding='utf-8')
+    css=(ROOT/'style.css').read_text(encoding='utf-8')
     html=html.replace('<link rel="stylesheet" href="style.css">',f'<style>\n{css}\n</style>')
     escaped_js=js.replace("</script", "<\\/script")
     html=html.replace('<script type="module" src="src/app.js"></script>',f'<script>\n{escaped_js}\n</script>')
-    (ROOT/'Equation Studio.html').write_text(html)
+    (ROOT/'Equation Studio.html').write_text(html, encoding='utf-8', newline='\n')
     print(f'Built Equation Studio.html ({len(html):,} characters); no runtime external dependencies.')
 if __name__=='__main__':build()

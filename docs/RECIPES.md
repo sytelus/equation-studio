@@ -2,7 +2,7 @@
 
 These recipes explain **the code delivered here**. Except for the original nebula, they are new, subject-based constructions, not recovered formulas from the linked posts. We did not inspect the new full-resolution formula sheets or the Hedgehog/Fire videos. See the [research ledger](RESEARCH.md) before attributing any construction to the artist.
 
-All coordinates below are local to the relevant component. Color vectors are floating-point emission values. `G(d,w)=exp(-(d/w)^2)` is a Gaussian profile. `inside(d,e)=1-smoothstep(-e,e,d)` is a soft inside mask. Neither is automatically a physical density or a true signed-distance field.
+While reading, keep the app open with **Previews** on so every component's field is visible on its card, and use **Contribution** on a component to see which output pixels it changes; the [editor guide](EDITOR_GUIDE.md) explains both. All coordinates below are local to the relevant component. Color vectors are floating-point emission values. `G(d,w)=exp(-(d/w)^2)` is a Gaussian profile. `inside(d,e)=1-smoothstep(-e,e,d)` is a soft inside mask. Neither is automatically a physical density or a true signed-distance field.
 
 ## 1. The source Bipolar Nebula
 

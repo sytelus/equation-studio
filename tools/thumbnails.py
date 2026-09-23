@@ -16,4 +16,4 @@ for name in IDS:
         image = image.convert('RGB').resize((240,144),Image.Resampling.LANCZOS)
         data = BytesIO(); image.save(data,format='JPEG',quality=82,optimize=True)
         thumbs[name] = 'data:image/jpeg;base64,' + base64.b64encode(data.getvalue()).decode('ascii')
-(ROOT/'src'/'thumbnails.js').write_text('/** Navigation previews only; the GPU artwork renderer never samples these. */\nexport const thumbnails = '+json.dumps(thumbs,separators=(',',':'))+';\n')
+(ROOT/'src'/'thumbnails.js').write_text('/** Navigation previews only; the GPU artwork renderer never samples these. */\nexport const thumbnails = '+json.dumps(thumbs,separators=(',',':'))+';\n', encoding='utf-8', newline='\n')

@@ -1,11 +1,14 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <title>Animation, reproducibility and export</title>
   <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
     div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -21,8 +24,9 @@
       vertical-align: middle;
     }
     /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
     pre > code.sourceCode { white-space: pre; position: relative; }
-    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
     pre > code.sourceCode > span:empty { height: 1.2em; }
     .sourceCode { overflow: visible; }
     code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -33,7 +37,7 @@
     }
     @media print {
     pre > code.sourceCode { white-space: pre-wrap; }
-    pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
     }
     pre.numberSource code
       { counter-reset: source-line 0; }
@@ -88,7 +92,7 @@
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#animation-reproducibility-and-export"
@@ -164,9 +168,16 @@ hold:   v = v0 until the next key, then v1</code></pre>
 <p>Smooth is a zero-end-slope cubic easing <strong>for each
 interval</strong>, not a global cubic spline. It avoids overshooting the
 parameter bounds. Times are rounded to milliseconds when adding keys.
-Adding another key at that time replaces its value. Tracks and keys can
-be removed in the inspector. Shrinking project duration is rejected when
-existing keys would lie outside it; move or remove those keys first.</p>
+Adding another key at that time replaces its value. Keys can be dragged
+along their timeline lane to retime them; dropping one on an existing
+key replaces that key. Tracks and keys can be removed in the inspector.
+Shrinking project duration is rejected when existing keys would lie
+outside it; move or remove those keys first.</p>
+<p>While the animation plays, the inspector shows the evaluated value of
+every tracked control without rebuilding the panel, so an expression you
+are typing is not discarded. <code>,</code> and <code>.</code> step the
+playhead by one frame at 24 fps, which matches the export dialog’s
+default rate.</p>
 <h2 id="seamless-loops-require-more-than-the-loop-checkbox">Seamless
 loops require more than the Loop checkbox</h2>
 <p>The checkbox wraps the playhead. It does not change the mathematical
@@ -183,8 +194,10 @@ metadata</h2>
 <p>The Export dialog draws the requested target and dimensions at the
 current playhead, then adds an uncompressed UTF-8 PNG <code>iTXt</code>
 chunk with keyword <code>equation-studio</code>. The JSON contains the
-full project, time, target ID, width/height and backend information. The
-canvas pixels are not recompressed during metadata insertion.</p>
+full project, time, target ID, the contribution node when a contribution
+view was exported, width/height and backend information. The canvas
+pixels are not recompressed during metadata insertion. Rulers, grid,
+readouts and reference overlays are never part of an export.</p>
 <p>Most viewers ignore the metadata; some image editors strip it on
 save. The application’s own project files remain the most direct
 portable format. Recover a project from an exported PNG with:</p>
@@ -226,10 +239,16 @@ restores the previous playhead and preview after success or failure.</p>
 <h2 id="browser-video">Browser video</h2>
 <p>The application checks <code>canvas.captureStream</code> and
 <code>MediaRecorder</code>, then chooses a supported WebM or MP4 MIME
-type. It records one pass through the timeline in wall-clock time. It
-does not wait for every theoretical frame number; rendering, encoding,
-tab visibility and browser scheduling can reduce the actual frame count.
-Use PNG sequence export when every frame time must be controlled.</p>
+type. It records one pass through the timeline in wall-clock time,
+drawing frame <code>i</code> at exactly <code>t=i/FPS</code> when the
+clock reaches that frame and pushing it to the recorder explicitly
+(<code>requestFrame</code>), so every recorded frame shows an exact
+sample time. It does not wait for every theoretical frame number: on a
+slow device, missed frames are skipped rather than recorded late, and
+rendering, encoding, tab visibility and browser scheduling can reduce
+the actual frame count. The dialog reports how many of the planned
+frames were drawn. Use PNG sequence export when every frame must be
+present.</p>
 <p>The tested Chromium/SwiftShader run produced a decodable VP9 WebM at
 64 × 40. The short tests recorded fewer decoded frames than their
 capture-rate requests on the software backend, illustrating why this

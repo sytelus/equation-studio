@@ -1,11 +1,14 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <title>Equation Studio</title>
   <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
     div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -21,8 +24,9 @@
       vertical-align: middle;
     }
     /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
     pre > code.sourceCode { white-space: pre; position: relative; }
-    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
     pre > code.sourceCode > span:empty { height: 1.2em; }
     .sourceCode { overflow: visible; }
     code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -33,7 +37,7 @@
     }
     @media print {
     pre > code.sourceCode { white-space: pre-wrap; }
-    pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
     }
     pre.numberSource code
       { counter-reset: source-line 0; }
@@ -88,7 +92,7 @@
   <link rel="stylesheet" href="docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="Equation%20Studio.html">Open studio</a> <a href="README.html">Start here</a> <a href="docs/RECIPES.html">Recipes</a> <a href="docs/ARCHITECTURE.html">Architecture</a> <a href="docs/COMPONENTS.html">Components</a> <a href="docs/RESEARCH.html">Research</a> <a href="docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="Equation%20Studio.html">Open studio</a> <a href="README.html">Start here</a> <a href="docs/EDITOR_GUIDE.html">Editor guide</a> <a href="docs/RECIPES.html">Recipes</a> <a href="docs/ARCHITECTURE.html">Architecture</a> <a href="docs/COMPONENTS.html">Components</a> <a href="docs/DEVELOPMENT.html">Development</a> <a href="docs/RESEARCH.html">Research</a> <a href="docs/VALIDATION.html">Validation</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#equation-studio" id="toc-equation-studio">Equation
@@ -121,9 +125,20 @@ portability</a></li>
 formulas, animate parameters, and export reproducible
 images.</strong></p>
 <figure>
-<img src="gallery/studio-desktop.png" alt="The running editor" />
-<figcaption aria-hidden="true">The running editor</figcaption>
+<img src="gallery/studio-desktop.png"
+alt="The running editor with live previews and rulers" />
+<figcaption aria-hidden="true">The running editor with live previews and
+rulers</figcaption>
 </figure>
+<p>Every image is a typed graph of equations evaluated per pixel on your
+GPU. The editor lets you see what each component contributes (isolated
+fields, live per-node previews, and a contribution view that shows
+exactly which output pixels a component changes), read real numbers
+under the cursor with world-coordinate rulers, build graphs by dragging
+components and wires, bookmark states as snapshots, animate parameters
+with keyframes, and export stills, frame sequences or video with the
+full project embedded. The <a href="docs/EDITOR_GUIDE.html">editor
+guide</a> covers every control.</p>
 <h2 id="open-the-app">Open the app</h2>
 <p><strong>Open <code>Equation Studio.html</code> in a desktop browser
 with WebGL 2 enabled.</strong> This single file includes the
@@ -158,58 +173,58 @@ and what is new?</h2>
 <col style="width: 33%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Construction</th>
 <th>Delivered implementation</th>
 <th>Evidence boundary</th>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td>Original Bipolar Nebula</td>
 <td>GPU port of the supplied equations, with the previous Python project
 retained</td>
 <td>Full source equation reference and measured GPU/CPU comparison; not
 byte-identical across precision/backends</td>
 </tr>
-<tr class="even">
+<tr>
 <td>Stormy water planet</td>
 <td>Sphere coordinates, seven cyclone warps, multiscale clouds, ocean
 glint, atmosphere</td>
 <td>New procedural study of the requested subject; original formula
 sheet unavailable</td>
 </tr>
-<tr class="odd">
+<tr>
 <td>Galaxy lensed by a star cluster</td>
 <td>Shared cluster positions, softened lens map, spiral source galaxy,
 foreground lights</td>
 <td>New illustrative model; not the artist’s recovered formula</td>
 </tr>
-<tr class="even">
+<tr>
 <td>Spiral aurora</td>
 <td>Logarithmic spiral ribbon, angular rays, layered emission</td>
 <td>New procedural study; not an MHD simulation</td>
 </tr>
-<tr class="odd">
+<tr>
 <td>Black hole stretching a star</td>
 <td>Projected disk, illustrative rear arc, shadow, tapered stream,
 stellar glow</td>
 <td>New stylized construction; not relativistic ray tracing</td>
 </tr>
-<tr class="even">
+<tr>
 <td>Peacock in full display</td>
 <td>Reusable eye-feather stamp, four ordered fan rows, independent
 body/head</td>
 <td>New construction; not an exact transcription of the linked
 artwork</td>
 </tr>
-<tr class="odd">
+<tr>
 <td>Hedgehog and Fire</td>
 <td>Quill-stamp/ellipse assembly; advected tapered flame field</td>
 <td>Original teaching examples, <strong>not transcriptions of the
 unavailable videos</strong></td>
 </tr>
-<tr class="even">
+<tr>
 <td>Ring Nebula, Marble, Kaleidoscope, One Feather</td>
 <td>Additional remix/teaching scenes</td>
 <td>Original demonstrations of component reuse</td>
@@ -225,16 +240,20 @@ two third-party exchanges. No exact reconstruction of those inaccessible
 materials is claimed.</p>
 <h2 id="first-ten-minutes">First ten minutes</h2>
 <ol type="1">
-<li>Start with <strong>Bipolar Nebula</strong>. Select <em>Pinched
-shells</em>, then <strong>Isolate</strong>. Red is the emission rim,
-green is coverage, and blue displays the signed coordinate warp. This is
-a diagnostic false-color view, not the nebula’s RGB color.</li>
-<li>Inspect <em>Turbulence</em>, <em>Cloud filaments</em>, <em>Gas</em>,
-<em>Central glow</em>, and <em>Stars</em>. <strong>Return to
-composite</strong> restores the full image. <strong>Probe
-value</strong>, followed by a click, reads actual field numbers before
-tone mapping; Alt-click does the same. Raw probes require
-<code>EXT_color_buffer_float</code>; ordinary rendering does not.</li>
+<li>Start with <strong>Bipolar Nebula</strong>. Turn on
+<strong>Previews</strong> above the graph to see every component’s
+output on its card, then select <em>Pinched shells</em> and
+<strong>Isolate</strong> it. Red is the emission rim, green is coverage,
+and blue displays the signed coordinate warp. This is a diagnostic
+false-color view, not the nebula’s RGB color.</li>
+<li>Select <em>Stars</em> and choose <strong>Contribution</strong>: the
+composite is rendered with and without the star field and only the
+pixels the stars change stay in color. Turn on <strong>Rulers</strong>
+and move over the image to read the world coordinate, pixel, displayed
+color and the selected component’s raw field value; click to pin that
+readout. <strong>Return to composite</strong> or Escape restores the
+full image. Raw values require <code>EXT_color_buffer_float</code>;
+ordinary rendering does not.</li>
 <li>Open <strong>Ring Nebula</strong>. Its cloud machinery is unchanged;
 only its geometry input is replaced. This is the smallest useful example
 of composition rather than merely retinting an image.</li>
@@ -247,39 +266,44 @@ first key. Move the playhead, then change that control: a tracked
 parameter gets a new key at the current time. Choose smooth, linear, or
 hold interpolation in its animation section.</li>
 <li>Open <strong>Components</strong>, search for <strong>Custom
-scalar</strong>, and add it. Edit <code>0.5 + 0.5*cos(12.0*r - t)</code>
-and apply. Isolate it, or connect it to a palette. Coordinates are
-explicitly connected; an unconnected socket supplies zero, not an
-inferred world coordinate.</li>
-<li>Save the project JSON, then export PNG or a PNG sequence. PNG files
-from the Export dialog include the complete project and render settings
-as embedded text metadata.</li>
+scalar</strong>, and drag it onto the graph. Edit
+<code>0.5 + 0.5*cos(12.0*r - t)</code> and apply. Isolate it, or drag
+its output dot onto a palette’s input. Coordinates are explicitly
+connected; an unconnected socket supplies zero, not an inferred world
+coordinate.</li>
+<li>Press <strong>Snapshot</strong> before a risky change; the Snapshots
+tab brings the state back. Save the project JSON, then export PNG or a
+PNG sequence. PNG files from the Export dialog include the complete
+project and render settings as embedded text metadata.</li>
 </ol>
 <h2 id="editing-and-inspection">Editing and inspection</h2>
-<p>The left library contains scenes and components. The center contains
-a live canvas, a typed function graph, generated GLSL, and a timeline.
-The right inspector explains the selected component’s intent, equation,
-input sockets, parameters, and animation tracks.</p>
-<p>Connect an output dot to an input dot of the same type, or select the
-input in the inspector. Cycles and mismatched types are rejected. Graph
-layout is automatic and scrollable; this is not a free-position
-node-canvas editor. Components can be duplicated, disabled, deleted,
-isolated, or assigned as output. Numeric changes update uniforms; graph
-or equation changes compile a new shader. A failed custom equation does
-not replace the last valid project/image.</p>
-<p>Drag the artwork to pan; scroll to zoom; <strong>Fit</strong> resets
-the camera. Hover reports displayed RGB and world coordinates.
-<strong>Compare</strong> loads a local PNG/JPEG/WebP overlay or
+<p>The left library contains scenes, components and snapshots. The
+center contains a live canvas, a typed function graph, generated GLSL,
+and a timeline. The right inspector explains the selected component’s
+intent, equation, input sockets, parameters, and animation tracks.</p>
+<p>Wire components by dragging between dots, by clicking an output dot
+and then an input dot, or by choosing the input in the inspector; drag a
+library entry onto a socket to add and connect in one step. Cycles and
+mismatched types are rejected. Graph layout is automatic and scrollable;
+this is not a free-position node-canvas editor. Components can be
+duplicated, disabled, deleted, isolated, shown as a contribution, or
+assigned as output. Numeric changes update uniforms; graph or equation
+changes compile a new shader. A failed custom equation does not replace
+the last valid project/image.</p>
+<p>Drag the artwork to pan; scroll or pinch to zoom about the cursor;
+<strong>Fit</strong> resets the camera. <strong>Rulers</strong> and
+<strong>Grid</strong> overlay world coordinates with a crosshair readout
+of position, pixel, color and raw field values; a click pins the
+readout. <strong>Compare</strong> loads a local PNG/JPEG/WebP overlay or
 difference view. It does not infer equations, fit parameters, or affect
 exported artwork. Crop a reference before loading; the overlay is
 stretched to the canvas rectangle.</p>
 <p>Projects autosave opportunistically to browser storage. Browser
 storage can be unavailable or cleared; <strong>Save project</strong> is
 the portable backup. Reference images are session-only and are not
-included in the saved project. Keyboard shortcuts: Space plays/pauses;
-Ctrl/Cmd+S saves JSON; Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z undo/redo; Escape
-cancels a pending connection or isolated view when no dialog is
-open.</p>
+included in the saved project; snapshots and preferences stay in the
+browser. The complete list of controls and keyboard shortcuts is in the
+<a href="docs/EDITOR_GUIDE.html">editor guide</a>.</p>
 <h2 id="animation-and-export">Animation and export</h2>
 <p><strong>Animation is stateless:</strong> a frame is a function of
 project parameters and time. Scrubbing backward does not require
@@ -293,24 +317,24 @@ motion control to animate it.</p>
 <col style="width: 50%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Export</th>
 <th>Behavior</th>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td>PNG</td>
 <td>Current playhead; opaque displayed RGB; up to the lower of GPU
 limits and 4096 pixels per side; embedded project/settings metadata</td>
 </tr>
-<tr class="even">
+<tr>
 <td>PNG sequence ZIP</td>
 <td>Explicit times <code>i/FPS</code>, end point excluded; PNGs, project
 JSON, and manifest; at most 240 frames, 1280 pixels per side, and 150 MB
 of compressed frame bytes</td>
 </tr>
-<tr class="odd">
+<tr>
 <td>Browser video</td>
 <td>One real-time timeline pass using a supported MediaRecorder codec;
 may drop frames on a slow device; exact frame count is not promised</td>
@@ -334,31 +358,40 @@ index.html / style.css     Editable application shell and styling
 src/
   catalog.js               43 component definitions: intent, sockets, params, GLSL emitter
   graph.js                 Project schema, validation, graph traversal, history
-  compiler.js              Typed DAG → one fused fragment shader
-  renderer.js              WebGL programs, uniforms, float probes, context recovery
+  compiler.js              Typed DAG → one fused fragment shader (display, raw, contribution, preview modes)
+  renderer.js              WebGL programs, uniforms, offscreen snapshots and previews, float probes
+  view-math.js             Camera arithmetic shared by the canvas, rulers and tests
+  graph-layout.js          Deterministic graph layout
   math-glsl.js             Low-level field, noise, shape, color and composition atoms
   source-constants.js      Float64 constant folding of source&#39;s fixed band expressions
   nebula-glsl.js            Original source nebula GPU kernels
   motifs-glsl.js            New subject-based kernels
-  timeline.js              Deterministic parameter interpolation
+  timeline.js              Deterministic parameter interpolation and key editing
   presets.js               Editable scene graphs
   export.js                PNG metadata and dependency-free ZIP export
-  app.js                   Browser UI and editor workflows
+  snapshots.js             Session bookmarks
+  editor.js                Shared editor state, event bus and model operations
+  ui-*.js                  One module per panel: library, canvas, graph, inspector, timeline, export, toolbar
+  app.js                   Boot, frame loop and integration hooks
   research.js              Evidence/provenance ledger displayed inside the app
 examples/                  Saved projects and an embeddable renderer example
 reference/nebula_rewrite/   Retained complete Python project and original documentation
 tools/                     Build, documentation, metadata extraction and verification
 tests/                     Node tests; small browser-produced verification artifacts
-docs/                      Theory, recipes, API, research and measured validation</code></pre>
+docs/                      Guides, theory, recipes, API, research and measured validation</code></pre>
 <p>Browser-readable copies are included as <code>README.html</code> and
 <code>docs/*.html</code>, with typeset equations and no online scripts.
 Regenerating those reading pages is optional and uses
 <code>python3 tools/build_docs.py</code> with Pandoc installed.</p>
-<p>Read <a href="docs/ARCHITECTURE.html">Architecture and API</a>, <a
-href="docs/RECIPES.html">Construction recipes</a>, and the <a
-href="docs/COMPONENTS.html">generated component catalog</a>. The retained
-<a href="reference/nebula_rewrite/docs/FORMULA_REFERENCE.md">original
-formula reference</a> maps every source symbol to its purpose.</p>
+<p>Read the <a href="docs/EDITOR_GUIDE.html">Editor guide</a>, <a
+href="docs/ARCHITECTURE.html">Architecture and API</a>, <a
+href="docs/RECIPES.html">Construction recipes</a>, the <a
+href="docs/COMPONENTS.html">generated component catalog</a> and, for
+working on the code, the <a href="docs/DEVELOPMENT.html">Development
+guide</a>. The retained <a
+href="reference/nebula_rewrite/docs/FORMULA_REFERENCE.md">original
+formula reference</a> maps every source symbol to its purpose. Changes
+are listed in the <a href="CHANGELOG.html">changelog</a>.</p>
 <h2 id="development-and-verification">Development and verification</h2>
 <p>No installation is needed to edit the source modules and serve them
 with <code>start.py</code>. Node 20+ is only needed for development
@@ -370,12 +403,15 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/build.py</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> start.py</span></code></pre></div>
 <p>Optional browser tests need Python Playwright, NumPy and Pillow, and
-an installed Chromium. CPU reference tests additionally need the
-requirements in <code>reference/nebula_rewrite/</code>. Detailed
-commands, environment, measurements, and known gaps are in <a
-href="docs/VALIDATION.html">Validation</a>. The single-file distribution
-should be rebuilt after modifying any runtime source module, HTML, CSS,
-or thumbnail.</p>
+a Chromium (Playwright’s bundled one works:
+<code>python3 -m playwright install chromium</code>). CPU reference
+tests additionally need the requirements in
+<code>reference/nebula_rewrite/</code>. Detailed commands, environment,
+measurements, and known gaps are in <a
+href="docs/VALIDATION.html">Validation</a>; the full regeneration
+checklist is in the <a href="docs/DEVELOPMENT.html">Development guide</a>.
+The single-file distribution should be rebuilt after modifying any
+runtime source module, HTML, CSS, or thumbnail.</p>
 <h2 id="performance-and-portability">Performance and portability</h2>
 <p>This is WebGL 2, not WebGPU. All per-pixel math runs in fragment
 shaders; there are no remote services or CPU-rendered preview
@@ -387,13 +423,14 @@ also pause briefly.</p>
 <p>The app was exercised in Chromium using the real WebGL 2 API with the
 <strong>ANGLE/SwiftShader software backend</strong>, including
 full-resolution source comparison. No physical-GPU frame-rate claim is
-made. This environment blocks URL navigation by managed policy, so
-automated UI testing loaded the actual bundled HTML into an in-memory
-page without changing that policy. File-URL and localhost browser
-navigation were not end-to-end tested here. The HTTP launcher itself was
-tested separately. Safari/Firefox/iOS and hardware-GPU matrices remain
-untested. WebGL absence, missing float-probe support, recording codec
-errors, and context loss have explicit handling.</p>
+made. Automated UI testing loads the actual bundled HTML into an
+in-memory page, so no browser policy is involved; file-URL and localhost
+browser navigation were not end-to-end tested by those suites. The HTTP
+launcher itself was tested separately. Safari/Firefox/iOS and
+hardware-GPU matrices remain untested. WebGL absence, missing
+float-probe support, recording codec errors, and context loss have
+explicit handling. Live previews and contribution views compile
+additional shaders on first use; turn previews off on slow machines.</p>
 <p>This is a procedural-art tool, not a physical astronomical/weather
 simulator, an automatic inverse-image-fitting system, a general 3D
 modeller, or a recovery of the artist’s private design process.</p>

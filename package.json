@@ -1,6 +1,18 @@
 {
-  "name": "equation-studio", "version": "1.0.0", "private": true,
-  "type": "module", "description": "Offline GPU studio for composable mathematical images and animation",
-  "scripts": {"test": "node --test tests/*.test.js", "build": "python3 tools/build.py", "start": "python3 start.py"},
-  "engines": {"node": ">=20"}
+  "name": "equation-studio",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline GPU studio for composable mathematical images and animation",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "catalog": "node tools/generate_catalog.js",
+    "build": "python3 tools/build.py",
+    "docs": "python3 tools/build_docs.py",
+    "manifest": "python3 tools/write_manifest.py",
+    "start": "python3 start.py"
+  },
+  "engines": {
+    "node": ">=20"
+  }
 }

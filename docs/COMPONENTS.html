@@ -1,11 +1,14 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <title>Component catalog</title>
   <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
     div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -24,7 +27,7 @@
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#component-catalog" id="toc-component-catalog">Component
@@ -135,7 +138,7 @@ RGB radiance and coverage, not pre-clipped pixels.</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Type ID</th>
 <th>Name</th>
 <th>Category</th>
@@ -144,301 +147,301 @@ RGB radiance and coverage, not pre-clipped pixels.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>coordinates</code></td>
 <td>Image coordinates</td>
 <td>Coordinates</td>
 <td>coord</td>
 <td>none</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>transform</code></td>
 <td>Translate · rotate · scale</td>
 <td>Coordinates</td>
 <td>coord</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>vortex</code></td>
 <td>Localized vortex</td>
 <td>Coordinates</td>
 <td>coord</td>
 <td>p: coord</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>domainwarp</code></td>
 <td>Turbulent coordinate warp</td>
 <td>Coordinates</td>
 <td>coord</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>polar</code></td>
 <td>Polar coordinates</td>
 <td>Coordinates</td>
 <td>coord</td>
 <td>p: coord</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>kaleidoscope</code></td>
 <td>Angular mirror</td>
 <td>Coordinates</td>
 <td>coord</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>noise</code></td>
 <td>Fractal value noise</td>
 <td>Scalar fields</td>
 <td>scalar</td>
 <td>p: coord</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>waves</code></td>
 <td>Nested cosine bands</td>
 <td>Scalar fields</td>
 <td>scalar</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>disc</code></td>
 <td>Soft disc / sphere mask</td>
 <td>Scalar fields</td>
 <td>scalar</td>
 <td>p: coord</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>ring</code></td>
 <td>Gaussian ring</td>
 <td>Scalar fields</td>
 <td>scalar</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>threshold</code></td>
 <td>Soft threshold</td>
 <td>Scalar fields</td>
 <td>scalar</td>
 <td>field: scalar</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>fieldmath</code></td>
 <td>Combine scalar fields</td>
 <td>Scalar fields</td>
 <td>scalar</td>
 <td>a: scalar, b: scalar</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>expression</code></td>
 <td>Custom scalar equation</td>
 <td>Authoring</td>
 <td>scalar</td>
 <td>p: coord, a: scalar, b: scalar</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>vectorExpression</code></td>
 <td>Custom coordinate equation</td>
 <td>Authoring</td>
 <td>coord</td>
 <td>p: coord, a: scalar, b: scalar</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>colorExpression</code></td>
 <td>Custom color equation</td>
 <td>Authoring</td>
 <td>layer</td>
 <td>p: coord, a: scalar, b: scalar</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>palette</code></td>
 <td>Two-color emission</td>
 <td>Color &amp; composition</td>
 <td>layer</td>
 <td>field: scalar</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>solid</code></td>
 <td>Solid color</td>
 <td>Color &amp; composition</td>
 <td>layer</td>
 <td>none</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>tint</code></td>
 <td>Tint &amp; gain</td>
 <td>Color &amp; composition</td>
 <td>layer</td>
 <td>layer: layer</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>mask</code></td>
 <td>Mask layer</td>
 <td>Color &amp; composition</td>
 <td>layer</td>
 <td>layer: layer, mask: scalar</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>add</code></td>
 <td>Add light</td>
 <td>Color &amp; composition</td>
 <td>layer</td>
 <td>a: layer, b: layer</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>over</code></td>
 <td>Front over back</td>
 <td>Color &amp; composition</td>
 <td>layer</td>
 <td>front: layer, back: layer</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>nebulaGeometry</code></td>
 <td>Pinched shell family · S,A</td>
 <td>Source nebula</td>
 <td>geometry</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>ringGeometry</code></td>
 <td>Replacement ring geometry</td>
 <td>Source nebula</td>
 <td>geometry</td>
 <td>p: coord</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>geometryField</code></td>
 <td>Inspect geometry channel</td>
 <td>Source nebula</td>
 <td>scalar</td>
 <td>geometry: geometry</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>nebulaTurbulence</code></td>
 <td>Nested-cosine turbulence · E</td>
 <td>Source nebula</td>
 <td>scalar</td>
 <td>p: coord, geometry: geometry</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>nebulaCloud</code></td>
 <td>Filaments &amp; haze · K</td>
 <td>Source nebula</td>
 <td>layer</td>
 <td>p: coord, geometry: geometry, turbulence: scalar</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>nebulaGas</code></td>
 <td>Gas emission · Hgas</td>
 <td>Source nebula</td>
 <td>layer</td>
 <td>p: coord, geometry: geometry, turbulence: scalar, cloud: layer</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>nebulaCore</code></td>
 <td>Central glow · W</td>
 <td>Source nebula</td>
 <td>layer</td>
 <td>p: coord, turbulence: scalar</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>nebulaStars</code></td>
 <td>Folded star lattices · T</td>
 <td>Source nebula</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>scatterStars</code></td>
 <td>Seeded star field</td>
 <td>Astronomical studies</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>planet</code></td>
 <td>Cyclonic water planet</td>
 <td>Astronomical studies</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>atmosphere</code></td>
 <td>Atmospheric rim</td>
 <td>Astronomical studies</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>lens</code></td>
 <td>Star-cluster lens map</td>
 <td>Astronomical studies</td>
 <td>coord</td>
 <td>p: coord</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>clusterLights</code></td>
 <td>Foreground cluster stars</td>
 <td>Astronomical studies</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>galaxy</code></td>
 <td>Logarithmic spiral galaxy</td>
 <td>Astronomical studies</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>aurora</code></td>
 <td>Spiral auroral curtain</td>
 <td>Astronomical studies</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>disk</code></td>
 <td>Accretion disk &amp; shadow</td>
 <td>Astronomical studies</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>tidal</code></td>
 <td>Stretched star &amp; tidal stream</td>
 <td>Astronomical studies</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>feather</code></td>
 <td>Single eyespot feather</td>
 <td>Natural studies</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>fan</code></td>
 <td>Peacock feather fan</td>
 <td>Natural studies</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>peacockBody</code></td>
 <td>Peacock body &amp; crest</td>
 <td>Natural studies</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>fire</code></td>
 <td>Tapered flame field</td>
 <td>Natural studies</td>
 <td>layer</td>
 <td>p: coord</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>hedgehog</code></td>
 <td>Hedgehog &amp; quill field</td>
 <td>Natural studies</td>
@@ -471,7 +474,7 @@ scale</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -480,35 +483,35 @@ scale</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>x</code></td>
 <td>number</td>
 <td>0</td>
 <td>-5 to 5, control step 0.01</td>
 <td>Center X</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>y</code></td>
 <td>number</td>
 <td>0</td>
 <td>-5 to 5, control step 0.01</td>
 <td>Center Y</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>angle</code></td>
 <td>number</td>
 <td>0</td>
 <td>-6.28 to 6.28, control step 0.01</td>
 <td>Rotation</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>scale</code></td>
 <td>number</td>
 <td>1</td>
 <td>0.05 to 5, control step 0.01</td>
 <td>Scale</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>stretch</code></td>
 <td>number</td>
 <td>1</td>
@@ -532,7 +535,7 @@ silhouette through this map.</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -541,21 +544,21 @@ silhouette through this map.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>strength</code></td>
 <td>number</td>
 <td>4</td>
 <td>-16 to 16, control step 0.1</td>
 <td>Twist</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>radius</code></td>
 <td>number</td>
 <td>1</td>
 <td>0.02 to 4, control step 0.02</td>
 <td>Influence radius</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0</td>
@@ -580,7 +583,7 @@ noise₂(p,t))</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -589,21 +592,21 @@ noise₂(p,t))</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>amplitude</code></td>
 <td>number</td>
 <td>0.4</td>
 <td>0 to 2, control step 0.01</td>
 <td>Displacement</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>frequency</code></td>
 <td>number</td>
 <td>2</td>
 <td>0.1 to 12, control step 0.1</td>
 <td>Frequency</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0.1</td>
@@ -626,7 +629,7 @@ at ±π; integer angular repetition can hide it.</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -635,14 +638,14 @@ at ±π; integer angular repetition can hide it.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>angleScale</code></td>
 <td>number</td>
 <td>1</td>
 <td>0.1 to 12, control step 0.1</td>
 <td>Angle scale</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>radiusScale</code></td>
 <td>number</td>
 <td>1</td>
@@ -660,7 +663,7 @@ pattern to create symmetry.</p>
 π/n|</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -669,14 +672,14 @@ pattern to create symmetry.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>sectors</code></td>
 <td>number</td>
 <td>6</td>
 <td>2 to 24, control step 1</td>
 <td>Sectors</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>spin</code></td>
 <td>number</td>
 <td>0.1</td>
@@ -693,7 +696,7 @@ nebula formulas; useful for new organic surfaces.</p>
 offset)</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -702,28 +705,28 @@ offset)</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>frequency</code></td>
 <td>number</td>
 <td>3</td>
 <td>0.1 to 30, control step 0.1</td>
 <td>Frequency</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>octaves</code></td>
 <td>number</td>
 <td>6</td>
 <td>1 to 8, control step 1</td>
 <td>Octaves</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0.1</td>
 <td>-2 to 2, control step 0.01</td>
 <td>Flow speed</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>seed</code></td>
 <td>number</td>
 <td>0</td>
@@ -740,7 +743,7 @@ becomes marbling under a coordinate warp.</p>
 t))</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -749,21 +752,21 @@ t))</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>frequency</code></td>
 <td>number</td>
 <td>9</td>
 <td>0.1 to 80, control step 0.1</td>
 <td>Frequency</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>bend</code></td>
 <td>number</td>
 <td>4</td>
 <td>0 to 20, control step 0.1</td>
 <td>Phase bending</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0.5</td>
@@ -787,7 +790,7 @@ edge, |p| − radius)</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -796,14 +799,14 @@ edge, |p| − radius)</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>radius</code></td>
 <td>number</td>
 <td>1</td>
 <td>0.02 to 3, control step 0.01</td>
 <td>Radius</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>edge</code></td>
 <td>number</td>
 <td>0.02</td>
@@ -820,7 +823,7 @@ geometric mesh.</p>
 radius)/width)²)</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -829,14 +832,14 @@ radius)/width)²)</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>radius</code></td>
 <td>number</td>
 <td>1</td>
 <td>0 to 3, control step 0.01</td>
 <td>Radius</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>width</code></td>
 <td>number</td>
 <td>0.1</td>
@@ -854,7 +857,7 @@ smooth variation into wisps, islands or filaments.</p>
 − level)))</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -863,14 +866,14 @@ smooth variation into wisps, islands or filaments.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>level</code></td>
 <td>number</td>
 <td>0.5</td>
 <td>-2 to 2, control step 0.01</td>
 <td>Threshold</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>sharpness</code></td>
 <td>number</td>
 <td>8</td>
@@ -888,7 +891,7 @@ threshold offsets.</p>
 bias</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -897,28 +900,28 @@ bias</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>weightA</code></td>
 <td>number</td>
 <td>1</td>
 <td>-5 to 5, control step 0.01</td>
 <td>A weight</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>weightB</code></td>
 <td>number</td>
 <td>1</td>
 <td>-5 to 5, control step 0.01</td>
 <td>B weight</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>product</code></td>
 <td>number</td>
 <td>0</td>
 <td>-5 to 5, control step 0.01</td>
 <td>Product weight</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>bias</code></td>
 <td>number</td>
 <td>0</td>
@@ -942,7 +945,7 @@ expression</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -951,7 +954,7 @@ expression</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>expression</code></td>
 <td>expression</td>
 <td>0.5 + 0.5<em>cos(8.0</em>r - 3.0*theta - t)</td>
@@ -977,7 +980,7 @@ expression</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -986,7 +989,7 @@ expression</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>expression</code></td>
 <td>expression</td>
 <td>rotate2(p, 0.5<em>sin(r</em>3.0-t))</td>
@@ -1012,7 +1015,7 @@ expression</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1021,7 +1024,7 @@ expression</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>expression</code></td>
 <td>expression</td>
 <td>spectrum(r - t<em>0.1, 0.0) </em> (0.5 +
@@ -1048,7 +1051,7 @@ clamp(field)^power)</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1057,7 +1060,7 @@ clamp(field)^power)</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>low</code></td>
 <td>color</td>
 <td>#09212e</td>
@@ -1065,7 +1068,7 @@ clamp(field)^power)</p>
 <td>Linear radiance multiplier; display conversion happens only after
 composition.</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>high</code></td>
 <td>color</td>
 <td>#62edc3</td>
@@ -1073,14 +1076,14 @@ composition.</td>
 <td>Linear radiance multiplier; display conversion happens only after
 composition.</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>gain</code></td>
 <td>number</td>
 <td>1</td>
 <td>0 to 5, control step 0.01</td>
 <td>Emission</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>power</code></td>
 <td>number</td>
 <td>1</td>
@@ -1103,7 +1106,7 @@ composition</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1112,7 +1115,7 @@ composition</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>color</code></td>
 <td>color</td>
 <td>#030712</td>
@@ -1120,7 +1123,7 @@ composition</p>
 <td>Linear radiance multiplier; display conversion happens only after
 composition.</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>gain</code></td>
 <td>number</td>
 <td>1</td>
@@ -1145,7 +1148,7 @@ gain</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1154,7 +1157,7 @@ gain</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>color</code></td>
 <td>color</td>
 <td>#ffffff</td>
@@ -1162,7 +1165,7 @@ gain</p>
 <td>Linear radiance multiplier; display conversion happens only after
 composition.</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>gain</code></td>
 <td>number</td>
 <td>1</td>
@@ -1180,7 +1183,7 @@ intentionally sums emitted RGB regardless of coverage.</p>
 clamp(mask), strength)</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1189,7 +1192,7 @@ clamp(mask), strength)</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>strength</code></td>
 <td>number</td>
 <td>1</td>
@@ -1206,7 +1209,7 @@ use Over for opaque objects or alpha-masked layers.</p>
 <p><strong>Expression / role:</strong> RGB = A.rgb + gain · B.rgb</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1215,7 +1218,7 @@ use Over for opaque objects or alpha-masked layers.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>gain</code></td>
 <td>number</td>
 <td>1</td>
@@ -1249,7 +1252,7 @@ are separate meanings.</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1258,21 +1261,21 @@ are separate meanings.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>pinch</code></td>
 <td>number</td>
 <td>0.3</td>
 <td>0.05 to 0.8, control step 0.005</td>
 <td>Neck pinch</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>shear</code></td>
 <td>number</td>
 <td>0.15</td>
 <td>-0.5 to 0.6, control step 0.005</td>
 <td>Shell shear</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>shells</code></td>
 <td>number</td>
 <td>27</td>
@@ -1297,7 +1300,7 @@ d=|scaled p|−radius</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1306,21 +1309,21 @@ d=|scaled p|−radius</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>radius</code></td>
 <td>number</td>
 <td>1.1</td>
 <td>0.1 to 2, control step 0.01</td>
 <td>Radius</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>width</code></td>
 <td>number</td>
 <td>0.16</td>
 <td>0.01 to 0.7, control step 0.01</td>
 <td>Rim width</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>flatten</code></td>
 <td>number</td>
 <td>1.5</td>
@@ -1345,7 +1348,7 @@ coverage</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1354,14 +1357,14 @@ coverage</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>channel</code></td>
 <td>number</td>
 <td>1</td>
 <td>0 to 2, control step 1</td>
 <td>0=warp · 1=rim · 2=coverage</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>gain</code></td>
 <td>number</td>
 <td>4</td>
@@ -1379,7 +1382,7 @@ in source mode.</p>
 <p><strong>Expression / role:</strong> E = Σ (19/20)ˢ Dₛ(S,Qₛ)</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1388,14 +1391,14 @@ in source mode.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>bands</code></td>
 <td>number</td>
 <td>50</td>
 <td>1 to 50, control step 1</td>
 <td>Bands</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0</td>
@@ -1421,7 +1424,7 @@ downstream.</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1430,14 +1433,14 @@ downstream.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>bands</code></td>
 <td>number</td>
 <td>50</td>
 <td>1 to 50, control step 1</td>
 <td>Bands</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>detail</code></td>
 <td>number</td>
 <td>1</td>
@@ -1454,7 +1457,7 @@ clears the central glow region.</p>
 <p><strong>Expression / role:</strong> Hgas = 1.1 (1−W) K A</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1463,7 +1466,7 @@ clears the central glow region.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>gain</code></td>
 <td>number</td>
 <td>1</td>
@@ -1481,7 +1484,7 @@ nebula</p>
 Hcore=W(2,2,3)</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1490,7 +1493,7 @@ Hcore=W(2,2,3)</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>gain</code></td>
 <td>number</td>
 <td>1</td>
@@ -1508,7 +1511,7 @@ lattices, not random sprites or an astronomical catalog.</p>
 coordinates)); T=Σ colored(center+halo)</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1517,14 +1520,14 @@ coordinates)); T=Σ colored(center+halo)</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>bands</code></td>
 <td>number</td>
 <td>30</td>
 <td>1 to 30, control step 1</td>
 <td>Lattices</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>gain</code></td>
 <td>number</td>
 <td>1</td>
@@ -1542,7 +1545,7 @@ variation; distinct from the original folded lattice algorithm.</p>
 cross rays</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1551,28 +1554,28 @@ cross rays</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>density</code></td>
 <td>number</td>
 <td>22</td>
 <td>3 to 60, control step 1</td>
 <td>Density scale</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>gain</code></td>
 <td>number</td>
 <td>0.7</td>
 <td>0 to 3, control step 0.01</td>
 <td>Starlight</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>seed</code></td>
 <td>number</td>
 <td>17</td>
 <td>0 to 100, control step 1</td>
 <td>Seed</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0.1</td>
@@ -1591,7 +1594,7 @@ rim scattering.</p>
 coordinates → cyclone maps → clouds → lighting</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1600,35 +1603,35 @@ coordinates → cyclone maps → clouds → lighting</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>radius</code></td>
 <td>number</td>
 <td>1.08</td>
 <td>0.1 to 2, control step 0.01</td>
 <td>Radius</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>cloud</code></td>
 <td>number</td>
 <td>0.65</td>
 <td>0 to 2, control step 0.01</td>
 <td>Cloud cover</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>twist</code></td>
 <td>number</td>
 <td>5</td>
 <td>0 to 14, control step 0.1</td>
 <td>Cyclone twist</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>light</code></td>
 <td>number</td>
 <td>2.25</td>
 <td>0 to 6.28, control step 0.01</td>
 <td>Light angle</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0.5</td>
@@ -1645,7 +1648,7 @@ when composing them.</p>
 <p><strong>Expression / role:</strong> glow = Gaussian(|p|−radius)</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1654,14 +1657,14 @@ when composing them.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>radius</code></td>
 <td>number</td>
 <td>1.08</td>
 <td>0.1 to 2, control step 0.01</td>
 <td>Radius</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>gain</code></td>
 <td>number</td>
 <td>0.7</td>
@@ -1687,7 +1690,7 @@ mᵢ(θ−θᵢ)/(|θ−θᵢ|²+ε²)</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1696,21 +1699,21 @@ mᵢ(θ−θᵢ)/(|θ−θᵢ|²+ε²)</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>strength</code></td>
 <td>number</td>
 <td>1</td>
 <td>0 to 3, control step 0.01</td>
 <td>Deflection strength</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>count</code></td>
 <td>number</td>
 <td>7</td>
 <td>1 to 12, control step 1</td>
 <td>Lenses</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>softening</code></td>
 <td>number</td>
 <td>0.015</td>
@@ -1728,7 +1731,7 @@ image through this node would not model a foreground lens cluster.</p>
 deterministic positions</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1737,14 +1740,14 @@ deterministic positions</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>gain</code></td>
 <td>number</td>
 <td>1</td>
 <td>0 to 3, control step 0.01</td>
 <td>Brightness</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>count</code></td>
 <td>number</td>
 <td>7</td>
@@ -1763,7 +1766,7 @@ gravitationally warped.</p>
 pitch·log(r+0.1)</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1772,35 +1775,35 @@ pitch·log(r+0.1)</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>arms</code></td>
 <td>number</td>
 <td>3</td>
 <td>1 to 8, control step 1</td>
 <td>Spiral arms</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>pitch</code></td>
 <td>number</td>
 <td>7</td>
 <td>0.5 to 15, control step 0.1</td>
 <td>Winding</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>radius</code></td>
 <td>number</td>
 <td>0.75</td>
 <td>0.1 to 2, control step 0.01</td>
 <td>Scale</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>dust</code></td>
 <td>number</td>
 <td>0.6</td>
 <td>0 to 1, control step 0.01</td>
 <td>Dust lanes</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0.2</td>
@@ -1826,7 +1829,7 @@ turns·log(r+0.12))/width]²)</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1835,28 +1838,28 @@ turns·log(r+0.12))/width]²)</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>turns</code></td>
 <td>number</td>
 <td>4</td>
 <td>0.5 to 12, control step 0.1</td>
 <td>Winding</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>width</code></td>
 <td>number</td>
 <td>0.115</td>
 <td>0.01 to 0.4, control step 0.005</td>
 <td>Ribbon width</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>curtain</code></td>
 <td>number</td>
 <td>1</td>
 <td>0 to 3, control step 0.01</td>
 <td>Fine rays</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0.5</td>
@@ -1881,7 +1884,7 @@ artistic terms, not a relativistic transfer calculation.</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1890,28 +1893,28 @@ artistic terms, not a relativistic transfer calculation.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>radius</code></td>
 <td>number</td>
 <td>0.34</td>
 <td>0.06 to 0.8, control step 0.005</td>
 <td>Shadow scale</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>inclination</code></td>
 <td>number</td>
 <td>3</td>
 <td>1 to 7, control step 0.05</td>
 <td>Projection flattening</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>spin</code></td>
 <td>number</td>
 <td>4</td>
 <td>0 to 12, control step 0.1</td>
 <td>Texture winding</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0.5</td>
@@ -1938,7 +1941,7 @@ tapered centerline) + star core</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1947,21 +1950,21 @@ tapered centerline) + star core</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>stretch</code></td>
 <td>number</td>
 <td>2.5</td>
 <td>0.3 to 6, control step 0.05</td>
 <td>Taper power</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>size</code></td>
 <td>number</td>
 <td>0.13</td>
 <td>0.02 to 0.4, control step 0.005</td>
 <td>Star width</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0.5</td>
@@ -1979,7 +1982,7 @@ fan node instances this exact kernel many times.</p>
 oblique cosine barbs + nested eyespot rings</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -1988,21 +1991,21 @@ oblique cosine barbs + nested eyespot rings</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>width</code></td>
 <td>number</td>
 <td>0.095</td>
 <td>0.02 to 0.3, control step 0.005</td>
 <td>Width</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>eye</code></td>
 <td>number</td>
 <td>1</td>
 <td>0.3 to 2, control step 0.01</td>
 <td>Eyespot scale</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0.2</td>
@@ -2027,7 +2030,7 @@ feather(Rᵢ(p−base)/lengthᵢ)</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -2036,28 +2039,28 @@ feather(Rᵢ(p−base)/lengthᵢ)</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>spread</code></td>
 <td>number</td>
 <td>2.9</td>
 <td>0.4 to 3.5, control step 0.01</td>
 <td>Fan spread</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>rows</code></td>
 <td>number</td>
 <td>4</td>
 <td>1 to 4, control step 1</td>
 <td>Feather rows</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>width</code></td>
 <td>number</td>
 <td>0.095</td>
 <td>0.03 to 0.2, control step 0.005</td>
 <td>Feather width</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0.3</td>
@@ -2075,7 +2078,7 @@ fan does not distort the bird.</p>
 head + crest segments</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -2084,7 +2087,7 @@ head + crest segments</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>size</code></td>
 <td>number</td>
 <td>1</td>
@@ -2102,7 +2105,7 @@ the linked video.</p>
 noise + heat palette</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -2111,28 +2114,28 @@ noise + heat palette</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>height</code></td>
 <td>number</td>
 <td>2</td>
 <td>0.2 to 3, control step 0.01</td>
 <td>Height</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>width</code></td>
 <td>number</td>
 <td>0.8</td>
 <td>0.1 to 2, control step 0.01</td>
 <td>Base width</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>turbulence</code></td>
 <td>number</td>
 <td>1</td>
 <td>0 to 2, control step 0.01</td>
 <td>Turbulence</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>1</td>
@@ -2158,7 +2161,7 @@ tapered segment quills + facial masks</p>
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Parameter</th>
 <th>Kind</th>
 <th>Default</th>
@@ -2167,21 +2170,21 @@ tapered segment quills + facial masks</p>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>quills</code></td>
 <td>number</td>
 <td>0.28</td>
 <td>0.02 to 0.7, control step 0.01</td>
 <td>Quill length</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>density</code></td>
 <td>number</td>
 <td>160</td>
 <td>10 to 160, control step 1</td>
 <td>Quill count</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>speed</code></td>
 <td>number</td>
 <td>0.5</td>

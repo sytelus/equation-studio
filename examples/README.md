@@ -2,7 +2,7 @@
 
 `projects/` contains one validated JSON project for every built-in scene. Open any of them with **Open project** in the app. They are independent files; modifying one does not edit the preset's source definition. JSON contains equations, topology, parameters and tracks, not image pixels.
 
-`embedded.html` demonstrates using the renderer, presets and PNG metadata helper without the editor. Serve the project root using `python3 start.py`, then visit `http://127.0.0.1:8765/examples/embedded.html`. Unlike the bundled single-file application, this source-module example should be served rather than opened as `file://` because it uses ES-module imports.
+`embedded.html` demonstrates using the renderer, presets and PNG metadata helper without the editor. Pass an options object as the fifth argument of `renderer.draw()` to render an isolated node (`{target}`) or a contribution view (`{contribution}`); see [Architecture](../docs/ARCHITECTURE.md#reuse-the-renderer-without-the-editor). Serve the project root using `python3 start.py`, then visit `http://127.0.0.1:8765/examples/embedded.html`. Unlike the bundled single-file application, this source-module example should be served rather than opened as `file://` because it uses ES-module imports.
 
 ## Three useful starting points
 

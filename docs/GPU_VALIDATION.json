@@ -1,12 +1,12 @@
 {
-  "test_environment": "Chromium 144 / ANGLE SwiftShader software Vulkan, in-memory about:blank harness; no URL navigation or policy modification",
+  "date": "2026-09-23",
   "checks": [
     {
       "name": "render + finite values: bipolar",
       "passed": true,
       "detail": {
         "energy": 46154596,
-        "ms": 15613.69999999972,
+        "ms": 229.30000001192093,
         "nonfinite": 0
       }
     },
@@ -14,8 +14,8 @@
       "name": "render + finite values: water",
       "passed": true,
       "detail": {
-        "energy": 32974665,
-        "ms": 760.7000000001863,
+        "energy": 32974668,
+        "ms": 78.10000002384186,
         "nonfinite": 0
       }
     },
@@ -24,7 +24,7 @@
       "passed": true,
       "detail": {
         "energy": 14586200,
-        "ms": 866,
+        "ms": 77,
         "nonfinite": 0
       }
     },
@@ -33,7 +33,7 @@
       "passed": true,
       "detail": {
         "energy": 17042892,
-        "ms": 606.6000000000931,
+        "ms": 68.60000002384186,
         "nonfinite": 0
       }
     },
@@ -42,7 +42,7 @@
       "passed": true,
       "detail": {
         "energy": 12446071,
-        "ms": 494.90000000037253,
+        "ms": 66.39999997615814,
         "nonfinite": 0
       }
     },
@@ -51,7 +51,7 @@
       "passed": true,
       "detail": {
         "energy": 65157576,
-        "ms": 1015.0999999996275,
+        "ms": 99,
         "nonfinite": 0
       }
     },
@@ -60,7 +60,7 @@
       "passed": true,
       "detail": {
         "energy": 22149873,
-        "ms": 278.40000000037253,
+        "ms": 41.60000002384186,
         "nonfinite": 0
       }
     },
@@ -69,7 +69,7 @@
       "passed": true,
       "detail": {
         "energy": 49076752,
-        "ms": 1019,
+        "ms": 95.30000001192093,
         "nonfinite": 0
       }
     },
@@ -78,7 +78,7 @@
       "passed": true,
       "detail": {
         "energy": 31766386,
-        "ms": 11577.299999999814,
+        "ms": 205,
         "nonfinite": 0
       }
     },
@@ -87,7 +87,7 @@
       "passed": true,
       "detail": {
         "energy": 92314020,
-        "ms": 154.09999999962747,
+        "ms": 32.89999997615814,
         "nonfinite": 0
       }
     },
@@ -96,7 +96,7 @@
       "passed": true,
       "detail": {
         "energy": 45280692,
-        "ms": 175.39999999990687,
+        "ms": 34,
         "nonfinite": 0
       }
     },
@@ -105,7 +105,7 @@
       "passed": true,
       "detail": {
         "energy": 38052353,
-        "ms": 146.8000000002794,
+        "ms": 28.80000001192093,
         "nonfinite": 0
       }
     },
@@ -197,9 +197,149 @@
       ]
     },
     {
+      "name": "offscreen probe and snapshot preserve the visible canvas",
+      "passed": true,
+      "detail": {
+        "size": [
+          96,
+          60
+        ],
+        "same": true
+      }
+    },
+    {
       "name": "uniform-only edits reuse linked shader",
       "passed": true,
       "detail": null
+    },
+    {
+      "name": "preview atlas renders every node: bipolar",
+      "passed": true,
+      "detail": {
+        "tiles": 9,
+        "nodes": 9,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: water",
+      "passed": true,
+      "detail": {
+        "tiles": 6,
+        "nodes": 6,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: lensing",
+      "passed": true,
+      "detail": {
+        "tiles": 8,
+        "nodes": 8,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: aurora",
+      "passed": true,
+      "detail": {
+        "tiles": 4,
+        "nodes": 4,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: tidal",
+      "passed": true,
+      "detail": {
+        "tiles": 11,
+        "nodes": 11,
+        "empty": 1,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: peacock",
+      "passed": true,
+      "detail": {
+        "tiles": 6,
+        "nodes": 6,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: fire",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: hedgehog",
+      "passed": true,
+      "detail": {
+        "tiles": 4,
+        "nodes": 4,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: ring",
+      "passed": true,
+      "detail": {
+        "tiles": 9,
+        "nodes": 9,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: marble",
+      "passed": true,
+      "detail": {
+        "tiles": 4,
+        "nodes": 4,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: kaleidoscope",
+      "passed": true,
+      "detail": {
+        "tiles": 5,
+        "nodes": 5,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: feather",
+      "passed": true,
+      "detail": {
+        "tiles": 5,
+        "nodes": 5,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "contribution view marks only pixels the node changes",
+      "passed": true,
+      "detail": {
+        "stars": 1221,
+        "unused": 0,
+        "total": 5760
+      }
     },
     {
       "name": "32 native-grid raw probes across seven field groups",
@@ -207,45 +347,45 @@
       "detail": {
         "shell": {
           "max_abs_error": 1.5410313944919096e-06,
-          "mean_abs_error": 8.297622666176622e-08,
-          "rmse": 2.611847971300857e-07,
+          "mean_abs_error": 8.297622666391655e-08,
+          "rmse": 2.6118479713358175e-07,
           "cpu_abs_max": 1.0
         },
         "turbulence": {
-          "max_abs_error": 0.010274365221194515,
-          "mean_abs_error": 0.001782105161645104,
-          "rmse": 0.002827032950238788,
-          "cpu_abs_max": 3.1676375353058255
+          "max_abs_error": 0.010274365218593484,
+          "mean_abs_error": 0.0017821051620156535,
+          "rmse": 0.002827032950713226,
+          "cpu_abs_max": 3.1676375353058743
         },
         "cloud": {
-          "max_abs_error": 0.023296325458524336,
-          "mean_abs_error": 0.0040215508112205105,
-          "rmse": 0.006759125842030421,
-          "cpu_abs_max": 22.430370156322986
+          "max_abs_error": 0.0232963254519003,
+          "mean_abs_error": 0.004021550811446266,
+          "rmse": 0.006759125842071355,
+          "cpu_abs_max": 22.430370156323313
         },
         "gas": {
-          "max_abs_error": 0.001056030232322036,
-          "mean_abs_error": 0.00013356282798650544,
-          "rmse": 0.0002575089955690292,
-          "cpu_abs_max": 1.4357905700808447
+          "max_abs_error": 0.001056030230708327,
+          "mean_abs_error": 0.00013356282795332124,
+          "rmse": 0.0002575089954601086,
+          "cpu_abs_max": 1.4357905700808697
         },
         "core": {
-          "max_abs_error": 0.00027434595542796814,
-          "mean_abs_error": 7.159544167688944e-06,
-          "rmse": 3.857401649020856e-05,
-          "cpu_abs_max": 1.9707892922530443
+          "max_abs_error": 0.00027434595543551765,
+          "mean_abs_error": 7.159544167711712e-06,
+          "rmse": 3.857401649119987e-05,
+          "cpu_abs_max": 1.9707892922530519
         },
         "stars": {
           "max_abs_error": 0.08887121654470498,
-          "mean_abs_error": 0.0027500072700373294,
-          "rmse": 0.012012164812753289,
+          "mean_abs_error": 0.002750007270037849,
+          "rmse": 0.01201216481275354,
           "cpu_abs_max": 2.226625656852322
         },
         "final": {
-          "max_abs_error": 0.08883865565808424,
-          "mean_abs_error": 0.0028097546620440643,
-          "rmse": 0.011999310224781701,
-          "cpu_abs_max": 2.46899326533826
+          "max_abs_error": 0.08883865565808957,
+          "mean_abs_error": 0.002809754662115496,
+          "rmse": 0.01199931022479674,
+          "cpu_abs_max": 2.4689932653382654
         }
       }
     },
@@ -262,12 +402,13 @@
         "max_error": 145,
         "p95_absolute_error": 1.0,
         "p99_absolute_error": 4.0,
-        "rgb_pearson_correlation": 0.9994216237510898,
+        "rgb_pearson_correlation": 0.9994216237510924,
         "psnr_db": 40.62656420376929,
-        "software_backend_render_plus_readback_ms": 71318.20000000019
+        "render_plus_readback_ms": 1183.3999999761581
       }
     }
   ],
+  "test_environment": "Chromium 153.0.8010.12 / ANGLE / SwiftShader software backend, in-memory about:blank harness; no URL navigation or policy modification",
   "gpu": {
     "backend": "WebGL 2 / GLSL ES 3.00",
     "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
@@ -411,45 +552,45 @@
     "fields": {
       "shell": {
         "max_abs_error": 1.5410313944919096e-06,
-        "mean_abs_error": 8.297622666176622e-08,
-        "rmse": 2.611847971300857e-07,
+        "mean_abs_error": 8.297622666391655e-08,
+        "rmse": 2.6118479713358175e-07,
         "cpu_abs_max": 1.0
       },
       "turbulence": {
-        "max_abs_error": 0.010274365221194515,
-        "mean_abs_error": 0.001782105161645104,
-        "rmse": 0.002827032950238788,
-        "cpu_abs_max": 3.1676375353058255
+        "max_abs_error": 0.010274365218593484,
+        "mean_abs_error": 0.0017821051620156535,
+        "rmse": 0.002827032950713226,
+        "cpu_abs_max": 3.1676375353058743
       },
       "cloud": {
-        "max_abs_error": 0.023296325458524336,
-        "mean_abs_error": 0.0040215508112205105,
-        "rmse": 0.006759125842030421,
-        "cpu_abs_max": 22.430370156322986
+        "max_abs_error": 0.0232963254519003,
+        "mean_abs_error": 0.004021550811446266,
+        "rmse": 0.006759125842071355,
+        "cpu_abs_max": 22.430370156323313
       },
       "gas": {
-        "max_abs_error": 0.001056030232322036,
-        "mean_abs_error": 0.00013356282798650544,
-        "rmse": 0.0002575089955690292,
-        "cpu_abs_max": 1.4357905700808447
+        "max_abs_error": 0.001056030230708327,
+        "mean_abs_error": 0.00013356282795332124,
+        "rmse": 0.0002575089954601086,
+        "cpu_abs_max": 1.4357905700808697
       },
       "core": {
-        "max_abs_error": 0.00027434595542796814,
-        "mean_abs_error": 7.159544167688944e-06,
-        "rmse": 3.857401649020856e-05,
-        "cpu_abs_max": 1.9707892922530443
+        "max_abs_error": 0.00027434595543551765,
+        "mean_abs_error": 7.159544167711712e-06,
+        "rmse": 3.857401649119987e-05,
+        "cpu_abs_max": 1.9707892922530519
       },
       "stars": {
         "max_abs_error": 0.08887121654470498,
-        "mean_abs_error": 0.0027500072700373294,
-        "rmse": 0.012012164812753289,
+        "mean_abs_error": 0.002750007270037849,
+        "rmse": 0.01201216481275354,
         "cpu_abs_max": 2.226625656852322
       },
       "final": {
-        "max_abs_error": 0.08883865565808424,
-        "mean_abs_error": 0.0028097546620440643,
-        "rmse": 0.011999310224781701,
-        "cpu_abs_max": 2.46899326533826
+        "max_abs_error": 0.08883865565808957,
+        "mean_abs_error": 0.002809754662115496,
+        "rmse": 0.01199931022479674,
+        "cpu_abs_max": 2.4689932653382654
       }
     },
     "interpretation": "Float32 vs float64 measurement, not an assertion of bitwise equivalence."
@@ -464,8 +605,8 @@
     "max_error": 145,
     "p95_absolute_error": 1.0,
     "p99_absolute_error": 4.0,
-    "rgb_pearson_correlation": 0.9994216237510898,
+    "rgb_pearson_correlation": 0.9994216237510924,
     "psnr_db": 40.62656420376929,
-    "software_backend_render_plus_readback_ms": 71318.20000000019
+    "render_plus_readback_ms": 1183.3999999761581
   }
 }

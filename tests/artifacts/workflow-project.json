@@ -1,8 +1,8 @@
 {
-  "id": "water",
-  "title": "Stormy water planet",
-  "description": "A visible sphere, several cyclone coordinate maps, multiscale clouds, ocean light and an independent atmosphere.",
-  "status": "Interpretive study",
+  "id": "marble",
+  "title": "Living mineral",
+  "description": "Coordinate warp → nested wave bands → palette. Five small nodes, no bespoke scene renderer.",
+  "status": "Component remix",
   "schemaVersion": 1,
   "nodes": [
     {
@@ -14,109 +14,52 @@
       "enabled": true
     },
     {
-      "id": "stars",
-      "type": "scatterStars",
-      "label": "Seeded star field",
+      "id": "warp",
+      "type": "domainwarp",
+      "label": "Turbulent coordinate warp",
       "inputs": {
         "p": "space"
       },
       "params": {
-        "density": 22,
-        "gain": 0.36,
-        "seed": 17,
-        "speed": 0.1
+        "amplitude": 0.8,
+        "frequency": 2.1,
+        "speed": 0.12
       },
       "enabled": true
     },
     {
-      "id": "planet",
-      "type": "planet",
-      "label": "Cyclonic water planet",
+      "id": "veins",
+      "type": "waves",
+      "label": "Nested cosine bands",
       "inputs": {
-        "p": "space"
+        "p": "warp"
       },
       "params": {
-        "radius": 1.08,
-        "cloud": 0.65,
-        "twist": 5,
-        "light": 2.25,
-        "speed": 0.5
-      },
-      "enabled": true
-    },
-    {
-      "id": "planetOverStars",
-      "type": "over",
-      "label": "Front over back",
-      "inputs": {
-        "front": "planet",
-        "back": "stars"
-      },
-      "params": {},
-      "enabled": true
-    },
-    {
-      "id": "limb",
-      "type": "atmosphere",
-      "label": "Atmospheric rim",
-      "inputs": {
-        "p": "space"
-      },
-      "params": {
-        "radius": 1.08,
-        "gain": 0.7
+        "frequency": 10,
+        "bend": 2.8,
+        "speed": 0.8
       },
       "enabled": true
     },
     {
       "id": "final",
-      "type": "add",
-      "label": "Add light",
+      "type": "palette",
+      "label": "Two-color emission",
       "inputs": {
-        "a": "planetOverStars",
-        "b": "limb"
+        "field": "veins"
       },
       "params": {
-        "gain": 1
-      },
-      "enabled": true
-    },
-    {
-      "id": "t1",
-      "type": "transform",
-      "label": "Translate · rotate · scale",
-      "inputs": {
-        "p": "space"
-      },
-      "params": {
-        "x": 0,
-        "y": 0,
-        "angle": 0,
-        "scale": 1,
-        "stretch": 1
-      },
-      "enabled": true
-    },
-    {
-      "id": "t2",
-      "type": "transform",
-      "label": "Translate · rotate · scale",
-      "inputs": {
-        "p": "t1"
-      },
-      "params": {
-        "x": 0,
-        "y": 0,
-        "angle": 0,
-        "scale": 1,
-        "stretch": 1
+        "low": "#081927",
+        "high": "#d09c55",
+        "gain": 1.2,
+        "power": 3
       },
       "enabled": true
     }
   ],
   "output": "final",
   "duration": 8,
-  "exposure": 1.5,
+  "exposure": 1,
   "tone": "filmic",
   "view": {
     "x": 0,

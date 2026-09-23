@@ -32,6 +32,12 @@ vec2 domainWarp(vec2 p, float amplitude, float frequency, float time) {
 vec2 vortex(vec2 p, float strength, float radius, float phase) {
  float r=length(p); return rotate2(p,strength*exp(-sq(r/max(radius,0.01)))+phase);
 }
+// Fold the angle into mirrored sectors of width 2*PI/sectors; the radius is unchanged.
+vec2 angularMirror(vec2 p, float sectors, float phase) {
+ float sector=TAU/max(sectors,1.0);
+ float a=abs(mod(angleOf(p)+phase+0.5*sector,sector)-0.5*sector);
+ return length(p)*vec2(cos(a),sin(a));
+}
 vec3 spectrum(float x, float shift) { return 0.5+0.5*cos(TAU*(x+shift+vec3(0.0,0.33,0.67))); }
 vec4 addLight(vec4 a, vec4 b, float gain) { return vec4(a.rgb+gain*b.rgb,max(a.a,b.a)); }
 // Inputs are STRAIGHT (unpremultiplied) RGB. Preserve straight RGB at the output.

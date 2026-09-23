@@ -24,7 +24,9 @@ smooth: v = v0 + (v1-v0)*u*u*(3-2*u)
 hold:   v = v0 until the next key, then v1
 ```
 
-Smooth is a zero-end-slope cubic easing **for each interval**, not a global cubic spline. It avoids overshooting the parameter bounds. Times are rounded to milliseconds when adding keys. Adding another key at that time replaces its value. Tracks and keys can be removed in the inspector. Shrinking project duration is rejected when existing keys would lie outside it; move or remove those keys first.
+Smooth is a zero-end-slope cubic easing **for each interval**, not a global cubic spline. It avoids overshooting the parameter bounds. Times are rounded to milliseconds when adding keys. Adding another key at that time replaces its value. Keys can be dragged along their timeline lane to retime them; dropping one on an existing key replaces that key. Tracks and keys can be removed in the inspector. Shrinking project duration is rejected when existing keys would lie outside it; move or remove those keys first.
+
+While the animation plays, the inspector shows the evaluated value of every tracked control without rebuilding the panel, so an expression you are typing is not discarded. `,` and `.` step the playhead by one frame at 24 fps, which matches the export dialog's default rate.
 
 ## Seamless loops require more than the Loop checkbox
 
@@ -32,7 +34,7 @@ The checkbox wraps the playhead. It does not change the mathematical phases. For
 
 ## Still PNG with project metadata
 
-The Export dialog draws the requested target and dimensions at the current playhead, then adds an uncompressed UTF-8 PNG `iTXt` chunk with keyword `equation-studio`. The JSON contains the full project, time, target ID, width/height and backend information. The canvas pixels are not recompressed during metadata insertion.
+The Export dialog draws the requested target and dimensions at the current playhead, then adds an uncompressed UTF-8 PNG `iTXt` chunk with keyword `equation-studio`. The JSON contains the full project, time, target ID, the contribution node when a contribution view was exported, width/height and backend information. The canvas pixels are not recompressed during metadata insertion. Rulers, grid, readouts and reference overlays are never part of an export.
 
 Most viewers ignore the metadata; some image editors strip it on save. The application's own project files remain the most direct portable format. Recover a project from an exported PNG with:
 
@@ -64,7 +66,7 @@ Limits are 240 frames, 1280 pixels per side and 150 MB of frame bytes; the ZIP w
 
 ## Browser video
 
-The application checks `canvas.captureStream` and `MediaRecorder`, then chooses a supported WebM or MP4 MIME type. It records one pass through the timeline in wall-clock time. It does not wait for every theoretical frame number; rendering, encoding, tab visibility and browser scheduling can reduce the actual frame count. Use PNG sequence export when every frame time must be controlled.
+The application checks `canvas.captureStream` and `MediaRecorder`, then chooses a supported WebM or MP4 MIME type. It records one pass through the timeline in wall-clock time, drawing frame `i` at exactly `t=i/FPS` when the clock reaches that frame and pushing it to the recorder explicitly (`requestFrame`), so every recorded frame shows an exact sample time. It does not wait for every theoretical frame number: on a slow device, missed frames are skipped rather than recorded late, and rendering, encoding, tab visibility and browser scheduling can reduce the actual frame count. The dialog reports how many of the planned frames were drawn. Use PNG sequence export when every frame must be present.
 
 The tested Chromium/SwiftShader run produced a decodable VP9 WebM at 64 × 40. The short tests recorded fewer decoded frames than their capture-rate requests on the software backend, illustrating why this mode is explicitly not advertised as a deterministic frame exporter. Other codecs/browsers were not tested. There is no audio track or audio-authoring feature in this application.
 

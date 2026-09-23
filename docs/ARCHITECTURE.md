@@ -47,7 +47,20 @@ A cloud coordinate map and a sphere normal are not interchangeable. One determin
 
 All kernel libraries are included as source; the graphics driver removes unreachable functions. A graph does not allocate a texture or framebuffer per node. This avoids hidden inter-pass quantization and makes inspection/reuse straightforward, at the cost of potentially expensive first-time shader compilation for a large expression network.
 
-The renderer caches eight linked programs. Its structural cache key includes node types, enabled states, connections, expressions, output target and raw/diagnostic mode. Numeric values are **not** in this key. Changing a numeric control updates a uniform. Changing a connection or equation compiles a different program. The new program must compile/link successfully before it replaces the previous render.
+The renderer caches 32 linked programs. Its structural cache key includes node types, enabled states, connections, expressions, output target and compile mode. Numeric values are **not** in this key. Changing a numeric control updates a uniform. Changing a connection or equation compiles a different program. The new program must compile/link successfully before it replaces the previous render.
+
+### Compile modes
+
+`compileGraph(project, target, options)` produces one of four shader shapes:
+
+| Mode | Option | What `main()` outputs |
+|---|---|---|
+| display | *(default)* | the target converted for display; non-layer types use the diagnostic false colors below |
+| raw | `raw: true` | the target's numeric value, unconverted; used by float probes |
+| contribution | `contribution: id`, `contributionStyle` | `shade(p)` and `shadeWithout(p)`, the latter with the named node replaced by its typed zero, compared after display conversion: either the composite with unchanged pixels dimmed to gray (`highlight`) or a signed warm/cool difference scaled ×4 (`signed`) |
+| preview | `preview: true` | every node evaluated once; `u_previewIndex` selects which node's display-converted value is returned |
+
+Contribution answers “what does this node change in the final image?” without a second render pass; the two evaluations happen in one fragment. Preview answers “what does every node produce?” with one compilation instead of one per node: the editor draws all graph thumbnails from that program into a tiled offscreen framebuffer and reads the tiles back in a single call. Both modes share the ordinary statement generator, so a node looks the same isolated, previewed or contributed.
 
 ## Color, alpha, masks and light
 
@@ -88,9 +101,9 @@ coord    → red = 0.5 + 0.5*sin(x), green = 0.5 + 0.5*sin(y), blue = 0.5
 geometry → red = 4*rim, green = coverage, blue = 0.5 + 0.5*tanh(warp)
 ```
 
-These views are useful but lossy. A negative field is not “negative light”; its display is merely dark gray. A coordinate image repeats by design. Use **Probe value** for actual numbers.
+These views are useful but lossy. A negative field is not “negative light”; its display is merely dark gray. A coordinate image repeats by design. The graph's live previews use the same conversions. Use **Probe value**, or the rulers' readout, for actual numbers.
 
-`Renderer.samplePoint()` renders a one-pixel `RGBA32F` framebuffer and reads it as floats, before exposure, mapping and quantization. It returns `[scalar,0,0,1]`, `[x,y,0,1]`, `[warp,rim,coverage,1]`, or actual RGBA, depending on the target. The optional `EXT_color_buffer_float` capability is checked. The previous visible render is restored in a `finally` block. The inspection action is synchronous and may stall briefly; it is not a streaming full-frame field export.
+`Renderer.samplePoint()` renders a one-pixel `RGBA32F` framebuffer and reads it as floats, before exposure, mapping and quantization. It returns `[scalar,0,0,1]`, `[x,y,0,1]`, `[warp,rim,coverage,1]`, or actual RGBA, depending on the target. The optional `EXT_color_buffer_float` capability is checked. Probes, `snapshot()` and `previewAtlas()` all render into temporary framebuffers, so the visible canvas is never resized or redrawn by an inspection. The action is synchronous and may stall briefly; it is not a streaming full-frame field export.
 
 The normal shader flags NaN or infinity in any output component as magenta. A debug mode turns all finite outputs black, supporting automated nonfinite tests. The separate raw mode returns values without this diagnostic conversion.
 
@@ -102,7 +115,7 @@ At 2000 × 1200 with zero pan and unit zoom, pixel column `m` and row `n` reprod
 x=(m-1000)/420,\quad y=(601-n)/420,\quad m=1\ldots2000,\ n=1\ldots1200.
 \]
 
-The framebuffer origin is bottom-left; exported PNG rows are top-first. The shader's half-pixel accounting adds `1/840` to both coordinates. General image sizes preserve the horizontal world span `2000/420`; a different aspect ratio changes the vertical extent. One sample is evaluated per pixel. Multisampling of the fullscreen triangle does not antialias procedural subpixel lines, so WebGL canvas antialiasing is disabled rather than misleadingly advertised as a solution.
+The framebuffer origin is bottom-left; exported PNG rows are top-first. The shader's half-pixel accounting adds `1/840` to both coordinates. A `u_offset` uniform subtracts the tile origin when several previews share one framebuffer; it is zero for ordinary draws. `src/view-math.js` implements the same mapping in JavaScript for the rulers, readouts and zoom-about-cursor, and the unit tests check that it reproduces the native grid. General image sizes preserve the horizontal world span `2000/420`; a different aspect ratio changes the vertical extent. One sample is evaluated per pixel. Multisampling of the fullscreen triangle does not antialias procedural subpixel lines, so WebGL canvas antialiasing is disabled rather than misleadingly advertised as a solution.
 
 The source defaults retain **27 shells, 50 turbulence terms, 50 cloud terms and 30 star lattices**. Lowering preview width does not drop bands. Band counts are available as explicit artistic parameters, which deliberately change the source construction.
 
@@ -125,6 +138,7 @@ import { getPreset } from '../src/presets.js';
 const renderer = new Renderer(document.querySelector('canvas'));
 const project = getPreset('lensing'); // returns fresh editable JSON
 renderer.draw(project, 2.0, 1000, 600); // explicit time and pixel dimensions
+renderer.draw(project, 2.0, 1000, 600, { contribution: 'galaxy' }); // what the galaxy changes
 ```
 
 Core APIs:
@@ -133,17 +147,21 @@ Core APIs:
 makeNode(type, id, inputs = {}, parameterOverrides = {})
 validateProject(project)              // throws; no partial acceptance
 parseProject(jsonText)                // validates size and full model
-compileGraph(project, target, raw)    // returns shader source, uniforms, reachable IDs
-renderer.draw(project, time, width, height, target, debug, raw)
-renderer.samplePoint(project, time, target, x, y)
+topologicalOrder(project, target)     // evaluation order; null target orders every node
+upstream(project, id), downstream(project, id)
+compileGraph(project, target, { raw, contribution, contributionStyle, preview })
+renderer.draw(project, time, width, height, { target, debug, raw, contribution, contributionStyle })
+renderer.snapshot(project, time, width, height, options)   // offscreen; top-down RGBA bytes
+renderer.previewAtlas(project, time, ids, tileWidth, tileHeight) // Map id → tile bytes
+renderer.samplePoint(project, time, target, x, y)          // raw floats at a world point
 renderer.png()                       // Promise<Blob>; plain PNG, no metadata by itself
 embedPNGMetadata(pngBlob, metadata)   // used by the editor's Export dialog
 renderer.dispose()                   // release owned GPU resources
 ```
 
-`Renderer.draw()` expects finite time, positive integer sizes within the reported limits, and a validated-compatible project. It validates again at the API boundary. Caller code owns scheduling; the renderer does not start an animation loop. `samplePoint()` currently restricts points to world coordinates within ±19.
+`Renderer.draw()` expects finite time, positive integer sizes within the reported limits, and a validated-compatible project. It validates again at the API boundary. Caller code owns scheduling; the renderer does not start an animation loop. `samplePoint()` currently restricts points to world coordinates within ±19. `snapshot()` and `previewAtlas()` return `{width, height, data}` objects whose `data` is laid out like `ImageData`.
 
-The editor also exposes `window.equationStudio` for integration: `getProject()`, `loadProject(project)`, `seek(t)`, `getTime()`, `getRenderer()`, `getCatalog()`, `isolate(id)`, `renderNow()`, and `exportPNG()`. `getProject()` returns a clone. The low-level `exportPNG()` hook returns a plain preview-resolution PNG; use the dialog or metadata helper for an archival export.
+The editor also exposes `window.equationStudio` for integration: `getProject()`, `loadProject(project)`, `seek(t)`, `getTime()`, `getRenderer()`, `getCatalog()`, `getView()`, `isolate(id)`, `contribution(id, style)`, `setPreviews(enabled)`, `snapshot(title)`, `getSnapshots()`, `renderNow()`, and `exportPNG()`. `getProject()` and `getSnapshots()` return clones. The low-level `exportPNG()` hook returns a plain preview-resolution PNG; use the dialog or metadata helper for an archival export. The [development guide](DEVELOPMENT.md) maps the editor's modules and events.
 
 ## Add your own component
 
@@ -162,8 +180,8 @@ petals: node(
 )
 ```
 
-For a larger kernel, put a named GLSL function with comments into a shader library and have the emitter call it. The emitter receives **GLSL expression strings**, including uniform names, not runtime JS numbers. The metadata automatically drives the component browser, controls, socket validation and code generation. Add a preset/example, a unit test, and a GPU test. Regenerate documentation/examples and rebuild the standalone HTML.
+For a larger kernel, put a named GLSL function with comments into a shader library and have the emitter call it. The emitter receives **GLSL expression strings**, including uniform names, not runtime JS numbers. The metadata automatically drives the component browser, controls, socket validation, drag-and-drop typing, previews and code generation. Add a preset/example, a unit test, and a GPU test. Then follow the regeneration checklist in the [development guide](DEVELOPMENT.md).
 
 ## Boundaries and extensions
 
-This first version supports acyclic spatial function graphs and stateless time. It does not yet implement feedback textures, fluid simulation state, full volumetric transport, parameter expressions linking two controls, arbitrary reusable subgraph packaging, 3D object cameras, transparent/HDR exports, automatic inverse fitting, or unrestricted GLSL file editing within the browser. Large compound kernels remain source-level functions. These are explicit extension points, not hidden UI placeholders.
+This version supports acyclic spatial function graphs and stateless time. It does not yet implement feedback textures, fluid simulation state, full volumetric transport, parameter expressions linking two controls, arbitrary reusable subgraph packaging, 3D object cameras, transparent/HDR exports, automatic inverse fitting, or unrestricted GLSL file editing within the browser. Large compound kernels remain source-level functions. These are explicit extension points, not hidden UI placeholders.

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
@@ -7,6 +7,9 @@
   <title>Construction recipes: from visual intention to reusable
 equations</title>
   <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
     div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -25,7 +28,7 @@ equations</title>
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a
@@ -66,7 +69,11 @@ constructions, not recovered formulas from the linked posts. We did not
 inspect the new full-resolution formula sheets or the Hedgehog/Fire
 videos. See the <a href="RESEARCH.html">research ledger</a> before
 attributing any construction to the artist.</p>
-<p>All coordinates below are local to the relevant component. Color
+<p>While reading, keep the app open with <strong>Previews</strong> on so
+every component’s field is visible on its card, and use
+<strong>Contribution</strong> on a component to see which output pixels
+it changes; the <a href="EDITOR_GUIDE.html">editor guide</a> explains
+both. All coordinates below are local to the relevant component. Color
 vectors are floating-point emission values.
 <code>G(d,w)=exp(-(d/w)^2)</code> is a Gaussian profile.
 <code>inside(d,e)=1-smoothstep(-e,e,d)</code> is a soft inside mask.
@@ -90,7 +97,7 @@ a separate source star field ─────────────────
                                          Add(Add(gas, core), stars) → F</code></pre>
 <p>A shell has radius <code>R_s</code> and sheared coordinates
 <code>U_s,V_s</code>. Its residual is</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>s</mi></msub><mo>=</mo><msqrt><mrow><msubsup><mi>U</mi><mi>s</mi><mn>2</mn></msubsup><mo>+</mo><msup><mrow><mo stretchy="true" form="prefix">[</mo><mn>2</mn><msubsup><mi>R</mi><mi>s</mi><mn>0.3</mn></msubsup><msup><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>U</mi><mi>s</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><mrow><mi>−</mi><mn>0.3</mn></mrow></msup><msub><mi>V</mi><mi>s</mi></msub><mo stretchy="true" form="postfix">]</mo></mrow><mn>2</mn></msup></mrow></msqrt><mo>−</mo><msub><mi>R</mi><mi>s</mi></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>s</mi></msub><mo>=</mo><msqrt><mrow><msubsup><mi>U</mi><mi>s</mi><mn>2</mn></msubsup><mo>+</mo><mo stretchy="false" form="prefix">[</mo><mn>2</mn><msubsup><mi>R</mi><mi>s</mi><mn>0.3</mn></msubsup><mo stretchy="false" form="prefix">|</mo><msub><mi>U</mi><mi>s</mi></msub><msup><mo stretchy="false" form="prefix">|</mo><mrow><mi>−</mi><mn>0.3</mn></mrow></msup><msub><mi>V</mi><mi>s</mi></msub><msup><mo stretchy="false" form="postfix">]</mo><mn>2</mn></msup></mrow></msqrt><mo>−</mo><msub><mi>R</mi><mi>s</mi></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
 L_s=\sqrt{U_s^2+[2R_s^{0.3}|U_s|^{-0.3}V_s]^2}-R_s.
 </annotation></semantics></math></p>
 <p>The <code>|U|^-0.3</code> factor makes off-axis displacement
@@ -99,7 +106,7 @@ lobes. Slightly different shell radii/shears produce overlapping
 contours rather than one perfect symmetric balloon.</p>
 <p>A gate <code>J_s=exp(-exp(25-50s))*exp(-exp(10L_s))</code> gives soft
 shell membership. Each shell receives weight</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mi>s</mi></msub><mo>=</mo><msub><mi>J</mi><mi>s</mi></msub><munder><mo>∏</mo><mrow><mi>u</mi><mo>&lt;</mo><mi>s</mi></mrow></munder><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>J</mi><mi>u</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mi>s</mi></msub><mo>=</mo><msub><mi>J</mi><mi>s</mi></msub><munder><mo>∏</mo><mrow><mi>u</mi><mo>&lt;</mo><mi>s</mi></mrow></munder><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>J</mi><mi>u</mi></msub><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
 w_s=J_s\prod_{u&lt;s}(1-J_u).
 </annotation></semantics></math></p>
 <p>This is an <strong>ordered first-hit allocation</strong>, not an
@@ -113,7 +120,7 @@ the shell structure instead of resembling a rectangular texture pasted
 across it. The cloud color <code>K</code> combines two threshold
 sharpnesses over another 50 bands. A core mask <code>W</code> both
 suppresses gas near the center and adds central emission:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo>=</mo><mn>1.1</mn><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>W</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>A</mi><mi>K</mi><mo>+</mo><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo>,</mo><mn>2</mn><mo>,</mo><mn>3</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>T</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo>=</mo><mn>1.1</mn><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>W</mi><mo stretchy="false" form="postfix">)</mo><mi>A</mi><mi>K</mi><mo>+</mo><mi>W</mi><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mo>,</mo><mn>2</mn><mo>,</mo><mn>3</mn><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mi>T</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
 H=1.1(1-W)AK+W(2,2,3)+T.
 </annotation></semantics></math></p>
 <p>The star field <code>T</code> is a separate sum of 30 rotated, folded
@@ -131,7 +138,7 @@ href="../reference/nebula_rewrite/docs/FORMULA_REFERENCE.md">retained
 formula reference</a>.</p>
 <p><strong>Reuse:</strong> Ring Nebula changes only the geometry
 bundle:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><msqrt><mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>f</mi><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow></msqrt><mo>−</mo><msub><mi>r</mi><mn>0</mn></msub><mo>,</mo><mspace width="1.0em"></mspace><mi>S</mi><mo>=</mo><mn>2</mn><mi>d</mi><mo>,</mo><mspace width="1.0em"></mspace><mi>A</mi><mo>=</mo><mn>0.22</mn><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>d</mi><mo>,</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><msqrt><mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><mo stretchy="false" form="prefix">(</mo><mi>f</mi><mi>y</mi><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup></mrow></msqrt><mo>−</mo><msub><mi>r</mi><mn>0</mn></msub><mo>,</mo><mspace width="1.0em"></mspace><mi>S</mi><mo>=</mo><mn>2</mn><mi>d</mi><mo>,</mo><mspace width="1.0em"></mspace><mi>A</mi><mo>=</mo><mn>0.22</mn><mi>G</mi><mo stretchy="false" form="prefix">(</mo><mi>d</mi><mo>,</mo><mi>w</mi><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
 d=\sqrt{x^2+(fy)^2}-r_0,\quad S=2d,\quad A=0.22G(d,w).
 </annotation></semantics></math></p>
 <p>It reuses the original turbulence and cloud-color functions. For two
@@ -148,7 +155,7 @@ ocean, bright irregular cloud bands, spiral storm centers and a thin
 atmospheric rim.</p>
 <p><strong>Our construction:</strong> a disk supplies the visible
 silhouette. Inside it,</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mi>p</mi><mi>/</mi><mi>R</mi><mo>,</mo><mspace width="2.0em"></mspace><mi>z</mi><mo>=</mo><msqrt><mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msubsup><mi>d</mi><mi>x</mi><mn>2</mn></msubsup><mo>−</mo><msubsup><mi>d</mi><mi>y</mi><mn>2</mn></msubsup><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msqrt><mo>,</mo><mspace width="2.0em"></mspace><mi>n</mi><mo>=</mo><mo>normalize</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>d</mi><mi>x</mi></msub><mo>,</mo><msub><mi>d</mi><mi>y</mi></msub><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mi>p</mi><mi>/</mi><mi>R</mi><mo>,</mo><mspace width="2.0em"></mspace><mi>z</mi><mo>=</mo><msqrt><mrow><mrow><mi mathvariant="normal">max</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msubsup><mi>d</mi><mi>x</mi><mn>2</mn></msubsup><mo>−</mo><msubsup><mi>d</mi><mi>y</mi><mn>2</mn></msubsup><mo>,</mo><mn>0</mn><mo stretchy="false" form="postfix">)</mo></mrow></msqrt><mo>,</mo><mspace width="2.0em"></mspace><mi>n</mi><mo>=</mo><mrow><mi mathvariant="normal">normalize</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>d</mi><mi>x</mi></msub><mo>,</mo><msub><mi>d</mi><mi>y</mi></msub><mo>,</mo><mi>z</mi><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
 d=p/R,\qquad z=\sqrt{\max(1-d_x^2-d_y^2,0)},\qquad n=\operatorname{normalize}(d_x,d_y,z).
 </annotation></semantics></math></p>
 <p>The normal <code>n</code> determines lighting.
@@ -157,7 +164,7 @@ hemisphere. They determine where the cloud pattern is sampled. Surface
 coordinates and lighting normals have different jobs.</p>
 <p>Seven localized coordinate vortices bend the surface domain. Each
 samples</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mi>′</mi><mo>=</mo><mi>c</mi><mo>+</mo><mi>R</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo>exp</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>−</mi><mo stretchy="false" form="postfix">∥</mo><mi>q</mi><mo>−</mo><mi>c</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mi>/</mi><msup><mi>a</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">]</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>q</mi><mo>−</mo><mi>c</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>q</mi><mo>′</mo></msup><mo>=</mo><mi>c</mi><mo>+</mo><mi>R</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mi mathvariant="normal">exp</mi><mo stretchy="false" form="prefix">[</mo><mi>−</mi><mo stretchy="false" form="postfix">∥</mo><mi>q</mi><mo>−</mo><mi>c</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mi>/</mi><msup><mi>a</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">]</mo><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>q</mi><mo>−</mo><mi>c</mi><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
 q&#39;=c+R\!\left(k\exp[-\|q-c\|^2/a^2]\right)(q-c).
 </annotation></semantics></math></p>
 <p>Different centers, radii and signs break the appearance of a single
@@ -170,7 +177,7 @@ noise-bent sine adds cloud striations. A soft threshold selects bright
 cloud regions; its threshold shifts with <strong>Cloud cover</strong>.
 The ocean color varies more gently. Their colors are mixed
 <strong>before</strong> applying ambient-plus-diffuse illumination:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mo>=</mo><mo>mix</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>o</mi><mi>c</mi><mi>e</mi><mi>a</mi><mi>n</mi></mrow></msub><mo>,</mo><msub><mi>C</mi><mrow><mi>c</mi><mi>l</mi><mi>o</mi><mi>u</mi><mi>d</mi></mrow></msub><mo>,</mo><msub><mi>m</mi><mrow><mi>c</mi><mi>l</mi><mi>o</mi><mi>u</mi><mi>d</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo stretchy="true" form="prefix">[</mo><mi>a</mi><mo>+</mo><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>⋅</mo><mo>ℓ</mo><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mo>=</mo><mrow><mi mathvariant="normal">mix</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>o</mi><mi>c</mi><mi>e</mi><mi>a</mi><mi>n</mi></mrow></msub><mo>,</mo><msub><mi>C</mi><mrow><mi>c</mi><mi>l</mi><mi>o</mi><mi>u</mi><mi>d</mi></mrow></msub><mo>,</mo><msub><mi>m</mi><mrow><mi>c</mi><mi>l</mi><mi>o</mi><mi>u</mi><mi>d</mi></mrow></msub><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="prefix">[</mo><mi>a</mi><mo>+</mo><mrow><mi mathvariant="normal">max</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>n</mi><mo>⋅</mo><mi>ℓ</mi><mo>,</mo><mn>0</mn><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">]</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
 C=\operatorname{mix}(C_{ocean},C_{cloud},m_{cloud})
    [a+\max(n\cdot\ell,0)].
 </annotation></semantics></math></p>
@@ -205,7 +212,7 @@ into arcs around a visibly separate foreground cluster.</p>
 <p>The reusable operation is a <strong>coordinate map</strong>, not a
 blur and not a collection of manually painted arc shapes. For
 image-plane position <code>theta</code>, the source position is</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>θ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>θ</mi><mo>−</mo><munder><mo>∑</mo><mi>i</mi></munder><msub><mi>m</mi><mi>i</mi></msub><mfrac><mrow><mi>θ</mi><mo>−</mo><msub><mi>c</mi><mi>i</mi></msub></mrow><mrow><mo stretchy="false" form="postfix">∥</mo><mi>θ</mi><mo>−</mo><msub><mi>c</mi><mi>i</mi></msub><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo>+</mo><msup><mi>ϵ</mi><mn>2</mn></msup></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>θ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>I</mi><mrow><mi>s</mi><mi>o</mi><mi>u</mi><mi>r</mi><mi>c</mi><mi>e</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>β</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>θ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo stretchy="false" form="prefix">(</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi>θ</mi><mo>−</mo><munder><mo>∑</mo><mi>i</mi></munder><msub><mi>m</mi><mi>i</mi></msub><mfrac><mrow><mi>θ</mi><mo>−</mo><msub><mi>c</mi><mi>i</mi></msub></mrow><mrow><mo stretchy="false" form="postfix">∥</mo><mi>θ</mi><mo>−</mo><msub><mi>c</mi><mi>i</mi></msub><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo>+</mo><msup><mi>ϵ</mi><mn>2</mn></msup></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><mi>I</mi><mo stretchy="false" form="prefix">(</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><msub><mi>I</mi><mrow><mi>s</mi><mi>o</mi><mi>u</mi><mi>r</mi><mi>c</mi><mi>e</mi></mrow></msub><mo stretchy="false" form="prefix">(</mo><mi>β</mi><mo stretchy="false" form="prefix">(</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
 \beta(\theta)=\theta-\sum_i m_i\frac{\theta-c_i}{\|\theta-c_i\|^2+\epsilon^2},
 \qquad I(\theta)=I_{source}(\beta(\theta)).
 </annotation></semantics></math></p>
@@ -221,7 +228,7 @@ equation. See <a
 href="https://arxiv.org/abs/astro-ph/9912508">Bartelmann and
 Schneider</a> for scientific background.</p>
 <p>The source galaxy is itself reusable:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mo>=</mo><mi>m</mi><mo>atan2</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>y</mi><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>k</mi><mo>log</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>+</mo><mn>0.1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>ω</mi><mi>t</mi><mo>,</mo><mspace width="1.0em"></mspace><mi>A</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo>+</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo>cos</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>ϕ</mi><mo>+</mo><msub><mi>δ</mi><mrow><mi>n</mi><mi>o</mi><mi>i</mi><mi>s</mi><mi>e</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mn>8</mn></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mo>=</mo><mi>m</mi><mrow><mi mathvariant="normal">atan2</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>y</mi><mo>,</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mi>k</mi><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>r</mi><mo>+</mo><mn>0.1</mn><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mi>ω</mi><mi>t</mi><mo>,</mo><mspace width="1.0em"></mspace><mi>A</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mo>+</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mi mathvariant="normal">cos</mi><mo stretchy="false" form="prefix">(</mo><mi>ϕ</mi><mo>+</mo><msub><mi>δ</mi><mrow><mi>n</mi><mi>o</mi><mi>i</mi><mi>s</mi><mi>e</mi></mrow></msub><mo stretchy="false" form="postfix">)</mo><mo stretchy="true" form="postfix">)</mo></mrow><mn>8</mn></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
 \phi=m\operatorname{atan2}(y,x)-k\log(r+0.1)-\omega t,
 \quad A=\left(\tfrac12+\tfrac12\cos(\phi+\delta_{noise})\right)^8.
 </annotation></semantics></math></p>
@@ -260,14 +267,14 @@ vortex</h2>
 <p><strong>Visual task:</strong> a luminous spiral curtain, fine radial
 streaks, and a softer differently colored fringe.</p>
 <p>The central geometric expression is a logarithmic spiral phase:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mo>=</mo><mi>θ</mi><mo>+</mo><mi>k</mi><mo>log</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>+</mo><msub><mi>r</mi><mn>0</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>ω</mi><mi>t</mi><mo>+</mo><mi>δ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>p</mi><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mo>=</mo><mi>θ</mi><mo>+</mo><mi>k</mi><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>r</mi><mo>+</mo><msub><mi>r</mi><mn>0</mn></msub><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mi>ω</mi><mi>t</mi><mo>+</mo><mi>δ</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
 \phi=\theta+k\log(r+r_0)+\omega t+\delta(p,t).
 </annotation></semantics></math></p>
 <p>A constant phase approximately follows
 <code>r+r0 = exp((constant-theta)/k)</code>. The positive
 <code>r0</code> regularizes the origin; an envelope suppresses the
 center anyway. A Gaussian of the phase wave produces thin ribbons:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mo>=</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>sin</mo><mi>ϕ</mi><mo>,</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mrow><mo stretchy="true" form="prefix">[</mo><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mi>−</mi><mn>8</mn><mi>r</mi></mrow></msup><mo stretchy="true" form="postfix">]</mo></mrow><msup><mi>e</mi><mrow><mi>−</mi><mn>0.7</mn><mi>r</mi></mrow></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mo>=</mo><mi>G</mi><mo stretchy="false" form="prefix">(</mo><mrow><mi mathvariant="normal">sin</mi><mo>&#8289;</mo></mrow><mi>ϕ</mi><mo>,</mo><mi>w</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mo stretchy="false" form="prefix">[</mo><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mi>−</mi><mn>8</mn><mi>r</mi></mrow></msup><mo stretchy="false" form="postfix">]</mo><msup><mi>e</mi><mrow><mi>−</mi><mn>0.7</mn><mi>r</mi></mrow></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
 B=G(\sin\phi,w)\,[1-e^{-8r}]e^{-0.7r}.
 </annotation></semantics></math></p>
 <p>Because <code>sin(phi)=0</code> at multiple phases, this creates
@@ -276,7 +283,7 @@ units</strong>, not a constant physical distance from a spiral. Widening
 it produces broad curtains; changing <code>k</code> changes winding
 instead.</p>
 <p>Angular high-frequency modulation creates the fine rays:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mo>=</mo><mn>0.28</mn><mo>+</mo><mn>0.72</mn><msup><mrow><mo stretchy="true" form="prefix">[</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo>+</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo>sin</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>175</mn><mi>θ</mi><mo>+</mo><mn>20</mn><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>p</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><msub><mi>ω</mi><mi>f</mi></msub><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow><mn>2</mn></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mo>=</mo><mn>0.28</mn><mo>+</mo><mn>0.72</mn><msup><mrow><mo stretchy="true" form="prefix">[</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mo>+</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mi mathvariant="normal">sin</mi><mo stretchy="false" form="prefix">(</mo><mn>175</mn><mi>θ</mi><mo>+</mo><mn>20</mn><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo><msub><mi>ω</mi><mi>f</mi></msub><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="true" form="postfix">]</mo></mrow><mn>2</mn></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
 F=0.28+0.72\left[\tfrac12+\tfrac12\sin(175\theta+20N(p)+\omega_f t)\right]^2.
 </annotation></semantics></math></p>
 <p>Green emission multiplies the ribbon by this modulation. A slightly
@@ -314,7 +321,7 @@ applied to the background so unrelated stars do not remain visible
 through the black center.</p>
 <p>The stream uses a parameter <code>u</code> increasing from the disk
 toward the star:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>c</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>u</mi><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0.14</mn><mo>+</mo><mn>0.40</mn><msup><mi>u</mi><mn>2</mn></msup><mo>+</mo><mn>0.05</mn><mo>sin</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>5</mn><mi>u</mi><mo>−</mo><mi>ω</mi><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="2.0em"></mspace><mi>w</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>u</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>mix</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>w</mi><mrow><mi>t</mi><mi>h</mi><mi>i</mi><mi>n</mi></mrow></msub><mo>,</mo><msub><mi>w</mi><mrow><mi>s</mi><mi>t</mi><mi>a</mi><mi>r</mi></mrow></msub><mo>,</mo><msup><mi>u</mi><mi>a</mi></msup><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>c</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>u</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mn>0.14</mn><mo>+</mo><mn>0.40</mn><msup><mi>u</mi><mn>2</mn></msup><mo>+</mo><mn>0.05</mn><mrow><mi mathvariant="normal">sin</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><mn>5</mn><mi>u</mi><mo>−</mo><mi>ω</mi><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo><mspace width="2.0em"></mspace><mi>w</mi><mo stretchy="false" form="prefix">(</mo><mi>u</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mrow><mi mathvariant="normal">mix</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>w</mi><mrow><mi>t</mi><mi>h</mi><mi>i</mi><mi>n</mi></mrow></msub><mo>,</mo><msub><mi>w</mi><mrow><mi>s</mi><mi>t</mi><mi>a</mi><mi>r</mi></mrow></msub><mo>,</mo><msup><mi>u</mi><mi>a</mi></msup><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
 y_c(u,t)=0.14+0.40u^2+0.05\sin(5u-\omega t),
 \qquad w(u)=\operatorname{mix}(w_{thin},w_{star},u^a).
 </annotation></semantics></math></p>
@@ -352,7 +359,7 @@ a dense, organized but nonuniform fan of eyespot feathers.</p>
 <p>Start with <strong>one reusable feather</strong>, whose local
 coordinates have the base at <code>(0,0)</code> and tip at
 <code>(0,1)</code>. Its tapered half-width is</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>w</mi><mn>0</mn></msub><mspace width="0.167em"></mspace><msup><mrow><mo stretchy="true" form="prefix">[</mo><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>sin</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>π</mi><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow><mn>0.55</mn></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo stretchy="false" form="prefix">(</mo><mi>v</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><msub><mi>w</mi><mn>0</mn></msub><mspace width="0.167em"></mspace><mo stretchy="false" form="prefix">[</mo><mrow><mi mathvariant="normal">max</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><mrow><mi mathvariant="normal">sin</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>π</mi><mi>v</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo><mn>0</mn><mo stretchy="false" form="postfix">)</mo><msup><mo stretchy="false" form="postfix">]</mo><mn>0.55</mn></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
 w(v)=w_0\,[\max(\sin(\pi v),0)]^{0.55}.
 </annotation></semantics></math></p>
 <p>A soft <code>abs(x)-w(v)</code> test gives coverage, with endpoint
@@ -361,7 +368,7 @@ oblique wave <code>cos(250(v+1.3|x|))</code> creates left/right barbs.
 The absolute value flips their slope across the shaft.</p>
 <p>The eyespot uses an elliptical radial coordinate centered near the
 tip:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>e</mi><mo>=</mo><msqrt><mrow><msup><mrow><mo stretchy="true" form="prefix">[</mo><mi>x</mi><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.76</mn><msub><mi>w</mi><mn>0</mn></msub><mi>s</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow><mn>2</mn></msup><mo>+</mo><msup><mrow><mo stretchy="true" form="prefix">[</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>v</mi><mo>−</mo><mn>0.79</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.107</mn><mi>s</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow><mn>2</mn></msup></mrow></msqrt><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>e</mi><mo>=</mo><msqrt><mrow><mo stretchy="false" form="prefix">[</mo><mi>x</mi><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>0.76</mn><msub><mi>w</mi><mn>0</mn></msub><mi>s</mi><mo stretchy="false" form="postfix">)</mo><msup><mo stretchy="false" form="postfix">]</mo><mn>2</mn></msup><mo>+</mo><mo stretchy="false" form="prefix">[</mo><mo stretchy="false" form="prefix">(</mo><mi>v</mi><mo>−</mo><mn>0.79</mn><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>0.107</mn><mi>s</mi><mo stretchy="false" form="postfix">)</mo><msup><mo stretchy="false" form="postfix">]</mo><mn>2</mn></msup></mrow></msqrt><mi>.</mi></mrow><annotation encoding="application/x-tex">
 e=\sqrt{[x/(0.76w_0s)]^2+[(v-0.79)/(0.107s)]^2}.
 </annotation></semantics></math></p>
 <p>Nested smooth thresholds on <code>e</code> create the bronze rim,

@@ -1,11 +1,14 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <title>Architecture: a small language for visual fields</title>
   <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
     div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -21,8 +24,9 @@
       vertical-align: middle;
     }
     /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
     pre > code.sourceCode { white-space: pre; position: relative; }
-    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
     pre > code.sourceCode > span:empty { height: 1.2em; }
     .sourceCode { overflow: visible; }
     code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -33,7 +37,7 @@
     }
     @media print {
     pre > code.sourceCode { white-space: pre-wrap; }
-    pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
     }
     pre.numberSource code
       { counter-reset: source-line 0; }
@@ -88,7 +92,7 @@
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#architecture-a-small-language-for-visual-fields"
@@ -153,30 +157,30 @@ subexpression.</p>
 <col style="width: 33%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th>Type</th>
 <th>GLSL representation</th>
 <th>Contract</th>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>coord</code></td>
 <td><code>vec2</code></td>
 <td>A location in a sampling domain; not a color</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>scalar</code></td>
 <td><code>float</code></td>
 <td>A number at each point; may be negative or greater than one</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>geometry</code></td>
 <td><code>Geometry {warp, rim, coverage}</code></td>
 <td>Source-compatible geometric texture coordinate, emission envelope
 and diagnostic membership</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>layer</code></td>
 <td><code>vec4</code></td>
 <td>Straight/unpremultiplied RGB radiance plus coverage alpha</td>
@@ -199,7 +203,7 @@ can satisfy that interface. Ring Nebula does exactly this.</p>
 <h2 id="coordinate-maps-and-why-they-compose">Coordinate maps and why
 they compose</h2>
 <p>A transform samples an object in local coordinates:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mo>=</mo><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>−</mi><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>p</mi><mo>−</mo><mi>c</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>s</mi><mi>x</mi></msub><mo>,</mo><msub><mi>s</mi><mi>y</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>I</mi><mrow><mi mathvariant="normal">w</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">d</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>p</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>I</mi><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">l</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>q</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mo>=</mo><mi>R</mi><mo stretchy="false" form="prefix">(</mo><mi>−</mi><mi>α</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>−</mo><mi>c</mi><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>s</mi><mi>x</mi></msub><mo>,</mo><msub><mi>s</mi><mi>y</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>I</mi><mrow><mi mathvariant="normal">w</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">d</mi></mrow></msub><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><msub><mi>I</mi><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">l</mi></mrow></msub><mo stretchy="false" form="prefix">(</mo><mi>q</mi><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
 q=R(-\alpha)(p-c)/(s_x,s_y),\qquad I_{\mathrm{world}}(p)=I_{\mathrm{local}}(q).
 </annotation></semantics></math></p>
 <p>This is backward mapping: ask each destination pixel which position
@@ -234,13 +238,65 @@ framebuffer per node. This avoids hidden inter-pass quantization and
 makes inspection/reuse straightforward, at the cost of potentially
 expensive first-time shader compilation for a large expression
 network.</p>
-<p>The renderer caches eight linked programs. Its structural cache key
+<p>The renderer caches 32 linked programs. Its structural cache key
 includes node types, enabled states, connections, expressions, output
-target and raw/diagnostic mode. Numeric values are <strong>not</strong>
-in this key. Changing a numeric control updates a uniform. Changing a
-connection or equation compiles a different program. The new program
-must compile/link successfully before it replaces the previous
-render.</p>
+target and compile mode. Numeric values are <strong>not</strong> in this
+key. Changing a numeric control updates a uniform. Changing a connection
+or equation compiles a different program. The new program must
+compile/link successfully before it replaces the previous render.</p>
+<h3 id="compile-modes">Compile modes</h3>
+<p><code>compileGraph(project, target, options)</code> produces one of
+four shader shapes:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Option</th>
+<th>What <code>main()</code> outputs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>display</td>
+<td><em>(default)</em></td>
+<td>the target converted for display; non-layer types use the diagnostic
+false colors below</td>
+</tr>
+<tr>
+<td>raw</td>
+<td><code>raw: true</code></td>
+<td>the target’s numeric value, unconverted; used by float probes</td>
+</tr>
+<tr>
+<td>contribution</td>
+<td><code>contribution: id</code>, <code>contributionStyle</code></td>
+<td><code>shade(p)</code> and <code>shadeWithout(p)</code>, the latter
+with the named node replaced by its typed zero, compared after display
+conversion: either the composite with unchanged pixels dimmed to gray
+(<code>highlight</code>) or a signed warm/cool difference scaled ×4
+(<code>signed</code>)</td>
+</tr>
+<tr>
+<td>preview</td>
+<td><code>preview: true</code></td>
+<td>every node evaluated once; <code>u_previewIndex</code> selects which
+node’s display-converted value is returned</td>
+</tr>
+</tbody>
+</table>
+<p>Contribution answers “what does this node change in the final image?”
+without a second render pass; the two evaluations happen in one
+fragment. Preview answers “what does every node produce?” with one
+compilation instead of one per node: the editor draws all graph
+thumbnails from that program into a tiled offscreen framebuffer and
+reads the tiles back in a single call. Both modes share the ordinary
+statement generator, so a node looks the same isolated, previewed or
+contributed.</p>
 <h2 id="color-alpha-masks-and-light">Color, alpha, masks and light</h2>
 <p>RGB values in graph layers are <strong>radiance-like floating-point
 numbers</strong>. They are artistic quantities, not calibrated physical
@@ -248,14 +304,14 @@ units. They can exceed one. The source cloud has individual negative
 blue coefficients; those are preserved through the original
 composition.</p>
 <p>The two important layer operators are intentionally different:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>Add</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>A</mi><mo>,</mo><mi>B</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi><mi>r</mi><mi>g</mi><mi>b</mi><mo>=</mo><mi>A</mi><mi>.</mi><mi>r</mi><mi>g</mi><mi>b</mi><mo>+</mo><mi>g</mi><mi>B</mi><mi>.</mi><mi>r</mi><mi>g</mi><mi>b</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">Add</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>A</mi><mo>,</mo><mi>B</mi><mo stretchy="false" form="postfix">)</mo><mi>.</mi><mi>r</mi><mi>g</mi><mi>b</mi><mo>=</mo><mi>A</mi><mi>.</mi><mi>r</mi><mi>g</mi><mi>b</mi><mo>+</mo><mi>g</mi><mi>B</mi><mi>.</mi><mi>r</mi><mi>g</mi><mi>b</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
 \operatorname{Add}(A,B).rgb=A.rgb+gB.rgb.
 </annotation></semantics></math></p>
 <p>Add sums emission regardless of alpha. Use it for independent star
 glows, atmospheric light, nebular gas or a flame over black. It does not
 behave like painting a transparent PNG.</p>
 <p>For front-over-back straight-alpha composition:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>=</mo><msub><mi>a</mi><mi>f</mi></msub><mo>+</mo><msub><mi>a</mi><mi>b</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>a</mi><mi>f</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><mi>C</mi><mo>=</mo><mfrac><mrow><msub><mi>a</mi><mi>f</mi></msub><msub><mi>C</mi><mi>f</mi></msub><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>a</mi><mi>f</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>a</mi><mi>b</mi></msub><msub><mi>C</mi><mi>b</mi></msub></mrow><mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>a</mi><mo>,</mo><msup><mn>10</mn><mrow><mi>−</mi><mn>8</mn></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>=</mo><msub><mi>a</mi><mi>f</mi></msub><mo>+</mo><msub><mi>a</mi><mi>b</mi></msub><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>a</mi><mi>f</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>,</mo><mspace width="1.0em"></mspace><mi>C</mi><mo>=</mo><mfrac><mrow><msub><mi>a</mi><mi>f</mi></msub><msub><mi>C</mi><mi>f</mi></msub><mo>+</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>a</mi><mi>f</mi></msub><mo stretchy="false" form="postfix">)</mo><msub><mi>a</mi><mi>b</mi></msub><msub><mi>C</mi><mi>b</mi></msub></mrow><mrow><mrow><mi mathvariant="normal">max</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>a</mi><mo>,</mo><msup><mn>10</mn><mrow><mi>−</mi><mn>8</mn></mrow></msup><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
 a=a_f+a_b(1-a_f),\quad
 C=\frac{a_fC_f+(1-a_f)a_bC_b}{\max(a,10^{-8})}.
 </annotation></semantics></math></p>
@@ -286,15 +342,18 @@ coord    → red = 0.5 + 0.5*sin(x), green = 0.5 + 0.5*sin(y), blue = 0.5
 geometry → red = 4*rim, green = coverage, blue = 0.5 + 0.5*tanh(warp)</code></pre>
 <p>These views are useful but lossy. A negative field is not “negative
 light”; its display is merely dark gray. A coordinate image repeats by
-design. Use <strong>Probe value</strong> for actual numbers.</p>
+design. The graph’s live previews use the same conversions. Use
+<strong>Probe value</strong>, or the rulers’ readout, for actual
+numbers.</p>
 <p><code>Renderer.samplePoint()</code> renders a one-pixel
 <code>RGBA32F</code> framebuffer and reads it as floats, before
 exposure, mapping and quantization. It returns
 <code>[scalar,0,0,1]</code>, <code>[x,y,0,1]</code>,
 <code>[warp,rim,coverage,1]</code>, or actual RGBA, depending on the
 target. The optional <code>EXT_color_buffer_float</code> capability is
-checked. The previous visible render is restored in a
-<code>finally</code> block. The inspection action is synchronous and may
+checked. Probes, <code>snapshot()</code> and <code>previewAtlas()</code>
+all render into temporary framebuffers, so the visible canvas is never
+resized or redrawn by an inspection. The action is synchronous and may
 stall briefly; it is not a streaming full-frame field export.</p>
 <p>The normal shader flags NaN or infinity in any output component as
 magenta. A debug mode turns all finite outputs black, supporting
@@ -305,17 +364,21 @@ numerical choices</h2>
 <p>At 2000 × 1200 with zero pan and unit zoom, pixel column
 <code>m</code> and row <code>n</code> reproduce the supplied
 mapping:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo>−</mo><mn>1000</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>420</mn><mo>,</mo><mspace width="1.0em"></mspace><mi>y</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>601</mn><mo>−</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>420</mn><mo>,</mo><mspace width="1.0em"></mspace><mi>m</mi><mo>=</mo><mn>1</mn><mi>…</mi><mn>2000</mn><mo>,</mo><mspace width="0.222em"></mspace><mi>n</mi><mo>=</mo><mn>1</mn><mi>…</mi><mn>1200</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mi>m</mi><mo>−</mo><mn>1000</mn><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>420</mn><mo>,</mo><mspace width="1.0em"></mspace><mi>y</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mn>601</mn><mo>−</mo><mi>n</mi><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>420</mn><mo>,</mo><mspace width="1.0em"></mspace><mi>m</mi><mo>=</mo><mn>1</mn><mi>…</mi><mn>2000</mn><mo>,</mo><mspace width="0.222em"></mspace><mi>n</mi><mo>=</mo><mn>1</mn><mi>…</mi><mn>1200</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
 x=(m-1000)/420,\quad y=(601-n)/420,\quad m=1\ldots2000,\ n=1\ldots1200.
 </annotation></semantics></math></p>
 <p>The framebuffer origin is bottom-left; exported PNG rows are
 top-first. The shader’s half-pixel accounting adds <code>1/840</code> to
-both coordinates. General image sizes preserve the horizontal world span
-<code>2000/420</code>; a different aspect ratio changes the vertical
-extent. One sample is evaluated per pixel. Multisampling of the
-fullscreen triangle does not antialias procedural subpixel lines, so
-WebGL canvas antialiasing is disabled rather than misleadingly
-advertised as a solution.</p>
+both coordinates. A <code>u_offset</code> uniform subtracts the tile
+origin when several previews share one framebuffer; it is zero for
+ordinary draws. <code>src/view-math.js</code> implements the same
+mapping in JavaScript for the rulers, readouts and zoom-about-cursor,
+and the unit tests check that it reproduces the native grid. General
+image sizes preserve the horizontal world span <code>2000/420</code>; a
+different aspect ratio changes the vertical extent. One sample is
+evaluated per pixel. Multisampling of the fullscreen triangle does not
+antialias procedural subpixel lines, so WebGL canvas antialiasing is
+disabled rather than misleadingly advertised as a solution.</p>
 <p>The source defaults retain <strong>27 shells, 50 turbulence terms, 50
 cloud terms and 30 star lattices</strong>. Lowering preview width does
 not drop bands. Band counts are available as explicit artistic
@@ -356,32 +419,45 @@ class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb3-
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> renderer <span class="op">=</span> <span class="kw">new</span> <span class="fu">Renderer</span>(<span class="bu">document</span><span class="op">.</span><span class="fu">querySelector</span>(<span class="st">&#39;canvas&#39;</span>))<span class="op">;</span></span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> project <span class="op">=</span> <span class="fu">getPreset</span>(<span class="st">&#39;lensing&#39;</span>)<span class="op">;</span> <span class="co">// returns fresh editable JSON</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">draw</span>(project<span class="op">,</span> <span class="fl">2.0</span><span class="op">,</span> <span class="dv">1000</span><span class="op">,</span> <span class="dv">600</span>)<span class="op">;</span> <span class="co">// explicit time and pixel dimensions</span></span></code></pre></div>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">draw</span>(project<span class="op">,</span> <span class="fl">2.0</span><span class="op">,</span> <span class="dv">1000</span><span class="op">,</span> <span class="dv">600</span>)<span class="op">;</span> <span class="co">// explicit time and pixel dimensions</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">draw</span>(project<span class="op">,</span> <span class="fl">2.0</span><span class="op">,</span> <span class="dv">1000</span><span class="op">,</span> <span class="dv">600</span><span class="op">,</span> { <span class="dt">contribution</span><span class="op">:</span> <span class="st">&#39;galaxy&#39;</span> })<span class="op">;</span> <span class="co">// what the galaxy changes</span></span></code></pre></div>
 <p>Core APIs:</p>
 <div class="sourceCode" id="cb4"><pre
 class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">makeNode</span>(type<span class="op">,</span> id<span class="op">,</span> inputs <span class="op">=</span> {}<span class="op">,</span> parameterOverrides <span class="op">=</span> {})</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">validateProject</span>(project)              <span class="co">// throws; no partial acceptance</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">parseProject</span>(jsonText)                <span class="co">// validates size and full model</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">compileGraph</span>(project<span class="op">,</span> target<span class="op">,</span> raw)    <span class="co">// returns shader source, uniforms, reachable IDs</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">draw</span>(project<span class="op">,</span> time<span class="op">,</span> width<span class="op">,</span> height<span class="op">,</span> target<span class="op">,</span> debug<span class="op">,</span> raw)</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">samplePoint</span>(project<span class="op">,</span> time<span class="op">,</span> target<span class="op">,</span> x<span class="op">,</span> y)</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">png</span>()                       <span class="co">// Promise&lt;Blob&gt;; plain PNG, no metadata by itself</span></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="fu">embedPNGMetadata</span>(pngBlob<span class="op">,</span> metadata)   <span class="co">// used by the editor&#39;s Export dialog</span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">dispose</span>()                   <span class="co">// release owned GPU resources</span></span></code></pre></div>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">topologicalOrder</span>(project<span class="op">,</span> target)     <span class="co">// evaluation order; null target orders every node</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">upstream</span>(project<span class="op">,</span> id)<span class="op">,</span> <span class="fu">downstream</span>(project<span class="op">,</span> id)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">compileGraph</span>(project<span class="op">,</span> target<span class="op">,</span> { raw<span class="op">,</span> contribution<span class="op">,</span> contributionStyle<span class="op">,</span> preview })</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">draw</span>(project<span class="op">,</span> time<span class="op">,</span> width<span class="op">,</span> height<span class="op">,</span> { target<span class="op">,</span> debug<span class="op">,</span> raw<span class="op">,</span> contribution<span class="op">,</span> contributionStyle })</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">snapshot</span>(project<span class="op">,</span> time<span class="op">,</span> width<span class="op">,</span> height<span class="op">,</span> options)   <span class="co">// offscreen; top-down RGBA bytes</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">previewAtlas</span>(project<span class="op">,</span> time<span class="op">,</span> ids<span class="op">,</span> tileWidth<span class="op">,</span> tileHeight) <span class="co">// Map id → tile bytes</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">samplePoint</span>(project<span class="op">,</span> time<span class="op">,</span> target<span class="op">,</span> x<span class="op">,</span> y)          <span class="co">// raw floats at a world point</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">png</span>()                       <span class="co">// Promise&lt;Blob&gt;; plain PNG, no metadata by itself</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="fu">embedPNGMetadata</span>(pngBlob<span class="op">,</span> metadata)   <span class="co">// used by the editor&#39;s Export dialog</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">dispose</span>()                   <span class="co">// release owned GPU resources</span></span></code></pre></div>
 <p><code>Renderer.draw()</code> expects finite time, positive integer
 sizes within the reported limits, and a validated-compatible project. It
 validates again at the API boundary. Caller code owns scheduling; the
 renderer does not start an animation loop. <code>samplePoint()</code>
-currently restricts points to world coordinates within ±19.</p>
+currently restricts points to world coordinates within ±19.
+<code>snapshot()</code> and <code>previewAtlas()</code> return
+<code>{width, height, data}</code> objects whose <code>data</code> is
+laid out like <code>ImageData</code>.</p>
 <p>The editor also exposes <code>window.equationStudio</code> for
 integration: <code>getProject()</code>,
 <code>loadProject(project)</code>, <code>seek(t)</code>,
 <code>getTime()</code>, <code>getRenderer()</code>,
-<code>getCatalog()</code>, <code>isolate(id)</code>,
-<code>renderNow()</code>, and <code>exportPNG()</code>.
-<code>getProject()</code> returns a clone. The low-level
+<code>getCatalog()</code>, <code>getView()</code>,
+<code>isolate(id)</code>, <code>contribution(id, style)</code>,
+<code>setPreviews(enabled)</code>, <code>snapshot(title)</code>,
+<code>getSnapshots()</code>, <code>renderNow()</code>, and
+<code>exportPNG()</code>. <code>getProject()</code> and
+<code>getSnapshots()</code> return clones. The low-level
 <code>exportPNG()</code> hook returns a plain preview-resolution PNG;
-use the dialog or metadata helper for an archival export.</p>
+use the dialog or metadata helper for an archival export. The <a
+href="DEVELOPMENT.html">development guide</a> maps the editor’s modules
+and events.</p>
 <h2 id="add-your-own-component">Add your own component</h2>
 <p>Small formulas can be authored inside the browser with Custom scalar,
 Custom coordinate, or Custom color. Use GLSL float literals such as
@@ -409,17 +485,18 @@ class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb5-
 shader library and have the emitter call it. The emitter receives
 <strong>GLSL expression strings</strong>, including uniform names, not
 runtime JS numbers. The metadata automatically drives the component
-browser, controls, socket validation and code generation. Add a
-preset/example, a unit test, and a GPU test. Regenerate
-documentation/examples and rebuild the standalone HTML.</p>
+browser, controls, socket validation, drag-and-drop typing, previews and
+code generation. Add a preset/example, a unit test, and a GPU test. Then
+follow the regeneration checklist in the <a
+href="DEVELOPMENT.html">development guide</a>.</p>
 <h2 id="boundaries-and-extensions">Boundaries and extensions</h2>
-<p>This first version supports acyclic spatial function graphs and
-stateless time. It does not yet implement feedback textures, fluid
-simulation state, full volumetric transport, parameter expressions
-linking two controls, arbitrary reusable subgraph packaging, 3D object
-cameras, transparent/HDR exports, automatic inverse fitting, or
-unrestricted GLSL file editing within the browser. Large compound
-kernels remain source-level functions. These are explicit extension
-points, not hidden UI placeholders.</p>
+<p>This version supports acyclic spatial function graphs and stateless
+time. It does not yet implement feedback textures, fluid simulation
+state, full volumetric transport, parameter expressions linking two
+controls, arbitrary reusable subgraph packaging, 3D object cameras,
+transparent/HDR exports, automatic inverse fitting, or unrestricted GLSL
+file editing within the browser. Large compound kernels remain
+source-level functions. These are explicit extension points, not hidden
+UI placeholders.</p>
 </body>
 </html>

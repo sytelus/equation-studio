@@ -1,5 +1,5 @@
 {
-  "scope": "Chromium in-memory browser interaction; ANGLE SwiftShader software driver",
+  "scope": "Chromium in-memory browser interaction; ANGLE / SwiftShader software backend",
   "checks": [
     {
       "name": "UI key creation, tracked control editing and interpolation",
@@ -21,7 +21,20 @@
       }
     },
     {
-      "name": "Undo/redo preserves animation model",
+      "name": "Undo/redo preserves the animation model, selection and playhead",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Dragging a key in its lane retimes it",
+      "passed": true,
+      "details": [
+        0,
+        4
+      ]
+    },
+    {
+      "name": "Parameter reset restores the catalog default",
       "passed": true,
       "details": null
     },
@@ -33,7 +46,42 @@
     {
       "name": "Raw floating-point field probe through editor",
       "passed": true,
-      "details": "Raw Translate \u00b7 rotate \u00b7 scale at (-1.02560, 0.55179)\nx: -1.025595 \u00b7 y: 0.5517857"
+      "details": "Raw Translate \u00b7 rotate \u00b7 scale at (-1.13472, 0.63115)\nx: -1.134722 \u00b7 y: 0.6311508"
+    },
+    {
+      "name": "Rulers readout with raw values, pin and unpin",
+      "passed": true,
+      "details": "p(-0.430, -0.024) \u00b7 px 196,146 \u00b7 RGB 215 221 226 \u00b7 x -0.4304 y -0.02361"
+    },
+    {
+      "name": "Wheel zoom keeps the world point under the cursor fixed",
+      "passed": true,
+      "details": 1.3498588075760032
+    },
+    {
+      "name": "Live per-node previews render for every component",
+      "passed": true,
+      "details": 8
+    },
+    {
+      "name": "Contribution view toggles and styles through the inspector",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Drag-and-drop onto a socket adds and wires a compatible component; incompatible drops are rejected",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Drag wiring between dots and drag-off disconnection",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Snapshot save and restore",
+      "passed": true,
+      "details": 1
     },
     {
       "name": "Project JSON download and import round trip",
@@ -65,7 +113,7 @@
       "name": "Actual MediaRecorder video download",
       "passed": true,
       "details": {
-        "bytes": 755,
+        "bytes": 2202,
         "format": "WebM EBML container"
       }
     },
@@ -85,5 +133,5 @@
       "details": []
     }
   ],
-  "browser_version": "144.0.7559.96"
+  "browser_version": "153.0.8010.12"
 }

@@ -2,6 +2,13 @@ import { catalog, parameterDefaults } from './catalog.js';
 /** JSON-only graph model; imported projects are data, never executable JavaScript. */
 export const SCHEMA_VERSION = 1;
 export const MAX_NODES = 80;
+export const MAX_TRACKS = 160;
+export const MAX_KEYS = 500;
+export const MAX_LABEL = 160;
+/** Camera bounds shared by validation and the canvas gestures. */
+export const VIEW_LIMITS = { zoom: [0.1, 12], pan: [-20, 20] };
+export const DURATION_LIMITS = [0.1, 120];
+export const EXPOSURE_LIMITS = [0, 8];
 const validId = /^[a-zA-Z][a-zA-Z0-9_-]{0,47}$/;
 export function clone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -29,23 +36,23 @@ export function validateProject(project) {
     if (!project || typeof project !== 'object' || Array.isArray(project) || project.schemaVersion !== SCHEMA_VERSION) {
         throw new Error('Unsupported project schema. Expected equation-studio schemaVersion 1.');
     }
-    if (typeof project.title !== 'string' || project.title.length > 160) {
-        throw new Error('Project title must be at most 160 characters.');
+    if (typeof project.title !== 'string' || project.title.length > MAX_LABEL) {
+        throw new Error(`Project title must be at most ${MAX_LABEL} characters.`);
     }
     if (!Array.isArray(project.nodes) || !project.nodes.length || project.nodes.length > MAX_NODES) {
         throw new Error(`Projects require 1–${MAX_NODES} components.`);
     }
-    finiteRange(project.duration, 0.1, 120, 'Duration');
-    finiteRange(project.exposure, 0, 8, 'Exposure');
+    finiteRange(project.duration, ...DURATION_LIMITS, 'Duration');
+    finiteRange(project.exposure, ...EXPOSURE_LIMITS, 'Exposure');
     if (!['source', 'filmic', 'linear'].includes(project.tone)) {
         throw new Error('Unknown output conversion.');
     }
-    if (!project.view) {
+    if (!project.view || typeof project.view !== 'object') {
         throw new Error('Missing view settings.');
     }
-    finiteRange(project.view.zoom, 0.1, 12, 'View zoom');
-    finiteRange(project.view.x, -20, 20, 'View X');
-    finiteRange(project.view.y, -20, 20, 'View Y');
+    finiteRange(project.view.zoom, ...VIEW_LIMITS.zoom, 'View zoom');
+    finiteRange(project.view.x, ...VIEW_LIMITS.pan, 'View X');
+    finiteRange(project.view.y, ...VIEW_LIMITS.pan, 'View Y');
     const byId = new Map();
     for (const n of project.nodes) {
         if (!n || !validId.test(n.id) || byId.has(n.id)) {
@@ -54,8 +61,8 @@ export function validateProject(project) {
         if (!Object.hasOwn(catalog, n.type)) {
             throw new Error(`Unknown component type: ${n.type}`);
         }
-        if (typeof n.label !== 'string' || n.label.length > 160) {
-            throw new Error('Node labels must be strings of at most 160 characters.');
+        if (typeof n.label !== 'string' || n.label.length > MAX_LABEL) {
+            throw new Error(`Node labels must be strings of at most ${MAX_LABEL} characters.`);
         }
         if (typeof n.enabled !== 'boolean') {
             throw new Error(`${n.id}: enabled must be boolean.`);
@@ -125,7 +132,7 @@ export function validateProject(project) {
     for (const id of byId.keys()) {
         visit(id);
     }
-    if (!Array.isArray(project.tracks) || project.tracks.length > 160) {
+    if (!Array.isArray(project.tracks) || project.tracks.length > MAX_TRACKS) {
         throw new Error('Invalid animation tracks.');
     }
     const trackIds = new Set();
@@ -138,8 +145,8 @@ export function validateProject(project) {
         if (!['linear', 'smooth', 'hold'].includes(track.interpolation)) {
             throw new Error(`Invalid interpolation for ${key}.`);
         }
-        if (!Array.isArray(track.keys) || track.keys.length > 500) {
-            throw new Error('A track can have at most 500 keys.');
+        if (!Array.isArray(track.keys) || track.keys.length > MAX_KEYS) {
+            throw new Error(`A track can have at most ${MAX_KEYS} keys.`);
         }
         let previous = -1;
         for (const k of track.keys) {
@@ -153,6 +160,10 @@ export function validateProject(project) {
     }
     return project;
 }
+/** Dependencies of `target` in evaluation order, ending with the target itself.
+ * Disabled nodes do not pull in their inputs. Pass `null` to order every node,
+ * which the multi-target preview shader uses.
+ */
 export function topologicalOrder(project, target = project.output) {
     const map = new Map(project.nodes.map(n => [n.id, n])), seen = new Set(), order = [];
     function walk(id) {
@@ -173,8 +184,45 @@ export function topologicalOrder(project, target = project.output) {
         }
         order.push(n);
     }
-    walk(target);
+    if (target === null) {
+        for (const n of project.nodes) {
+            walk(n.id);
+        }
+    }
+    else {
+        walk(target);
+    }
     return order;
+}
+/** IDs that `id` depends on, transitively (regardless of enabled flags). */
+export function upstream(project, id) {
+    const map = new Map(project.nodes.map(n => [n.id, n])), result = new Set();
+    const walk = current => {
+        for (const source of Object.values(map.get(current)?.inputs || {})) {
+            if (source && !result.has(source)) {
+                result.add(source);
+                walk(source);
+            }
+        }
+    };
+    walk(id);
+    return result;
+}
+/** IDs that depend on `id`, transitively (regardless of enabled flags). */
+export function downstream(project, id) {
+    const result = new Set();
+    let frontier = [id];
+    while (frontier.length) {
+        const next = [];
+        for (const n of project.nodes) {
+            if (!result.has(n.id) && Object.values(n.inputs).some(source => frontier.includes(source))) {
+                result.add(n.id);
+                next.push(n.id);
+            }
+        }
+        frontier = next;
+    }
+    return result;
 }
 export function parseProject(text) {
     if (typeof text !== 'string' || text.length > 1000000) {
@@ -191,6 +239,9 @@ export function uniqueId(project, type) {
     }
     throw new Error('No free component identifier.');
 }
+/** Delete a node, its incoming references and its tracks; the output falls back
+ * to the last remaining node. Mutates and revalidates `project`.
+ */
 export function removeNode(project, id) {
     if (project.nodes.length === 1) {
         throw new Error('The project must keep at least one component.');
@@ -209,6 +260,7 @@ export function removeNode(project, id) {
     }
     return validateProject(project);
 }
+/** Undo/redo stack of project snapshots. Every entry is an independent clone. */
 export class History {
     constructor(limit = 60) {
         this.limit = limit;

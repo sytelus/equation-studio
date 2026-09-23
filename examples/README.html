@@ -1,11 +1,14 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <title>Portable examples</title>
   <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
     div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -24,7 +27,7 @@
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#portable-examples" id="toc-portable-examples">Portable
@@ -43,8 +46,12 @@ the app. They are independent files; modifying one does not edit the
 preset’s source definition. JSON contains equations, topology,
 parameters and tracks, not image pixels.</p>
 <p><code>embedded.html</code> demonstrates using the renderer, presets
-and PNG metadata helper without the editor. Serve the project root using
-<code>python3 start.py</code>, then visit
+and PNG metadata helper without the editor. Pass an options object as
+the fifth argument of <code>renderer.draw()</code> to render an isolated
+node (<code>{target}</code>) or a contribution view
+(<code>{contribution}</code>); see <a
+href="../docs/ARCHITECTURE.md#reuse-the-renderer-without-the-editor">Architecture</a>.
+Serve the project root using <code>python3 start.py</code>, then visit
 <code>http://127.0.0.1:8765/examples/embedded.html</code>. Unlike the
 bundled single-file application, this source-module example should be
 served rather than opened as <code>file://</code> because it uses

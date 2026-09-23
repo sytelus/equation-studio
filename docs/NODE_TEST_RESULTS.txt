@@ -1,364 +1,729 @@
 TAP version 13
-# Subtest: schema and shader generation: bipolar
-ok 1 - schema and shader generation: bipolar
+# Subtest: shader generation
+    # Subtest: compiles the preset: bipolar
+    ok 1 - compiles the preset: bipolar
+      ---
+      duration_ms: 2.2523
+      type: 'test'
+      ...
+    # Subtest: compiles the preset: water
+    ok 2 - compiles the preset: water
+      ---
+      duration_ms: 0.3312
+      type: 'test'
+      ...
+    # Subtest: compiles the preset: lensing
+    ok 3 - compiles the preset: lensing
+      ---
+      duration_ms: 0.2578
+      type: 'test'
+      ...
+    # Subtest: compiles the preset: aurora
+    ok 4 - compiles the preset: aurora
+      ---
+      duration_ms: 0.2058
+      type: 'test'
+      ...
+    # Subtest: compiles the preset: tidal
+    ok 5 - compiles the preset: tidal
+      ---
+      duration_ms: 0.3154
+      type: 'test'
+      ...
+    # Subtest: compiles the preset: peacock
+    ok 6 - compiles the preset: peacock
+      ---
+      duration_ms: 0.2122
+      type: 'test'
+      ...
+    # Subtest: compiles the preset: fire
+    ok 7 - compiles the preset: fire
+      ---
+      duration_ms: 0.1697
+      type: 'test'
+      ...
+    # Subtest: compiles the preset: hedgehog
+    ok 8 - compiles the preset: hedgehog
+      ---
+      duration_ms: 0.3121
+      type: 'test'
+      ...
+    # Subtest: compiles the preset: ring
+    ok 9 - compiles the preset: ring
+      ---
+      duration_ms: 0.6915
+      type: 'test'
+      ...
+    # Subtest: compiles the preset: marble
+    ok 10 - compiles the preset: marble
+      ---
+      duration_ms: 0.2997
+      type: 'test'
+      ...
+    # Subtest: compiles the preset: kaleidoscope
+    ok 11 - compiles the preset: kaleidoscope
+      ---
+      duration_ms: 0.2138
+      type: 'test'
+      ...
+    # Subtest: compiles the preset: feather
+    ok 12 - compiles the preset: feather
+      ---
+      duration_ms: 0.1441
+      type: 'test'
+      ...
+    # Subtest: reachable shared expressions compile only once
+    ok 13 - reachable shared expressions compile only once
+      ---
+      duration_ms: 0.2415
+      type: 'test'
+      ...
+    # Subtest: unreachable nodes do not generate shader code
+    ok 14 - unreachable nodes do not generate shader code
+      ---
+      duration_ms: 0.1373
+      type: 'test'
+      ...
+    # Subtest: unconnected coordinate socket is zero, not implicit world space
+    ok 15 - unconnected coordinate socket is zero, not implicit world space
+      ---
+      duration_ms: 0.181
+      type: 'test'
+      ...
+    # Subtest: isolated scalar, coordinate and geometry use diagnostic conversions
+    ok 16 - isolated scalar, coordinate and geometry use diagnostic conversions
+      ---
+      duration_ms: 0.2774
+      type: 'test'
+      ...
+    # Subtest: raw mode skips display conversion
+    ok 17 - raw mode skips display conversion
+      ---
+      duration_ms: 0.1902
+      type: 'test'
+      ...
+    # Subtest: changing numbers preserves shader source
+    ok 18 - changing numbers preserves shader source
+      ---
+      duration_ms: 0.2391
+      type: 'test'
+      ...
+    # Subtest: custom expression edits change shader source
+    ok 19 - custom expression edits change shader source
+      ---
+      duration_ms: 0.2225
+      type: 'test'
+      ...
+    # Subtest: the angular mirror uses the shared helper
+    ok 20 - the angular mirror uses the shared helper
+      ---
+      duration_ms: 0.1496
+      type: 'test'
+      ...
+    # Subtest: every uniform is declared exactly once and belongs to a reachable node
+    ok 21 - every uniform is declared exactly once and belongs to a reachable node
+      ---
+      duration_ms: 0.9957
+      type: 'test'
+      ...
+    1..21
+ok 1 - shader generation
   ---
-  duration_ms: 2.022373
-  type: 'test'
+  duration_ms: 9.5142
+  type: 'suite'
   ...
-# Subtest: schema and shader generation: water
-ok 2 - schema and shader generation: water
+# Subtest: contribution mode
+    # Subtest: evaluates the output with and without the node
+    ok 1 - evaluates the output with and without the node
+      ---
+      duration_ms: 0.2688
+      type: 'test'
+      ...
+    # Subtest: reports unreachable nodes and still compiles
+    ok 2 - reports unreachable nodes and still compiles
+      ---
+      duration_ms: 0.1666
+      type: 'test'
+      ...
+    # Subtest: supports every documented style and rejects others
+    ok 3 - supports every documented style and rejects others
+      ---
+      duration_ms: 0.403
+      type: 'test'
+      ...
+    1..3
+ok 2 - contribution mode
   ---
-  duration_ms: 0.41202
-  type: 'test'
+  duration_ms: 0.9335
+  type: 'suite'
   ...
-# Subtest: schema and shader generation: lensing
-ok 3 - schema and shader generation: lensing
+# Subtest: preview mode
+    # Subtest: computes every node once and selects by index
+    ok 1 - computes every node once and selects by index
+      ---
+      duration_ms: 0.4238
+      type: 'test'
+      ...
+    # Subtest: layers are display-converted inside the preview shader
+    ok 2 - layers are display-converted inside the preview shader
+      ---
+      duration_ms: 0.0929
+      type: 'test'
+      ...
+    1..2
+ok 3 - preview mode
   ---
-  duration_ms: 0.292513
-  type: 'test'
+  duration_ms: 0.5794
+  type: 'suite'
   ...
-# Subtest: schema and shader generation: aurora
-ok 4 - schema and shader generation: aurora
+# Subtest: ZIP writer
+    # Subtest: CRC32 standard check value
+    ok 1 - CRC32 standard check value
+      ---
+      duration_ms: 1.1925
+      type: 'test'
+      ...
+    # Subtest: writes the local header, CRC, central directory and end record
+    ok 2 - writes the local header, CRC, central directory and end record
+      ---
+      duration_ms: 0.4902
+      type: 'test'
+      ...
+    # Subtest: rejects traversal and duplicate names
+    ok 3 - rejects traversal and duplicate names
+      ---
+      duration_ms: 0.2823
+      type: 'test'
+      ...
+    1..3
+ok 4 - ZIP writer
   ---
-  duration_ms: 0.225013
-  type: 'test'
+  duration_ms: 2.7001
+  type: 'suite'
   ...
-# Subtest: schema and shader generation: tidal
-ok 5 - schema and shader generation: tidal
+# Subtest: frame sequences and names
+    # Subtest: uses exact timestamps and excludes the end point
+    ok 1 - uses exact timestamps and excludes the end point
+      ---
+      duration_ms: 0.9587
+      type: 'test'
+      ...
+    # Subtest: filename sanitization has a safe fallback
+    ok 2 - filename sanitization has a safe fallback
+      ---
+      duration_ms: 0.4736
+      type: 'test'
+      ...
+    1..2
+ok 5 - frame sequences and names
   ---
-  duration_ms: 0.4592
-  type: 'test'
+  duration_ms: 1.5971
+  type: 'suite'
   ...
-# Subtest: schema and shader generation: peacock
-ok 6 - schema and shader generation: peacock
+# Subtest: PNG metadata
+    # Subtest: inserts an iTXt chunk before IEND and keeps UTF-8 data
+    ok 1 - inserts an iTXt chunk before IEND and keeps UTF-8 data
+      ---
+      duration_ms: 0.5419
+      type: 'test'
+      ...
+    # Subtest: rejects other formats
+    ok 2 - rejects other formats
+      ---
+      duration_ms: 0.2319
+      type: 'test'
+      ...
+    1..2
+ok 6 - PNG metadata
   ---
-  duration_ms: 0.278472
-  type: 'test'
+  duration_ms: 1.0652
+  type: 'suite'
   ...
-# Subtest: schema and shader generation: fire
-ok 7 - schema and shader generation: fire
+# Subtest: presets and catalog
+    # Subtest: preset validates: bipolar
+    ok 1 - preset validates: bipolar
+      ---
+      duration_ms: 1.276
+      type: 'test'
+      ...
+    # Subtest: preset validates: water
+    ok 2 - preset validates: water
+      ---
+      duration_ms: 0.2492
+      type: 'test'
+      ...
+    # Subtest: preset validates: lensing
+    ok 3 - preset validates: lensing
+      ---
+      duration_ms: 0.1321
+      type: 'test'
+      ...
+    # Subtest: preset validates: aurora
+    ok 4 - preset validates: aurora
+      ---
+      duration_ms: 0.1016
+      type: 'test'
+      ...
+    # Subtest: preset validates: tidal
+    ok 5 - preset validates: tidal
+      ---
+      duration_ms: 0.1252
+      type: 'test'
+      ...
+    # Subtest: preset validates: peacock
+    ok 6 - preset validates: peacock
+      ---
+      duration_ms: 0.1058
+      type: 'test'
+      ...
+    # Subtest: preset validates: fire
+    ok 7 - preset validates: fire
+      ---
+      duration_ms: 0.0867
+      type: 'test'
+      ...
+    # Subtest: preset validates: hedgehog
+    ok 8 - preset validates: hedgehog
+      ---
+      duration_ms: 0.0907
+      type: 'test'
+      ...
+    # Subtest: preset validates: ring
+    ok 9 - preset validates: ring
+      ---
+      duration_ms: 0.3014
+      type: 'test'
+      ...
+    # Subtest: preset validates: marble
+    ok 10 - preset validates: marble
+      ---
+      duration_ms: 0.1485
+      type: 'test'
+      ...
+    # Subtest: preset validates: kaleidoscope
+    ok 11 - preset validates: kaleidoscope
+      ---
+      duration_ms: 0.0767
+      type: 'test'
+      ...
+    # Subtest: preset validates: feather
+    ok 12 - preset validates: feather
+      ---
+      duration_ms: 0.0676
+      type: 'test'
+      ...
+    # Subtest: preset clones do not mutate originals
+    ok 13 - preset clones do not mutate originals
+      ---
+      duration_ms: 0.1813
+      type: 'test'
+      ...
+    # Subtest: catalog defaults cover every parameter and every entry is documented
+    ok 14 - catalog defaults cover every parameter and every entry is documented
+      ---
+      duration_ms: 0.6786
+      type: 'test'
+      ...
+    # Subtest: unknown catalog type fails
+    ok 15 - unknown catalog type fails
+      ---
+      duration_ms: 0.172
+      type: 'test'
+      ...
+    1..15
+ok 7 - presets and catalog
   ---
-  duration_ms: 0.314316
-  type: 'test'
+  duration_ms: 5.1635
+  type: 'suite'
   ...
-# Subtest: schema and shader generation: hedgehog
-ok 8 - schema and shader generation: hedgehog
+# Subtest: project validation
+    # Subtest: duplicate node id fails
+    ok 1 - duplicate node id fails
+      ---
+      duration_ms: 0.3441
+      type: 'test'
+      ...
+    # Subtest: invalid id cannot inject GLSL
+    ok 2 - invalid id cannot inject GLSL
+      ---
+      duration_ms: 0.097
+      type: 'test'
+      ...
+    # Subtest: wrong socket type fails
+    ok 3 - wrong socket type fails
+      ---
+      duration_ms: 0.3098
+      type: 'test'
+      ...
+    # Subtest: dangling socket fails
+    ok 4 - dangling socket fails
+      ---
+      duration_ms: 0.2105
+      type: 'test'
+      ...
+    # Subtest: cycles including disconnected nodes fail
+    ok 5 - cycles including disconnected nodes fail
+      ---
+      duration_ms: 0.2214
+      type: 'test'
+      ...
+    # Subtest: self-cycle fails
+    ok 6 - self-cycle fails
+      ---
+      duration_ms: 0.1783
+      type: 'test'
+      ...
+    # Subtest: unknown params fail
+    ok 7 - unknown params fail
+      ---
+      duration_ms: 0.1426
+      type: 'test'
+      ...
+    # Subtest: nonfinite parameters fail
+    ok 8 - nonfinite parameters fail
+      ---
+      duration_ms: 0.1328
+      type: 'test'
+      ...
+    # Subtest: out of range parameters fail
+    ok 9 - out of range parameters fail
+      ---
+      duration_ms: 0.109
+      type: 'test'
+      ...
+    # Subtest: bad exposure, duration and zoom fail
+    ok 10 - bad exposure, duration and zoom fail
+      ---
+      duration_ms: 0.2152
+      type: 'test'
+      ...
+    # Subtest: over-long labels and titles fail
+    ok 11 - over-long labels and titles fail
+      ---
+      duration_ms: 0.2627
+      type: 'test'
+      ...
+    # Subtest: parse rejects schema and oversize data
+    ok 12 - parse rejects schema and oversize data
+      ---
+      duration_ms: 0.1102
+      type: 'test'
+      ...
+    # Subtest: unknown output fails
+    ok 13 - unknown output fails
+      ---
+      duration_ms: 0.1253
+      type: 'test'
+      ...
+    # Subtest: graph size is bounded
+    ok 14 - graph size is bounded
+      ---
+      duration_ms: 0.1744
+      type: 'test'
+      ...
+    # Subtest: color tracks are not silently accepted
+    ok 15 - color tracks are not silently accepted
+      ---
+      duration_ms: 0.4328
+      type: 'test'
+      ...
+    1..15
+ok 8 - project validation
   ---
-  duration_ms: 0.254587
-  type: 'test'
+  duration_ms: 3.4108
+  type: 'suite'
   ...
-# Subtest: schema and shader generation: ring
-ok 9 - schema and shader generation: ring
+# Subtest: graph traversal
+    # Subtest: topological order ends with the target and visits shared inputs once
+    ok 1 - topological order ends with the target and visits shared inputs once
+      ---
+      duration_ms: 0.2173
+      type: 'test'
+      ...
+    # Subtest: a disabled node does not pull in its inputs
+    ok 2 - a disabled node does not pull in its inputs
+      ---
+      duration_ms: 0.1751
+      type: 'test'
+      ...
+    # Subtest: null target orders every node, including unreachable ones
+    ok 3 - null target orders every node, including unreachable ones
+      ---
+      duration_ms: 0.1223
+      type: 'test'
+      ...
+    # Subtest: upstream and downstream sets are transitive
+    ok 4 - upstream and downstream sets are transitive
+      ---
+      duration_ms: 0.2419
+      type: 'test'
+      ...
+    1..4
+ok 9 - graph traversal
   ---
-  duration_ms: 0.903657
-  type: 'test'
+  duration_ms: 0.8701
+  type: 'suite'
   ...
-# Subtest: schema and shader generation: marble
-ok 10 - schema and shader generation: marble
+# Subtest: custom expressions
+    # Subtest: lexical restrictions reject statements and injection
+    ok 1 - lexical restrictions reject statements and injection
+      ---
+      duration_ms: 0.1544
+      type: 'test'
+      ...
+    # Subtest: comparisons, ternaries and whitespace are allowed
+    ok 2 - comparisons, ternaries and whitespace are allowed
+      ---
+      duration_ms: 0.1022
+      type: 'test'
+      ...
+    1..2
+ok 10 - custom expressions
   ---
-  duration_ms: 0.436817
-  type: 'test'
+  duration_ms: 0.3099
+  type: 'suite'
   ...
-# Subtest: schema and shader generation: kaleidoscope
-ok 11 - schema and shader generation: kaleidoscope
+# Subtest: editing helpers
+    # Subtest: delete removes downstream references and tracks
+    ok 1 - delete removes downstream references and tracks
+      ---
+      duration_ms: 0.6555
+      type: 'test'
+      ...
+    # Subtest: delete of the output chooses an existing fallback
+    ok 2 - delete of the output chooses an existing fallback
+      ---
+      duration_ms: 0.1481
+      type: 'test'
+      ...
+    # Subtest: cannot delete the final remaining node
+    ok 3 - cannot delete the final remaining node
+      ---
+      duration_ms: 0.0853
+      type: 'test'
+      ...
+    # Subtest: unique ids skip existing identifiers
+    ok 4 - unique ids skip existing identifiers
+      ---
+      duration_ms: 0.0844
+      type: 'test'
+      ...
+    # Subtest: history undo / redo snapshots are independent
+    ok 5 - history undo / redo snapshots are independent
+      ---
+      duration_ms: 0.1166
+      type: 'test'
+      ...
+    # Subtest: new edit invalidates redo
+    ok 6 - new edit invalidates redo
+      ---
+      duration_ms: 0.1774
+      type: 'test'
+      ...
+    # Subtest: history honors its limit
+    ok 7 - history honors its limit
+      ---
+      duration_ms: 0.1167
+      type: 'test'
+      ...
+    1..7
+ok 11 - editing helpers
   ---
-  duration_ms: 0.263189
-  type: 'test'
+  duration_ms: 1.5492
+  type: 'suite'
   ...
-# Subtest: schema and shader generation: feather
-ok 12 - schema and shader generation: feather
+# Subtest: interpolation
+    # Subtest: linear keyframes and held endpoints
+    ok 1 - linear keyframes and held endpoints
+      ---
+      duration_ms: 0.595
+      type: 'test'
+      ...
+    # Subtest: smooth and hold interpolation
+    ok 2 - smooth and hold interpolation
+      ---
+      duration_ms: 0.6967
+      type: 'test'
+      ...
+    # Subtest: empty keyframe track falls back to base
+    ok 3 - empty keyframe track falls back to base
+      ---
+      duration_ms: 0.0934
+      type: 'test'
+      ...
+    # Subtest: sampling does not mutate base params
+    ok 4 - sampling does not mutate base params
+      ---
+      duration_ms: 0.1958
+      type: 'test'
+      ...
+    # Subtest: loop time wraps negative and positive values
+    ok 5 - loop time wraps negative and positive values
+      ---
+      duration_ms: 0.0773
+      type: 'test'
+      ...
+    1..5
+ok 12 - interpolation
   ---
-  duration_ms: 0.268477
-  type: 'test'
+  duration_ms: 2.5746
+  type: 'suite'
   ...
-# Subtest: preset clones do not mutate originals
-ok 13 - preset clones do not mutate originals
+# Subtest: key editing
+    # Subtest: inserting a key replaces the same timestamp and keeps sort order
+    ok 1 - inserting a key replaces the same timestamp and keeps sort order
+      ---
+      duration_ms: 0.8232
+      type: 'test'
+      ...
+    # Subtest: moving a key retimes it and replaces any key at the destination
+    ok 2 - moving a key retimes it and replaces any key at the destination
+      ---
+      duration_ms: 0.5291
+      type: 'test'
+      ...
+    # Subtest: order, duplicate and domain violations are rejected
+    ok 3 - order, duplicate and domain violations are rejected
+      ---
+      duration_ms: 0.481
+      type: 'test'
+      ...
+    # Subtest: a duration decrease cannot silently delete animation keys
+    ok 4 - a duration decrease cannot silently delete animation keys
+      ---
+      duration_ms: 0.1711
+      type: 'test'
+      ...
+    1..4
+ok 13 - key editing
   ---
-  duration_ms: 0.230291
-  type: 'test'
+  duration_ms: 2.2695
+  type: 'suite'
   ...
-# Subtest: catalog defaults cover every parameter
-ok 14 - catalog defaults cover every parameter
+# Subtest: camera arithmetic
+    # Subtest: reproduces the native source mapping at 2000 × 1200
+    ok 1 - reproduces the native source mapping at 2000 × 1200
+      ---
+      duration_ms: 0.446
+      type: 'test'
+      ...
+    # Subtest: pixel ↔ world round trips at several zooms and pans
+    ok 2 - pixel ↔ world round trips at several zooms and pans
+      ---
+      duration_ms: 0.1185
+      type: 'test'
+      ...
+    # Subtest: client coordinates flip the y axis
+    ok 3 - client coordinates flip the y axis
+      ---
+      duration_ms: 0.4823
+      type: 'test'
+      ...
+    # Subtest: zoomAbout keeps the world point under the cursor fixed
+    ok 4 - zoomAbout keeps the world point under the cursor fixed
+      ---
+      duration_ms: 0.1706
+      type: 'test'
+      ...
+    # Subtest: panBy moves the view against the pointer and stays in bounds
+    ok 5 - panBy moves the view against the pointer and stays in bounds
+      ---
+      duration_ms: 0.0925
+      type: 'test'
+      ...
+    # Subtest: constants match the shader
+    ok 6 - constants match the shader
+      ---
+      duration_ms: 0.1433
+      type: 'test'
+      ...
+    1..6
+ok 14 - camera arithmetic
   ---
-  duration_ms: 1.361265
-  type: 'test'
+  duration_ms: 2.1296
+  type: 'suite'
   ...
-# Subtest: unknown catalog type fails
-ok 15 - unknown catalog type fails
+# Subtest: rulers
+    # Subtest: tick spacing follows a 1-2-5 sequence and respects the pixel minimum
+    ok 1 - tick spacing follows a 1-2-5 sequence and respects the pixel minimum
+      ---
+      duration_ms: 0.1355
+      type: 'test'
+      ...
+    # Subtest: tick labels avoid floating-point noise and negative zero
+    ok 2 - tick labels avoid floating-point noise and negative zero
+      ---
+      duration_ms: 0.1563
+      type: 'test'
+      ...
+    1..2
+ok 15 - rulers
   ---
-  duration_ms: 0.24324
-  type: 'test'
+  duration_ms: 0.4022
+  type: 'suite'
   ...
-# Subtest: duplicate node id fails
-ok 16 - duplicate node id fails
+# Subtest: graph layout
+    # Subtest: places nodes in dependency-depth columns, in project order
+    ok 1 - places nodes in dependency-depth columns, in project order
+      ---
+      duration_ms: 0.3463
+      type: 'test'
+      ...
+    # Subtest: is deterministic and grows with previews
+    ok 2 - is deterministic and grows with previews
+      ---
+      duration_ms: 0.2415
+      type: 'test'
+      ...
+    # Subtest: socket points and wire paths are consistent
+    ok 3 - socket points and wire paths are consistent
+      ---
+      duration_ms: 0.2377
+      type: 'test'
+      ...
+    # Subtest: handles a graph with unconnected nodes
+    ok 4 - handles a graph with unconnected nodes
+      ---
+      duration_ms: 0.1028
+      type: 'test'
+      ...
+    1..4
+ok 16 - graph layout
   ---
-  duration_ms: 0.293254
-  type: 'test'
+  duration_ms: 1.0402
+  type: 'suite'
   ...
-# Subtest: invalid id cannot inject GLSL
-ok 17 - invalid id cannot inject GLSL
+# Subtest: snapshots
+    # Subtest: adds newest first, caps the list and drops invalid entries on parse
+    ok 1 - adds newest first, caps the list and drops invalid entries on parse
+      ---
+      duration_ms: 1.0242
+      type: 'test'
+      ...
+    # Subtest: rejects invalid projects
+    ok 2 - rejects invalid projects
+      ---
+      duration_ms: 0.141
+      type: 'test'
+      ...
+    # Subtest: describes ages briefly
+    ok 3 - describes ages briefly
+      ---
+      duration_ms: 0.0837
+      type: 'test'
+      ...
+    1..3
+ok 17 - snapshots
   ---
-  duration_ms: 0.128841
-  type: 'test'
+  duration_ms: 1.3378
+  type: 'suite'
   ...
-# Subtest: wrong socket type fails
-ok 18 - wrong socket type fails
-  ---
-  duration_ms: 0.158916
-  type: 'test'
-  ...
-# Subtest: dangling socket fails
-ok 19 - dangling socket fails
-  ---
-  duration_ms: 0.14895
-  type: 'test'
-  ...
-# Subtest: cycles including disconnected nodes fail
-ok 20 - cycles including disconnected nodes fail
-  ---
-  duration_ms: 0.242939
-  type: 'test'
-  ...
-# Subtest: self-cycle fails
-ok 21 - self-cycle fails
-  ---
-  duration_ms: 0.181168
-  type: 'test'
-  ...
-# Subtest: unknown params fail
-ok 22 - unknown params fail
-  ---
-  duration_ms: 0.144524
-  type: 'test'
-  ...
-# Subtest: nonfinite parameters fail
-ok 23 - nonfinite parameters fail
-  ---
-  duration_ms: 0.14162
-  type: 'test'
-  ...
-# Subtest: out of range parameters fail
-ok 24 - out of range parameters fail
-  ---
-  duration_ms: 0.548872
-  type: 'test'
-  ...
-# Subtest: bad exposure, duration and zoom fail
-ok 25 - bad exposure, duration and zoom fail
-  ---
-  duration_ms: 0.244291
-  type: 'test'
-  ...
-# Subtest: parse rejects schema and oversize data
-ok 26 - parse rejects schema and oversize data
-  ---
-  duration_ms: 0.14232
-  type: 'test'
-  ...
-# Subtest: unknown output fails
-ok 27 - unknown output fails
-  ---
-  duration_ms: 0.305953
-  type: 'test'
-  ...
-# Subtest: graph size is bounded
-ok 28 - graph size is bounded
-  ---
-  duration_ms: 0.331711
-  type: 'test'
-  ...
-# Subtest: reachable shared expressions compile only once
-ok 29 - reachable shared expressions compile only once
-  ---
-  duration_ms: 0.21647
-  type: 'test'
-  ...
-# Subtest: unreachable nodes do not generate shader code
-ok 30 - unreachable nodes do not generate shader code
-  ---
-  duration_ms: 0.3375
-  type: 'test'
-  ...
-# Subtest: disabling an output prunes all upstream computation
-ok 31 - disabling an output prunes all upstream computation
-  ---
-  duration_ms: 1.465138
-  type: 'test'
-  ...
-# Subtest: unconnected coordinate socket is zero, not implicit world space
-ok 32 - unconnected coordinate socket is zero, not implicit world space
-  ---
-  duration_ms: 0.25728
-  type: 'test'
-  ...
-# Subtest: isolated scalar, coordinate and geometry use diagnostic conversions
-ok 33 - isolated scalar, coordinate and geometry use diagnostic conversions
-  ---
-  duration_ms: 1.291972
-  type: 'test'
-  ...
-# Subtest: changing numbers preserves shader source
-ok 34 - changing numbers preserves shader source
-  ---
-  duration_ms: 0.724082
-  type: 'test'
-  ...
-# Subtest: custom expression edits change shader source
-ok 35 - custom expression edits change shader source
-  ---
-  duration_ms: 0.345181
-  type: 'test'
-  ...
-# Subtest: expression lexical restrictions reject statements and injection
-ok 36 - expression lexical restrictions reject statements and injection
-  ---
-  duration_ms: 0.151905
-  type: 'test'
-  ...
-# Subtest: expression comparisons, ternaries and whitespace are allowed
-ok 37 - expression comparisons, ternaries and whitespace are allowed
-  ---
-  duration_ms: 0.065467
-  type: 'test'
-  ...
-# Subtest: delete removes downstream references and tracks
-ok 38 - delete removes downstream references and tracks
-  ---
-  duration_ms: 0.225684
-  type: 'test'
-  ...
-# Subtest: delete final chooses existing fallback
-ok 39 - delete final chooses existing fallback
-  ---
-  duration_ms: 0.270731
-  type: 'test'
-  ...
-# Subtest: cannot delete the final remaining node
-ok 40 - cannot delete the final remaining node
-  ---
-  duration_ms: 0.131775
-  type: 'test'
-  ...
-# Subtest: unique ids skip existing identifiers
-ok 41 - unique ids skip existing identifiers
-  ---
-  duration_ms: 0.12876
-  type: 'test'
-  ...
-# Subtest: history undo / redo snapshots are independent
-ok 42 - history undo / redo snapshots are independent
-  ---
-  duration_ms: 0.190171
-  type: 'test'
-  ...
-# Subtest: new edit invalidates redo
-ok 43 - new edit invalidates redo
-  ---
-  duration_ms: 0.155931
-  type: 'test'
-  ...
-# Subtest: linear keyframe interpolation and endpoints
-ok 44 - linear keyframe interpolation and endpoints
-  ---
-  duration_ms: 0.114189
-  type: 'test'
-  ...
-# Subtest: smooth and hold keyframe interpolation
-ok 45 - smooth and hold keyframe interpolation
-  ---
-  duration_ms: 0.103964
-  type: 'test'
-  ...
-# Subtest: empty keyframe track falls back to base
-ok 46 - empty keyframe track falls back to base
-  ---
-  duration_ms: 0.058536
-  type: 'test'
-  ...
-# Subtest: inserting a key replaces same timestamp and keeps sort
-ok 47 - inserting a key replaces same timestamp and keeps sort
-  ---
-  duration_ms: 0.2909
-  type: 'test'
-  ...
-# Subtest: keyframe sampling does not mutate base params
-ok 48 - keyframe sampling does not mutate base params
-  ---
-  duration_ms: 0.143742
-  type: 'test'
-  ...
-# Subtest: keyframe order, duplicate, and domain violations rejected
-ok 49 - keyframe order, duplicate, and domain violations rejected
-  ---
-  duration_ms: 0.571415
-  type: 'test'
-  ...
-# Subtest: duration decrease cannot silently delete animation keys
-ok 50 - duration decrease cannot silently delete animation keys
-  ---
-  duration_ms: 0.16192
-  type: 'test'
-  ...
-# Subtest: color tracks are not silently accepted
-ok 51 - color tracks are not silently accepted
-  ---
-  duration_ms: 0.19586
-  type: 'test'
-  ...
-# Subtest: loop time wraps negative and positive values
-ok 52 - loop time wraps negative and positive values
-  ---
-  duration_ms: 0.066739
-  type: 'test'
-  ...
-# Subtest: CRC32 standard check value
-ok 53 - CRC32 standard check value
-  ---
-  duration_ms: 0.163391
-  type: 'test'
-  ...
-# Subtest: ZIP header, CRC, central directory and end record
-ok 54 - ZIP header, CRC, central directory and end record
-  ---
-  duration_ms: 0.523735
-  type: 'test'
-  ...
-# Subtest: ZIP rejects traversal and duplicate names
-ok 55 - ZIP rejects traversal and duplicate names
-  ---
-  duration_ms: 0.185955
-  type: 'test'
-  ...
-# Subtest: frame sequence uses exact timestamps and excludes end
-ok 56 - frame sequence uses exact timestamps and excludes end
-  ---
-  duration_ms: 0.242108
-  type: 'test'
-  ...
-# Subtest: filename sanitization has a safe fallback
-ok 57 - filename sanitization has a safe fallback
-  ---
-  duration_ms: 0.232444
-  type: 'test'
-  ...
-# Subtest: PNG metadata insertion keeps IEND and UTF8 data
-ok 58 - PNG metadata insertion keeps IEND and UTF8 data
-  ---
-  duration_ms: 0.44608
-  type: 'test'
-  ...
-# Subtest: PNG metadata rejects other formats
-ok 59 - PNG metadata rejects other formats
-  ---
-  duration_ms: 0.35132
-  type: 'test'
-  ...
-1..59
-# tests 59
-# suites 0
-# pass 59
+1..17
+# tests 100
+# suites 17
+# pass 100
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 119.04322
+# duration_ms 127.8317

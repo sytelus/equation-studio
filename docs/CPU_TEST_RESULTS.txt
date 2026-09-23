@@ -42,6 +42,6 @@ test_supersampling_constant_field (test_nebula.RenderTests.test_supersampling_co
 test_tiled_render_is_pixel_identical (test_nebula.RenderTests.test_tiled_render_is_pixel_identical) ... ok
 
 ----------------------------------------------------------------------
-Ran 42 tests in 1.371s
+Ran 42 tests in 0.904s
 
 OK

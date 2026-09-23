@@ -51,6 +51,18 @@ export function insertKey(project, node, param, time, value) {
     track.keys.sort((a, b) => a.time - b.time);
     return track;
 }
+/** Move one key to a new time (rounded to milliseconds), replacing any key already
+ * there. Returns the track, or throws when the key does not exist.
+ */
+export function moveKey(project, node, param, fromTime, toTime) {
+    const track = project.tracks.find(t => t.node === node && t.param === param);
+    const key = track?.keys.find(k => Math.abs(k.time - fromTime) <= 0.0005);
+    if (!key) {
+        throw new Error('No key at that time.');
+    }
+    track.keys = track.keys.filter(k => k !== key);
+    return insertKey(project, node, param, toTime, key.value);
+}
 export function loopTime(time, duration) {
     return ((time % duration) + duration) % duration;
 }

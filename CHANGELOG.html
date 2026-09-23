@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Changelog</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="docs/reading.css" />
+</head>
+<body>
+<nav class="topnav"><a href="Equation%20Studio.html">Open studio</a> <a href="README.html">Start here</a> <a href="docs/EDITOR_GUIDE.html">Editor guide</a> <a href="docs/RECIPES.html">Recipes</a> <a href="docs/ARCHITECTURE.html">Architecture</a> <a href="docs/COMPONENTS.html">Components</a> <a href="docs/DEVELOPMENT.html">Development</a> <a href="docs/RESEARCH.html">Research</a> <a href="docs/VALIDATION.html">Validation</a></nav>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#changelog" id="toc-changelog">Changelog</a>
+<ul>
+<li><a href="#september-2026" id="toc-september-2026">1.1.0 — 23
+September 2026</a></li>
+<li><a href="#september-2026-1" id="toc-september-2026-1">1.0.0 — 22
+September 2026</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="changelog">Changelog</h1>
+<h2 id="september-2026">1.1.0 — 23 September 2026</h2>
+<p>Exploration and editing release. The project format is unchanged:
+every 1.0 project file and export opens as before.</p>
+<h3 id="seeing-what-each-component-does">Seeing what each component
+does</h3>
+<ul>
+<li><strong>Live previews</strong> in the graph: a thumbnail of every
+component’s output on its card, all rendered from one shared shader and
+following the playhead.</li>
+<li><strong>Contribution view</strong>: render the composite with and
+without one component and show only the pixels it changes, or a signed
+warm/cool difference. Exportable like any other view.</li>
+<li><strong>Rulers and grid</strong> in world coordinates with a
+crosshair readout of position, pixel, displayed color and the selected
+component’s raw field values; click to pin a probe that updates as you
+edit.</li>
+<li>The inspector warns when a component does not reach the output.</li>
+</ul>
+<h3 id="building-graphs">Building graphs</h3>
+<ul>
+<li><strong>Drag and drop</strong> components from the library onto the
+graph, onto an input dot (wired immediately) or onto a card.</li>
+<li><strong>Drag wiring</strong> between dots, drag a wire off an input
+to disconnect it; compatible sockets light up while dragging.
+Click-to-connect still works.</li>
+<li>Hovering a card dims everything that is not upstream or downstream
+of it. Cards and dots are colored by type.</li>
+<li>Resizable graph panel, <strong>Locate</strong> for the selected
+component, keyboard delete and duplicate.</li>
+</ul>
+<h3 id="exploring-variations">Exploring variations</h3>
+<ul>
+<li><strong>Snapshots</strong>: bookmark the project state with a
+thumbnail and return to it later, from a new library tab.</li>
+<li><strong>Zoom about the cursor</strong> with the wheel or a pinch;
+parameter <strong>reset</strong> buttons; expression helper menu and
+<code>Ctrl/⌘ Enter</code> to apply.</li>
+<li><strong>Drag keys</strong> along their timeline lane; click a lane
+to seek; step frames with <code>,</code> and <code>.</code>.</li>
+<li>Live inspector values during playback without losing focus or
+unapplied edits; undo and redo keep the playhead and selection.</li>
+<li>Copy the preview to the clipboard; more keyboard shortcuts (see the
+<a href="docs/EDITOR_GUIDE.html">editor guide</a>).</li>
+<li>Video export draws each frame at its exact time <code>i/FPS</code>
+and pushes it to the recorder explicitly, reports how many frames were
+drawn, and falls back to compositor capture if a browser delivers
+nothing.</li>
+</ul>
+<h3 id="engine-and-code">Engine and code</h3>
+<ul>
+<li>Probes, snapshots and previews render into offscreen framebuffers
+and never disturb the visible canvas.</li>
+<li><code>compileGraph</code> gained <code>contribution</code> and
+<code>preview</code> modes; the renderer gained <code>snapshot()</code>,
+<code>previewAtlas()</code>, an options object for <code>draw()</code>
+and a larger program cache.</li>
+<li>The editor is split into focused modules around a shared state and
+event bus (<code>src/editor.js</code>, <code>src/ui-*.js</code>), with
+camera and layout arithmetic in testable DOM-free modules.</li>
+<li>The kaleidoscope emitter uses a shared <code>angularMirror</code>
+GLSL helper instead of a duplicated expression.</li>
+<li>Fixes: the bundler now handles <code>$</code> identifiers and reads
+and writes UTF-8 explicitly on every platform; undo no longer resets the
+playhead and selection; keyboard focus survives graph re-rendering.</li>
+</ul>
+<h3 id="tests-tools-and-documentation">Tests, tools and
+documentation</h3>
+<ul>
+<li>Unit tests are organized by module and extended to 100 cases (camera
+math, layout, compile modes, key retiming, snapshots, traversal
+helpers).</li>
+<li>Browser suites share a Chromium launcher that also finds
+Playwright’s bundled browser; <code>workflow_check.py</code> drives
+every new interaction through real pointer events.</li>
+<li><code>write_validation_report.py</code> derives every figure from
+captured results; <code>write_manifest.py</code> regenerates the file
+manifest.</li>
+<li>New <a href="docs/EDITOR_GUIDE.html">Editor guide</a> and <a
+href="docs/DEVELOPMENT.html">Development guide</a>; README, architecture
+and animation documents updated.</li>
+</ul>
+<h2 id="september-2026-1">1.0.0 — 22 September 2026</h2>
+<p>Initial release: GPU port of the supplied Bipolar Nebula equations,
+eleven further editable scenes, the typed function-graph editor,
+animation, exports and the retained Python reference.</p>
+</body>
+</html>
