@@ -86,13 +86,13 @@
     {
       "id": "outsideShadow",
       "type": "expression",
-      "label": "Custom scalar equation",
+      "label": "Outside the shadow",
       "inputs": {
         "p": "space",
         "a": "shadowMask"
       },
       "params": {
-        "expression": "1.0-a"
+        "expression": "1 - a   // 1 outside the black hole’s shadow disc, 0 inside"
       },
       "enabled": true
     },

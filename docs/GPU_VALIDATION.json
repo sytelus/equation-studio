@@ -1,12 +1,12 @@
 {
-  "date": "2026-09-24",
+  "date": "2026-09-25",
   "checks": [
     {
       "name": "render + finite values: bipolar",
       "passed": true,
       "detail": {
         "energy": 46154596,
-        "ms": 226.80000000074506,
+        "ms": 287.5,
         "nonfinite": 0
       }
     },
@@ -15,7 +15,7 @@
       "passed": true,
       "detail": {
         "energy": 32974668,
-        "ms": 72.39999999850988,
+        "ms": 94.7000000178814,
         "nonfinite": 0
       }
     },
@@ -24,7 +24,7 @@
       "passed": true,
       "detail": {
         "energy": 14586200,
-        "ms": 73.89999999850988,
+        "ms": 104.59999999403954,
         "nonfinite": 0
       }
     },
@@ -32,8 +32,8 @@
       "name": "render + finite values: aurora",
       "passed": true,
       "detail": {
-        "energy": 17042892,
-        "ms": 62.30000000074506,
+        "energy": 17042890,
+        "ms": 80.40000000596046,
         "nonfinite": 0
       }
     },
@@ -42,7 +42,7 @@
       "passed": true,
       "detail": {
         "energy": 12446071,
-        "ms": 65.10000000149012,
+        "ms": 95.80000001192093,
         "nonfinite": 0
       }
     },
@@ -51,7 +51,7 @@
       "passed": true,
       "detail": {
         "energy": 65157576,
-        "ms": 96.39999999850988,
+        "ms": 114.60000002384186,
         "nonfinite": 0
       }
     },
@@ -60,7 +60,7 @@
       "passed": true,
       "detail": {
         "energy": 22149873,
-        "ms": 40.29999999701977,
+        "ms": 50.69999998807907,
         "nonfinite": 0
       }
     },
@@ -68,8 +68,8 @@
       "name": "render + finite values: hedgehog",
       "passed": true,
       "detail": {
-        "energy": 49076752,
-        "ms": 90.80000000074506,
+        "energy": 49076753,
+        "ms": 104,
         "nonfinite": 0
       }
     },
@@ -78,7 +78,7 @@
       "passed": true,
       "detail": {
         "energy": 31766386,
-        "ms": 197.19999999925494,
+        "ms": 230.80000001192093,
         "nonfinite": 0
       }
     },
@@ -87,7 +87,7 @@
       "passed": true,
       "detail": {
         "energy": 92314020,
-        "ms": 33.400000002235174,
+        "ms": 44.69999998807907,
         "nonfinite": 0
       }
     },
@@ -96,7 +96,7 @@
       "passed": true,
       "detail": {
         "energy": 45280692,
-        "ms": 34.30000000074506,
+        "ms": 47.5,
         "nonfinite": 0
       }
     },
@@ -105,7 +105,7 @@
       "passed": true,
       "detail": {
         "energy": 38052353,
-        "ms": 27.800000000745058,
+        "ms": 42.29999998211861,
         "nonfinite": 0
       }
     },
@@ -235,6 +235,39 @@
           60
         ],
         "same": true
+      }
+    },
+    {
+      "name": "bypass flags, the output and every view share the compiled program",
+      "passed": true,
+      "detail": {
+        "same": true,
+        "programs": 12
+      }
+    },
+    {
+      "name": "whole-graph and subgraph programs agree for every stage (max byte difference)",
+      "passed": true,
+      "detail": {
+        "bipolar": 0,
+        "water": 0,
+        "lensing": 0,
+        "kaleidoscope": 0
+      }
+    },
+    {
+      "name": "line probes match point probes; raw thumbnails match raw snapshots",
+      "passed": true,
+      "detail": {
+        "line": 0,
+        "atlas": 0
+      }
+    },
+    {
+      "name": "edit as equation: 29 forked components reproduce their raw values",
+      "passed": true,
+      "detail": {
+        "worst": 0
       }
     },
     {
@@ -381,45 +414,45 @@
       "passed": true,
       "detail": {
         "shell": {
-          "max_abs_error": 1.5410313944919096e-06,
-          "mean_abs_error": 8.297622666391655e-08,
-          "rmse": 2.6118479713358175e-07,
+          "max_abs_error": 1.5225367224758202e-06,
+          "mean_abs_error": 5.8817886685579634e-08,
+          "rmse": 1.8086108456488647e-07,
           "cpu_abs_max": 1.0
         },
         "turbulence": {
-          "max_abs_error": 0.010274365218593484,
-          "mean_abs_error": 0.0017821051620156535,
-          "rmse": 0.002827032950713226,
+          "max_abs_error": 0.006159964553809405,
+          "mean_abs_error": 0.0016039981685761796,
+          "rmse": 0.0022029633429304168,
           "cpu_abs_max": 3.1676375353058743
         },
         "cloud": {
-          "max_abs_error": 0.0232963254519003,
-          "mean_abs_error": 0.004021550811446266,
-          "rmse": 0.006759125842071355,
+          "max_abs_error": 0.020115337740911343,
+          "mean_abs_error": 0.005036418778201064,
+          "rmse": 0.007958937740838699,
           "cpu_abs_max": 22.430370156323313
         },
         "gas": {
           "max_abs_error": 0.001056030230708327,
-          "mean_abs_error": 0.00013356282795332124,
-          "rmse": 0.0002575089954601086,
+          "mean_abs_error": 0.00016618886185759782,
+          "rmse": 0.0003084439587548036,
           "cpu_abs_max": 1.4357905700808697
         },
         "core": {
           "max_abs_error": 0.00027434595543551765,
-          "mean_abs_error": 7.159544167711712e-06,
-          "rmse": 3.857401649119987e-05,
+          "mean_abs_error": 7.1595434676348e-06,
+          "rmse": 3.8574016491199445e-05,
           "cpu_abs_max": 1.9707892922530519
         },
         "stars": {
           "max_abs_error": 0.08887121654470498,
-          "mean_abs_error": 0.002750007270037849,
-          "rmse": 0.01201216481275354,
+          "mean_abs_error": 0.0027502309534764356,
+          "rmse": 0.012012269605467632,
           "cpu_abs_max": 2.226625656852322
         },
         "final": {
-          "max_abs_error": 0.08883865565808957,
-          "mean_abs_error": 0.002809754662115496,
-          "rmse": 0.01199931022479674,
+          "max_abs_error": 0.08887727946790402,
+          "mean_abs_error": 0.0028186461616653592,
+          "rmse": 0.012005189005501488,
           "cpu_abs_max": 2.4689932653382654
         }
       }
@@ -439,7 +472,7 @@
         "p99_absolute_error": 4.0,
         "rgb_pearson_correlation": 0.9994216237510924,
         "psnr_db": 40.62656420376929,
-        "render_plus_readback_ms": 1147.300000000745
+        "render_plus_readback_ms": 1278.7000000178814
       }
     }
   ],
@@ -447,8 +480,17 @@
   "gpu": {
     "backend": "WebGL 2 / GLSL ES 3.00",
     "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "vendor": "Google Inc. (Google)",
+    "gpu": {
+      "kind": "software",
+      "name": "SwiftShader (software)",
+      "api": "Vulkan",
+      "raw": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    },
     "precisionBits": 23,
     "rawFields": true,
+    "parallelCompile": false,
+    "gpuTimer": true,
     "maxSize": 4096,
     "maxUniformVectors": 4096
   },
@@ -586,45 +628,45 @@
     ],
     "fields": {
       "shell": {
-        "max_abs_error": 1.5410313944919096e-06,
-        "mean_abs_error": 8.297622666391655e-08,
-        "rmse": 2.6118479713358175e-07,
+        "max_abs_error": 1.5225367224758202e-06,
+        "mean_abs_error": 5.8817886685579634e-08,
+        "rmse": 1.8086108456488647e-07,
         "cpu_abs_max": 1.0
       },
       "turbulence": {
-        "max_abs_error": 0.010274365218593484,
-        "mean_abs_error": 0.0017821051620156535,
-        "rmse": 0.002827032950713226,
+        "max_abs_error": 0.006159964553809405,
+        "mean_abs_error": 0.0016039981685761796,
+        "rmse": 0.0022029633429304168,
         "cpu_abs_max": 3.1676375353058743
       },
       "cloud": {
-        "max_abs_error": 0.0232963254519003,
-        "mean_abs_error": 0.004021550811446266,
-        "rmse": 0.006759125842071355,
+        "max_abs_error": 0.020115337740911343,
+        "mean_abs_error": 0.005036418778201064,
+        "rmse": 0.007958937740838699,
         "cpu_abs_max": 22.430370156323313
       },
       "gas": {
         "max_abs_error": 0.001056030230708327,
-        "mean_abs_error": 0.00013356282795332124,
-        "rmse": 0.0002575089954601086,
+        "mean_abs_error": 0.00016618886185759782,
+        "rmse": 0.0003084439587548036,
         "cpu_abs_max": 1.4357905700808697
       },
       "core": {
         "max_abs_error": 0.00027434595543551765,
-        "mean_abs_error": 7.159544167711712e-06,
-        "rmse": 3.857401649119987e-05,
+        "mean_abs_error": 7.1595434676348e-06,
+        "rmse": 3.8574016491199445e-05,
         "cpu_abs_max": 1.9707892922530519
       },
       "stars": {
         "max_abs_error": 0.08887121654470498,
-        "mean_abs_error": 0.002750007270037849,
-        "rmse": 0.01201216481275354,
+        "mean_abs_error": 0.0027502309534764356,
+        "rmse": 0.012012269605467632,
         "cpu_abs_max": 2.226625656852322
       },
       "final": {
-        "max_abs_error": 0.08883865565808957,
-        "mean_abs_error": 0.002809754662115496,
-        "rmse": 0.01199931022479674,
+        "max_abs_error": 0.08887727946790402,
+        "mean_abs_error": 0.0028186461616653592,
+        "rmse": 0.012005189005501488,
         "cpu_abs_max": 2.4689932653382654
       }
     },
@@ -642,6 +684,6 @@
     "p99_absolute_error": 4.0,
     "rgb_pearson_correlation": 0.9994216237510924,
     "psnr_db": 40.62656420376929,
-    "render_plus_readback_ms": 1147.300000000745
+    "render_plus_readback_ms": 1278.7000000178814
   }
 }

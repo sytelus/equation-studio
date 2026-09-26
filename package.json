@@ -1,6 +1,6 @@
 {
   "name": "equation-studio",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "private": true,
   "type": "module",
   "description": "Offline GPU studio for composable mathematical images and animation",

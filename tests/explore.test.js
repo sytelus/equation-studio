@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { getPreset } from '../src/presets.js';
 import { catalog } from '../src/catalog.js';
 import { validateProject } from '../src/graph.js';
-import { snapToStep, sweepValues, seededRandom, makeVariations, originalValue, isModified } from '../src/explore.js';
+import { snapToStep, sweepValues, seededRandom, makeVariations, originalValue, isModified, isParamModified } from '../src/explore.js';
 
 describe('parameter sweeps', () => {
     it('snaps to the step and clamps to the range', () => {
@@ -76,8 +76,15 @@ describe('original values', () => {
     });
     it('detects modified components', () => {
         const baseline = getPreset('bipolar'), project = getPreset('bipolar'), shell = project.nodes.find(n => n.id === 'shell');
-        assert.equal(isModified(baseline, shell), false);
+        assert.equal(isModified(baseline, project, shell), false);
         shell.params.pinch = 0.5;
-        assert.equal(isModified(baseline, shell), true);
+        assert.equal(isModified(baseline, project, shell), true);
+        assert.equal(isParamModified(baseline, project, shell, 'shear'), false);
+    });
+    it('counts added or removed animation as a modification', () => {
+        const baseline = getPreset('lensing'), project = getPreset('lensing'), lens = project.nodes.find(n => n.id === 'lens');
+        assert.equal(isParamModified(baseline, project, lens, 'strength'), false, 'animated in both');
+        project.tracks = [];
+        assert.equal(isParamModified(baseline, project, lens, 'strength'), true, 'the animation was removed');
     });
 });

@@ -1,15 +1,18 @@
-import { $, esc, state, on, toast, showError, transact, loadProject, undo, redo, revertScene, seek, setView, viewedNode, stepStage, setPref, duplicateNode, deleteNode, history } from './editor.js';
+import { $, esc, state, on, toast, showError, transact, loadProject, undo, redo, revertScene, seek, setView, viewedNode, selectStep, setPref, duplicateNode, deleteNode, history, discardDraft, draftChanged } from './editor.js';
 import { parseProject } from './graph.js';
 import { getPreset } from './presets.js';
 import { sources, methodNotes } from './research.js';
 import { download, fileStem } from './export.js';
-import { takeSnapshot } from './ui-library.js';
+import { takeSnapshot, libraryOpen, closeLibrary } from './ui-library.js';
 import { togglePlay, stepFrames } from './ui-timeline.js';
 import { setPreviews, renderGraph } from './ui-graph.js';
 import { hasPin, clearPin, setCompareOriginal } from './ui-canvas.js';
 import { exploreOpen, closeExplore } from './ui-explore.js';
+import { playgroundOpen, closePlayground, togglePlayground } from './ui-playground.js';
+import { scopeVisible, setScopeVisible } from './ui-scope.js';
 /** Top bar, dialogs and global keyboard shortcuts. */
 $('projectTitle').onchange = e => transact(p => p.title = e.target.value);
+$('projectTitle').oninput = e => e.target.size = Math.max(8, Math.min(34, e.target.value.length + 1));
 $('undo').onclick = () => {
     if (!state.busy) {
         undo();
@@ -67,6 +70,7 @@ $('researchContent').onclick = e => {
 };
 $('helpButton').onclick = () => $('helpDialog').showModal();
 $('researchButton').onclick = () => $('researchDialog').showModal();
+$('sceneStatus').onclick = () => $('researchDialog').showModal();
 document.querySelectorAll('[data-close]').forEach(b => {
     if (b.dataset.close !== 'exportDialog') {
         b.onclick = () => $(b.dataset.close).close();
@@ -78,6 +82,8 @@ on('history', () => {
 });
 on('refresh', () => {
     $('projectTitle').value = state.project.title;
+    document.title = `${state.project.title} · Equation Studio`;
+    $('projectTitle').size = Math.max(8, Math.min(34, state.project.title.length + 1)); // the provenance label follows the title
     $('counts').textContent = `${state.project.nodes.length} components · ${state.project.tracks.length} tracks`;
 });
 /** Show the selected component's stage or effect, or return to the final image. */
@@ -97,16 +103,23 @@ export const shortcuts = {
     'p': () => setPreviews(!state.prefs.previews),
     'i': () => toggleView('stage'),
     'c': () => toggleView('effect'),
-    '[': () => stepStage(-1),
-    ']': () => stepStage(1),
+    '[': () => selectStep(-1),
+    ']': () => selectStep(1),
     'f': () => $('resetView').click(),
+    'e': () => togglePlayground(),
+    'v': () => setScopeVisible(!scopeVisible()),
     's': () => takeSnapshot(),
     'l': () => $('graphFit').click()
 };
 document.addEventListener('keydown', e => {
     const editing = e.target.matches('input,textarea,select,[contenteditable]'), modal = document.querySelector('dialog[open]'), meta = e.ctrlKey || e.metaKey;
     if (e.key === 'Escape') {
-        if (state.connection) {
+        // Back out one level: the drawer, a pending wire, the explorer, a pinned
+        // reading, an unchanged edit, the step view, then the Playground.
+        if (!modal && libraryOpen() && !state.prefs.libraryDocked) {
+            closeLibrary();
+        }
+        else if (state.connection) {
             state.connection = null;
             renderGraph();
         }
@@ -116,8 +129,19 @@ document.addEventListener('keydown', e => {
         else if (!modal && hasPin()) {
             clearPin();
         }
-        else if (!modal && state.viewMode !== 'final') {
+        else if (!modal && state.drafts.has(state.selected)) {
+            if (draftChanged(state.selected)) {
+                toast('Your edit is not applied yet: Apply puts it into the scene, Cancel discards it.');
+            }
+            else {
+                discardDraft(state.selected);
+            }
+        }
+        else if (!modal && !editing && state.viewMode !== 'final') {
             setView('final');
+        }
+        else if (!modal && !editing && playgroundOpen()) {
+            closePlayground();
         }
         return;
     }

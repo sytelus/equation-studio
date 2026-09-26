@@ -249,8 +249,11 @@ sample time. It does not wait for every theoretical frame number: on a
 slow device, missed frames are skipped rather than recorded late, and
 rendering, encoding, tab visibility and browser scheduling can reduce
 the actual frame count. The dialog reports how many of the planned
-frames were drawn. Use PNG sequence export when every frame must be
-present.</p>
+frames were drawn. If a pass delivers no frames at all (Chromium’s first
+canvas capture after a pop-up window closed can be empty), it is
+repeated, once with compositor-driven capture and once more with
+explicit frames, before the export reports a failure. Use PNG sequence
+export when every frame must be present.</p>
 <p>The tested Chromium/SwiftShader run produced a decodable VP9 WebM at
 64 × 40. The short tests recorded fewer decoded frames than their
 capture-rate requests on the software backend, illustrating why this
@@ -264,11 +267,19 @@ different at 480 versus 2000 pixels through aliasing, even though the
 same mathematical function is used. Hardware acceleration matters; the
 full source port is deliberately not replaced with a cheap approximate
 shader during motion.</p>
-<p>First-time graph compilation can be noticeable. Changing a numeric
-value reuses the linked program. A float field probe requires readback
-and should be used as an inspection action, not continuously every
-animation frame. The default UI’s time metric is <strong>submission
-time</strong>, not a GPU timer measurement. Frame-rate counters describe
-the current browser session, not a promised hardware capability.</p>
+<p>A scene’s shader is compiled once per graph structure, in the
+background where the browser allows it; changing a numeric value, a
+keyframe, the playhead, a bypass checkbox or the view reuses the linked
+program, so playback never compiles. With <strong>Auto</strong> quality
+the canvas renders at the display’s pixel density and, when a frame
+takes longer than about 24 ms on the GPU during playback or a drag, at a
+lower resolution until the motion stops; exports always render at their
+own size. The LIVE badge reports the GPU time of the last frame: an
+exact timer-query measurement where the browser offers
+<code>EXT_disjoint_timer_query_webgl2</code>, otherwise an upper bound
+(marked ≤) from a fence. Thumbnails, the profile and the statistics
+behind automatic stage colors read back asynchronously; the readouts
+under the cursor read one pixel. Frame-rate counters describe the
+current browser session, not a promised hardware capability.</p>
 </body>
 </html>

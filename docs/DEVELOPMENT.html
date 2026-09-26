@@ -119,18 +119,18 @@ id="toc-regeneration-checklist">Regeneration checklist</a></li>
 <h1 id="development-guide">Development guide</h1>
 <p>How the code is organized, how the pieces talk to each other, and the
 checklist for shipping a change. <a
-href="ARCHITECTURE.html">Architecture</a> explains the rendering model and
-how to add a component; this document is about working in the
-repository.</p>
+href="ARCHITECTURE.html">Architecture</a> explains the rendering model,
+the equation language and how to add a component; this document is about
+working in the repository.</p>
 <h2 id="requirements">Requirements</h2>
 <ul>
-<li><strong>Running the app:</strong> a desktop browser with WebGL 2.
-Nothing else.</li>
+<li><strong>Running the app:</strong> a browser with WebGL 2. Nothing
+else.</li>
 <li><strong>Editing and serving the modules:</strong> Python 3.10+ for
 <code>start.py</code> (standard library only).</li>
 <li><strong>Unit tests and generated files:</strong> Node 20+ (no npm
 packages).</li>
-<li><strong>Browser tests and thumbnails:</strong>
+<li><strong>Browser tests and screenshots:</strong>
 <code>python -m pip install playwright numpy pillow</code> and
 <code>python -m playwright install chromium</code>, or point
 <code>EQUATION_STUDIO_CHROMIUM</code> at an existing Chromium.</li>
@@ -148,15 +148,25 @@ module, so edits to any module are live after a reload.
 and must be rebuilt after changes (see the checklist).</p>
 <h2 id="module-map">Module map</h2>
 <pre class="text"><code>src/
-  catalog.js          43 component definitions: sockets, parameters with symbols and help, TeX equations,
-                      roles and bypass sockets, GLSL emitters
+  Model and math (no DOM; covered by the Node unit tests)
+  catalog.js          43 component definitions: sockets, parameters with symbols and help, steps with
+                      captions, symbols, ideas, key-function curves, roles and bypass sockets, GLSL emitters
+  concepts.js         the 30 recurring ideas behind the equations: formula, explanation, plot with a knob
   graph.js            project schema, validation, traversal (bypass-aware topological order, evaluation
                       order, upstream/downstream, consumers), edits, history
-  compiler.js         typed DAG → one fragment shader; display, raw, contribution and preview modes
-  renderer.js         WebGL 2 programs and cache, visible draw, offscreen snapshot / preview atlas / float probe
+  expression.js       the custom equation language: parser, type checker, GLSL printer, library table
+  fork.js             components as equations: the equation of a built-in component (from the catalog&#39;s
+                      source), and withEquation(), the project with a component running a given equation
+  compiler.js         typed DAG → one fragment program per graph structure; view state; compare pass
+  looks.js            how values without colors are shown: colormaps, statistics, look pass, CPU twin
+  renderer.js         WebGL 2: program cache and background compilation, views and passes, offscreen
+                      snapshots / thumbnail atlas / line and point probes, asynchronous readbacks, timers
+  gpu-info.js         renderer-string classification (hardware / software), software-fallback probe
+  math-render.js      TeX subset → MathML with symbol roles; custom equations → MathML
+  formula.js          the construction as a formula sheet (how the image is composed)
+  plot.js             small SVG line plots (key functions, idea cards, the profile)
   timeline.js         keyframe interpolation, key insertion and retiming
   view-math.js        camera arithmetic: pixel ↔ world, zoom about a point, ruler ticks
-  math-render.js      TeX subset → MathML; custom GLSL expressions → MathML
   explore.js          parameter sweeps, seeded variations, original values for reset
   graph-layout.js     deterministic layered layout and socket geometry for the graph panel
   export.js           ZIP writer, PNG metadata, frame times, downloads
@@ -169,30 +179,44 @@ and must be rebuilt after changes (see the checklist).</p>
   research.js         evidence ledger shown in the app
   thumbnails.js       generated JPEG data URLs for the scene list
 
+  Editor (DOM; covered by the browser suites)
   editor.js           shared editor state, event bus, the canvas view model and every model operation
-                      (transact, load, revert, select, view, enable/bypass, reset, add, insert, replace, connect…)
-  ui-tooltip.js       rich hover tips for every control (data-tip, data-key, data-toggle, providers)
-  ui-library.js       scenes / components / snapshots panel, drag sources, palette tips
-  ui-canvas.js        frame rendering, view switch, live badge, legend, camera gestures, rulers and
-                      readouts, hold-to-compare, compare overlay, canvas toolbar
+                      (transact, load, revert, select and step, view, enable/bypass, live parameter edits,
+                      equation drafts and apply, reset, add, insert, replace, connect…)
+  ui-component-view.js ComponentView: one component, explained and edited: a header that stays in view
+                      (◀ step n of N ▶, include switch, title, tabs) and the tabs Equation (captioned
+                      steps with colored symbols, ✎ Edit in place, parameters, key function), In &amp; out,
+                      Ideas and More (code, tracks, replace/duplicate/delete); for the component panel
+                      or a pop-out window; two columns by container width
+  ui-inspector.js     the component panel: a ComponentView on the right
+  ui-playground.js    the panel&#39;s width: resizing, and the Equation Playground (the panel made wide,
+                      with the step and profile on the canvas and the pipeline as a compact strip)
+  ui-popout.js        the component panel in a separate window (following the selection or pinned)
+  ui-study-link.js    double-click on any component opens the playground
+  ui-canvas.js        frame rendering (the project, a draft, a preview or the original), compile indicator,
+                      view switch and the label saying what the canvas shows, live badge, adaptive
+                      resolution, camera gestures, rulers and readouts, hold-to-compare, canvas toolbar
+  ui-look.js          the stage&#39;s automatic colors (statistics, refresh, lock) and the legend
+  ui-scope.js         the profile: raw values along a line under the canvas
   ui-previews.js      the shared live-thumbnail atlas painted into pipeline and graph cards
   ui-pipeline.js      the Pipeline tab: stages in evaluation order with include checkboxes
   ui-graph.js         graph rendering, wiring, drop target, bottom-panel tabs, GLSL tab, splitter
-  ui-inspector.js     inspector: header, view buttons, typeset equation and symbols, inputs, parameters
+  ui-formula.js       the Formulas tab
   ui-explore.js       the explorer tray: sweeps and variations with hover preview
+  ui-performance.js   GPU labels and the GPU &amp; performance dialog
+  ui-mobile.js        the phone tab bar; touch-screen policies
+  ui-tooltip.js       rich hover and long-press tips for every control (data-tip, data-key, data-toggle)
+  ui-library.js       the library drawer (or docked column): scenes, components, snapshots, drag sources
   ui-timeline.js      transport and key lanes
   ui-export.js        export dialog
   ui-toolbar.js       top bar, dialogs, keyboard shortcuts
   app.js              boot: restore the session, create the renderer, frame loop, window.equationStudio
   test-entry.js       minimal bundle entry used by the GPU test harness</code></pre>
-<p>The first group has no DOM dependency and is covered by the Node unit
-tests. The <code>ui-*.js</code> modules touch the DOM and are exercised
-by the browser suites.</p>
 <h2 id="how-the-editor-fits-together">How the editor fits together</h2>
 <p><code>editor.js</code> owns a single <code>state</code> object
-(project, selection, view modes, playhead, preferences) and a tiny event
-bus. Panels subscribe to events and re-render themselves; they never
-call each other’s render functions directly:</p>
+(project, selection, view modes, playhead, preferences, interaction) and
+a tiny event bus. Panels subscribe to events and re-render themselves;
+they never call each other’s render functions directly:</p>
 <table>
 <colgroup>
 <col style="width: 33%" />
@@ -215,18 +239,35 @@ call each other’s render functions directly:</p>
 <tr>
 <td><code>selection</code></td>
 <td>the selected component changed</td>
-<td>inspector, graph, tracks</td>
+<td>component views, graph, pipeline, canvas, tracks, legend, panel
+width</td>
 </tr>
 <tr>
 <td><code>view</code></td>
 <td>the canvas view (final / stage / effect), its lock or style
 changed</td>
-<td>inspector, graph, pipeline, canvas</td>
+<td>graph, pipeline, canvas, legend</td>
+</tr>
+<tr>
+<td><code>draft</code></td>
+<td>an equation draft started, changed, was applied or discarded</td>
+<td>component views, pipeline, panel width</td>
+</tr>
+<tr>
+<td><code>values</code></td>
+<td>a parameter changed during a live edit (slider, symbol drag),
+without a history entry</td>
+<td>component views: plots, values in the steps</td>
 </tr>
 <tr>
 <td><code>time</code></td>
 <td>the playhead moved</td>
-<td>clock, lanes, live inspector values</td>
+<td>clock, lanes, live values</td>
+</tr>
+<tr>
+<td><code>previews</code></td>
+<td>new thumbnails were painted</td>
+<td>component views (input thumbnails)</td>
 </tr>
 <tr>
 <td><code>history</code></td>
@@ -236,7 +277,7 @@ changed</td>
 <tr>
 <td><code>prefs</code></td>
 <td>a persisted preference changed</td>
-<td>canvas labels and overlay</td>
+<td>canvas labels, overlay, legend, panels</td>
 </tr>
 </tbody>
 </table>
@@ -244,35 +285,77 @@ changed</td>
 <code>transact(edit, {structural})</code>: it edits a clone, validates
 it, pushes the previous project onto the history and only then replaces
 <code>state.project</code>. Structural edits (adding, wiring, deleting,
-enabling, expressions, output) also mark the project as a custom
+enabling, equations, output) also mark the project as a custom
 construction so the scene list stops highlighting the preset. Continuous
-gestures (sliders, panning, zooming) mutate the live project for smooth
-feedback and push one history entry when the gesture ends.</p>
-<p>The frame loop in <code>app.js</code> renders when
-<code>state.dirty</code> is set, refreshes the preview atlas when
-<code>state.previewsDirty</code> is set, and redraws the ruler overlay
-when <code>state.overlayDirty</code> is set. <code>markDirty()</code>
-sets all three. The canvas draws <code>state.baseline</code> while the
+gestures (sliders, dragged symbols, panning, zooming) mutate the live
+project through <code>liveParam()</code> and friends for smooth
+feedback, mark <code>state.interacting</code> (which lets the canvas
+lower its resolution when frames are slow), and push one history entry
+when the gesture ends (<code>endLiveEdit()</code>).</p>
+<p>The frame loop in <code>app.js</code> first calls
+<code>renderer.poll()</code> (background compilations, readbacks, GPU
+timers), then renders when <code>state.dirty</code> is set, refreshes
+the thumbnails when <code>state.previewsDirty</code> is set, updates the
+profile, and redraws the ruler overlay when
+<code>state.overlayDirty</code> is set. <code>markDirty()</code> sets
+all three. The canvas draws <code>state.baseline</code> while the
 Original button is held and <code>state.preview</code> (an explorer
 candidate) while one is hovered; otherwise the project in the current
-view. <code>state.baseline</code> is the project as it was opened;
-loading a preset, file or snapshot replaces it, and undo and revert do
-not.</p>
+view. While the program for what is drawn is still compiling,
+<code>renderFrame()</code> keeps the last image and shows the compile
+indicator and progress cursor. <code>state.baseline</code> is the
+project as it was opened; loading a preset, file or snapshot replaces
+it, and undo and revert do not.</p>
+<p><code>ComponentView</code> renders one component from catalog
+metadata and the project; two instances can exist (the component panel,
+and a pop-out window, which has its own document). It renders only the
+active tab. It updates in place for <code>values</code> and
+<code>time</code> (numbers, plot, symbol values) so a drag never loses
+its pointer capture; everything else re-renders the view. Element ids
+used by the tests (<code>#nodeEnabled</code>, <code>#number-KEY</code>,
+<code>#param-KEY</code>, <code>#equationEditor</code>,
+<code>#applyEquation</code>, …) are stable.</p>
 <p>Tooltips are declarative: give an element
 <code>data-tip="Heading|Body"</code>, optionally <code>data-key</code>
 for its shortcut and <code>data-toggle</code> for on/off controls, and
-<code>ui-tooltip.js</code> does the rest. Use
-<code>registerTipProvider(selector, fn)</code> for generated content
-such as the palette’s equations. Prefer <code>data-tip</code> over
-<code>title</code> so tips are immediate, styled and consistent.</p>
+<code>ui-tooltip.js</code> does the rest, including a long press on
+touch screens. Use <code>registerTipProvider(selector, fn)</code> for
+generated content such as the palette’s equations, and
+<code>data-sym-title</code> on symbols. Prefer <code>data-tip</code>
+over <code>title</code> so tips are immediate, styled and
+consistent.</p>
+<h3 id="layouts">Layouts</h3>
+<p><code>style.css</code> is organized from the desktop layout down. The
+app is a column (top bar, layout, timeline, footer) filling the window;
+the layout is a grid of the work area (canvas over the bottom panel) and
+the component panel, whose width is the <code>--panel-width</code>
+variable set by <code>ui-playground.js</code> (the remembered normal or
+wide width, or about a quarter or half of the window). The library is a
+fixed drawer unless <code>.library-docked</code> adds its column
+(<code>--library-width</code> by breakpoint). ≤ 1100 px hides the dock
+option; tablets held upright (701–1100 px, portrait) put the canvas
+across the full width with the pipeline and panel below; phones (≤ 700
+px) use one column with the canvas pinned on top, a tab bar choosing the
+panel and the transport pinned at the bottom;
+<code>(pointer: coarse)</code> enlarges touch targets and hides the
+pop-out button. The component view, the bottom panel’s bar and the
+canvas legend lay themselves out by their <strong>own</strong> width
+with container queries (<code>cview</code>, <code>graphbar</code>,
+<code>image</code>), so the same markup works in the panel, the
+Playground and a pop-out window. <code>tools/browser_check.py</code>
+checks that neither the tablet nor the phone layout scrolls sideways and
+that the bottom bar ends at the bottom of the screen.</p>
 <h2 id="conventions-for-the-bundler">Conventions for the bundler</h2>
 <p><code>tools/build.py</code> is a deliberately small bundler, not a
 JavaScript parser. Source modules must follow these rules or the
 standalone build breaks:</p>
 <ul>
-<li>Import only with the named form on one line:
+<li>Import only with the named form:
 <code>import { a, b } from './module.js';</code>. No default imports, no
-namespace imports, no dynamic <code>import()</code>.</li>
+namespace imports, no side-effect-only imports
+(<code>import './x.js'</code>), no <code>as</code> renames, no dynamic
+<code>import()</code>. A module that only registers listeners is
+included by importing one of its names (see <code>app.js</code>).</li>
 <li>Export only with
 <code>export const|let|class|function|async function name</code>. No
 <code>export { … }</code> lists, no default exports, no re-exports.</li>
@@ -281,24 +364,34 @@ are not resolved.</li>
 <li>Do not create import cycles; modules are emitted in dependency order
 and evaluated once.</li>
 </ul>
-<p>Style: four-space indentation, one statement per line, comments that
-explain intent or non-obvious constraints rather than restating code.
-Keep UI strings free of claims the research ledger does not support.</p>
+<p>Style: four-space indentation, one statement per line, a doc comment
+on every exported function and module that explains intent or
+non-obvious constraints rather than restating code. Keep the model
+modules free of DOM access so they stay testable in Node. Keep UI
+strings free of claims the research ledger does not support. Files use
+LF line endings (<code>.gitattributes</code>).</p>
 <h2 id="tests">Tests</h2>
 <div class="sourceCode" id="cb3"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> <span class="at">--test</span> tests/<span class="pp">*</span>.test.js                 <span class="co"># unit tests: catalog, graph, compiler, math, explore, timeline, export, view</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/workflow_check.py             <span class="co"># editor workflows in Chromium: keys, wiring, drag-and-drop, previews, exports…</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/browser_check.py              <span class="co"># UI checks and the gallery screenshots</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_validate.py               <span class="co"># renders every preset and component, raw-field and native-image comparison</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_smoke.py                  <span class="co"># quick render of every preset to gallery/*.png</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="kw">(</span><span class="bu">cd</span> reference/nebula_rewrite <span class="kw">&amp;&amp;</span> <span class="ex">python3</span> <span class="at">-m</span> unittest discover <span class="at">-s</span> tests <span class="at">-v</span><span class="kw">)</span></span></code></pre></div>
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> <span class="at">--test</span> tests/<span class="pp">*</span>.test.js                 <span class="co"># unit tests: catalog, compiler, expression, fork, formula, looks,</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># math, gpu-info, graph, explore, timeline, export, view</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/workflow_check.py             <span class="co"># editor workflows in Chromium: views, bypass without recompiling,</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># playground, pop-out, equations, fork, wiring, exports…</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/browser_check.py              <span class="co"># UI and layout checks, and the gallery screenshots</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_validate.py               <span class="co"># every preset, component and view on the GPU; raw fields against</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># the CPU reference; fork equivalence; program reuse</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_smoke.py                  <span class="co"># quick render of every preset to gallery/*.png</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="kw">(</span><span class="bu">cd</span> reference/nebula_rewrite <span class="kw">&amp;&amp;</span> <span class="ex">python3</span> <span class="at">-m</span> unittest discover <span class="at">-s</span> tests <span class="at">-v</span><span class="kw">)</span></span></code></pre></div>
 <p>The browser suites load the built <code>Equation Studio.html</code>
-into an in-memory page, so rebuild first. They force the
-ANGLE/SwiftShader software backend for comparable measurements; set
-<code>EQUATION_STUDIO_HARDWARE_GPU=1</code> to use the browser’s own
-backend (much faster, but timings and rounding differ from the published
-report). On headless Linux, prefix with <code>xvfb-run -a</code> if
-ANGLE needs a display.</p>
+into an in-memory page, so rebuild first. By default they use Chromium’s
+ANGLE/SwiftShader <strong>software</strong> backend, for measurements
+that are comparable between machines; that is slow (minutes per suite).
+Set <code>EQUATION_STUDIO_HARDWARE_GPU=1</code> to render with the
+machine’s GPU through the platform’s ANGLE backend (Direct3D 11 on
+Windows, Metal on macOS, Vulkan elsewhere): much faster, but timings and
+rounding differ from the published report. On headless Linux, prefix
+with <code>xvfb-run -a</code> if ANGLE needs a display. On Windows set
+<code>PYTHONIOENCODING=utf-8</code> so the suites can print the app’s
+text.</p>
 <p>Unit tests must stay dependency-free and fast; put pure logic in a
 DOM-free module so it can be tested there. When adding a UI feature, add
 a check to <code>workflow_check.py</code> that drives it through real
@@ -306,7 +399,7 @@ events.</p>
 <h2 id="regeneration-checklist">Regeneration checklist</h2>
 <p>Run in this order after changing source, documentation or assets:</p>
 <div class="sourceCode" id="cb4"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> tools/generate_catalog.js           <span class="co"># docs/COMPONENTS.md and examples/projects/*.json from catalog.js and presets.js</span></span>
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> tools/generate_catalog.js           <span class="co"># docs/COMPONENTS.md and examples/projects/*.json from the catalog, ideas and presets</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/build.py                   <span class="co"># studio.js and Equation Studio.html</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> <span class="at">--test</span> <span class="at">--test-reporter</span><span class="op">=</span>tap tests/<span class="pp">*</span>.test.js <span class="op">&gt;</span> docs/NODE_TEST_RESULTS.txt <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span></span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">(</span><span class="bu">cd</span> reference/nebula_rewrite <span class="kw">&amp;&amp;</span> <span class="ex">python3</span> <span class="at">-m</span> unittest discover <span class="at">-s</span> tests <span class="at">-v</span> <span class="op">&gt;</span> ../../docs/CPU_TEST_RESULTS.txt <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span><span class="kw">)</span></span>
@@ -350,7 +443,8 @@ with the CSS into <code>Equation Studio.html</code></td>
 </tr>
 <tr>
 <td><code>tools/browser.py</code></td>
-<td>Shared Chromium launcher used by all browser suites</td>
+<td>Shared Chromium launcher used by all browser suites (software or
+hardware GPU)</td>
 </tr>
 <tr>
 <td><code>tools/browser_check.py</code>,

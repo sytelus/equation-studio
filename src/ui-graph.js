@@ -1,10 +1,13 @@
-import { $, esc, state, on, toast, showError, setSelected, setView, setEnabled, viewedNode, connect, transact, addComponent, nodeById, setPref, clamp, bypassDescription } from './editor.js';
+import { $, esc, state, on, toast, showError, setSelected, setView, setEnabled, viewedNode, viewOptions, connect, transact, addComponent, nodeById, setPref, clamp, bypassDescription } from './editor.js';
 import { catalog, typeLabels } from './catalog.js';
 import { upstream, downstream } from './graph.js';
+import { compileGraph } from './compiler.js';
+import { renderFormulas } from './ui-formula.js';
 import { layoutGraph, SOCKET_TOP, SOCKET_PITCH, outputSocketPoint, inputSocketPoint, wirePath } from './graph-layout.js';
-import { DRAG_TYPE, draggedType, showLibraryTab } from './ui-library.js';
+import { DRAG_TYPE, draggedType, openLibrary } from './ui-library.js';
 import { paintPreviews, resetPreviews, previewsFailed } from './ui-previews.js';
 import { download } from './export.js';
+import { studyComponent, isDoubleClick } from './ui-study-link.js';
 /** Bottom panel: the Pipeline tab (see ui-pipeline.js), the typed function graph
  * (automatic layered layout) with live per-node previews, wiring by click or drag,
  * drag-and-drop from the palette, and the generated GLSL view.
@@ -44,7 +47,7 @@ export function renderGraph() {
         });
         const preview = previews ? `<canvas class="node-preview" width="160" height="96" data-preview="${n.id}" aria-hidden="true"></canvas>` : '';
         const checkTip = `${n.enabled ? 'Included' : 'Bypassed'}|Untick to bypass: it then ${esc(bypassDescription(n))}.`;
-        nodes += `<div class="graph-node ${def.output} ${state.selected === n.id ? 'selected' : ''} ${n.enabled ? '' : 'disabled'}" data-node="${n.id}" style="left:${pos.x}px;top:${pos.y}px;height:${pos.height}px" tabindex="0" role="button" aria-label="Inspect ${esc(n.label)}"><div class="node-head"><input type="checkbox" class="node-enable" data-enable="${n.id}" ${n.enabled ? 'checked' : ''} aria-label="Include ${esc(n.label)}" data-tip="${checkTip}"><b>${esc(n.label)}</b><button class="node-eye" data-show="${n.id}" aria-label="Show ${esc(n.label)} on the canvas" data-tip="Show this stage|Show this component’s output on the canvas.">👁</button></div><small>${esc(def.category)} · ${esc(typeLabels[def.output])}</small><div class="node-sockets">${inputs.map(([socket]) => `<span class="in-label">${esc(socket)}</span>`).join('')}</div>${preview}${socketMarkup(n, def)}${marks(n)}</div>`;
+        nodes += `<div class="graph-node ${def.output} ${state.selected === n.id ? 'selected' : ''} ${n.enabled ? '' : 'disabled'}" data-node="${n.id}" style="left:${pos.x}px;top:${pos.y}px;height:${pos.height}px" tabindex="0" role="button" aria-label="Inspect ${esc(n.label)}"><div class="node-head"><input type="checkbox" class="node-enable" data-enable="${n.id}" ${n.enabled ? 'checked' : ''} aria-label="Include ${esc(n.label)}" data-tip="${checkTip}"><b>${esc(n.label)}</b><button class="node-eye" data-show="${n.id}" aria-label="Show ${esc(n.label)} on the canvas" data-tip="Show this step|Select it and show its output on the canvas (This step).">👁</button></div><small>${esc(def.category)} · ${esc(typeLabels[def.output])}</small><div class="node-sockets">${inputs.map(([socket]) => `<span class="in-label">${esc(socket)}</span>`).join('')}</div>${preview}${socketMarkup(n, def)}${marks(n)}</div>`;
     }
     const hadFocus = $('graphNodes').contains(document.activeElement);
     $('graphEdges').innerHTML = edges + '<path id="dragWire" fill="none" stroke="#a5f2cf" stroke-width="1.5" stroke-dasharray="4 3" style="display:none"/>';
@@ -184,6 +187,10 @@ $('graphNodes').addEventListener('click', e => {
     }
     const card = e.target.closest('[data-node]');
     if (card) {
+        if (isDoubleClick(card.dataset.node)) {
+            studyComponent(card.dataset.node);
+            return;
+        }
         setSelected(card.dataset.node);
     }
 });
@@ -249,22 +256,46 @@ for (const zone of [$('graphViewport'), $('stage')]) {
     });
 }
 // ---- Toolbar, tabs, GLSL view and the resizable splitter ----------------------
+/** The readable program for the current view: only the components it depends on. */
+function refreshShaderView() {
+    if ($('shaderView').hidden) {
+        return;
+    }
+    const project = state.project, options = viewOptions(), target = options.contribution ? project.output : options.target;
+    try {
+        const c = compileGraph(project, target, options), node = nodeById(target);
+        const view = options.contribution ? `what ${nodeById(options.contribution).label} changes in the final image` : state.viewMode === 'stage' ? `the stage ${node.label}` : 'the final image';
+        $('shaderView').textContent = `// Program for ${view}: the ${c.order.length} components it depends on.
+// The canvas draws every view with one program for the whole graph (the same code with
+// all components); modes, bypass flags and colors are uniforms. See docs/ARCHITECTURE.md.
+
+${c.fragment}`;
+    }
+    catch (e) {
+        $('shaderView').textContent = e.message;
+    }
+}
 /** Show one bottom-panel tab: pipeline, graph or shader. Remembered across sessions. */
 export function showBottomTab(tab) {
-    const known = ['pipeline', 'graph', 'shader'], active = known.includes(tab) ? tab : 'pipeline';
+    const known = ['pipeline', 'graph', 'formulas', 'shader'], active = known.includes(tab) ? tab : 'pipeline';
     document.querySelectorAll('[data-bottom]').forEach(v => v.classList.toggle('active', v.dataset.bottom === active));
     $('pipelineView').hidden = active !== 'pipeline';
     $('graphViewport').hidden = active !== 'graph';
+    $('formulaView').hidden = active !== 'formulas';
     $('shaderView').hidden = active !== 'shader';
     $('copyShader').hidden = active !== 'shader';
     $('graphFit').hidden = active !== 'graph';
+    $('pipelineTools').hidden = active !== 'pipeline';
+    $('graphSummary').hidden = active !== 'graph';
     $('connectionHint').hidden = active !== 'graph';
-    $('previewsButton').hidden = active === 'shader';
+    $('previewsButton').hidden = active !== 'pipeline' && active !== 'graph';
+    renderFormulas();
     if (state.prefs.bottomTab !== active) {
         state.prefs.bottomTab = active;
         setPref('bottomTab', active);
     }
     state.previewsDirty = true;
+    refreshShaderView();
 }
 document.querySelectorAll('[data-bottom]').forEach(b => b.onclick = () => showBottomTab(b.dataset.bottom));
 $('copyShader').onclick = async () => {
@@ -279,16 +310,14 @@ $('copyShader').onclick = async () => {
 };
 $('previewsButton').onclick = () => setPreviews(!state.prefs.previews);
 $('graphFit').onclick = locateSelected;
-$('addComponent').onclick = () => {
-    showLibraryTab('parts');
-    $('library').classList.add('open');
-    $('librarySearch').focus();
-};
+$('addComponent').onclick = () => openLibrary('parts');
 const splitter = $('graphSplitter');
 let splitDrag = null;
+/** Height of the bottom panel in pixels; 0 is automatic: room for one row of
+ * pipeline cards, a little more on tall windows. */
 export function applyGraphHeight(height) {
-    const limit = Math.max(160, Math.floor($('layout').clientHeight * 0.7));
-    const h = clamp(Math.round(height), 140, limit);
+    const layout = $('layout').clientHeight, limit = Math.max(160, Math.floor(layout * 0.7));
+    const h = clamp(Math.round(height || (layout < 700 ? 232 : layout < 950 ? 250 : 290)), 140, limit);
     $('layout').style.setProperty('--graph-height', `${h}px`);
     return h;
 }
@@ -308,8 +337,15 @@ splitter.addEventListener('pointerup', e => {
         splitDrag = null;
     }
 });
-splitter.addEventListener('dblclick', () => setPref('graphHeight', applyGraphHeight(260)));
+splitter.addEventListener('dblclick', () => {
+    setPref('graphHeight', 0);
+    applyGraphHeight(0);
+});
+addEventListener('resize', () => applyGraphHeight(state.prefs.graphHeight));
 on('refresh', renderGraph);
 on('selection', renderGraph);
 on('view', renderGraph);
+for (const event of ['refresh', 'selection', 'view']) {
+    on(event, refreshShaderView);
+}
 on('prefs', updateSummary);

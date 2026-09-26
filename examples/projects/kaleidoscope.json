@@ -43,25 +43,31 @@
     {
       "id": "petals",
       "type": "expression",
-      "label": "Custom scalar equation",
+      "label": "Interference petals",
       "inputs": {
         "p": "warp"
       },
       "params": {
-        "expression": "pow(0.5+0.5*cos(x*14.0+sin(y*9.0-t)),4.0)"
+        "expression": "// Interference petals: bands whose phase is bent by a second wave\nparam bands = 14 [1, 40] step 0.1       // frequency of the bands across x: more, thinner petals\nparam bend = 9 [0, 30] step 0.1         // frequency of the wave that bends the bands, along y\nparam sharpness = 4 [1, 12] step 0.1    // exponent: higher values keep only the crests\nwave = 0.5 + 0.5*cos(bands*x + sin(bend*y - t))   // bands from 0 to 1, bent by a sine that drifts with time\nwave^sharpness   // a power sharpens each band into a thin petal",
+        "bands": 14,
+        "bend": 9,
+        "sharpness": 4
       },
       "enabled": true
     },
     {
       "id": "final",
       "type": "colorExpression",
-      "label": "Custom color equation",
+      "label": "Rainbow color",
       "inputs": {
         "p": "space",
         "a": "petals"
       },
       "params": {
-        "expression": "spectrum(r*0.3-t*0.05,0.25)*a*exp(-r*r*0.22)"
+        "expression": "// Rainbow petals that fade away from the center\nparam hueScale = 0.3 [0, 2] step 0.01   // how quickly the hue cycles with distance from the center\nparam drift = 0.05 [-1, 1] step 0.01    // how quickly the colors flow outward over time\nparam falloff = 0.22 [0, 2] step 0.01   // how quickly the image fades with distance\nhue = spectrum(hueScale*r - drift*t, 0.25)   // a rainbow color for each distance r\nhue * a * exp(-falloff*r^2)   // the petals a, colored, under a Gaussian fade",
+        "hueScale": 0.3,
+        "drift": 0.05,
+        "falloff": 0.22
       },
       "enabled": true
     }

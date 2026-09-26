@@ -2,7 +2,7 @@
 
 These recipes explain **the code delivered here**. Except for the original nebula, they are new, subject-based constructions, not recovered formulas from the linked posts. We did not inspect the new full-resolution formula sheets or the Hedgehog/Fire videos. See the [research ledger](RESEARCH.md) before attributing any construction to the artist.
 
-While reading, keep the app open: the **Pipeline** shows every component's output as a live picture, clicking a card shows that stage on the canvas, **What it changes** highlights the pixels a component affects, and the inspector typesets each component's equation with its symbols and live values. The [editor guide](EDITOR_GUIDE.md) explains all of them. All coordinates below are local to the relevant component. Color vectors are floating-point emission values. `G(d,w)=exp(-(d/w)^2)` is a Gaussian profile. `inside(d,e)=1-smoothstep(-e,e,d)` is a soft inside mask. Neither is automatically a physical density or a true signed-distance field.
+While reading, keep the app open: the **Pipeline** shows every component's output as a live picture, clicking a card selects it and **This step** shows it on the canvas (numbers and coordinates in automatic colors, with a legend), **What it changes** highlights the pixels a component affects, the **Formulas** tab writes the whole construction as equations, and the inspector explains each component step by step, with the ideas behind it and where its inputs come from and its output goes. Double-click any component to study it in the **Equation Playground**, with a profile of its actual values under the canvas. The [editor guide](EDITOR_GUIDE.md) explains all of them. All coordinates below are local to the relevant component. Color vectors are floating-point emission values. `G(d,w)=exp(-(d/w)^2)` is a Gaussian profile. `inside(d,e)=1-smoothstep(-e,e,d)` is a soft inside mask. Neither is automatically a physical density or a true signed-distance field.
 
 ## 1. The source Bipolar Nebula
 
@@ -46,7 +46,7 @@ H=1.1(1-W)AK+W(2,2,3)+T.
 
 The star field `T` is a separate sum of 30 rotated, folded lattices. `acos(cos(t))` periodically folds each axis into a nonnegative coordinate. Distances close to lattice intersections produce bright centers and halos; an angular modulation produces pointed fine structure. There is no stellar catalog, sampled star texture or random simulation state.
 
-**Inspect:** isolate the geometry, then turbulence, cloud, gas, core and stars in that order. Probe the raw fields rather than interpreting their false-color diagnostics as intensity. Turn the star gain to zero to see the gas without bright point sources. Source band counts and phase parentheses are documented exactly in the [retained formula reference](../reference/nebula_rewrite/docs/FORMULA_REFERENCE.md).
+**Inspect:** walk the stages with `]`: the geometry, then turbulence, cloud, gas, core and stars in that order. The geometry and turbulence have no colors of their own; their automatic colormaps and contour lines follow the values actually in view, and the profile (`V`) plots the raw numbers along a line, e.g. the rim A peaking just inside every shell. Turn the star gain to zero to see the gas without bright point sources, or choose **What it changes** on the stars. Source band counts and phase parentheses are documented exactly in the [retained formula reference](../reference/nebula_rewrite/docs/FORMULA_REFERENCE.md).
 
 **Reuse:** Ring Nebula changes only the geometry bundle:
 
@@ -232,12 +232,51 @@ These are **our own scenario-based teaching constructions**. The linked announce
 
 **Marble:** Coordinates → Domain warp → Nested cosine bands → Two-color emission. The coordinate warp makes simple waves look like veins; the palette is independent. This scene is intentionally simpler than the astronomical kernels and is a good place to start authoring.
 
-**Kaleidoscope:** Coordinates → Angular mirror → Domain warp → Custom scalar → Custom color. Reflection supplies symmetry; a field supplies local complexity; the color function supplies a palette. This separates symmetry from detail and appearance.
+**Kaleidoscope:** Coordinates → Angular mirror → Domain warp → *Interference petals* (a custom scalar equation) → *Rainbow color* (a custom color equation). Reflection supplies symmetry; a field supplies local complexity; the color function supplies a palette. This separates symmetry from detail and appearance. Both equations are written with parameters, definitions and captions, so they read as a short explanation and their numbers are sliders; see section 9.
 
 **Nebular ring with stars from another recipe:** start with Ring Nebula; replace the source star-field node by the Scatter stars component. Keep its input on the original world coordinates rather than the ring's geometry warp, unless distorted stars are intentional.
 
 **A lens applied to a nebula:** insert the Lens coordinate component before the source nebula's coordinate-dependent branches. The lens must feed geometry, turbulence, cloud, core and any *background* stars consistently. Keep optional foreground lens lights outside that transformed branch. Connecting the lens only to geometry creates a different artistic effect: the silhouette bends but fine patterns remain anchored to the original coordinate domain.
 
-**A new flower:** build a Custom scalar `inside`-style mask from `r-(0.8+0.2*cos(5.0*theta))`, feed it into a Palette, and use a rotated or vortex-mapped coordinate field. Use Over if the mask should hide a background; Add if you deliberately want glowing emission.
+**A new flower:** add a Custom scalar equation, write the flower mask of section 9 into it, feed it into a Palette, and give it a rotated or vortex-mapped coordinate field. Use Over if the mask should hide a background; Add if you deliberately want glowing emission.
 
 The common method is to decide **what quantity each expression controls** before combining it. A spatial map changes where a field is sampled; a mask changes coverage; an emission profile changes brightness; a palette changes color; and an output curve changes displayed values. Keeping these roles explicit makes a small library capable of a large family of images.
+
+## 9. Write and change equations
+
+The three custom components (scalar, coordinate, color) hold an equation you write in a small language: `param` lines declare sliders, `name = …` lines define intermediate values, the last line is the result, and `//` captions explain each line. The inspector typesets it line by line with the captions, so an equation written this way explains itself. The full syntax is in the [editor guide](EDITOR_GUIDE.md#the-equation-language).
+
+**A flower mask from scratch.** A circle whose radius swells *n* times around the center, with a soft edge:
+
+```text
+// A five-petal flower mask
+param petals = 5 [1, 12] step 1        // number of petals
+param depth = 0.2 [0, 0.6] step 0.01   // how deep the notches between petals are
+param edge = 0.02 [0.001, 0.2]         // softness of the outline
+R = 0.8 + depth*cos(petals*theta)      // the outline radius in each direction
+1 - smoothstep(-edge, edge, r - R)     // 1 inside the outline, 0 outside
+```
+
+Show its stage and open the profile: the mask is a plateau at 1 with soft steps of width about 2·edge. Sweep *petals* (▦) to see every petal count at once; a whole number keeps the outline closed without a seam at θ = ±π, because cos(nθ) has the same value on both sides of the cut only when n is an integer.
+
+**Start from a built-in.** Open *Living mineral*, select *Turbulent coordinate warp* and press **✎ Edit**. The warp opens as its own equation, one line per step:
+
+```text
+param A = 0.8 [0, 2] step 0.01        // Displacement: How far coordinates are pushed, in world units.
+param f = 2.1 [0.1, 12] step 0.1      // Frequency: Spatial frequency of the displacement noise.
+param omega = 0.12 [-2, 2] step 0.01  // Flow speed: How quickly the noise pattern drifts over time.
+d = vec2(fbm(p*f + vec2(omega*t, 0), 5), fbm(p*f + vec2(9.2, -(omega*t)), 5)) - 0.5   // two independent fractal noises …
+p + A*d   // push every point by the displacement: straight lines become wavy
+```
+
+It renders exactly what the built-in component renders, with its parameters named after the symbols in its steps (A, f, ω). Change the last line to make the push depend on the direction:
+
+```text
+p + A*d*(1 + 0.8*sin(3*theta))   // three lobes of strong and weak warping around the center
+```
+
+The canvas previews the draft at once; **Apply** turns the component into your equation (keeping its wiring, values and animation), and Undo restores the original. The same works for the vortex (whose twist angle `alpha = kappa*exp(-(r/rho)^2) + omega*t` you can give a slower 1/r² falloff), the rings, discs, thresholds, palettes and the other components listed as editable in the [catalog](COMPONENTS.md).
+
+**Call a whole kernel.** Every function of the shader libraries can be called from an equation, including complete scenes: `waterPlanet(p, 1, 0.6, 5, 2, t)` in a Custom color equation draws the planet of section 2 (the first argument can be any coordinate map), and `nebulaStars(p, 30, 1)` the source star field. The **Insert…** menu lists them with their arguments.
+
+**Why the language is not plain GLSL.** An equation is parsed and type-checked, and the shader code is printed from the checked form, so mistakes are reported in words with a line number (*Line 4: Unknown name “raduis”. Did you mean “radius”?*) instead of as a shader compiler log, nothing but mathematics can reach the shader, and an equation always has a well-defined typeset form. `x^2` is exact for negative `x` (it is written out as a product), and whole numbers need no decimal point.

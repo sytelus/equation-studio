@@ -3,603 +3,683 @@ TAP version 13
     # Subtest: coordinates: documented, typeset and consistent
     ok 1 - coordinates: documented, typeset and consistent
       ---
-      duration_ms: 2.1695
+      duration_ms: 3.0634
       type: 'test'
       ...
     # Subtest: transform: documented, typeset and consistent
     ok 2 - transform: documented, typeset and consistent
       ---
-      duration_ms: 0.7143
+      duration_ms: 0.3703
       type: 'test'
       ...
     # Subtest: vortex: documented, typeset and consistent
     ok 3 - vortex: documented, typeset and consistent
       ---
-      duration_ms: 0.3659
+      duration_ms: 0.213
       type: 'test'
       ...
     # Subtest: domainwarp: documented, typeset and consistent
     ok 4 - domainwarp: documented, typeset and consistent
       ---
-      duration_ms: 0.3574
+      duration_ms: 0.4453
       type: 'test'
       ...
     # Subtest: polar: documented, typeset and consistent
     ok 5 - polar: documented, typeset and consistent
       ---
-      duration_ms: 0.3038
+      duration_ms: 0.4866
       type: 'test'
       ...
     # Subtest: kaleidoscope: documented, typeset and consistent
     ok 6 - kaleidoscope: documented, typeset and consistent
       ---
-      duration_ms: 0.2419
+      duration_ms: 0.6096
       type: 'test'
       ...
     # Subtest: noise: documented, typeset and consistent
     ok 7 - noise: documented, typeset and consistent
       ---
-      duration_ms: 0.232
+      duration_ms: 0.3651
       type: 'test'
       ...
     # Subtest: waves: documented, typeset and consistent
     ok 8 - waves: documented, typeset and consistent
       ---
-      duration_ms: 0.1981
+      duration_ms: 0.3501
       type: 'test'
       ...
     # Subtest: disc: documented, typeset and consistent
     ok 9 - disc: documented, typeset and consistent
       ---
-      duration_ms: 0.3708
+      duration_ms: 0.4195
       type: 'test'
       ...
     # Subtest: ring: documented, typeset and consistent
     ok 10 - ring: documented, typeset and consistent
       ---
-      duration_ms: 0.4743
+      duration_ms: 0.3445
       type: 'test'
       ...
     # Subtest: threshold: documented, typeset and consistent
     ok 11 - threshold: documented, typeset and consistent
       ---
-      duration_ms: 0.5424
+      duration_ms: 0.3319
       type: 'test'
       ...
     # Subtest: fieldmath: documented, typeset and consistent
     ok 12 - fieldmath: documented, typeset and consistent
       ---
-      duration_ms: 0.0567
+      duration_ms: 0.2802
       type: 'test'
       ...
     # Subtest: expression: documented, typeset and consistent
     ok 13 - expression: documented, typeset and consistent
       ---
-      duration_ms: 0.0559
+      duration_ms: 0.5147
       type: 'test'
       ...
     # Subtest: vectorExpression: documented, typeset and consistent
     ok 14 - vectorExpression: documented, typeset and consistent
       ---
-      duration_ms: 0.1324
+      duration_ms: 0.2302
       type: 'test'
       ...
     # Subtest: colorExpression: documented, typeset and consistent
     ok 15 - colorExpression: documented, typeset and consistent
       ---
-      duration_ms: 0.3084
+      duration_ms: 0.2296
       type: 'test'
       ...
     # Subtest: palette: documented, typeset and consistent
     ok 16 - palette: documented, typeset and consistent
       ---
-      duration_ms: 0.2526
+      duration_ms: 0.3677
       type: 'test'
       ...
     # Subtest: solid: documented, typeset and consistent
     ok 17 - solid: documented, typeset and consistent
       ---
-      duration_ms: 0.5024
+      duration_ms: 0.1587
       type: 'test'
       ...
     # Subtest: tint: documented, typeset and consistent
     ok 18 - tint: documented, typeset and consistent
       ---
-      duration_ms: 0.3355
+      duration_ms: 1.3569
       type: 'test'
       ...
     # Subtest: mask: documented, typeset and consistent
     ok 19 - mask: documented, typeset and consistent
       ---
-      duration_ms: 0.139
+      duration_ms: 0.1226
       type: 'test'
       ...
     # Subtest: add: documented, typeset and consistent
     ok 20 - add: documented, typeset and consistent
       ---
-      duration_ms: 0.3443
+      duration_ms: 0.0712
       type: 'test'
       ...
     # Subtest: over: documented, typeset and consistent
     ok 21 - over: documented, typeset and consistent
       ---
-      duration_ms: 0.2675
+      duration_ms: 0.0566
       type: 'test'
       ...
     # Subtest: nebulaGeometry: documented, typeset and consistent
     ok 22 - nebulaGeometry: documented, typeset and consistent
       ---
-      duration_ms: 1.0426
+      duration_ms: 0.1575
       type: 'test'
       ...
     # Subtest: ringGeometry: documented, typeset and consistent
     ok 23 - ringGeometry: documented, typeset and consistent
       ---
-      duration_ms: 0.2615
+      duration_ms: 0.0826
       type: 'test'
       ...
     # Subtest: geometryField: documented, typeset and consistent
     ok 24 - geometryField: documented, typeset and consistent
       ---
-      duration_ms: 0.0586
+      duration_ms: 0.1124
       type: 'test'
       ...
     # Subtest: nebulaTurbulence: documented, typeset and consistent
     ok 25 - nebulaTurbulence: documented, typeset and consistent
       ---
-      duration_ms: 0.1003
+      duration_ms: 0.1056
       type: 'test'
       ...
     # Subtest: nebulaCloud: documented, typeset and consistent
     ok 26 - nebulaCloud: documented, typeset and consistent
       ---
-      duration_ms: 0.0618
+      duration_ms: 0.1331
       type: 'test'
       ...
     # Subtest: nebulaGas: documented, typeset and consistent
     ok 27 - nebulaGas: documented, typeset and consistent
       ---
-      duration_ms: 0.0397
+      duration_ms: 0.053
       type: 'test'
       ...
     # Subtest: nebulaCore: documented, typeset and consistent
     ok 28 - nebulaCore: documented, typeset and consistent
       ---
-      duration_ms: 0.0358
+      duration_ms: 0.0465
       type: 'test'
       ...
     # Subtest: nebulaStars: documented, typeset and consistent
     ok 29 - nebulaStars: documented, typeset and consistent
       ---
-      duration_ms: 0.0772
+      duration_ms: 0.1176
       type: 'test'
       ...
     # Subtest: scatterStars: documented, typeset and consistent
     ok 30 - scatterStars: documented, typeset and consistent
       ---
-      duration_ms: 0.0693
+      duration_ms: 0.1056
       type: 'test'
       ...
     # Subtest: planet: documented, typeset and consistent
     ok 31 - planet: documented, typeset and consistent
       ---
-      duration_ms: 0.7079
+      duration_ms: 0.1145
       type: 'test'
       ...
     # Subtest: atmosphere: documented, typeset and consistent
     ok 32 - atmosphere: documented, typeset and consistent
       ---
-      duration_ms: 0.2136
+      duration_ms: 0.0661
       type: 'test'
       ...
     # Subtest: lens: documented, typeset and consistent
     ok 33 - lens: documented, typeset and consistent
       ---
-      duration_ms: 0.1561
+      duration_ms: 0.1138
       type: 'test'
       ...
     # Subtest: clusterLights: documented, typeset and consistent
     ok 34 - clusterLights: documented, typeset and consistent
       ---
-      duration_ms: 0.1242
+      duration_ms: 0.0654
       type: 'test'
       ...
     # Subtest: galaxy: documented, typeset and consistent
     ok 35 - galaxy: documented, typeset and consistent
       ---
-      duration_ms: 0.1739
+      duration_ms: 0.0915
       type: 'test'
       ...
     # Subtest: aurora: documented, typeset and consistent
     ok 36 - aurora: documented, typeset and consistent
       ---
-      duration_ms: 0.1932
+      duration_ms: 0.1026
       type: 'test'
       ...
     # Subtest: disk: documented, typeset and consistent
     ok 37 - disk: documented, typeset and consistent
       ---
-      duration_ms: 0.3063
+      duration_ms: 0.3798
       type: 'test'
       ...
     # Subtest: tidal: documented, typeset and consistent
     ok 38 - tidal: documented, typeset and consistent
       ---
-      duration_ms: 0.2509
+      duration_ms: 0.9686
       type: 'test'
       ...
     # Subtest: feather: documented, typeset and consistent
     ok 39 - feather: documented, typeset and consistent
       ---
-      duration_ms: 0.2033
+      duration_ms: 0.3305
       type: 'test'
       ...
     # Subtest: fan: documented, typeset and consistent
     ok 40 - fan: documented, typeset and consistent
       ---
-      duration_ms: 0.2355
+      duration_ms: 0.2301
       type: 'test'
       ...
     # Subtest: peacockBody: documented, typeset and consistent
     ok 41 - peacockBody: documented, typeset and consistent
       ---
-      duration_ms: 0.1164
+      duration_ms: 0.1596
       type: 'test'
       ...
     # Subtest: fire: documented, typeset and consistent
     ok 42 - fire: documented, typeset and consistent
       ---
-      duration_ms: 0.2065
+      duration_ms: 0.2158
       type: 'test'
       ...
     # Subtest: hedgehog: documented, typeset and consistent
     ok 43 - hedgehog: documented, typeset and consistent
       ---
-      duration_ms: 0.2109
+      duration_ms: 0.1838
       type: 'test'
       ...
     # Subtest: parameter symbols are unique within a component
     ok 44 - parameter symbols are unique within a component
       ---
-      duration_ms: 0.3646
+      duration_ms: 0.3412
+      type: 'test'
+      ...
+    # Subtest: curves evaluate to finite numbers at the defaults and at the parameter extremes
+    ok 45 - curves evaluate to finite numbers at the defaults and at the parameter extremes
+      ---
+      duration_ms: 14.5723
+      type: 'test'
+      ...
+    # Subtest: every component that has a key one-dimensional function shows it
+    ok 46 - every component that has a key one-dimensional function shows it
+      ---
+      duration_ms: 0.085
       type: 'test'
       ...
     # Subtest: insertable types are modifiers that pass the wire type through
-    ok 45 - insertable types are modifiers that pass the wire type through
+    ok 47 - insertable types are modifiers that pass the wire type through
       ---
-      duration_ms: 0.9028
+      duration_ms: 0.2379
       type: 'test'
       ...
     # Subtest: replacement types share the output type
-    ok 46 - replacement types share the output type
+    ok 48 - replacement types share the output type
       ---
-      duration_ms: 0.1317
+      duration_ms: 0.1369
       type: 'test'
       ...
     # Subtest: GLSL previews use readable names
-    ok 47 - GLSL previews use readable names
+    ok 49 - GLSL previews use readable names
       ---
-      duration_ms: 0.0958
+      duration_ms: 0.168
       type: 'test'
       ...
-    1..47
+    1..49
 ok 1 - component catalog
   ---
-  duration_ms: 17.7688
+  duration_ms: 32.2775
   type: 'suite'
   ...
-# Subtest: shader generation
+# Subtest: concepts
+    # Subtest: each concept is explained and its formula and plot render
+    ok 1 - each concept is explained and its formula and plot render
+      ---
+      duration_ms: 6.2568
+      type: 'test'
+      ...
+    # Subtest: every concept is used by at least one component
+    ok 2 - every concept is used by at least one component
+      ---
+      duration_ms: 0.1585
+      type: 'test'
+      ...
+    # Subtest: rejects unknown concept ids
+    ok 3 - rejects unknown concept ids
+      ---
+      duration_ms: 0.3757
+      type: 'test'
+      ...
+    1..3
+ok 2 - concepts
+  ---
+  duration_ms: 6.9287
+  type: 'suite'
+  ...
+# Subtest: plots
+    # Subtest: picks round ticks
+    ok 1 - picks round ticks
+      ---
+      duration_ms: 0.0802
+      type: 'test'
+      ...
+    # Subtest: skips nonfinite samples and marks parameters
+    ok 2 - skips nonfinite samples and marks parameters
+      ---
+      duration_ms: 0.1377
+      type: 'test'
+      ...
+    # Subtest: draws bar series
+    ok 3 - draws bar series
+      ---
+      duration_ms: 0.1126
+      type: 'test'
+      ...
+    1..3
+ok 3 - plots
+  ---
+  duration_ms: 0.3881
+  type: 'suite'
+  ...
+# Subtest: program generation
     # Subtest: compiles the preset: bipolar
     ok 1 - compiles the preset: bipolar
       ---
-      duration_ms: 1.1227
+      duration_ms: 5.6545
       type: 'test'
       ...
     # Subtest: compiles the preset: water
     ok 2 - compiles the preset: water
       ---
-      duration_ms: 0.2542
+      duration_ms: 1.2301
       type: 'test'
       ...
     # Subtest: compiles the preset: lensing
     ok 3 - compiles the preset: lensing
       ---
-      duration_ms: 0.2297
+      duration_ms: 3.459
       type: 'test'
       ...
     # Subtest: compiles the preset: aurora
     ok 4 - compiles the preset: aurora
       ---
-      duration_ms: 0.31
+      duration_ms: 0.4111
       type: 'test'
       ...
     # Subtest: compiles the preset: tidal
     ok 5 - compiles the preset: tidal
       ---
-      duration_ms: 0.5133
+      duration_ms: 0.6429
       type: 'test'
       ...
     # Subtest: compiles the preset: peacock
     ok 6 - compiles the preset: peacock
       ---
-      duration_ms: 0.185
+      duration_ms: 0.3467
       type: 'test'
       ...
     # Subtest: compiles the preset: fire
     ok 7 - compiles the preset: fire
       ---
-      duration_ms: 0.7641
+      duration_ms: 0.218
       type: 'test'
       ...
     # Subtest: compiles the preset: hedgehog
     ok 8 - compiles the preset: hedgehog
       ---
-      duration_ms: 0.3954
+      duration_ms: 0.7382
       type: 'test'
       ...
     # Subtest: compiles the preset: ring
     ok 9 - compiles the preset: ring
       ---
-      duration_ms: 0.1884
+      duration_ms: 1.2949
       type: 'test'
       ...
     # Subtest: compiles the preset: marble
     ok 10 - compiles the preset: marble
       ---
-      duration_ms: 0.1965
+      duration_ms: 0.8591
       type: 'test'
       ...
     # Subtest: compiles the preset: kaleidoscope
     ok 11 - compiles the preset: kaleidoscope
       ---
-      duration_ms: 0.2036
+      duration_ms: 1.051
       type: 'test'
       ...
     # Subtest: compiles the preset: feather
     ok 12 - compiles the preset: feather
       ---
-      duration_ms: 0.1462
+      duration_ms: 0.5584
       type: 'test'
       ...
-    # Subtest: reachable shared expressions compile only once
-    ok 13 - reachable shared expressions compile only once
+    # Subtest: evaluates each shared component once
+    ok 13 - evaluates each shared component once
       ---
-      duration_ms: 0.235
+      duration_ms: 0.7382
       type: 'test'
       ...
-    # Subtest: unreachable nodes do not generate shader code
-    ok 14 - unreachable nodes do not generate shader code
+    # Subtest: a view program contains only the target’s subgraph
+    ok 14 - a view program contains only the target’s subgraph
       ---
-      duration_ms: 0.1281
+      duration_ms: 2.051
       type: 'test'
       ...
-    # Subtest: unconnected coordinate socket is zero, not implicit world space
-    ok 15 - unconnected coordinate socket is zero, not implicit world space
+    # Subtest: an unconnected coordinate socket is zero, not implicit world space
+    ok 15 - an unconnected coordinate socket is zero, not implicit world space
       ---
-      duration_ms: 0.1651
+      duration_ms: 0.6971
       type: 'test'
       ...
-    # Subtest: isolated scalar, coordinate and geometry use diagnostic conversions
-    ok 16 - isolated scalar, coordinate and geometry use diagnostic conversions
+    # Subtest: reports each target’s type; looks color non-layer types
+    ok 16 - reports each target’s type; looks color non-layer types
       ---
-      duration_ms: 0.2259
+      duration_ms: 1.0979
       type: 'test'
       ...
-    # Subtest: a disabled node is bypassed in the shader
-    ok 17 - a disabled node is bypassed in the shader
+    # Subtest: names parameters with readable aliases packed into u_params
+    ok 17 - names parameters with readable aliases packed into u_params
       ---
-      duration_ms: 0.3348
+      duration_ms: 1.3031
       type: 'test'
       ...
-    # Subtest: raw mode skips display conversion
-    ok 18 - raw mode skips display conversion
+    # Subtest: packs numbers four to a vector and gives each color its own vector
+    ok 18 - packs numbers four to a vector and gives each color its own vector
       ---
-      duration_ms: 0.384
+      duration_ms: 0.3809
       type: 'test'
       ...
-    # Subtest: changing numbers preserves shader source
-    ok 19 - changing numbers preserves shader source
+    # Subtest: the source ignores values, enabled flags and the output choice
+    ok 19 - the source ignores values, enabled flags and the output choice
       ---
-      duration_ms: 0.1556
+      duration_ms: 0.4722
       type: 'test'
       ...
-    # Subtest: custom expression edits change shader source
-    ok 20 - custom expression edits change shader source
+    # Subtest: wiring and custom expression edits change the source
+    ok 20 - wiring and custom expression edits change the source
       ---
-      duration_ms: 0.1871
+      duration_ms: 1.0075
+      type: 'test'
+      ...
+    # Subtest: every component can be bypassed at run time
+    ok 21 - every component can be bypassed at run time
+      ---
+      duration_ms: 0.748
       type: 'test'
       ...
     # Subtest: the angular mirror uses the shared helper
-    ok 21 - the angular mirror uses the shared helper
+    ok 22 - the angular mirror uses the shared helper
       ---
-      duration_ms: 0.1015
+      duration_ms: 0.4259
       type: 'test'
       ...
-    # Subtest: every uniform is declared exactly once and belongs to a reachable node
-    ok 22 - every uniform is declared exactly once and belongs to a reachable node
+    # Subtest: rejects unknown targets and styles
+    ok 23 - rejects unknown targets and styles
       ---
-      duration_ms: 0.5098
+      duration_ms: 0.9931
       type: 'test'
       ...
-    1..22
-ok 2 - shader generation
+    1..23
+ok 4 - program generation
   ---
-  duration_ms: 7.9683
+  duration_ms: 28.5938
   type: 'suite'
   ...
-# Subtest: contribution mode
-    # Subtest: evaluates the output with and without the node
-    ok 1 - evaluates the output with and without the node
+# Subtest: view state
+    # Subtest: evaluates only what the target needs
+    ok 1 - evaluates only what the target needs
       ---
-      duration_ms: 0.2757
+      duration_ms: 0.5929
       type: 'test'
       ...
-    # Subtest: removes a modifier by bypassing it, not by zeroing it
-    ok 2 - removes a modifier by bypassing it, not by zeroing it
+    # Subtest: a disabled component pulls in only its bypass input
+    ok 2 - a disabled component pulls in only its bypass input
       ---
-      duration_ms: 0.2979
+      duration_ms: 0.8113
       type: 'test'
       ...
-    # Subtest: reports unreachable nodes and still compiles
-    ok 3 - reports unreachable nodes and still compiles
+    # Subtest: the second image of what a component changes bypasses it
+    ok 3 - the second image of what a component changes bypasses it
       ---
-      duration_ms: 0.1328
+      duration_ms: 0.48
       type: 'test'
       ...
-    # Subtest: supports every documented style and rejects others
-    ok 4 - supports every documented style and rejects others
+    # Subtest: reports whether a contribution can change the target
+    ok 4 - reports whether a contribution can change the target
       ---
-      duration_ms: 0.3383
+      duration_ms: 0.6649
       type: 'test'
       ...
-    1..4
-ok 3 - contribution mode
+    # Subtest: masks set one bit per contained node
+    ok 5 - masks set one bit per contained node
+      ---
+      duration_ms: 0.4039
+      type: 'test'
+      ...
+    1..5
+ok 5 - view state
   ---
-  duration_ms: 1.1467
+  duration_ms: 3.2394
   type: 'suite'
   ...
-# Subtest: preview mode
-    # Subtest: computes every node once and selects by index
-    ok 1 - computes every node once and selects by index
+# Subtest: compileGraph descriptions
+    # Subtest: describes raw and contribution views without changing the source
+    ok 1 - describes raw and contribution views without changing the source
       ---
-      duration_ms: 0.3343
+      duration_ms: 0.9847
       type: 'test'
       ...
-    # Subtest: layers are display-converted inside the preview shader
-    ok 2 - layers are display-converted inside the preview shader
+    # Subtest: lists the nodes a view evaluates with the current enabled flags
+    ok 2 - lists the nodes a view evaluates with the current enabled flags
       ---
-      duration_ms: 0.0802
+      duration_ms: 0.6216
       type: 'test'
       ...
     1..2
-ok 4 - preview mode
+ok 6 - compileGraph descriptions
   ---
-  duration_ms: 0.4601
+  duration_ms: 1.7402
   type: 'suite'
   ...
 # Subtest: parameter sweeps
     # Subtest: snaps to the step and clamps to the range
     ok 1 - snaps to the step and clamps to the range
       ---
-      duration_ms: 0.4707
+      duration_ms: 1.2044
       type: 'test'
       ...
     # Subtest: spans the whole range, including both ends
     ok 2 - spans the whole range, including both ends
       ---
-      duration_ms: 0.1723
+      duration_ms: 0.4615
       type: 'test'
       ...
     # Subtest: drops duplicates for coarse integer parameters
     ok 3 - drops duplicates for coarse integer parameters
       ---
-      duration_ms: 0.7655
+      duration_ms: 2.2925
       type: 'test'
       ...
     # Subtest: rejects non-numeric parameters
     ok 4 - rejects non-numeric parameters
       ---
-      duration_ms: 0.1673
+      duration_ms: 0.6952
       type: 'test'
       ...
     1..4
-ok 5 - parameter sweeps
+ok 7 - parameter sweeps
   ---
-  duration_ms: 2.9007
+  duration_ms: 6.5044
   type: 'suite'
   ...
 # Subtest: variations
     # Subtest: is deterministic for a seed and different across seeds
     ok 1 - is deterministic for a seed and different across seeds
       ---
-      duration_ms: 2.2907
+      duration_ms: 4.324
       type: 'test'
       ...
     # Subtest: produces valid projects that only change the chosen component
     ok 2 - produces valid projects that only change the chosen component
       ---
-      duration_ms: 1.2939
+      duration_ms: 1.1671
       type: 'test'
       ...
     # Subtest: skips animated parameters and can vary the whole scene
     ok 3 - skips animated parameters and can vary the whole scene
       ---
-      duration_ms: 1.222
+      duration_ms: 0.3497
       type: 'test'
       ...
     # Subtest: rejects unknown components
     ok 4 - rejects unknown components
       ---
-      duration_ms: 0.3419
+      duration_ms: 0.1081
       type: 'test'
       ...
     # Subtest: seeded random numbers are in [0, 1)
     ok 5 - seeded random numbers are in [0, 1)
       ---
-      duration_ms: 0.9011
+      duration_ms: 0.2128
       type: 'test'
       ...
     1..5
-ok 6 - variations
+ok 8 - variations
   ---
-  duration_ms: 6.5893
+  duration_ms: 6.4646
   type: 'suite'
   ...
 # Subtest: original values
     # Subtest: come from the baseline, falling back to the catalog default
     ok 1 - come from the baseline, falling back to the catalog default
       ---
-      duration_ms: 0.5554
+      duration_ms: 0.2032
       type: 'test'
       ...
     # Subtest: a node replaced by another type resets to the new type’s defaults
     ok 2 - a node replaced by another type resets to the new type’s defaults
       ---
-      duration_ms: 0.49
+      duration_ms: 0.0795
       type: 'test'
       ...
     # Subtest: detects modified components
     ok 3 - detects modified components
       ---
-      duration_ms: 0.747
+      duration_ms: 0.1542
       type: 'test'
       ...
-    1..3
-ok 7 - original values
+    # Subtest: counts added or removed animation as a modification
+    ok 4 - counts added or removed animation as a modification
+      ---
+      duration_ms: 0.1137
+      type: 'test'
+      ...
+    1..4
+ok 9 - original values
   ---
-  duration_ms: 2.1542
+  duration_ms: 0.6633
   type: 'suite'
   ...
 # Subtest: ZIP writer
     # Subtest: CRC32 standard check value
     ok 1 - CRC32 standard check value
       ---
-      duration_ms: 1.16
+      duration_ms: 1.3477
       type: 'test'
       ...
     # Subtest: writes the local header, CRC, central directory and end record
     ok 2 - writes the local header, CRC, central directory and end record
       ---
-      duration_ms: 0.4133
+      duration_ms: 0.4432
       type: 'test'
       ...
     # Subtest: rejects traversal and duplicate names
     ok 3 - rejects traversal and duplicate names
       ---
-      duration_ms: 0.2358
+      duration_ms: 0.2665
       type: 'test'
       ...
     1..3
-ok 8 - ZIP writer
+ok 10 - ZIP writer
   ---
-  duration_ms: 2.6858
+  duration_ms: 2.8504
   type: 'suite'
   ...
 # Subtest: frame sequences and names
     # Subtest: uses exact timestamps and excludes the end point
     ok 1 - uses exact timestamps and excludes the end point
       ---
-      duration_ms: 0.7054
+      duration_ms: 0.6713
       type: 'test'
       ...
     # Subtest: filename sanitization has a safe fallback
@@ -609,625 +689,1156 @@ ok 8 - ZIP writer
       type: 'test'
       ...
     1..2
-ok 9 - frame sequences and names
+ok 11 - frame sequences and names
   ---
-  duration_ms: 0.9843
+  duration_ms: 0.9524
   type: 'suite'
   ...
 # Subtest: PNG metadata
     # Subtest: inserts an iTXt chunk before IEND and keeps UTF-8 data
     ok 1 - inserts an iTXt chunk before IEND and keeps UTF-8 data
       ---
-      duration_ms: 0.3957
+      duration_ms: 0.3649
       type: 'test'
       ...
     # Subtest: rejects other formats
     ok 2 - rejects other formats
       ---
-      duration_ms: 0.1802
+      duration_ms: 0.1753
       type: 'test'
       ...
     1..2
-ok 10 - PNG metadata
+ok 12 - PNG metadata
   ---
-  duration_ms: 0.696
+  duration_ms: 0.6569
+  type: 'suite'
+  ...
+# Subtest: parsing programs
+    # Subtest: reads parameters, definitions with captions and the result
+    ok 1 - reads parameters, definitions with captions and the result
+      ---
+      duration_ms: 1.8873
+      type: 'test'
+      ...
+    # Subtest: accepts semicolons and blank lines, and a step for parameters
+    ok 2 - accepts semicolons and blank lines, and a step for parameters
+      ---
+      duration_ms: 0.7604
+      type: 'test'
+      ...
+    # Subtest: chooses a default range when none is given
+    ok 3 - chooses a default range when none is given
+      ---
+      duration_ms: 0.5901
+      type: 'test'
+      ...
+    # Subtest: reports mistakes with their line
+    ok 4 - reports mistakes with their line
+      ---
+      duration_ms: 0.7647
+      type: 'test'
+      ...
+    # Subtest: rejects anything that is not an expression
+    ok 5 - rejects anything that is not an expression
+      ---
+      duration_ms: 0.1832
+      type: 'test'
+      ...
+    1..5
+ok 13 - parsing programs
+  ---
+  duration_ms: 5.6483
+  type: 'suite'
+  ...
+# Subtest: type checking
+    # Subtest: infers the types of definitions and the result
+    ok 1 - infers the types of definitions and the result
+      ---
+      duration_ms: 0.6433
+      type: 'test'
+      ...
+    # Subtest: accepts the scalar–vector arithmetic GLSL allows
+    ok 2 - accepts the scalar–vector arithmetic GLSL allows
+      ---
+      duration_ms: 1.4913
+      type: 'test'
+      ...
+    # Subtest: explains type errors in words
+    ok 3 - explains type errors in words
+      ---
+      duration_ms: 3.3087
+      type: 'test'
+      ...
+    # Subtest: checks the result type of each custom component
+    ok 4 - checks the result type of each custom component
+      ---
+      duration_ms: 0.7783
+      type: 'test'
+      ...
+    # Subtest: keeps names unambiguous
+    ok 5 - keeps names unambiguous
+      ---
+      duration_ms: 0.8159
+      type: 'test'
+      ...
+    # Subtest: limits the size of programs
+    ok 6 - limits the size of programs
+      ---
+      duration_ms: 0.1493
+      type: 'test'
+      ...
+    1..6
+ok 14 - type checking
+  ---
+  duration_ms: 8.2284
+  type: 'suite'
+  ...
+# Subtest: GLSL output
+    # Subtest: prints whole numbers as floats and ^ as products
+    ok 1 - prints whole numbers as floats and ^ as products
+      ---
+      duration_ms: 0.3868
+      type: 'test'
+      ...
+    # Subtest: declares parameters and definitions with their types
+    ok 2 - declares parameters and definitions with their types
+      ---
+      duration_ms: 0.6574
+      type: 'test'
+      ...
+    # Subtest: library kernels are callable with their real signatures
+    ok 3 - library kernels are callable with their real signatures
+      ---
+      duration_ms: 0.1365
+      type: 'test'
+      ...
+    # Subtest: every preset equation compiles and keeps its meaning
+    ok 4 - every preset equation compiles and keeps its meaning
+      ---
+      duration_ms: 0.6218
+      type: 'test'
+      ...
+    1..4
+ok 15 - GLSL output
+  ---
+  duration_ms: 1.9458
+  type: 'suite'
+  ...
+# Subtest: equation parameters in projects
+    # Subtest: declared parameters become specs, uniforms and validated values
+    ok 1 - declared parameters become specs, uniforms and validated values
+      ---
+      duration_ms: 2.0575
+      type: 'test'
+      ...
+    # Subtest: rejects values outside the declared range and undeclared parameters
+    ok 2 - rejects values outside the declared range and undeclared parameters
+      ---
+      duration_ms: 0.8976
+      type: 'test'
+      ...
+    # Subtest: new nodes start with the declared values of their equation parameters
+    ok 3 - new nodes start with the declared values of their equation parameters
+      ---
+      duration_ms: 0.3059
+      type: 'test'
+      ...
+    # Subtest: reports equation errors with the component label
+    ok 4 - reports equation errors with the component label
+      ---
+      duration_ms: 0.3445
+      type: 'test'
+      ...
+    # Subtest: tracks may animate equation parameters
+    ok 5 - tracks may animate equation parameters
+      ---
+      duration_ms: 0.45
+      type: 'test'
+      ...
+    1..5
+ok 16 - equation parameters in projects
+  ---
+  duration_ms: 4.4722
+  type: 'suite'
+  ...
+# Subtest: components as equations
+    # Subtest: knows which components fit a custom equation, and says why not
+    ok 1 - knows which components fit a custom equation, and says why not
+      ---
+      duration_ms: 1.7294
+      type: 'test'
+      ...
+    # Subtest: names parameters after their symbols when the name is free
+    ok 2 - names parameters after their symbols when the name is free
+      ---
+      duration_ms: 3.4749
+      type: 'test'
+      ...
+    # Subtest: writes the steps out as equation lines where the catalog has a source
+    ok 3 - writes the steps out as equation lines where the catalog has a source
+      ---
+      duration_ms: 2.0763
+      type: 'test'
+      ...
+    # Subtest: catalog sources use only the component’s parameters and inputs
+    ok 4 - catalog sources use only the component’s parameters and inputs
+      ---
+      duration_ms: 0.6588
+      type: 'test'
+      ...
+    # Subtest: maps sockets to p, a and b and keeps the values
+    ok 5 - maps sockets to p, a and b and keeps the values
+      ---
+      duration_ms: 1.3791
+      type: 'test'
+      ...
+    # Subtest: every forkable component becomes a valid equation in a project
+    ok 6 - every forkable component becomes a valid equation in a project
+      ---
+      duration_ms: 11.808
+      type: 'test'
+      ...
+    # Subtest: formats expressions with the parentheses they need
+    ok 7 - formats expressions with the parentheses they need
+      ---
+      duration_ms: 0.7172
+      type: 'test'
+      ...
+    1..7
+ok 17 - components as equations
+  ---
+  duration_ms: 23.7303
+  type: 'suite'
+  ...
+# Subtest: putting an equation into a component
+    # Subtest: turns a built-in component into its equation, keeping wiring, values and animation
+    ok 1 - turns a built-in component into its equation, keeping wiring, values and animation
+      ---
+      duration_ms: 3.4982
+      type: 'test'
+      ...
+    # Subtest: keeps values whose param line is unchanged and takes edited defaults
+    ok 2 - keeps values whose param line is unchanged and takes edited defaults
+      ---
+      duration_ms: 1.4147
+      type: 'test'
+      ...
+    # Subtest: drops tracks of removed parameters and clamps keys to new ranges
+    ok 3 - drops tracks of removed parameters and clamps keys to new ranges
+      ---
+      duration_ms: 1.0203
+      type: 'test'
+      ...
+    # Subtest: rejects an invalid equation and a component that cannot be one
+    ok 4 - rejects an invalid equation and a component that cannot be one
+      ---
+      duration_ms: 0.5036
+      type: 'test'
+      ...
+    1..4
+ok 18 - putting an equation into a component
+  ---
+  duration_ms: 7.1258
+  type: 'suite'
+  ...
+# Subtest: formula sheet
+    # Subtest: writes the nebula as gas plus core plus stars
+    ok 1 - writes the nebula as gas plus core plus stars
+      ---
+      duration_ms: 1.902
+      type: 'test'
+      ...
+    # Subtest: writes stacking with over and keeps gains
+    ok 2 - writes stacking with over and keeps gains
+      ---
+      duration_ms: 0.6672
+      type: 'test'
+      ...
+    # Subtest: follows bypassed components the way the renderer does
+    ok 3 - follows bypassed components the way the renderer does
+      ---
+      duration_ms: 0.3934
+      type: 'test'
+      ...
+    # Subtest: parenthesizes an over inside a sum
+    ok 4 - parenthesizes an over inside a sum
+      ---
+      duration_ms: 0.3312
+      type: 'test'
+      ...
+    # Subtest: typesets for every preset
+    ok 5 - typesets for every preset
+      ---
+      duration_ms: 2.2601
+      type: 'test'
+      ...
+    # Subtest: lists inputs and uses in evaluation order
+    ok 6 - lists inputs and uses in evaluation order
+      ---
+      duration_ms: 2.4267
+      type: 'test'
+      ...
+    1..6
+ok 19 - formula sheet
+  ---
+  duration_ms: 9.9268
+  type: 'suite'
+  ...
+# Subtest: describeRenderer
+    # Subtest: ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 (0x00002F04) Direct3D11 vs_5_0 ps_5_0, D3D11)
+    ok 1 - ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 (0x00002F04) Direct3D11 vs_5_0 ps_5_0, D3D11)
+      ---
+      duration_ms: 1.3466
+      type: 'test'
+      ...
+    # Subtest: ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)
+    ok 2 - ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)
+      ---
+      duration_ms: 0.2009
+      type: 'test'
+      ...
+    # Subtest: ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro, Unspecified Version)
+    ok 3 - ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro, Unspecified Version)
+      ---
+      duration_ms: 0.3672
+      type: 'test'
+      ...
+    # Subtest: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)
+    ok 4 - ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)
+      ---
+      duration_ms: 0.3472
+      type: 'test'
+      ...
+    # Subtest: Apple GPU
+    ok 5 - Apple GPU
+      ---
+      duration_ms: 0.2589
+      type: 'test'
+      ...
+    # Subtest: NVIDIA GeForce GTX 980, or similar
+    ok 6 - NVIDIA GeForce GTX 980, or similar
+      ---
+      duration_ms: 0.6266
+      type: 'test'
+      ...
+    # Subtest: llvmpipe (LLVM 15.0.7, 256 bits)
+    ok 7 - llvmpipe (LLVM 15.0.7, 256 bits)
+      ---
+      duration_ms: 0.3589
+      type: 'test'
+      ...
+    # Subtest: Mesa Intel(R) UHD Graphics 620 (KBL GT2)
+    ok 8 - Mesa Intel(R) UHD Graphics 620 (KBL GT2)
+      ---
+      duration_ms: 0.2844
+      type: 'test'
+      ...
+    # Subtest: Microsoft Basic Render Driver
+    ok 9 - Microsoft Basic Render Driver
+      ---
+      duration_ms: 0.237
+      type: 'test'
+      ...
+    # Subtest: reports an empty string as unknown
+    ok 10 - reports an empty string as unknown
+      ---
+      duration_ms: 1.6896
+      type: 'test'
+      ...
+    1..10
+ok 20 - describeRenderer
+  ---
+  duration_ms: 7.2117
+  type: 'suite'
+  ...
+# Subtest: probeSoftwareFallback
+    # Subtest: is false when a context is available without a performance caveat
+    ok 1 - is false when a context is available without a performance caveat
+      ---
+      duration_ms: 0.646
+      type: 'test'
+      ...
+    # Subtest: is true when only a caveated context is available
+    ok 2 - is true when only a caveated context is available
+      ---
+      duration_ms: 0.075
+      type: 'test'
+      ...
+    # Subtest: is null without WebGL 2
+    ok 3 - is null without WebGL 2
+      ---
+      duration_ms: 0.105
+      type: 'test'
+      ...
+    1..3
+ok 21 - probeSoftwareFallback
+  ---
+  duration_ms: 1.0752
   type: 'suite'
   ...
 # Subtest: presets and catalog
     # Subtest: preset validates: bipolar
     ok 1 - preset validates: bipolar
       ---
-      duration_ms: 0.4878
+      duration_ms: 0.5954
       type: 'test'
       ...
     # Subtest: preset validates: water
     ok 2 - preset validates: water
       ---
-      duration_ms: 0.0988
+      duration_ms: 0.1308
       type: 'test'
       ...
     # Subtest: preset validates: lensing
     ok 3 - preset validates: lensing
       ---
-      duration_ms: 0.0865
+      duration_ms: 0.0944
       type: 'test'
       ...
     # Subtest: preset validates: aurora
     ok 4 - preset validates: aurora
       ---
-      duration_ms: 0.0551
+      duration_ms: 0.0684
       type: 'test'
       ...
     # Subtest: preset validates: tidal
     ok 5 - preset validates: tidal
       ---
-      duration_ms: 0.0767
+      duration_ms: 0.0867
       type: 'test'
       ...
     # Subtest: preset validates: peacock
     ok 6 - preset validates: peacock
       ---
-      duration_ms: 0.0615
+      duration_ms: 0.079
       type: 'test'
       ...
     # Subtest: preset validates: fire
     ok 7 - preset validates: fire
       ---
-      duration_ms: 0.0507
+      duration_ms: 0.0695
       type: 'test'
       ...
     # Subtest: preset validates: hedgehog
     ok 8 - preset validates: hedgehog
       ---
-      duration_ms: 0.0641
+      duration_ms: 0.0657
       type: 'test'
       ...
     # Subtest: preset validates: ring
     ok 9 - preset validates: ring
       ---
-      duration_ms: 0.0894
+      duration_ms: 0.1267
       type: 'test'
       ...
     # Subtest: preset validates: marble
     ok 10 - preset validates: marble
       ---
-      duration_ms: 0.3327
+      duration_ms: 0.1771
       type: 'test'
       ...
     # Subtest: preset validates: kaleidoscope
     ok 11 - preset validates: kaleidoscope
       ---
-      duration_ms: 0.2337
+      duration_ms: 0.0895
       type: 'test'
       ...
     # Subtest: preset validates: feather
     ok 12 - preset validates: feather
       ---
-      duration_ms: 0.1755
+      duration_ms: 0.0578
       type: 'test'
       ...
     # Subtest: preset clones do not mutate originals
     ok 13 - preset clones do not mutate originals
       ---
-      duration_ms: 0.3584
+      duration_ms: 0.1416
       type: 'test'
       ...
     # Subtest: catalog defaults cover every parameter and every entry is documented
     ok 14 - catalog defaults cover every parameter and every entry is documented
       ---
-      duration_ms: 1.3087
+      duration_ms: 2.0246
       type: 'test'
       ...
     # Subtest: unknown catalog type fails
     ok 15 - unknown catalog type fails
       ---
-      duration_ms: 0.1754
+      duration_ms: 0.4307
       type: 'test'
       ...
     1..15
-ok 11 - presets and catalog
+ok 22 - presets and catalog
   ---
-  duration_ms: 4.5614
+  duration_ms: 5.153
   type: 'suite'
   ...
 # Subtest: project validation
     # Subtest: duplicate node id fails
     ok 1 - duplicate node id fails
       ---
-      duration_ms: 0.292
+      duration_ms: 1.3857
       type: 'test'
       ...
     # Subtest: invalid id cannot inject GLSL
     ok 2 - invalid id cannot inject GLSL
       ---
-      duration_ms: 0.0813
+      duration_ms: 0.5284
       type: 'test'
       ...
     # Subtest: wrong socket type fails
     ok 3 - wrong socket type fails
       ---
-      duration_ms: 0.1007
+      duration_ms: 0.7055
       type: 'test'
       ...
     # Subtest: dangling socket fails
     ok 4 - dangling socket fails
       ---
-      duration_ms: 0.3067
+      duration_ms: 0.1269
       type: 'test'
       ...
     # Subtest: cycles including disconnected nodes fail
     ok 5 - cycles including disconnected nodes fail
       ---
-      duration_ms: 0.1638
+      duration_ms: 0.1336
       type: 'test'
       ...
     # Subtest: self-cycle fails
     ok 6 - self-cycle fails
       ---
-      duration_ms: 0.1117
+      duration_ms: 0.1032
       type: 'test'
       ...
     # Subtest: unknown params fail
     ok 7 - unknown params fail
       ---
-      duration_ms: 0.0843
+      duration_ms: 0.0767
       type: 'test'
       ...
     # Subtest: nonfinite parameters fail
     ok 8 - nonfinite parameters fail
       ---
-      duration_ms: 0.0773
+      duration_ms: 0.0779
       type: 'test'
       ...
     # Subtest: out of range parameters fail
     ok 9 - out of range parameters fail
       ---
-      duration_ms: 0.0932
+      duration_ms: 0.0922
       type: 'test'
       ...
     # Subtest: bad exposure, duration and zoom fail
     ok 10 - bad exposure, duration and zoom fail
       ---
-      duration_ms: 0.1389
+      duration_ms: 0.1424
       type: 'test'
       ...
     # Subtest: over-long labels and titles fail
     ok 11 - over-long labels and titles fail
       ---
-      duration_ms: 0.0935
+      duration_ms: 0.0921
       type: 'test'
       ...
     # Subtest: parse rejects schema and oversize data
     ok 12 - parse rejects schema and oversize data
       ---
-      duration_ms: 0.0806
+      duration_ms: 0.0737
       type: 'test'
       ...
     # Subtest: unknown output fails
     ok 13 - unknown output fails
       ---
-      duration_ms: 0.0918
+      duration_ms: 0.0735
       type: 'test'
       ...
     # Subtest: graph size is bounded
     ok 14 - graph size is bounded
       ---
-      duration_ms: 0.1211
+      duration_ms: 0.1426
       type: 'test'
       ...
     # Subtest: color tracks are not silently accepted
     ok 15 - color tracks are not silently accepted
       ---
-      duration_ms: 0.1315
+      duration_ms: 0.1233
       type: 'test'
       ...
     1..15
-ok 12 - project validation
+ok 23 - project validation
   ---
-  duration_ms: 2.1967
+  duration_ms: 4.2867
   type: 'suite'
   ...
 # Subtest: graph traversal
     # Subtest: topological order ends with the target and visits shared inputs once
     ok 1 - topological order ends with the target and visits shared inputs once
       ---
-      duration_ms: 0.1796
+      duration_ms: 0.3154
       type: 'test'
       ...
     # Subtest: a disabled content node does not pull in its inputs
     ok 2 - a disabled content node does not pull in its inputs
       ---
-      duration_ms: 0.0849
+      duration_ms: 0.1802
       type: 'test'
       ...
     # Subtest: a disabled modifier or combiner pulls in only its bypass input
     ok 3 - a disabled modifier or combiner pulls in only its bypass input
       ---
-      duration_ms: 0.1223
+      duration_ms: 0.1588
       type: 'test'
       ...
     # Subtest: evaluation order lists every node after its inputs, whatever the enabled flags
     ok 4 - evaluation order lists every node after its inputs, whatever the enabled flags
       ---
-      duration_ms: 0.1802
+      duration_ms: 0.1853
       type: 'test'
       ...
     # Subtest: consumers report the reading node and socket
     ok 5 - consumers report the reading node and socket
       ---
-      duration_ms: 0.1343
+      duration_ms: 0.1839
       type: 'test'
       ...
     # Subtest: null target orders every node, including unreachable ones
     ok 6 - null target orders every node, including unreachable ones
       ---
-      duration_ms: 0.6279
+      duration_ms: 0.1095
       type: 'test'
       ...
     # Subtest: upstream and downstream sets are transitive
     ok 7 - upstream and downstream sets are transitive
       ---
-      duration_ms: 0.2168
+      duration_ms: 0.241
       type: 'test'
       ...
     1..7
-ok 13 - graph traversal
+ok 24 - graph traversal
   ---
-  duration_ms: 1.6612
+  duration_ms: 1.5313
   type: 'suite'
   ...
 # Subtest: custom expressions
     # Subtest: lexical restrictions reject statements and injection
     ok 1 - lexical restrictions reject statements and injection
       ---
-      duration_ms: 0.1232
+      duration_ms: 0.2808
       type: 'test'
       ...
     # Subtest: comparisons, ternaries and whitespace are allowed
     ok 2 - comparisons, ternaries and whitespace are allowed
       ---
-      duration_ms: 0.0431
+      duration_ms: 0.1586
       type: 'test'
       ...
     1..2
-ok 14 - custom expressions
+ok 25 - custom expressions
   ---
-  duration_ms: 0.2091
+  duration_ms: 0.6783
   type: 'suite'
   ...
 # Subtest: editing helpers
     # Subtest: delete removes downstream references and tracks
     ok 1 - delete removes downstream references and tracks
       ---
-      duration_ms: 0.1958
+      duration_ms: 0.2189
       type: 'test'
       ...
     # Subtest: delete of the output chooses an existing fallback
     ok 2 - delete of the output chooses an existing fallback
       ---
-      duration_ms: 0.1095
+      duration_ms: 0.1223
       type: 'test'
       ...
     # Subtest: cannot delete the final remaining node
     ok 3 - cannot delete the final remaining node
       ---
-      duration_ms: 0.0837
+      duration_ms: 0.0725
       type: 'test'
       ...
     # Subtest: unique ids skip existing identifiers
     ok 4 - unique ids skip existing identifiers
       ---
-      duration_ms: 0.0815
+      duration_ms: 0.0785
       type: 'test'
       ...
     # Subtest: history undo / redo snapshots are independent
     ok 5 - history undo / redo snapshots are independent
       ---
-      duration_ms: 0.1424
+      duration_ms: 0.124
       type: 'test'
       ...
     # Subtest: new edit invalidates redo
     ok 6 - new edit invalidates redo
       ---
-      duration_ms: 0.1311
+      duration_ms: 0.1081
       type: 'test'
       ...
     # Subtest: history honors its limit
     ok 7 - history honors its limit
       ---
-      duration_ms: 0.0914
+      duration_ms: 0.0844
       type: 'test'
       ...
     1..7
-ok 15 - editing helpers
+ok 26 - editing helpers
   ---
-  duration_ms: 0.9387
+  duration_ms: 0.9308
+  type: 'suite'
+  ...
+# Subtest: colormaps
+    # Subtest: interpolate between their stops and clamp outside 0–1
+    ok 1 - interpolate between their stops and clamp outside 0–1
+      ---
+      duration_ms: 3.3061
+      type: 'test'
+      ...
+    # Subtest: the diverging map is darkest at zero (t = ½)
+    ok 2 - the diverging map is darkest at zero (t = ½)
+      ---
+      duration_ms: 0.1686
+      type: 'test'
+      ...
+    # Subtest: generates GLSL and CSS from the same stops
+    ok 3 - generates GLSL and CSS from the same stops
+      ---
+      duration_ms: 0.6103
+      type: 'test'
+      ...
+    1..3
+ok 27 - colormaps
+  ---
+  duration_ms: 5.1927
+  type: 'suite'
+  ...
+# Subtest: statistics and ranges
+    # Subtest: niceStep picks 1–2–5 steps
+    ok 1 - niceStep picks 1–2–5 steps
+      ---
+      duration_ms: 0.1595
+      type: 'test'
+      ...
+    # Subtest: fieldStats summarizes one channel and skips nonfinite values
+    ok 2 - fieldStats summarizes one channel and skips nonfinite values
+      ---
+      duration_ms: 2.7614
+      type: 'test'
+      ...
+    # Subtest: scalarRange is symmetric for signed fields and flags constants
+    ok 3 - scalarRange is symmetric for signed fields and flags constants
+      ---
+      duration_ms: 0.5203
+      type: 'test'
+      ...
+    # Subtest: gridStep gives about eight cells across the view
+    ok 4 - gridStep gives about eight cells across the view
+      ---
+      duration_ms: 0.5321
+      type: 'test'
+      ...
+    # Subtest: layerGain keeps readable layers natural and rescues clipped or black ones
+    ok 5 - layerGain keeps readable layers natural and rescues clipped or black ones
+      ---
+      duration_ms: 0.3064
+      type: 'test'
+      ...
+    1..5
+ok 28 - statistics and ranges
+  ---
+  duration_ms: 4.7354
+  type: 'suite'
+  ...
+# Subtest: display conversion twin
+    # Subtest: matches the source mapping F
+    ok 1 - matches the source mapping F
+      ---
+      duration_ms: 0.3685
+      type: 'test'
+      ...
+    # Subtest: matches filmic and linear
+    ok 2 - matches filmic and linear
+      ---
+      duration_ms: 0.2887
+      type: 'test'
+      ...
+    1..2
+ok 29 - display conversion twin
+  ---
+  duration_ms: 0.8627
+  type: 'suite'
+  ...
+# Subtest: painting tiles
+    # Subtest: colors a signed scalar with the diverging map
+    ok 1 - colors a signed scalar with the diverging map
+      ---
+      duration_ms: 4.4
+      type: 'test'
+      ...
+    # Subtest: paints nonfinite values magenta
+    ok 2 - paints nonfinite values magenta
+      ---
+      duration_ms: 1.887
+      type: 'test'
+      ...
+    # Subtest: keeps the classic diagnostics
+    ok 3 - keeps the classic diagnostics
+      ---
+      duration_ms: 0.1941
+      type: 'test'
+      ...
+    # Subtest: auto-exposes an over-bright layer but keeps the final output natural
+    ok 4 - auto-exposes an over-bright layer but keeps the final output natural
+      ---
+      duration_ms: 0.8721
+      type: 'test'
+      ...
+    # Subtest: draws grid lines and axes for coordinates
+    ok 5 - draws grid lines and axes for coordinates
+      ---
+      duration_ms: 0.3224
+      type: 'test'
+      ...
+    1..5
+ok 30 - painting tiles
+  ---
+  duration_ms: 7.8934
+  type: 'suite'
+  ...
+# Subtest: look uniforms
+    # Subtest: map a look to shader codes
+    ok 1 - map a look to shader codes
+      ---
+      duration_ms: 0.1425
+      type: 'test'
+      ...
+    1..1
+ok 31 - look uniforms
+  ---
+  duration_ms: 0.1882
   type: 'suite'
   ...
 # Subtest: TeX to MathML
     # Subtest: wraps output in a math element
     ok 1 - wraps output in a math element
       ---
-      duration_ms: 0.749
+      duration_ms: 0.671
       type: 'test'
       ...
     # Subtest: renders fractions, roots, scripts and Greek letters
     ok 2 - renders fractions, roots, scripts and Greek letters
       ---
-      duration_ms: 0.3668
+      duration_ms: 1.3355
       type: 'test'
       ...
     # Subtest: uses under/over limits for big operators
     ok 3 - uses under/over limits for big operators
       ---
-      duration_ms: 0.0982
+      duration_ms: 0.3606
       type: 'test'
       ...
     # Subtest: renders text, upright names, functions and escapes
     ok 4 - renders text, upright names, functions and escapes
       ---
-      duration_ms: 0.1596
+      duration_ms: 0.5257
       type: 'test'
       ...
     # Subtest: ignores \\left and \\right sizing but keeps the delimiters
     ok 5 - ignores \\left and \\right sizing but keeps the delimiters
       ---
-      duration_ms: 0.0738
+      duration_ms: 0.2425
       type: 'test'
       ...
     # Subtest: rejects unsupported or unbalanced input
     ok 6 - rejects unsupported or unbalanced input
       ---
-      duration_ms: 0.2882
+      duration_ms: 1.0376
       type: 'test'
       ...
     1..6
-ok 16 - TeX to MathML
+ok 32 - TeX to MathML
   ---
-  duration_ms: 2.3931
+  duration_ms: 5.1168
   type: 'suite'
   ...
 # Subtest: GLSL expressions to MathML
     # Subtest: parses the documented grammar with correct precedence
     ok 1 - parses the documented grammar with correct precedence
       ---
-      duration_ms: 0.453
+      duration_ms: 0.5584
       type: 'test'
       ...
     # Subtest: reports syntax errors
     ok 2 - reports syntax errors
       ---
-      duration_ms: 0.1533
+      duration_ms: 0.2024
       type: 'test'
       ...
     # Subtest: renders division, powers, roots, absolute values and tuples as mathematics
     ok 3 - renders division, powers, roots, absolute values and tuples as mathematics
       ---
-      duration_ms: 0.3489
+      duration_ms: 0.4951
       type: 'test'
       ...
     # Subtest: shows theta as θ, trims float literals and juxtaposes coefficients
     ok 4 - shows theta as θ, trims float literals and juxtaposes coefficients
       ---
-      duration_ms: 0.1436
+      duration_ms: 0.1384
       type: 'test'
       ...
     # Subtest: keeps only the parentheses the meaning needs
     ok 5 - keeps only the parentheses the meaning needs
       ---
-      duration_ms: 0.0948
+      duration_ms: 0.1308
       type: 'test'
       ...
     # Subtest: adds a left-hand side when requested
     ok 6 - adds a left-hand side when requested
       ---
-      duration_ms: 0.0606
+      duration_ms: 0.0826
       type: 'test'
       ...
-    # Subtest: renders every preset expression
-    ok 7 - renders every preset expression
+    # Subtest: renders every preset and starter equation
+    ok 7 - renders every preset and starter equation
       ---
-      duration_ms: 3.9799
+      duration_ms: 13.2814
       type: 'test'
       ...
-    1..7
-ok 17 - GLSL expressions to MathML
+    # Subtest: renders ^ as a superscript and a program’s result line
+    ok 8 - renders ^ as a superscript and a program’s result line
+      ---
+      duration_ms: 0.4993
+      type: 'test'
+      ...
+    1..8
+ok 33 - GLSL expressions to MathML
   ---
-  duration_ms: 5.9427
+  duration_ms: 15.7308
+  type: 'suite'
+  ...
+# Subtest: typesetting for explanation
+    # Subtest: spaces operator names like TeX and keeps spaces at the ends of text
+    ok 1 - spaces operator names like TeX and keeps spaces at the ends of text
+      ---
+      duration_ms: 0.4103
+      type: 'test'
+      ...
+    # Subtest: annotates symbols by role and can substitute parameter values
+    ok 2 - annotates symbols by role and can substitute parameter values
+      ---
+      duration_ms: 1.6504
+      type: 'test'
+      ...
+    # Subtest: splits long lines at top-level quads only
+    ok 3 - splits long lines at top-level quads only
+      ---
+      duration_ms: 1.3846
+      type: 'test'
+      ...
+    # Subtest: typesets names and multi-line programs with captions
+    ok 4 - typesets names and multi-line programs with captions
+      ---
+      duration_ms: 0.1844
+      type: 'test'
+      ...
+    1..4
+ok 34 - typesetting for explanation
+  ---
+  duration_ms: 3.8317
   type: 'suite'
   ...
 # Subtest: interpolation
     # Subtest: linear keyframes and held endpoints
     ok 1 - linear keyframes and held endpoints
       ---
-      duration_ms: 0.4288
+      duration_ms: 0.4133
       type: 'test'
       ...
     # Subtest: smooth and hold interpolation
     ok 2 - smooth and hold interpolation
       ---
-      duration_ms: 0.0833
+      duration_ms: 0.0882
       type: 'test'
       ...
     # Subtest: empty keyframe track falls back to base
     ok 3 - empty keyframe track falls back to base
       ---
-      duration_ms: 0.0703
+      duration_ms: 0.0662
       type: 'test'
       ...
     # Subtest: sampling does not mutate base params
     ok 4 - sampling does not mutate base params
       ---
-      duration_ms: 0.1831
+      duration_ms: 0.1662
       type: 'test'
       ...
     # Subtest: loop time wraps negative and positive values
     ok 5 - loop time wraps negative and positive values
       ---
-      duration_ms: 0.0717
+      duration_ms: 0.0773
       type: 'test'
       ...
     1..5
-ok 18 - interpolation
+ok 35 - interpolation
   ---
-  duration_ms: 1.4337
+  duration_ms: 1.4956
   type: 'suite'
   ...
 # Subtest: key editing
     # Subtest: inserting a key replaces the same timestamp and keeps sort order
     ok 1 - inserting a key replaces the same timestamp and keeps sort order
       ---
-      duration_ms: 0.7185
+      duration_ms: 0.6372
       type: 'test'
       ...
     # Subtest: moving a key retimes it and replaces any key at the destination
     ok 2 - moving a key retimes it and replaces any key at the destination
       ---
-      duration_ms: 0.3853
+      duration_ms: 0.3925
       type: 'test'
       ...
     # Subtest: order, duplicate and domain violations are rejected
     ok 3 - order, duplicate and domain violations are rejected
       ---
-      duration_ms: 0.3285
+      duration_ms: 0.3517
       type: 'test'
       ...
     # Subtest: a duration decrease cannot silently delete animation keys
     ok 4 - a duration decrease cannot silently delete animation keys
       ---
-      duration_ms: 0.1341
+      duration_ms: 0.1801
       type: 'test'
       ...
     1..4
-ok 19 - key editing
+ok 36 - key editing
   ---
-  duration_ms: 1.7109
+  duration_ms: 1.7588
   type: 'suite'
   ...
 # Subtest: camera arithmetic
     # Subtest: reproduces the native source mapping at 2000 × 1200
     ok 1 - reproduces the native source mapping at 2000 × 1200
       ---
-      duration_ms: 0.4613
+      duration_ms: 0.5615
       type: 'test'
       ...
     # Subtest: pixel ↔ world round trips at several zooms and pans
     ok 2 - pixel ↔ world round trips at several zooms and pans
       ---
-      duration_ms: 0.1106
+      duration_ms: 0.1156
       type: 'test'
       ...
     # Subtest: client coordinates flip the y axis
     ok 3 - client coordinates flip the y axis
       ---
-      duration_ms: 0.4332
+      duration_ms: 0.4299
       type: 'test'
       ...
     # Subtest: zoomAbout keeps the world point under the cursor fixed
     ok 4 - zoomAbout keeps the world point under the cursor fixed
       ---
-      duration_ms: 0.1546
+      duration_ms: 0.1568
       type: 'test'
       ...
     # Subtest: panBy moves the view against the pointer and stays in bounds
     ok 5 - panBy moves the view against the pointer and stays in bounds
       ---
-      duration_ms: 0.0847
+      duration_ms: 0.37
       type: 'test'
       ...
     # Subtest: constants match the shader
     ok 6 - constants match the shader
       ---
-      duration_ms: 0.0555
+      duration_ms: 0.1778
       type: 'test'
       ...
     1..6
-ok 20 - camera arithmetic
+ok 37 - camera arithmetic
   ---
-  duration_ms: 1.9317
+  duration_ms: 2.8017
   type: 'suite'
   ...
 # Subtest: rulers
     # Subtest: tick spacing follows a 1-2-5 sequence and respects the pixel minimum
     ok 1 - tick spacing follows a 1-2-5 sequence and respects the pixel minimum
       ---
-      duration_ms: 0.1116
+      duration_ms: 0.3098
       type: 'test'
       ...
     # Subtest: tick labels avoid floating-point noise and negative zero
     ok 2 - tick labels avoid floating-point noise and negative zero
       ---
-      duration_ms: 0.1428
+      duration_ms: 0.4797
       type: 'test'
       ...
     1..2
-ok 21 - rulers
+ok 38 - rulers
   ---
-  duration_ms: 0.3551
+  duration_ms: 1.2061
   type: 'suite'
   ...
 # Subtest: graph layout
     # Subtest: places nodes in dependency-depth columns, in project order
     ok 1 - places nodes in dependency-depth columns, in project order
       ---
-      duration_ms: 0.3301
+      duration_ms: 0.4595
       type: 'test'
       ...
     # Subtest: is deterministic and grows with previews
     ok 2 - is deterministic and grows with previews
       ---
-      duration_ms: 0.2403
+      duration_ms: 0.6502
       type: 'test'
       ...
     # Subtest: socket points and wire paths are consistent
     ok 3 - socket points and wire paths are consistent
       ---
-      duration_ms: 0.1323
+      duration_ms: 0.1597
       type: 'test'
       ...
     # Subtest: handles a graph with unconnected nodes
     ok 4 - handles a graph with unconnected nodes
       ---
-      duration_ms: 0.0769
+      duration_ms: 0.0962
       type: 'test'
       ...
     1..4
-ok 22 - graph layout
+ok 39 - graph layout
   ---
-  duration_ms: 0.8841
+  duration_ms: 1.5114
   type: 'suite'
   ...
 # Subtest: snapshots
     # Subtest: adds newest first, caps the list and drops invalid entries on parse
     ok 1 - adds newest first, caps the list and drops invalid entries on parse
       ---
-      duration_ms: 0.8815
+      duration_ms: 1.3468
       type: 'test'
       ...
     # Subtest: rejects invalid projects
     ok 2 - rejects invalid projects
       ---
-      duration_ms: 0.133
+      duration_ms: 0.1373
       type: 'test'
       ...
     # Subtest: describes ages briefly
     ok 3 - describes ages briefly
       ---
-      duration_ms: 0.0755
+      duration_ms: 0.0748
       type: 'test'
       ...
     1..3
-ok 23 - snapshots
+ok 40 - snapshots
   ---
-  duration_ms: 1.182
+  duration_ms: 1.6357
   type: 'suite'
   ...
-1..23
-# tests 177
-# suites 23
-# pass 177
+1..40
+# tests 259
+# suites 40
+# pass 259
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 134.8665
+# duration_ms 171.2684

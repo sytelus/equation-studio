@@ -1,4 +1,4 @@
-import { catalog } from './catalog.js';
+import { catalog, paramSpecs } from './catalog.js';
 import { clone, validateProject } from './graph.js';
 /** Pure helpers behind the editor's exploration tools: parameter sweeps, random
  * variations, and the "original value" each control resets to. No DOM here.
@@ -36,6 +36,7 @@ export function seededRandom(seed) {
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
 }
+const isContent = node => catalog[node.type].role === 'content';
 function perturbColor(hex, amount, random) {
     const channels = [1, 3, 5].map(k => parseInt(hex.slice(k, k + 2), 16));
     const shifted = channels.map(c => Math.round(Math.min(255, Math.max(0, c + (random() * 2 - 1) * amount * 255))));
@@ -46,7 +47,7 @@ function perturbColor(hex, amount, random) {
  */
 function variableParams(project, node, includeColors) {
     const keyed = new Set(project.tracks.filter(t => t.node === node.id && t.keys.length).map(t => t.param));
-    return Object.entries(catalog[node.type].params).filter(([key, spec]) => !keyed.has(key) && (spec.kind === 'number' || (includeColors && spec.kind === 'color')));
+    return Object.entries(paramSpecs(node)).filter(([key, spec]) => !keyed.has(key) && (spec.kind === 'number' || (includeColors && spec.kind === 'color')));
 }
 /** Random variations of one component (`nodeId`) or, with `nodeId` null, of every
  * enabled content component. Each numeric parameter moves by up to `amount` of its
@@ -54,7 +55,7 @@ function variableParams(project, node, includeColors) {
  */
 export function makeVariations(project, { nodeId = null, count = 8, amount = 0.25, seed = 1, includeColors = true } = {}) {
     const random = seededRandom(seed), results = [];
-    const targets = project.nodes.filter(n => nodeId ? n.id === nodeId : n.enabled && catalog[n.type].role === 'content');
+    const targets = project.nodes.filter(n => nodeId ? n.id === nodeId : n.enabled && isContent(n));
     if (!targets.length) {
         throw new Error(nodeId ? `Unknown component ${nodeId}.` : 'No enabled components to vary.');
     }
@@ -78,13 +79,24 @@ export function makeVariations(project, { nodeId = null, count = 8, amount = 0.2
     return results;
 }
 /** The value a parameter resets to: its value in the baseline project (the scene
- * as it was opened) when that node exists there, otherwise the catalog default.
+ * as it was opened) when that node exists there with that parameter, otherwise
+ * the default of its spec (the catalog, or the equation's param line).
  */
 export function originalValue(baseline, node, key) {
     const original = baseline?.nodes.find(n => n.id === node.id && n.type === node.type);
-    return original && Object.hasOwn(original.params, key) ? original.params[key] : catalog[node.type].params[key].value;
+    if (original && Object.hasOwn(original.params, key) && (key === 'expression' || original.params.expression === node.params.expression || !catalog[node.type].custom)) {
+        return original.params[key];
+    }
+    return paramSpecs(node)[key]?.value;
 }
-/** True when any parameter of `node` differs from its original value. */
-export function isModified(baseline, node) {
-    return Object.keys(catalog[node.type].params).some(key => node.params[key] !== originalValue(baseline, node, key));
+/** True when a parameter of `node` in `project` differs from its original value,
+ * or gained or lost its animation since the scene was opened: what ↺ undoes.
+ */
+export function isParamModified(baseline, project, node, key) {
+    const animated = p => p.tracks.some(t => t.node === node.id && t.param === key && t.keys.length);
+    return node.params[key] !== originalValue(baseline, node, key) || animated(project) !== animated(baseline);
+}
+/** True when any parameter of `node` is modified (see isParamModified). */
+export function isModified(baseline, project, node) {
+    return Object.keys(paramSpecs(node)).some(key => isParamModified(baseline, project, node, key));
 }

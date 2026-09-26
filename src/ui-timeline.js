@@ -20,10 +20,10 @@ function refreshTransport() {
 export function renderTracks() {
     const { project, time } = state;
     if (!project.tracks.length) {
-        $('tracks').innerHTML = '<div class="empty-tracks">No keyframes yet. Click ◆ next to any numeric parameter. Procedural flow-speed controls also animate directly with time.</div>';
+        $('tracks').innerHTML = ''; // no lanes, no row (◆ next to a parameter adds the first key)
         return;
     }
-    $('tracks').innerHTML = project.tracks.map(t => `<div class="track-row"><span class="track-label" data-select-track="${t.node}" data-tip="Select ${esc(t.node)}|Shows this component in the inspector.">${esc(t.node)} / ${esc(t.param)}</span><div class="track-lane" data-lane="${t.node}" data-param="${t.param}"><span class="track-playhead" style="left:${time / project.duration * 100}%"></span>${t.keys.map(k => `<button class="track-key" data-track-time="${k.time}" style="left:${k.time / project.duration * 100}%" data-tip="Key at ${k.time} s = ${k.value}|Drag along the lane to retime it; click to move the playhead here." aria-label="Key for ${t.param} at ${k.time} seconds">◆</button>`).join('')}</div></div>`).join('');
+    $('tracks').innerHTML = project.tracks.map(t => `<div class="track-row"><span class="track-label" data-select-track="${t.node}" data-tip="Select ${esc(t.node)}|Shows this component in the component panel.">${esc(t.node)} / ${esc(t.param)}</span><div class="track-lane" data-lane="${t.node}" data-param="${t.param}"><span class="track-playhead" style="left:${time / project.duration * 100}%"></span>${t.keys.map(k => `<button class="track-key" data-track-time="${k.time}" style="left:${k.time / project.duration * 100}%" data-tip="Key at ${k.time} s = ${k.value}|Drag along the lane to retime it; click to move the playhead here." aria-label="Key for ${t.param} at ${k.time} seconds">◆</button>`).join('')}</div></div>`).join('');
 }
 export function togglePlay() {
     if (!state.renderer || state.busy) {

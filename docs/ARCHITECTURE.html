@@ -106,16 +106,25 @@ types</a></li>
 <li><a href="#coordinate-maps-and-why-they-compose"
 id="toc-coordinate-maps-and-why-they-compose">Coordinate maps and why
 they compose</a></li>
-<li><a href="#the-compiler" id="toc-the-compiler">The compiler</a></li>
+<li><a href="#the-compiler-one-program-per-graph-structure"
+id="toc-the-compiler-one-program-per-graph-structure">The compiler: one
+program per graph structure</a></li>
+<li><a href="#the-renderer-views-passes-and-background-compilation"
+id="toc-the-renderer-views-passes-and-background-compilation">The
+renderer: views, passes and background compilation</a></li>
 <li><a href="#color-alpha-masks-and-light"
 id="toc-color-alpha-masks-and-light">Color, alpha, masks and
 light</a></li>
-<li><a href="#field-inspection-is-not-the-same-as-output-color"
-id="toc-field-inspection-is-not-the-same-as-output-color">Field
-inspection is not the same as output color</a></li>
+<li><a href="#looks-showing-values-that-are-not-colors"
+id="toc-looks-showing-values-that-are-not-colors">Looks: showing values
+that are not colors</a></li>
 <li><a href="#source-coordinates-and-numerical-choices"
 id="toc-source-coordinates-and-numerical-choices">Source coordinates and
 numerical choices</a></li>
+<li><a href="#the-equation-language" id="toc-the-equation-language">The
+equation language</a></li>
+<li><a href="#metadata-that-explains"
+id="toc-metadata-that-explains">Metadata that explains</a></li>
 <li><a href="#reuse-the-renderer-without-the-editor"
 id="toc-reuse-the-renderer-without-the-editor">Reuse the renderer
 without the editor</a></li>
@@ -143,14 +152,19 @@ drawn preview.” A shared upstream component is emitted once in the
 shader, even if several downstream components use it.</p>
 <p>The implementation deliberately separates <strong>atoms</strong>,
 <strong>compound kernels</strong>, <strong>graph definitions</strong>,
-and <strong>the UI</strong>. Low-level kernels are ordinary GLSL
-functions. The catalog assigns selected functions typed inputs,
-parameters and explanatory metadata. Presets connect catalog components.
-The UI edits the same validated JSON used by the public renderer.
-Compound kernels such as the planet keep their internal lighting/cloud
-calculations together; those internals are documented and editable
-source, not separately exposed graph sockets for every
-subexpression.</p>
+<strong>explanations</strong> and <strong>the UI</strong>. Low-level
+kernels are ordinary GLSL functions. The catalog assigns selected
+functions typed inputs, parameters, and the metadata that explains them:
+the equation as captioned steps, symbols, the ideas behind it and its
+key function. Presets connect catalog components. The UI edits the same
+validated JSON used by the public renderer. Compound kernels such as the
+planet keep their internal lighting/cloud calculations together; those
+internals are documented and editable source, not separately exposed
+graph sockets for every subexpression.</p>
+<pre class="text"><code>catalog.js ─┬─ compiler.js ── renderer.js ── canvas, thumbnails, probes, exports
+concepts.js ┤                      ↑
+expression.js ─ custom equations ──┘ (parsed, checked, printed as GLSL)
+            └─ math-render.js, formula.js, plot.js ── the explanations in the UI</code></pre>
 <h2 id="four-value-types">Four value types</h2>
 <table>
 <colgroup>
@@ -241,11 +255,12 @@ scalar/color</td>
 <p>This matches the pass-through convention of compositing tools and
 keeps experiments meaningful: switching off a warp removes the warp
 instead of collapsing every downstream coordinate to the origin.
-<code>activeInputs()</code> in <code>graph.js</code> and
-<code>bypassExpression()</code> in <code>compiler.js</code> implement
-it; a disabled node’s other inputs are not evaluated at all. The roles
-also drive the editor’s <em>Only structure</em> action, which bypasses
-content and keeps the rest.</p>
+<code>activeInputs()</code> in <code>graph.js</code> decides which
+inputs a view evaluates (a disabled node pulls in only its bypass
+input), and every statement of the compiled program chooses between the
+component’s expression and its bypass at run time (see below), so
+bypassing never recompiles. The roles also drive the editor’s <em>Only
+structure</em> action, which bypasses content and keeps the rest.</p>
 <p>The <code>geometry</code> bundle does not mean a mesh, physical
 volume, or signed-distance field. The original <code>warp</code> is an
 implicit shell-following coordinate, <code>rim</code> is an emission
@@ -271,34 +286,24 @@ shading. Within <code>waterPlanet</code>, the surface UV is distorted by
 cyclone maps while the geometric normal still comes from the projected
 sphere. Distorting the normal by the cloud coordinates would incorrectly
 bend the lighting with the weather pattern.</p>
-<h2 id="the-compiler">The compiler</h2>
+<h2 id="the-compiler-one-program-per-graph-structure">The compiler: one
+program per graph structure</h2>
 <p><code>validateProject()</code> checks the whole JSON, including
 disconnected nodes: valid IDs, known component types, finite bounded
-parameters, valid sockets, references, types, output, track settings,
-and cycles. Limits are 80 nodes, 160 tracks, and 500 keys per track. A
-disconnected cycle is still an invalid project, even when it does not
-affect the current output.</p>
-<p><code>topologicalOrder()</code> then selects only the dependencies of
-the requested output. <code>compileGraph()</code> assigns one GLSL
-variable to each reachable node. It creates uniform declarations for
-numeric/color parameters and emits a single <code>shade(p)</code>
-function. Custom expressions become small typed GLSL functions with
-local <code>p,x,y,r,theta,a,b,t</code> variables.</p>
-<p>All kernel libraries are included as source; the graphics driver
-removes unreachable functions. A graph does not allocate a texture or
-framebuffer per node. This avoids hidden inter-pass quantization and
-makes inspection/reuse straightforward, at the cost of potentially
-expensive first-time shader compilation for a large expression
-network.</p>
-<p>The renderer caches 32 linked programs. Its structural cache key
-includes node types, enabled states, connections, expressions, output
-target and compile mode. Numeric values are <strong>not</strong> in this
-key. Changing a numeric control updates a uniform. Changing a connection
-or equation compiles a different program. The new program must
-compile/link successfully before it replaces the previous render.</p>
-<h3 id="compile-modes">Compile modes</h3>
-<p><code>compileGraph(project, target, options)</code> produces one of
-four shader shapes:</p>
+parameters, valid sockets, references, types, output, custom equations,
+track settings, and cycles. Limits are 80 nodes, 160 tracks, and 500
+keys per track. A disconnected cycle is still an invalid project, even
+when it does not affect the current output.</p>
+<p><code>compileProgram(project, {subset})</code> turns the graph (or a
+subset of its node ids) into <strong>one GLSL ES 3.00 fragment
+program</strong>. Each component becomes one local variable of an
+<code>evaluate(p)</code> function, in dependency order:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode glsl"><code class="sourceCode glsl"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// n4: Folded star lattices [stars]</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="dt">vec4</span> n4<span class="op">=</span><span class="dt">vec4</span><span class="op">(</span><span class="dv">0</span><span class="op">);</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">if</span><span class="op">(</span><span class="fu">evaluated</span><span class="op">(</span><span class="dv">4</span><span class="op">)){</span> <span class="kw">if</span><span class="op">(</span><span class="fu">included</span><span class="op">(</span><span class="dv">4</span><span class="op">))</span> n4<span class="op">=</span><span class="fu">nebulaStars</span><span class="op">(</span>n0<span class="op">,</span>n4_count<span class="op">,</span>n4_brightness<span class="op">);</span> <span class="kw">else</span> n4<span class="op">=</span><span class="dt">vec4</span><span class="op">(</span><span class="dv">0</span><span class="op">);</span> <span class="op">}</span></span></code></pre></div>
+<p>Everything that changes while you work is a <strong>uniform</strong>,
+never baked into the source:</p>
 <table>
 <colgroup>
 <col style="width: 33%" />
@@ -307,48 +312,187 @@ four shader shapes:</p>
 </colgroup>
 <thead>
 <tr>
-<th>Mode</th>
-<th>Option</th>
-<th>What <code>main()</code> outputs</th>
+<th>What</th>
+<th>Uniform</th>
+<th>Consequence</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>display</td>
-<td><em>(default)</em></td>
-<td>the target converted for display; non-layer types use the diagnostic
-false colors below</td>
+<td>parameter values</td>
+<td><code>u_params[]</code>, four numbers per <code>vec4</code>, a color
+per <code>vec4</code>; readable aliases such as
+<code>#define n4_count u_params[3].y</code></td>
+<td>sliders, keyframes, sweeps and variations never recompile</td>
 </tr>
 <tr>
-<td>raw</td>
-<td><code>raw: true</code></td>
-<td>the target’s numeric value, unconverted; used by float probes</td>
+<td>included / bypassed</td>
+<td><code>u_enabled</code>, one bit per component</td>
+<td>checkboxes, <em>Only structure</em> and “what it changes” never
+recompile</td>
 </tr>
 <tr>
-<td>contribution</td>
-<td><code>contribution: id</code>, <code>contributionStyle</code></td>
-<td><code>shade(p)</code> and <code>shadeWithout(p)</code>, the latter
-with the named node bypassed (exactly as if disabled), compared after
-display conversion: either the composite with unchanged pixels dimmed to
-gray (<code>highlight</code>) or a signed warm/cool difference scaled ×4
-(<code>signed</code>)</td>
+<td>what is evaluated</td>
+<td><code>u_active</code>, one bit per component: the shown component’s
+dependencies</td>
+<td>a program for the whole graph costs only what the current view
+needs</td>
 </tr>
 <tr>
-<td>preview</td>
-<td><code>preview: true</code></td>
-<td>every node evaluated once; <code>u_previewIndex</code> selects which
-node’s display-converted value is returned</td>
+<td>which component is shown</td>
+<td><code>u_target</code></td>
+<td>walking the pipeline, thumbnails and probes use the same
+program</td>
+</tr>
+<tr>
+<td>display colors or raw values</td>
+<td><code>u_mode</code> (<code>MODES.display</code>,
+<code>MODES.raw</code>)</td>
+<td>float probes and automatic stage colors use the same program</td>
+</tr>
+<tr>
+<td>sampling</td>
+<td><code>u_sampling</code>, <code>u_line</code>,
+<code>u_offset</code></td>
+<td>the camera grid, a line of points (the profile) or a tile of an
+atlas</td>
 </tr>
 </tbody>
 </table>
-<p>Contribution answers “what does this node change in the final image?”
-without a second render pass; the two evaluations happen in one
-fragment. Preview answers “what does every node produce?” with one
-compilation instead of one per node: the editor draws all graph
-thumbnails from that program into a tiled offscreen framebuffer and
-reads the tiles back in a single call. Both modes share the ordinary
-statement generator, so a node looks the same isolated, previewed or
-contributed.</p>
+<p><code>programKey(project)</code> is the structural key of a program:
+node ids, types, connections and custom equations, in evaluation order.
+Parameter values, enabled flags, the output choice and the view are
+deliberately excluded.
+<code>viewState(program, project, target, contribution)</code> computes
+the per-frame masks (<code>active</code>, <code>enabled</code>), the
+list of nodes the view evaluates, and whether a contribution can reach
+the target at all.</p>
+<p>All kernel libraries are included as source; the graphics driver
+removes unreachable functions. A graph does not allocate a texture or
+framebuffer per node. This avoids hidden inter-pass quantization and
+makes inspection/reuse straightforward.</p>
+<p>Why one program? Shader compilation is the one expensive operation in
+the app, and some drivers are slow at it: on Direct3D 11 (ANGLE), 1.2
+compiled two programs of about two seconds each whenever a checkbox was
+unticked, freezing the page. 1.3 compiles the whole scene once (about
+0.4 s for the Bipolar Nebula on the same machine) and never again until
+the wiring or an equation changes. To keep that program small, looks and
+comparisons are separate fixed shaders (below), not branches of the
+graph program.</p>
+<p><code>compileGraph(project, target, options)</code> remains the
+readable description of one view: the program for the target’s subgraph
+plus
+<code>{target, type, raw, contribution, contributionStyle, reachable, evaluated}</code>.
+<code>subgraph(project, target)</code> lists the target and everything
+upstream of it, whatever the enabled flags. The GLSL tab shows this
+smaller program for the current view, which is easier to read; the
+canvas runs the same statements in the program for the whole graph.</p>
+<h3 id="custom-equations-in-the-program">Custom equations in the
+program</h3>
+<p>A custom component’s equation is compiled by
+<code>expression.js</code> (see <a href="#the-equation-language">The
+equation language</a>) into a small typed GLSL function,
+<code>equation_n3(p, a, b, t)</code>, whose parameters read their
+<code>u_params</code> aliases like any other. The statement calls it; a
+color equation that returns <code>vec3</code> is given full
+coverage.</p>
+<h2 id="the-renderer-views-passes-and-background-compilation">The
+renderer: views, passes and background compilation</h2>
+<p><code>Renderer</code> in <code>renderer.js</code> owns the WebGL 2
+context. Programs are cached by structural key (12 by default, least
+recently used first; the program on screen is never evicted).</p>
+<h3 id="views">Views</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>View</th>
+<th>How it is drawn</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>final image, a layer stage</td>
+<td>one draw of the graph program (<code>u_mode</code> display)</td>
+</tr>
+<tr>
+<td>a scalar, coordinate or geometry stage with automatic colors</td>
+<td>one draw of raw values into an <code>RGBA32F</code> texture, then
+the <strong>look pass</strong> (<code>lookPassSource</code> in
+<code>looks.js</code>) colors them</td>
+</tr>
+<tr>
+<td>what a component changes</td>
+<td>two draws of the displayed image, with the component and with it
+bypassed (<code>withBypassed(project, id)</code>), into two float
+textures, then the <strong>compare pass</strong>
+(<code>comparePassSource</code> in <code>compiler.js</code>)</td>
+</tr>
+<tr>
+<td>thumbnails</td>
+<td><code>previewAtlas()</code>: one draw per tile of one framebuffer,
+each with its own <code>u_target</code>, one readback</td>
+</tr>
+<tr>
+<td>profile, point readouts</td>
+<td><code>sampleLine()</code> / <code>samplePoint()</code>:
+<code>u_sampling</code> evaluates the target at points along a segment
+into a <code>count × 1</code> float target</td>
+</tr>
+<tr>
+<td>statistics for automatic colors</td>
+<td><code>rawImage()</code>: raw values of the target over the camera
+view at 120 × 72</td>
+</tr>
+</tbody>
+</table>
+<p>The look and compare shaders are fixed: they are compiled once, on
+first use, whatever the graph. Comparing float images keeps the
+highlight threshold unquantized; without
+<code>EXT_color_buffer_float</code> the comparison uses bytes and the
+automatic looks fall back to the classic diagnostic colors (which the
+graph program computes directly, <code>presentGLSL</code>).</p>
+<h3 id="background-compilation">Background compilation</h3>
+<p><code>programFor(project)</code> returns a program entry at once and
+compiles in the background when the browser has
+<code>KHR_parallel_shader_compile</code>. <code>poll()</code>, called
+once per animation frame, advances compilations; a program is
+<strong>ready</strong> only after a one-pixel warm-up draw has finished
+on the GPU (checked with a fence), because several drivers finish
+compiling at the first draw. Without the extension, one queued program
+is compiled per frame, after the page has shown that it is busy.
+<code>drawIfReady()</code> draws only when the program is ready and
+otherwise returns <code>null</code>, so the editor keeps the last image,
+shows <em>Compiling shader…</em> and a progress cursor, and stays
+responsive. <code>whenReady()</code> returns a promise for code that
+wants to wait. Synchronous calls (<code>draw</code>,
+<code>snapshot</code>, probes) link immediately and may block.</p>
+<h3 id="reading-back-without-waiting">Reading back without waiting</h3>
+<p>Thumbnails, the profile and the statistics behind automatic colors
+read back <strong>asynchronously</strong>: <code>readPixels</code> into
+a pixel-pack buffer, a fence, and <code>getBufferSubData</code> once
+<code>poll()</code> sees the fence signalled. The page never waits for
+the GPU for those. Readouts under the cursor still read one pixel
+synchronously.</p>
+<h3 id="measuring-the-gpu">Measuring the GPU</h3>
+<p><code>info.gpu</code> classifies the renderer string
+(<code>describeRenderer()</code> in <code>gpu-info.js</code>): a
+hardware GPU (named, with its API: Direct3D 11, Metal, OpenGL, Vulkan),
+software rendering (SwiftShader, llvmpipe, Microsoft Basic Render
+Driver), or unknown when the browser masks it; for an unknown name,
+<code>probeSoftwareFallback()</code> asks for a context with
+<code>failIfMajorPerformanceCaveat</code>.
+<code>beginTimer()</code>/<code>endTimer()</code> measure a visible draw
+with <code>EXT_disjoint_timer_query_webgl2</code> when available
+(<code>gpuTimeExact</code>), else as the time until a fence signals (an
+upper bound). The editor’s Auto quality uses that time to lower the
+resolution during interaction when frames exceed about 24 ms, and the
+LIVE badge and <strong>GPU &amp; performance</strong> dialog report it.
+Web pages cannot schedule per-pixel work on a neural processing unit;
+the GPU is the only accelerator available to this kind of rendering.</p>
 <h2 id="color-alpha-masks-and-light">Color, alpha, masks and light</h2>
 <p>RGB values in graph layers are <strong>radiance-like floating-point
 numbers</strong>. They are artistic quantities, not calibrated physical
@@ -385,32 +529,78 @@ including integer floor, with no extra gamma transform.</li>
 <p>No tone mapping is applied between graph nodes. Exports currently
 have opaque displayed RGB, even though alpha exists inside the graph.
 Transparent PNG and HDR/EXR export are not implemented.</p>
-<h2 id="field-inspection-is-not-the-same-as-output-color">Field
-inspection is not the same as output color</h2>
-<p>An isolated layer uses the selected display curve. Other isolated
-types use diagnostic views:</p>
-<pre class="text"><code>scalar   → gray = 0.5 + 0.5*tanh(value)
-coord    → red = 0.5 + 0.5*sin(x), green = 0.5 + 0.5*sin(y), blue = 0.5
-geometry → red = 4*rim, green = coverage, blue = 0.5 + 0.5*tanh(warp)</code></pre>
-<p>These views are useful but lossy. A negative field is not “negative
-light”; its display is merely dark gray. A coordinate image repeats by
-design. The graph’s live previews use the same conversions. Use
-<strong>Probe value</strong>, or the rulers’ readout, for actual
-numbers.</p>
-<p><code>Renderer.samplePoint()</code> renders a one-pixel
-<code>RGBA32F</code> framebuffer and reads it as floats, before
-exposure, mapping and quantization. It returns
-<code>[scalar,0,0,1]</code>, <code>[x,y,0,1]</code>,
-<code>[warp,rim,coverage,1]</code>, or actual RGBA, depending on the
-target. The optional <code>EXT_color_buffer_float</code> capability is
-checked. Probes, <code>snapshot()</code> and <code>previewAtlas()</code>
-all render into temporary framebuffers, so the visible canvas is never
-resized or redrawn by an inspection. The action is synchronous and may
-stall briefly; it is not a streaming full-frame field export.</p>
-<p>The normal shader flags NaN or infinity in any output component as
+<h2 id="looks-showing-values-that-are-not-colors">Looks: showing values
+that are not colors</h2>
+<p>A scalar, a coordinate pair or a geometry bundle has no color of its
+own; showing one means choosing an encoding. <code>looks.js</code> holds
+these encodings as pure data and functions, from which it generates both
+the GLSL of the look pass and a CPU twin used to paint thumbnails, so a
+stage looks the same on the canvas and in the Pipeline.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Type</th>
+<th>Automatic look</th>
+<th>Classic look (1.x diagnostic, <code>presentGLSL</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>scalar</td>
+<td>colormap over a robust range of the values in view (0.5th to 99.5th
+percentile); a diverging map symmetric about zero when the field takes
+both signs, sequential otherwise; contour lines at a 1–2–5 interval
+drawn with <code>fwidth</code>, brighter at zero</td>
+<td>gray = ½ + ½·tanh(value)</td>
+</tr>
+<tr>
+<td>coord</td>
+<td>the image of a regular grid: the color of the grid cell each output
+coordinate falls in, lines at multiples of the cell size, the q_x = 0
+and q_y = 0 axes in red and green</td>
+<td>red = ½ + ½ sin x, green = ½ + ½ sin y</td>
+</tr>
+<tr>
+<td>geometry</td>
+<td>one channel (S, A or coverage) as a scalar</td>
+<td>red = 4·rim, green = coverage, blue = ½ + ½·tanh(warp)</td>
+</tr>
+<tr>
+<td>layer</td>
+<td>natural display, times an exposure gain when the layer is almost
+entirely clipped or black (<code>layerGain</code>)</td>
+<td>natural display</td>
+</tr>
+</tbody>
+</table>
+<p><code>fieldStats()</code> computes minimum, maximum, mean, median,
+the robust range and a histogram; <code>lookForStats()</code> turns
+statistics into a look; <code>lookUniforms()</code> into the look pass’s
+uniforms. The canvas computes a new stage’s look synchronously from a
+120 × 72 raw render, so it never flashes in the wrong colors, then
+refreshes it asynchronously at most every 220 ms while parameters, time
+or the camera change (<code>ui-look.js</code>). A look can be
+locked.</p>
+<p>These encodings are views of numbers, not the numbers. A negative
+field is not “negative light,” and a coordinate grid is not a texture of
+the scene. The readouts and the profile report the actual values:
+<code>sampleLine()</code> and <code>samplePoint()</code> render into
+<code>RGBA32F</code> framebuffers and return floats before exposure,
+mapping and quantization, as <code>[scalar,0,0,1]</code>,
+<code>[x,y,0,1]</code>, <code>[warp,rim,coverage,1]</code>, or actual
+RGBA, depending on the target. They need
+<code>EXT_color_buffer_float</code>, which is checked. All inspection
+renders into temporary framebuffers, so the visible canvas is never
+resized or redrawn by an inspection.</p>
+<p>The display path flags NaN or infinity in any output component as
 magenta. A debug mode turns all finite outputs black, supporting
-automated nonfinite tests. The separate raw mode returns values without
-this diagnostic conversion.</p>
+automated nonfinite tests. Raw mode returns values without this
+conversion.</p>
 <h2 id="source-coordinates-and-numerical-choices">Source coordinates and
 numerical choices</h2>
 <p>At 2000 × 1200 with zero pan and unit zoom, pixel column
@@ -460,42 +650,210 @@ per pixel on the GPU. Constants ultimately round to shader precision.
 Remaining high-frequency phase and transcendental differences explain
 why this is a close numerical port, not a cross-platform bitwise clone.
 See the measured errors in <a href="VALIDATION.html">Validation</a>.</p>
+<h2 id="the-equation-language">The equation language</h2>
+<p>The Custom scalar, Custom coordinate and Custom color components hold
+a short program in a small language (<code>expression.js</code>),
+written like mathematics and checked like code:</p>
+<pre class="text"><code>param radius = 1 [0.1, 3]      // a parameter: default, range, optional &quot;step s&quot;, caption
+param tint = #ffd080           // a color parameter
+d = length(p) - radius         // a definition
+exp(-(d / 0.1)^2)              // the last line is the result</code></pre>
+<p><code>parseProgram()</code> splits statements (lines or
+<code>;</code>), captions (<code>//</code>), parameters and definitions,
+and parses each expression with a precedence-climbing parser into an AST
+(numbers, names, calls, unary, binary including <code>^</code> and
+<code>%</code>, comparisons, <code>&amp;&amp;</code>/<code>||</code>,
+<code>? :</code>, swizzles). <code>checkProgram(source, kind)</code>
+type-checks it: every name must be a local
+(<code>p, x, y, r, theta, a, b, t</code>), a constant (<code>PI</code>,
+<code>TAU</code>), a parameter or an earlier definition; every call a
+GLSL built-in with matching overloads or a function of the shader
+libraries, whose signatures <code>LIBRARY</code> reads from the GLSL
+sources, so a new kernel is callable without further work. The result
+type must suit the component (<code>float</code>, <code>vec2</code>,
+<code>vec3</code>/<code>vec4</code>). Errors carry line numbers and
+suggestions (edit distance with transpositions: <em>Unknown name
+“raduis”. Did you mean “radius”?</em>). Limits: 3000 characters, 8
+parameters, 24 definitions, names of at most 24 characters; no loops,
+assignments to built-ins, or declarations.</p>
+<p><code>programGLSL()</code> then <strong>prints the checked AST as
+GLSL</strong>, never splicing the source text: definitions become
+<code>d_name</code>, parameters their uniform aliases, whole numbers get
+a decimal point, <code>x^2</code>, <code>x^3</code> and <code>x^4</code>
+become products (exact for negative <code>x</code>, unlike
+<code>pow</code>), other powers <code>pow</code>, and <code>%</code>
+becomes <code>mod</code>. <code>compileEquation()</code> caches the
+result per source; <code>equationParams()</code> gives the parameter
+specs, which <code>paramSpecs(node)</code> in <code>catalog.js</code>
+merges into the node’s own, so equation parameters behave like built-in
+ones everywhere (uniform packing, sliders, keyframes, sweeps,
+variations, validation).</p>
+<p><code>math-render.js</code> typesets the same AST as MathML
+(<code>a/b</code> as a fraction, <code>x^2</code> as a superscript,
+<code>sqrt</code> as a radical, <code>abs</code>/<code>length</code> as
+bars, <code>vecN</code> as a tuple, <code>theta</code> as θ), keeping
+only the parentheses the meaning needs, one row per statement, with its
+caption.</p>
+<h3 id="components-as-equations-edit">Components as equations: ✎
+Edit</h3>
+<p><code>fork.js</code> writes a built-in component as an equivalent
+equation, so that <strong>✎ Edit</strong> can open every eligible
+component the same way. <code>forkBlocker(type)</code> says why a
+component cannot be written as one (it reads a color layer or geometry,
+has more inputs than <code>p</code>, <code>a</code> and <code>b</code>,
+or is the image source), and <code>forkable(type)</code> is its negation
+for built-in components. <code>forkProgram(node)</code> names the
+parameters after their TeX symbols (<code>\kappa</code> →
+<code>kappa</code>, <code>c_x</code> → <code>c_x</code>) as
+<code>param</code> lines with their current values, ranges and first
+sentence of help, and writes the computation from the catalog’s
+<code>source</code>: the steps as equation lines, with <code>$key</code>
+standing for parameter <code>key</code>. The vortex, for example,
+becomes</p>
+<pre class="text"><code>alpha = kappa*exp(-(r/rho)^2) + omega*t   // the twist angle …
+rotate2(p, alpha)                         // turn each point about the center by its own angle …</code></pre>
+<p>so a user edits the math the steps show. Fourteen components have a
+<code>source</code>; the others (loops over lattices, bands or cyclones,
+and whole scenes) are written as a call of their shader-library
+function. <code>tools/gpu_validate.py</code> renders every forkable
+component both ways and requires the same raw values; all 29 agree
+exactly.</p>
+<p><code>withEquation(project, nodeId, source)</code> is the single
+operation behind editing: the project with that component running
+<code>source</code>. A custom equation gets the new text; a built-in
+component first becomes its equivalent equation (same id and wiring,
+label “… · equation”, animation tracks renamed with its parameters).
+Parameters are then synchronized: one whose <code>param</code> line
+keeps its default keeps its current value (clamped to a changed range);
+a new one, or one whose default was edited, takes the declared default;
+removed ones lose their tracks. It throws the checker’s
+<code>EquationError</code> for an invalid equation.</p>
+<p>The editor keeps unapplied edits as <strong>drafts</strong>
+(<code>state.drafts</code>: component id → text,
+<code>setDraft()</code>, <code>startEdit()</code>,
+<code>discardDraft()</code> in <code>editor.js</code>), shared by every
+view of the component. While the selected component has a draft,
+<code>updateDraftPreview()</code> computes <code>withEquation()</code>
+for the last text that checked (debounced while typing) and the canvas
+draws that project instead of the real one, labelled DRAFT; its program
+compiles in the background like any other.
+<code>applyEquation(nodeId, source)</code> commits
+<code>withEquation()</code> as one undo step and discards the draft.</p>
+<h2 id="metadata-that-explains">Metadata that explains</h2>
+<p>The explanation panel is generated from catalog metadata, so every
+component is explained the same way and a new component is explained by
+adding data:</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Field</th>
+<th>Shown as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>steps: [step(tex, text)]</code></td>
+<td><em>How it is computed</em>: numbered, typeset lines with captions;
+the last is the result</td>
+</tr>
+<tr>
+<td><code>source: [line, …]</code></td>
+<td>what ✎ Edit opens: the steps as equation-language lines with
+captions (see above)</td>
+</tr>
+<tr>
+<td>params’ <code>symbol</code>, <code>help</code>;
+<code>inputSymbols</code>, <code>outputSymbols</code>,
+<code>notes</code></td>
+<td>colored, hoverable symbols in the steps, parameter help, <em>Other
+symbols</em></td>
+</tr>
+<tr>
+<td><code>concepts: [id]</code></td>
+<td><em>Why it is written this way</em>: cards from
+<code>concepts.js</code>, each with a formula, a paragraph and
+optionally a plot with a knob</td>
+</tr>
+<tr>
+<td><code>curve: {title, x, y, domain(P), series, marks(P)}</code></td>
+<td><em>Key function</em>: an SVG plot (<code>plot.js</code>) with the
+live parameters</td>
+</tr>
+<tr>
+<td><code>role</code>, <code>bypass</code></td>
+<td>what the checkbox does, <em>Only structure</em></td>
+</tr>
+</tbody>
+</table>
+<p><code>texToMathML()</code> in <code>math-render.js</code> annotates
+each symbol it recognizes with its role (<code>sym-input</code>,
+<code>sym-param</code>, <code>sym-output</code>, <code>sym-time</code>)
+and a data attribute naming the socket or parameter; the UI uses those
+for coloring, hover highlighting, clicking through to inputs and
+dragging parameter symbols. <code>formula.js</code> writes the whole
+construction as a formula sheet (<code>compositionTeX()</code> expands
+the combiners into an expression over the components they combine).
+<code>tests/catalog.test.js</code> checks that every component has steps
+with captions, that every parameter’s symbol appears in them, that every
+TeX converts and that the curves evaluate to finite numbers.</p>
 <h2 id="reuse-the-renderer-without-the-editor">Reuse the renderer
 without the editor</h2>
 <p>Serve the project directory, then use its modules from another page.
 The working <a href="../examples/embedded.html">embedded example</a>
 does this:</p>
-<div class="sourceCode" id="cb3"><pre
-class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> { Renderer } <span class="im">from</span> <span class="st">&#39;../src/renderer.js&#39;</span><span class="op">;</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> { getPreset } <span class="im">from</span> <span class="st">&#39;../src/presets.js&#39;</span><span class="op">;</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> renderer <span class="op">=</span> <span class="kw">new</span> <span class="fu">Renderer</span>(<span class="bu">document</span><span class="op">.</span><span class="fu">querySelector</span>(<span class="st">&#39;canvas&#39;</span>))<span class="op">;</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> project <span class="op">=</span> <span class="fu">getPreset</span>(<span class="st">&#39;lensing&#39;</span>)<span class="op">;</span> <span class="co">// returns fresh editable JSON</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">draw</span>(project<span class="op">,</span> <span class="fl">2.0</span><span class="op">,</span> <span class="dv">1000</span><span class="op">,</span> <span class="dv">600</span>)<span class="op">;</span> <span class="co">// explicit time and pixel dimensions</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">draw</span>(project<span class="op">,</span> <span class="fl">2.0</span><span class="op">,</span> <span class="dv">1000</span><span class="op">,</span> <span class="dv">600</span><span class="op">,</span> { <span class="dt">contribution</span><span class="op">:</span> <span class="st">&#39;galaxy&#39;</span> })<span class="op">;</span> <span class="co">// what the galaxy changes</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> { Renderer } <span class="im">from</span> <span class="st">&#39;../src/renderer.js&#39;</span><span class="op">;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> { getPreset } <span class="im">from</span> <span class="st">&#39;../src/presets.js&#39;</span><span class="op">;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> renderer <span class="op">=</span> <span class="kw">new</span> <span class="fu">Renderer</span>(<span class="bu">document</span><span class="op">.</span><span class="fu">querySelector</span>(<span class="st">&#39;canvas&#39;</span>))<span class="op">;</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> project <span class="op">=</span> <span class="fu">getPreset</span>(<span class="st">&#39;lensing&#39;</span>)<span class="op">;</span> <span class="co">// returns fresh editable JSON</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">draw</span>(project<span class="op">,</span> <span class="fl">2.0</span><span class="op">,</span> <span class="dv">1000</span><span class="op">,</span> <span class="dv">600</span>)<span class="op">;</span> <span class="co">// explicit time and pixel dimensions</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">draw</span>(project<span class="op">,</span> <span class="fl">2.0</span><span class="op">,</span> <span class="dv">1000</span><span class="op">,</span> <span class="dv">600</span><span class="op">,</span> { <span class="dt">contribution</span><span class="op">:</span> <span class="st">&#39;galaxy&#39;</span> })<span class="op">;</span> <span class="co">// what the galaxy changes</span></span></code></pre></div>
 <p>Core APIs:</p>
-<div class="sourceCode" id="cb4"><pre
-class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">makeNode</span>(type<span class="op">,</span> id<span class="op">,</span> inputs <span class="op">=</span> {}<span class="op">,</span> parameterOverrides <span class="op">=</span> {})</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">validateProject</span>(project)              <span class="co">// throws; no partial acceptance</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">parseProject</span>(jsonText)                <span class="co">// validates size and full model</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">topologicalOrder</span>(project<span class="op">,</span> target)     <span class="co">// evaluation order; null target orders every node</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">upstream</span>(project<span class="op">,</span> id)<span class="op">,</span> <span class="fu">downstream</span>(project<span class="op">,</span> id)</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">compileGraph</span>(project<span class="op">,</span> target<span class="op">,</span> { raw<span class="op">,</span> contribution<span class="op">,</span> contributionStyle<span class="op">,</span> preview })</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">draw</span>(project<span class="op">,</span> time<span class="op">,</span> width<span class="op">,</span> height<span class="op">,</span> { target<span class="op">,</span> debug<span class="op">,</span> raw<span class="op">,</span> contribution<span class="op">,</span> contributionStyle })</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">snapshot</span>(project<span class="op">,</span> time<span class="op">,</span> width<span class="op">,</span> height<span class="op">,</span> options)   <span class="co">// offscreen; top-down RGBA bytes</span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">previewAtlas</span>(project<span class="op">,</span> time<span class="op">,</span> ids<span class="op">,</span> tileWidth<span class="op">,</span> tileHeight) <span class="co">// Map id → tile bytes</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">samplePoint</span>(project<span class="op">,</span> time<span class="op">,</span> target<span class="op">,</span> x<span class="op">,</span> y)          <span class="co">// raw floats at a world point</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">png</span>()                       <span class="co">// Promise&lt;Blob&gt;; plain PNG, no metadata by itself</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="fu">embedPNGMetadata</span>(pngBlob<span class="op">,</span> metadata)   <span class="co">// used by the editor&#39;s Export dialog</span></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">dispose</span>()                   <span class="co">// release owned GPU resources</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">makeNode</span>(type<span class="op">,</span> id<span class="op">,</span> inputs <span class="op">=</span> {}<span class="op">,</span> parameterOverrides <span class="op">=</span> {})</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">validateProject</span>(project)              <span class="co">// throws; no partial acceptance</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">parseProject</span>(jsonText)                <span class="co">// validates size and full model</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="fu">topologicalOrder</span>(project<span class="op">,</span> target)     <span class="co">// bypass-aware evaluation order of a target</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="fu">evaluationOrder</span>(project)              <span class="co">// every node, dependencies first</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="fu">upstream</span>(project<span class="op">,</span> id)<span class="op">,</span> <span class="fu">downstream</span>(project<span class="op">,</span> id)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="fu">compileProgram</span>(project<span class="op">,</span> { subset })   <span class="co">// {fragment, key, order, index, types, params, vectors}</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="fu">compileGraph</span>(project<span class="op">,</span> target<span class="op">,</span> { raw<span class="op">,</span> contribution<span class="op">,</span> contributionStyle }) <span class="co">// one view, described</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="fu">compileEquation</span>(source<span class="op">,</span> kind)         <span class="co">// a custom equation, checked; throws EquationError</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">draw</span>(project<span class="op">,</span> time<span class="op">,</span> width<span class="op">,</span> height<span class="op">,</span> options)        <span class="co">// visible canvas; waits for the program</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">drawIfReady</span>(project<span class="op">,</span> time<span class="op">,</span> width<span class="op">,</span> height<span class="op">,</span> options) <span class="co">// null while the program compiles</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">poll</span>()                        <span class="co">// call once per frame: compilations, readbacks, timers</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">whenReady</span>(project)            <span class="co">// Promise of a ready program</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">snapshot</span>(project<span class="op">,</span> time<span class="op">,</span> width<span class="op">,</span> height<span class="op">,</span> options)    <span class="co">// offscreen; top-down RGBA bytes</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">previewAtlas</span>(project<span class="op">,</span> time<span class="op">,</span> ids<span class="op">,</span> tileWidth<span class="op">,</span> tileHeight<span class="op">,</span> { raw<span class="op">,</span> look<span class="op">,</span> <span class="kw">async</span> })</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">sampleLine</span>(project<span class="op">,</span> time<span class="op">,</span> target<span class="op">,</span> [x0<span class="op">,</span> y0]<span class="op">,</span> [x1<span class="op">,</span> y1]<span class="op">,</span> count<span class="op">,</span> { <span class="kw">async</span> })</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">samplePoint</span>(project<span class="op">,</span> time<span class="op">,</span> target<span class="op">,</span> x<span class="op">,</span> y)          <span class="co">// raw floats at a world point</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">rawImage</span>(project<span class="op">,</span> time<span class="op">,</span> target<span class="op">,</span> width<span class="op">,</span> height<span class="op">,</span> { <span class="kw">async</span> })</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="at">info</span>                          <span class="co">// {renderer, gpu: {kind, name, api}, rawFields, parallelCompile, gpuTimer, maxSize, …}</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">png</span>()                         <span class="co">// Promise&lt;Blob&gt;; plain PNG, no metadata by itself</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="fu">embedPNGMetadata</span>(pngBlob<span class="op">,</span> metadata)    <span class="co">// used by the editor&#39;s Export dialog</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>renderer<span class="op">.</span><span class="fu">dispose</span>()                     <span class="co">// release owned GPU resources</span></span></code></pre></div>
+<p>Frame options: <code>target</code> (default: the project’s output),
+<code>contribution</code> and <code>contributionStyle</code>
+(<code>highlight</code> or <code>signed</code>), <code>raw</code>,
+<code>look</code> (a look from <code>lookForStats()</code>; default
+classic), <code>subgraph</code> (compile only the target’s subgraph:
+smaller and faster to compile for a one-off view), <code>debug</code>,
+<code>timed</code>.</p>
 <p><code>Renderer.draw()</code> expects finite time, positive integer
 sizes within the reported limits, and a validated-compatible project. It
 validates again at the API boundary. Caller code owns scheduling; the
-renderer does not start an animation loop. <code>samplePoint()</code>
-currently restricts points to world coordinates within ±19.
-<code>snapshot()</code> and <code>previewAtlas()</code> return
-<code>{width, height, data}</code> objects whose <code>data</code> is
-laid out like <code>ImageData</code>.</p>
+renderer does not start an animation loop, so a caller using
+<code>drawIfReady()</code> or the asynchronous readbacks must call
+<code>poll()</code> each frame. <code>snapshot()</code> and
+<code>previewAtlas()</code> return <code>{width, height, data}</code>
+objects whose <code>data</code> is laid out like
+<code>ImageData</code>.</p>
 <p>The editor also exposes <code>window.equationStudio</code> for
 integration: <code>getProject()</code>, <code>getBaseline()</code>,
 <code>loadProject(project)</code>, <code>seek(t)</code>,
@@ -504,58 +862,67 @@ integration: <code>getProject()</code>, <code>getBaseline()</code>,
 <code>setView(mode, node)</code> with mode <code>final</code>,
 <code>stage</code> or <code>effect</code>, <code>isolate(id)</code> and
 <code>contribution(id, style)</code> (1.1-compatible shorthands),
-<code>setPreviews(enabled)</code>, <code>snapshot(title)</code>,
-<code>getSnapshots()</code>, <code>renderNow()</code>, and
-<code>exportPNG()</code>. <code>getProject()</code>,
-<code>getBaseline()</code> and <code>getSnapshots()</code> return
-clones. The low-level <code>exportPNG()</code> hook returns a plain
-preview-resolution PNG; use the dialog or metadata helper for an
-archival export. The <a href="DEVELOPMENT.html">development guide</a> maps
-the editor’s modules and events.</p>
+<code>setPreviews(enabled)</code>, <code>openPlayground(id)</code>
+(select a component and widen the panel into the Equation Playground),
+<code>closePlayground()</code>, <code>isPlaygroundOpen()</code>,
+<code>popOut(id)</code> (false when the browser blocks the window),
+<code>snapshot(title)</code>, <code>getSnapshots()</code>,
+<code>renderNow()</code>, and <code>exportPNG()</code>.
+<code>getProject()</code>, <code>getBaseline()</code> and
+<code>getSnapshots()</code> return clones. The low-level
+<code>exportPNG()</code> hook returns a plain preview-resolution PNG;
+use the dialog or metadata helper for an archival export. The <a
+href="DEVELOPMENT.html">development guide</a> maps the editor’s modules
+and events.</p>
 <h2 id="add-your-own-component">Add your own component</h2>
 <p>Small formulas can be authored inside the browser with Custom scalar,
-Custom coordinate, or Custom color. Use GLSL float literals such as
-<code>2.0</code>; integer/float overload mismatches are errors, not
-JavaScript’s permissive coercion. Available helpers include
-<code>rotate2</code>, <code>noise2</code>, <code>fbm</code>,
-<code>gaussian</code>, <code>cutoff</code>,
-<code>segmentDistance</code>, and <code>spectrum</code>. These
-expressions compile as GLSL, never as JavaScript. Statements, loops,
-declarations, assignments, comments and certain unsafe tokens are
-rejected; arbitrary JS evaluation is not used.</p>
-<p>For a reusable component with sliders, add an entry to
-<code>catalog.js</code> using its local <code>component</code>,
-<code>num</code> and <code>rgb</code> helpers. Each parameter has a TeX
-<code>symbol</code> that appears in the component’s <code>tex</code>
-equation, and a plain-language <code>help</code> string saying what
-changing it does:</p>
-<div class="sourceCode" id="cb5"><pre
-class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>petals<span class="op">:</span> <span class="fu">component</span>({</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">name</span><span class="op">:</span> <span class="st">&#39;Petal field&#39;</span><span class="op">,</span> <span class="dt">category</span><span class="op">:</span> <span class="st">&#39;Scalar fields&#39;</span><span class="op">,</span> <span class="dt">output</span><span class="op">:</span> <span class="st">&#39;scalar&#39;</span><span class="op">,</span> <span class="dt">inputs</span><span class="op">:</span> { <span class="dt">p</span><span class="op">:</span> <span class="st">&#39;coord&#39;</span> }<span class="op">,</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">params</span><span class="op">:</span> {</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>        <span class="dt">count</span><span class="op">:</span> <span class="fu">num</span>(<span class="st">&#39;Petals&#39;</span><span class="op">,</span> <span class="dv">5</span><span class="op">,</span> <span class="dv">2</span><span class="op">,</span> <span class="dv">16</span><span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="st">&#39;n&#39;</span><span class="op">,</span> <span class="st">&#39;Number of petals around the center.&#39;</span>)<span class="op">,</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>        <span class="dt">width</span><span class="op">:</span> <span class="fu">num</span>(<span class="st">&#39;Edge&#39;</span><span class="op">,</span> <span class="fl">0.02</span><span class="op">,</span> <span class="fl">0.001</span><span class="op">,</span> <span class="fl">0.1</span><span class="op">,</span> <span class="fl">0.001</span><span class="op">,</span> <span class="st">&#39;</span><span class="sc">\\</span><span class="st">epsilon&#39;</span><span class="op">,</span> <span class="st">&#39;Softness of the petal outline; small values give a crisp edge.&#39;</span>)</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    }<span class="op">,</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">equation</span><span class="op">:</span> <span class="st">&#39;mask = inside(r − [0.8 + 0.2 cos(n theta)])&#39;</span><span class="op">,</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">tex</span><span class="op">:</span> [<span class="st">&#39;m = 1 - </span><span class="sc">\\</span><span class="st">operatorname{smoothstep}</span><span class="sc">\\</span><span class="st">left(-</span><span class="sc">\\</span><span class="st">epsilon,</span><span class="sc">\\</span><span class="st"> </span><span class="sc">\\</span><span class="st">epsilon,</span><span class="sc">\\</span><span class="st"> r - (0.8 + 0.2</span><span class="sc">\\</span><span class="st">cos n</span><span class="sc">\\</span><span class="st">theta)</span><span class="sc">\\</span><span class="st">right)&#39;</span>]<span class="op">,</span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">notes</span><span class="op">:</span> [[<span class="st">&#39;r, </span><span class="sc">\\</span><span class="st">theta&#39;</span><span class="op">,</span> <span class="st">&#39;polar coordinates of p&#39;</span>]]<span class="op">,</span></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">description</span><span class="op">:</span> <span class="st">&#39;A radial flower silhouette. Feed it into a palette or use it as coverage.&#39;</span><span class="op">,</span></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="dt">emit</span><span class="op">:</span> (inputs<span class="op">,</span> uniforms) <span class="kw">=&gt;</span></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        <span class="vs">`softInside(length(</span><span class="sc">${</span>inputs<span class="op">.</span><span class="at">p</span><span class="sc">}</span><span class="vs">) - (0.8 + 0.2*cos(</span><span class="sc">${</span>uniforms<span class="op">.</span><span class="at">count</span><span class="sc">}</span><span class="vs">*angleOf(</span><span class="sc">${</span>inputs<span class="op">.</span><span class="at">p</span><span class="sc">}</span><span class="vs">))), </span><span class="sc">${</span>uniforms<span class="op">.</span><span class="at">width</span><span class="sc">}</span><span class="vs">)`</span></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div>
+Custom coordinate, or Custom color, in the <a
+href="#the-equation-language">equation language</a>; <strong>✎
+Edit</strong> on a built-in component starts from its equation.</p>
+<p>For a reusable component, add an entry to <code>catalog.js</code>
+using its local <code>component</code>, <code>num</code>,
+<code>rgb</code> and <code>step</code> helpers. Each parameter has a TeX
+<code>symbol</code> that appears in the steps, and a plain-language
+<code>help</code> string saying what changing it does; each step has a
+caption saying what the line computes and why:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>petals<span class="op">:</span> <span class="fu">component</span>({</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">name</span><span class="op">:</span> <span class="st">&#39;Petal field&#39;</span><span class="op">,</span> <span class="dt">category</span><span class="op">:</span> <span class="st">&#39;Scalar fields&#39;</span><span class="op">,</span> <span class="dt">output</span><span class="op">:</span> <span class="st">&#39;scalar&#39;</span><span class="op">,</span> <span class="dt">inputs</span><span class="op">:</span> { <span class="dt">p</span><span class="op">:</span> <span class="st">&#39;coord&#39;</span> }<span class="op">,</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">params</span><span class="op">:</span> {</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>        <span class="dt">count</span><span class="op">:</span> <span class="fu">num</span>(<span class="st">&#39;Petals&#39;</span><span class="op">,</span> <span class="dv">5</span><span class="op">,</span> <span class="dv">2</span><span class="op">,</span> <span class="dv">16</span><span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="st">&#39;n&#39;</span><span class="op">,</span> <span class="st">&#39;Number of petals around the center.&#39;</span>)<span class="op">,</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>        <span class="dt">width</span><span class="op">:</span> <span class="fu">num</span>(<span class="st">&#39;Edge&#39;</span><span class="op">,</span> <span class="fl">0.02</span><span class="op">,</span> <span class="fl">0.001</span><span class="op">,</span> <span class="fl">0.1</span><span class="op">,</span> <span class="fl">0.001</span><span class="op">,</span> <span class="st">&#39;</span><span class="sc">\\</span><span class="st">epsilon&#39;</span><span class="op">,</span> <span class="st">&#39;Softness of the petal outline; small values give a crisp edge.&#39;</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    }<span class="op">,</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">equation</span><span class="op">:</span> <span class="st">&#39;mask = inside(r − [0.8 + 0.2 cos(n theta)])&#39;</span><span class="op">,</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">steps</span><span class="op">:</span> [</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>        <span class="fu">step</span>(<span class="st">&#39;R(</span><span class="sc">\\</span><span class="st">theta) = 0.8 + 0.2</span><span class="sc">\\</span><span class="st">cos n</span><span class="sc">\\</span><span class="st">theta&#39;</span><span class="op">,</span> <span class="st">&#39;The outline in polar form: a circle whose radius swells n times around the center.&#39;</span>)<span class="op">,</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>        <span class="fu">step</span>(<span class="st">&#39;m = 1 - </span><span class="sc">\\</span><span class="st">operatorname{smoothstep}</span><span class="sc">\\</span><span class="st">left(-</span><span class="sc">\\</span><span class="st">epsilon,</span><span class="sc">\\</span><span class="st"> </span><span class="sc">\\</span><span class="st">epsilon,</span><span class="sc">\\</span><span class="st"> r - R(</span><span class="sc">\\</span><span class="st">theta)</span><span class="sc">\\</span><span class="st">right)&#39;</span><span class="op">,</span> <span class="st">&#39;One inside the outline, zero outside, with a soft edge of width ε.&#39;</span>)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    ]<span class="op">,</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">outputSymbols</span><span class="op">:</span> [<span class="st">&#39;m&#39;</span>]<span class="op">,</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    <span class="dt">notes</span><span class="op">:</span> [[<span class="st">&#39;r, </span><span class="sc">\\</span><span class="st">theta&#39;</span><span class="op">,</span> <span class="st">&#39;polar coordinates of p&#39;</span>]]<span class="op">,</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    <span class="dt">concepts</span><span class="op">:</span> [<span class="st">&#39;polar&#39;</span><span class="op">,</span> <span class="st">&#39;smoothstep&#39;</span>]<span class="op">,</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    <span class="dt">curve</span><span class="op">:</span> { <span class="dt">title</span><span class="op">:</span> <span class="st">&#39;Petal radius around the circle&#39;</span><span class="op">,</span> <span class="dt">x</span><span class="op">:</span> <span class="st">&#39;angle θ&#39;</span><span class="op">,</span> <span class="dt">y</span><span class="op">:</span> <span class="st">&#39;radius R&#39;</span><span class="op">,</span> <span class="dt">domain</span><span class="op">:</span> () <span class="kw">=&gt;</span> [<span class="op">-</span><span class="bu">Math</span><span class="op">.</span><span class="cn">PI</span><span class="op">,</span> <span class="bu">Math</span><span class="op">.</span><span class="cn">PI</span>]<span class="op">,</span> <span class="dt">series</span><span class="op">:</span> [{ <span class="dt">f</span><span class="op">:</span> (a<span class="op">,</span> P) <span class="kw">=&gt;</span> <span class="fl">0.8</span> <span class="op">+</span> <span class="fl">0.2</span> <span class="op">*</span> <span class="bu">Math</span><span class="op">.</span><span class="fu">cos</span>(P<span class="op">.</span><span class="at">count</span> <span class="op">*</span> a) }] }<span class="op">,</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    <span class="dt">description</span><span class="op">:</span> <span class="st">&#39;A radial flower silhouette. Feed it into a palette or use it as coverage.&#39;</span><span class="op">,</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    <span class="dt">emit</span><span class="op">:</span> (inputs<span class="op">,</span> uniforms) <span class="kw">=&gt;</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>        <span class="vs">`softInside(length(</span><span class="sc">${</span>inputs<span class="op">.</span><span class="at">p</span><span class="sc">}</span><span class="vs">) - (0.8 + 0.2*cos(</span><span class="sc">${</span>uniforms<span class="op">.</span><span class="at">count</span><span class="sc">}</span><span class="vs">*angleOf(</span><span class="sc">${</span>inputs<span class="op">.</span><span class="at">p</span><span class="sc">}</span><span class="vs">))), </span><span class="sc">${</span>uniforms<span class="op">.</span><span class="at">width</span><span class="sc">}</span><span class="vs">)`</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div>
 <p>A modifier also sets <code>role: 'modifier'</code> and
 <code>bypass</code> to the socket it passes through when disabled.
-<code>tests/catalog.test.js</code> checks that every parameter has help
-and a symbol, that the symbol appears in the equation, that the TeX
-converts, and that bypass sockets have the output’s type.</p>
+<code>tests/catalog.test.js</code> checks the metadata as described
+above, and that bypass sockets have the output’s type. A new idea goes
+into <code>concepts.js</code> as <code>{title, tex, text}</code>,
+optionally with a <code>knob</code>
+(<code>{label, min, max, step, value}</code>) and a <code>plot(k)</code>
+returning <code>plotSVG</code> options for the knob value
+<code>k</code>.</p>
 <p>For a larger kernel, put a named GLSL function with comments into a
 shader library and have the emitter call it. The emitter receives
-<strong>GLSL expression strings</strong>, including uniform names, not
+<strong>GLSL expression strings</strong>, including uniform aliases, not
 runtime JS numbers. The metadata automatically drives the component
-browser and its tips, the inspector’s typeset equation, symbol list and
-controls, socket validation, drag-and-drop typing, insert and replace
-menus, previews and code generation. Add a preset/example, a unit test,
-and a GPU test. Then follow the regeneration checklist in the <a
+browser and its tips, the explanation panel, socket validation,
+drag-and-drop typing, insert and replace menus, previews, the formula
+sheet and code generation; the kernel also becomes callable from custom
+equations. Add a preset/example, a unit test, and a GPU test. Then
+follow the regeneration checklist in the <a
 href="DEVELOPMENT.html">development guide</a>.</p>
 <h2 id="typeset-equations">Typeset equations</h2>
 <p><code>src/math-render.js</code> converts the catalog’s TeX subset to
@@ -563,24 +930,21 @@ native MathML, which browsers typeset without fonts, scripts or network
 access. It supports fractions, roots, scripts, big operators with
 limits, Greek letters, upright names (<code>\operatorname</code>,
 <code>\mathrm</code>, <code>\text</code>), common functions and
-relations, accents, <code>\left</code>/<code>\right</code> and spacing;
-an unknown command throws, so a catalog typo fails the unit tests
-instead of rendering wrongly. The same module parses a custom GLSL
-expression with the editor’s expression grammar and renders it as
-mathematics (<code>a/b</code> as a fraction, <code>pow</code> as a
-power, <code>sqrt</code> as a radical,
-<code>abs</code>/<code>length</code> as bars, <code>vecN</code> as a
-tuple, <code>theta</code> as θ), keeping only the parentheses the
-meaning needs. The inspector uses it for the live preview above the
-expression editor.</p>
+relations, accents, <code>\left</code>/<code>\right</code> and spacing,
+with TeX’s spacing classes (an operator name followed by another gets a
+thin space: arccos cos, not arccoscos). An unknown command throws, so a
+catalog typo fails the unit tests instead of rendering wrongly. Long
+equations split at top-level <code>\quad</code> into segments that wrap
+at their natural breaks. With <code>values</code>, parameter symbols are
+replaced by their live numbers.</p>
 <h2 id="boundaries-and-extensions">Boundaries and extensions</h2>
 <p>This version supports acyclic spatial function graphs and stateless
 time. It does not yet implement feedback textures, fluid simulation
 state, full volumetric transport, parameter expressions linking two
 controls, arbitrary reusable subgraph packaging, 3D object cameras,
-transparent/HDR exports, automatic inverse fitting, or unrestricted GLSL
-file editing within the browser. Large compound kernels remain
-source-level functions. These are explicit extension points, not hidden
-UI placeholders.</p>
+transparent/HDR exports, automatic inverse fitting, loops in custom
+equations, or unrestricted GLSL file editing within the browser. Large
+compound kernels remain source-level functions. These are explicit
+extension points, not hidden UI placeholders.</p>
 </body>
 </html>

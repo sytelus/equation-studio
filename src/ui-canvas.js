@@ -1,45 +1,53 @@
-import { $, esc, state, on, toast, showError, transact, history, changed, markDirty, pause, currentNode, viewedNode, viewOptions, setView, setContributionStyle, setPref, clamp } from './editor.js';
+import { $, esc, state, on, toast, showError, transact, history, changed, markDirty, pause, currentNode, viewedNode, viewOptions, setView, setContributionStyle, setPref, clamp, noteInteraction } from './editor.js';
+import { evaluationOrder } from './graph.js';
 import { catalog } from './catalog.js';
 import { clone } from './graph.js';
 import { pixelToWorld, worldToPixel, clientToPixel, zoomAbout, panBy, unitsPerPixel, tickSpacing, formatTick } from './view-math.js';
 import { refreshTip } from './ui-tooltip.js';
-/** Center panel: the live canvas and its view switch, camera gestures, rulers and
- * readouts, the diagnostic legend, reference comparison and the canvas toolbar.
+import { frameLook, afterStageFrame, refreshLegend, resetLook } from './ui-look.js';
+import { setScopePoint, scopeLine } from './ui-scope.js';
+/** Center panel: the live canvas and its view switch, frame scheduling (adaptive
+ * resolution, background shader compilation), camera gestures, rulers and
+ * readouts, reference comparison and the canvas toolbar.
  */
 const app = $('app'), canvas = $('artCanvas'), overlay = $('overlay'), probeNames = { scalar: ['value'], coord: ['x', 'y'], geometry: ['S / warp', 'A / rim', 'coverage'], layer: ['R', 'G', 'B', 'alpha'] };
-let lastProgram = null, rawProbeArmed = false, referenceURL = null, hover = null, pinReadout = null, hoverStamp = 0;
+/** Widest canvas the Auto quality chooses, and the GPU time an interactive frame may take. */
+const AUTO_MAX_WIDTH = 2000, FRAME_BUDGET_MS = 24;
+let referenceURL = null, hover = null, pinReadout = null, hoverStamp = 0, waitingSince = 0;
+/** CSS width of the image, measured on resize (reading layout every frame would force reflows). */
+let displayWidth = 0;
 let gesture = null, pinch = null, wheelBefore = null, wheelTimer;
 /** What the last frame drew: needed so readouts query the same project. */
 let drawn = { project: null, target: null };
 const pointers = new Map();
-export function armProbe() {
-    rawProbeArmed = true;
-    toast('Click a point on the artwork to read the shown component’s raw field value. Alt-click also probes; Rulers show it continuously.');
+/** "Step 7 · Folded star lattices": a component's place in the construction. */
+function stepName(node) {
+    const index = evaluationOrder(state.project).findIndex(n => n.id === node.id);
+    return `Step ${index + 1} · ${node.label}`;
 }
-/** Legend explaining the false colors of a non-layer stage, or the effect view. */
-function legendHTML() {
-    if (state.compareOriginal) {
-        return '<b>ORIGINAL</b> the scene as it was opened · release to return';
+/** The label on the canvas saying what it shows, for the frame source `mode`. */
+function canvasModeHTML(mode) {
+    const node = viewedNode(), dot = n => `<span class="type-dot ${catalog[n.type].output}"></span>`;
+    switch (mode) {
+        case 'original': return '<b>ORIGINAL</b> the scene as it was opened';
+        case 'preview': return '<b>PREVIEW</b> not applied · click the thumbnail to use it';
+        case 'draft': {
+            const edited = currentNode();
+            return `<b>DRAFT</b> your edit of ${esc(edited.label)} · not applied`;
+        }
+        case 'stage': return `<b>THIS STEP</b> ${dot(node)}${esc(stepName(node))}`;
+        case 'effect': return `<b>WHAT IT CHANGES</b> ${dot(node)}${esc(stepName(node))}`;
+        default: return '<b>FINAL IMAGE</b>';
     }
-    if (state.viewMode === 'effect') {
-        return state.contributionStyle === 'signed'
-            ? '<span class="swatch warm"></span>brighter with it <span class="swatch cool"></span>darker with it <span class="swatch black"></span>no change'
-            : '<b>In color:</b> pixels this component changes · <b>gray:</b> unchanged';
+}
+let shownMode = null;
+function showCanvasMode(mode) {
+    const html = canvasModeHTML(mode);
+    if (html !== shownMode) {
+        shownMode = html;
+        $('canvasMode').innerHTML = html;
+        $('canvasMode').className = `canvas-mode mode-${mode}`;
     }
-    if (state.viewMode !== 'stage') {
-        return '';
-    }
-    const type = catalog[viewedNode().type].output;
-    if (type === 'scalar') {
-        return '<span class="ramp gray"></span><span>−2</span><span>0</span><span>+2</span> gray = ½ + ½·tanh(value) · Rulers show exact values';
-    }
-    if (type === 'coord') {
-        return '<span class="swatch red"></span>red = ½+½ sin x <span class="swatch green"></span>green = ½+½ sin y · repeats every 2π';
-    }
-    if (type === 'geometry') {
-        return '<span class="swatch red"></span>red = 4 × rim A <span class="swatch green"></span>green = coverage <span class="swatch blue"></span>blue = warp S';
-    }
-    return '';
 }
 export function refreshView() {
     const project = state.project, node = viewedNode(), mode = state.viewMode;
@@ -48,8 +56,10 @@ export function refreshView() {
         b.classList.toggle('active', active);
         b.setAttribute('aria-checked', String(active));
     });
-    $('viewSubject').hidden = mode === 'final';
-    $('viewSubject').innerHTML = mode === 'final' ? '' : `<span class="type-dot ${catalog[node.type].output}"></span>${esc(node.label)}`;
+    const step = document.querySelector('[data-view="stage"]');
+    step.innerHTML = `<span class="view-step">${esc(stepName(node))}</span>`;
+    step.setAttribute('aria-label', `This step: ${stepName(node)}`);
+    showCanvasMode(frameSource().mode);
     $('viewLock').hidden = mode === 'final';
     $('viewLock').classList.toggle('active', !!state.viewLock);
     $('viewLock').setAttribute('aria-pressed', String(!!state.viewLock));
@@ -58,9 +68,7 @@ export function refreshView() {
     $('effectStyle').value = state.contributionStyle;
     $('sceneStatus').textContent = project.status || 'Custom construction';
     $('sceneStatus').classList.toggle('study', project.status === 'Interpretive study');
-    const legend = legendHTML();
-    $('legend').innerHTML = legend;
-    $('legend').hidden = !legend;
+    refreshLegend();
     $('holdOriginal').classList.toggle('active', state.compareOriginal);
     $('clearPin').hidden = !state.probePin;
     for (const [id, key] of [['rulersButton', 'rulers'], ['gridButton', 'grid']]) {
@@ -73,48 +81,118 @@ export function resizeImage() {
     const stage = $('stage'), pad = innerWidth < 650 ? 24 : innerWidth < 1200 ? 36 : 56;
     const width = Math.max(10, Math.min(stage.clientWidth - pad, (stage.clientHeight - 42) * 5 / 3));
     $('imageWrap').style.width = `${width}px`;
+    displayWidth = width;
     state.overlayDirty = true;
+    if (!state.prefs.quality) {
+        state.dirty = true; // Auto quality follows the displayed size
+    }
 }
 /** Project and renderer options for the next frame: the held original, an
  * exploration candidate under the pointer, or the real project in the chosen view.
  */
 function frameSource() {
     if (state.compareOriginal) {
-        return { project: state.baseline, options: { target: state.baseline.output } };
+        return { project: state.baseline, options: { target: state.baseline.output }, mode: 'original' };
     }
-    return { project: state.preview || state.project, options: viewOptions() };
+    if (state.preview) {
+        return { project: state.preview, options: viewOptions(), mode: 'preview' };
+    }
+    const draft = state.draftPreview?.node === state.selected ? state.draftPreview.project : null;
+    return { project: draft || state.project, options: viewOptions(), mode: draft ? 'draft' : state.viewMode };
 }
-/** Draw the current view to the canvas; called by the frame loop when dirty. */
+/** Canvas width for the next frame: the quality setting, where Auto (0) matches
+ * the displayed size in device pixels. During a gesture or playback, when frames
+ * are slower than FRAME_BUDGET_MS, it is scaled down by adaptiveScale; the next
+ * still frame is rendered at full size again.
+ */
+function frameWidth({ settled = false } = {}) {
+    let width = state.prefs.quality;
+    if (!width) {
+        const css = displayWidth || 800;
+        width = clamp(Math.round(css * Math.min(devicePixelRatio || 1, 3)), 320, AUTO_MAX_WIDTH);
+    }
+    width = Math.min(width, state.renderer.info.maxSize);
+    if (!settled && (state.interacting || state.playing) && state.adaptiveScale < 1) {
+        width = Math.max(240, Math.round(width * state.adaptiveScale));
+    }
+    return width;
+}
+/** Update adaptiveScale from the latest GPU time so an interactive frame fits the budget. */
+function adaptResolution(fullPixels) {
+    const renderer = state.renderer;
+    if (renderer.gpuTime === null || !renderer.gpuPixels) {
+        return;
+    }
+    const perPixel = renderer.gpuTime / renderer.gpuPixels;
+    const ideal = clamp(Math.sqrt(FRAME_BUDGET_MS / Math.max(perPixel * fullPixels, 1e-6)), 0.25, 1);
+    state.adaptiveScale = ideal >= 0.95 ? 1 : 0.6 * state.adaptiveScale + 0.4 * ideal;
+}
+/** Show or hide the "compiling" indicator; `waiting` means this frame could not be drawn yet. */
+function showCompiling(waiting) {
+    if (waiting && !waitingSince) {
+        waitingSince = performance.now();
+    }
+    if (!waiting) {
+        waitingSince = 0;
+    }
+    app.classList.toggle('compiling', waiting);
+    $('compileStatus').hidden = !waiting;
+    if (waiting) {
+        const seconds = (performance.now() - waitingSince) / 1000;
+        $('compileText').textContent = seconds < 0.4 ? 'Compiling shader…' : `Compiling shader… ${seconds.toFixed(1)} s`;
+    }
+}
+/** Draw the current view to the canvas; called by the frame loop when dirty. While
+ * the program for a new graph structure compiles in the background, the previous
+ * image stays up with an indicator and the frame is retried.
+ */
 export function renderFrame() {
     const renderer = state.renderer;
     if (!renderer) {
         return;
     }
-    const width = state.prefs.quality, height = Math.round(width * .6);
     try {
-        const start = performance.now(), { project, options } = frameSource();
-        state.compiled = renderer.draw(project, state.time, width, height, options);
-        drawn = { project, target: options.contribution ? null : options.target };
-        if (renderer.current !== lastProgram) {
-            lastProgram = renderer.current;
-            $('shaderView').textContent = state.compiled.fragment;
+        const { project, options, mode } = frameSource();
+        showCanvasMode(mode);
+        const target = options.contribution ? project.output : options.target;
+        const program = renderer.programFor(project);
+        if (program.status === 'failed') {
+            throw program.error;
         }
-        const ms = performance.now() - start;
+        if (program.status !== 'ready') {
+            showCompiling(true);
+            state.dirty = true;
+            return;
+        }
+        const look = frameLook(project, target);
+        const full = frameWidth({ settled: true }), width = frameWidth(), height = Math.round(width * .6);
+        renderer.drawIfReady(project, state.time, width, height, { ...options, look, timed: true });
+        showCompiling(false);
+        drawn = { project, target: options.contribution ? null : options.target };
         state.frameCount++;
-        $('renderStats').textContent = `${width} × ${height}${state.playing ? ` · ${state.fps.toFixed(0)} fps` : ''}`;
-        $('liveStats').textContent = `${width}×${height} · ${ms < 1 ? '<1' : ms.toFixed(0)} ms · frame ${state.frameCount}`;
-        $('liveBadge').classList.remove('pulse');
-        void $('liveBadge').offsetWidth; // restart the pulse animation
-        $('liveBadge').classList.add('pulse');
+        adaptResolution(full * Math.round(full * .6));
+        updateBadge(width, height, full);
+        $('liveBadge').dataset.pulse = $('liveBadge').dataset.pulse === 'a' ? 'b' : 'a'; // restart the pulse
         if (state.probePin) {
             pinReadout = readout(state.probePin.px, state.probePin.py, true);
+        }
+        if (state.viewMode === 'stage' && !state.compareOriginal) {
+            afterStageFrame(project, target);
         }
     }
     catch (e) {
         pause();
+        showCompiling(false);
         showError(e);
         $('renderStats').textContent = 'Render error · last good image retained';
     }
+}
+/** The LIVE badge and status line: resolution, GPU time and frame count. */
+function updateBadge(width, height, full) {
+    const renderer = state.renderer, ms = renderer.gpuTime;
+    const timing = ms === null ? '' : ` · GPU ${renderer.gpuTimeExact ? '' : '≤'}${ms < 1 ? '<1' : ms.toFixed(ms < 10 ? 1 : 0)} ms`;
+    $('liveStats').textContent = `${width}×${height}${timing} · frame ${state.frameCount}`;
+    $('renderStats').textContent = `${width} × ${height}${state.playing ? ` · ${state.fps.toFixed(0)} fps` : ''}${width < full ? ` · interactive (full ${full} px when still)` : ''}`;
 }
 // ---- Readouts ----------------------------------------------------------------
 /** Component whose raw values the readouts report: the shown stage, else the selection. */
@@ -191,7 +269,9 @@ function drawLabel(ctx, lines, x, y, width, height) {
     lines.forEach((line, i) => ctx.fillText(line, left + 7, top + 14 + i * 14));
 }
 export function drawOverlay() {
-    const rect = canvas.getBoundingClientRect(), W = Math.round(rect.width), H = Math.round(rect.height);
+    // The displayed size is known from resizeImage(); reading it back from the
+    // layout here would force a synchronous layout on every frame of playback.
+    const W = Math.round(displayWidth || canvas.getBoundingClientRect().width), H = Math.round(W * 0.6);
     if (!W || !H) {
         return;
     }
@@ -277,6 +357,18 @@ export function drawOverlay() {
             ctx.textBaseline = 'alphabetic';
         }
     }
+    const profile = scopeLine();
+    if (profile) { // where the profile under the canvas is sampled
+        const [ax, ay] = toCss(...profile.a), [bx, by] = toCss(...profile.b);
+        ctx.strokeStyle = 'rgba(255,201,143,0.75)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
     if (state.probePin && pinReadout) {
         const [cx, cy] = toCss(pinReadout.x, pinReadout.y);
         ctx.strokeStyle = '#ddad87';
@@ -334,8 +426,7 @@ canvas.addEventListener('pointerdown', e => {
         gesture = null;
         return;
     }
-    if (rawProbeArmed || e.altKey) {
-        rawProbeArmed = false;
+    if (e.altKey) { // a one-off reading of the raw value, as a message
         const { px, py } = framebufferPoint(e), r = readout(px, py, true);
         if (r.rawError) {
             showError(r.rawError);
@@ -362,6 +453,7 @@ canvas.addEventListener('pointermove', e => {
         const scale = canvas.width / rect.width;
         view = panBy(view, (mid.x - pinch.mid.x) * scale, -(mid.y - pinch.mid.y) * scale, canvas.width);
         state.project.view = view;
+        noteInteraction();
         markDirty();
         return;
     }
@@ -371,6 +463,7 @@ canvas.addEventListener('pointermove', e => {
             gesture.moved = true;
         }
         state.project.view = panBy(gesture.view, (e.clientX - gesture.x) * scale, -(e.clientY - gesture.y) * scale, canvas.width);
+        noteInteraction();
         markDirty();
         return;
     }
@@ -380,6 +473,7 @@ canvas.addEventListener('pointermove', e => {
     hoverStamp = performance.now();
     const { px, py } = framebufferPoint(e);
     hover = readout(px, py, state.prefs.rulers);
+    setScopePoint({ x: hover.x, y: hover.y });
     updateProbeText(hover);
     state.overlayDirty = true;
 });
@@ -425,6 +519,7 @@ canvas.addEventListener('wheel', e => {
     }
     const { px, py } = framebufferPoint(e), world = pixelToWorld(px, py, canvas.width, canvas.height, state.project.view);
     state.project.view = zoomAbout(state.project.view, state.project.view.zoom * Math.exp(-e.deltaY * .001), world.x, world.y);
+    noteInteraction();
     markDirty();
     clearTimeout(wheelTimer);
     wheelTimer = setTimeout(() => {
@@ -467,10 +562,14 @@ $('clearPin').onclick = clearPin;
 $('rulersButton').onclick = () => setPref('rulers', !state.prefs.rulers);
 $('gridButton').onclick = () => setPref('grid', !state.prefs.grid);
 $('quality').value = String(state.prefs.quality);
-if ($('quality').value !== String(state.prefs.quality)) { // unknown stored value
-    state.prefs.quality = Number($('quality').value);
+if ($('quality').value !== String(state.prefs.quality)) { // unknown stored value: Auto
+    state.prefs.quality = 0;
+    $('quality').value = '0';
 }
-$('quality').onchange = () => setPref('quality', Number($('quality').value));
+$('quality').onchange = () => {
+    state.adaptiveScale = 1;
+    setPref('quality', Number($('quality').value));
+};
 $('focusButton').onclick = () => {
     app.classList.toggle('focus-canvas');
     $('focusButton').setAttribute('aria-pressed', String(app.classList.contains('focus-canvas')));
@@ -561,6 +660,7 @@ on('refresh', () => {
 on('view', refreshView);
 on('selection', refreshView);
 on('prefs', () => {
+    resetLook();
     refreshView();
     state.overlayDirty = true;
 });

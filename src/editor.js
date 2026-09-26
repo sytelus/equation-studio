@@ -1,8 +1,10 @@
-import { catalog, bypassSocket } from './catalog.js';
+import { catalog, bypassSocket, paramSpecs } from './catalog.js';
 import { clone, makeNode, validateProject, uniqueId, removeNode, upstream, evaluationOrder, History, MAX_LABEL } from './graph.js';
 import { presets, getPreset } from './presets.js';
 import { CONTRIBUTION_STYLES } from './compiler.js';
 import { originalValue } from './explore.js';
+import { insertKey } from './timeline.js';
+import { withEquation, equationSource } from './fork.js';
 /** Shared editor core: transient state, the event bus and every model operation.
  *
  * UI state never enters shader source; numeric values remain uniforms. The
@@ -17,6 +19,8 @@ import { originalValue } from './explore.js';
  *   time       the playhead moved
  *   history    undo/redo availability changed
  *   prefs      a persisted preference changed
+ *   values     a parameter changed during a continuous edit (nodeId, key, value);
+ *              views update numbers without rebuilding
  *
  * The canvas shows one of three views of the project:
  *   final   the scene's final output (what exports and saves)
@@ -31,8 +35,22 @@ export const STORAGE = { project: 'equation-studio.project.v1', baseline: 'equat
 export const CUSTOM_STATUS = 'Custom construction';
 export const VIEW_MODES = ['final', 'stage', 'effect'];
 /** Bump when defaults change in a way returning users should receive. */
-const PREFS_VERSION = 2;
-const defaultPrefs = { version: PREFS_VERSION, previews: true, rulers: true, grid: true, quality: 800, graphHeight: 260, bottomTab: 'pipeline' };
+const PREFS_VERSION = 3;
+/** Persisted preferences. `quality` is the canvas width in pixels, 0 for Auto
+ * (match the display). Stage looks (looks.js): `stageColors` 'auto' or 'classic',
+ * `contours` on scalar colormaps, `geometryChannel` 'S', 'A', 'coverage' or 'all',
+ * `layerView` 'color' or 'alpha', `autoExposure` for clipped or black layer stages.
+ */
+const defaultPrefs = {
+    version: PREFS_VERSION, previews: true, rulers: true, grid: true, quality: 0, graphHeight: 0, bottomTab: 'pipeline',
+    stageColors: 'auto', contours: true, geometryChannel: 'A', layerView: 'color', autoExposure: true, scope: false,
+    /** Layout: the Equation Playground (a wide component panel) on or off, the
+     * panel's normal and wide widths in pixels (0: automatic, about a quarter and
+     * half of the window), and the library docked or a drawer. */
+    playground: false, panelWidth: 0, wideWidth: 0, libraryDocked: false
+};
+/** Preference keys kept when upgrading from an older version. */
+const KEPT_PREFS = ['graphHeight', 'bottomTab', 'previews', 'rulers', 'grid'];
 export const state = {
     project: getPreset('bipolar'),
     /** The project as it was opened (preset, file or snapshot): what "Original" and resets return to. */
@@ -55,7 +73,6 @@ export const state = {
     /** Output node awaiting an input click (click-to-wire), or null. */
     connection: null,
     renderer: null,
-    compiled: null,
     prefs: { ...defaultPrefs },
     /** Framebuffer position of a pinned readout marker, or null. */
     probePin: null,
@@ -63,7 +80,18 @@ export const state = {
     previewsDirty: true,
     fps: 0,
     frameStamp: 0,
-    frameCount: 0
+    frameCount: 0,
+    /** A continuous gesture (drag, slider, scrub, playback) is under way: frames may
+     * render at a reduced resolution (adaptiveScale) and refine when it ends. */
+    interacting: false,
+    adaptiveScale: 1,
+    /** Colormap range pinned by the legend's lock: {target, look} or null. */
+    lookLock: null,
+    /** Unapplied equation edits: component id → equation text (see setDraft). */
+    drafts: new Map(),
+    /** What the canvas previews for the selected component's draft: {node, project}
+     * with the last draft text that checked, or null. */
+    draftPreview: null
 };
 export const history = new History();
 const listeners = new Map();
@@ -103,8 +131,8 @@ export function loadPrefs(text) {
     }
     catch (e) { /* Ignore unreadable preferences. */
     }
-    if (stored.version !== PREFS_VERSION) { // new defaults: previews, rulers and grid on
-        stored = { quality: stored.quality, graphHeight: stored.graphHeight };
+    if (stored.version !== PREFS_VERSION) { // new defaults (1.3: Auto quality); keep layout choices
+        stored = Object.fromEntries(KEPT_PREFS.filter(k => stored.version >= 2 || k === 'graphHeight').map(k => [k, stored[k]]));
     }
     const prefs = { ...defaultPrefs };
     for (const [key, value] of Object.entries(stored)) {
@@ -156,6 +184,16 @@ export function markDirty() {
     state.overlayDirty = true;
     state.previewsDirty = true;
 }
+let interactionTimer;
+/** Note a continuous gesture; the canvas refines to full resolution shortly after the last one. */
+export function noteInteraction() {
+    state.interacting = true;
+    clearTimeout(interactionTimer);
+    interactionTimer = setTimeout(() => {
+        state.interacting = false;
+        state.dirty = true;
+    }, 220);
+}
 export function changed() {
     markDirty();
     persist();
@@ -172,6 +210,12 @@ export function refreshUI() {
     if (state.connection && !ids.has(state.connection)) {
         state.connection = null;
     }
+    for (const id of state.drafts.keys()) {
+        if (!ids.has(id)) {
+            state.drafts.delete(id); // the component was deleted, or undone away
+        }
+    }
+    updateDraftPreview();
     state.time = clamp(state.time, 0, state.project.duration);
     emit('refresh');
 }
@@ -225,6 +269,7 @@ export function loadProject(next, { fromHistory = false, keepBaseline = false, k
         state.baseline = getPreset(next.id); // undo/redo across a scene change: the original follows the scene
     }
     if (!fromHistory && !keepContext) {
+        state.drafts.clear(); // another scene: its components are not the ones being edited
         state.time = 0;
         state.viewMode = 'final';
         state.viewLock = null;
@@ -267,6 +312,7 @@ export function setSelected(id) {
     if (state.viewMode !== 'final' && !state.viewLock) {
         markDirty(); // the stage/effect view follows the selection
     }
+    updateDraftPreview();
     emit('selection');
 }
 // ---- Canvas view -------------------------------------------------------------
@@ -282,6 +328,7 @@ export function setView(mode, { node = null, lock } = {}) {
     if (node) {
         state.selected = node;
         state.connection = null;
+        updateDraftPreview();
     }
     state.viewMode = mode;
     if (lock !== undefined) {
@@ -315,15 +362,22 @@ export function viewOptions() {
     }
     return { target: project.output };
 }
-/** Node the canvas currently displays (for readouts and legends). */
-export function viewTarget() {
-    return state.viewMode === 'stage' ? viewedNode().id : state.project.output;
+/** Position of the selected component in evaluation order: {index, count}. */
+export function selectionPosition() {
+    const order = evaluationOrder(state.project);
+    return { index: order.findIndex(n => n.id === state.selected), count: order.length };
 }
-/** Move the stage view to the previous/next component in evaluation order. */
-export function stepStage(delta) {
-    const order = evaluationOrder(state.project), index = order.findIndex(n => n.id === viewedNode().id);
+/** Select the previous (-1) or next (+1) component in evaluation order. The canvas
+ * keeps its view; in the step and effect views it follows the selection.
+ */
+export function selectStep(delta) {
+    const order = evaluationOrder(state.project), index = order.findIndex(n => n.id === state.selected);
     const next = order[clamp((index < 0 ? 0 : index) + delta, 0, order.length - 1)];
-    setView('stage', { node: next.id, lock: false });
+    if (state.viewLock) {
+        state.viewLock = null;
+        emit('view');
+    }
+    setSelected(next.id);
 }
 export function seek(t) {
     if (!Number.isFinite(t)) {
@@ -387,6 +441,125 @@ export function bypassDescription(node) {
     return 'contributes nothing (zero)';
 }
 // ---- Parameters ---------------------------------------------------------------
+/** Project as it was when the current continuous edit began (see liveParam). */
+let liveBefore = null;
+/** One step of a continuous parameter edit (slider drag, number typing, dragging
+ * a symbol in an equation): the live project changes at once for smooth
+ * feedback, an animated parameter gets a key at the playhead, and every view is
+ * told through the `values` event. endLiveEdit() records one undo step.
+ * Returns the value actually set (clamped to the parameter's range).
+ */
+export function liveParam(nodeId, key, raw) {
+    if (state.busy) {
+        return null;
+    }
+    const node = nodeById(nodeId), spec = node && paramSpecs(node)[key];
+    if (!spec || (spec.kind === 'number' && !Number.isFinite(raw))) {
+        return null;
+    }
+    pause();
+    if (!liveBefore) {
+        liveBefore = clone(state.project);
+    }
+    const value = spec.kind === 'number' ? clamp(raw, spec.min, spec.max) : raw;
+    node.params[key] = value;
+    if (state.project.tracks.some(t => t.node === nodeId && t.param === key && t.keys.length)) {
+        insertKey(state.project, nodeId, key, state.time, value);
+    }
+    noteInteraction();
+    markDirty();
+    emit('values', nodeId, key, value);
+    return value;
+}
+/** Finish a continuous edit: one history entry, autosave and a full refresh. */
+export function endLiveEdit() {
+    if (!liveBefore) {
+        return false;
+    }
+    history.push(liveBefore);
+    liveBefore = null;
+    changed();
+    refreshUI();
+    return true;
+}
+// ---- Equations ------------------------------------------------------------------
+/** Put equation `source` into component `nodeId`, as one undo step: a custom
+ * equation gets the new text; a built-in component becomes that equation (same
+ * wiring, values and animation; see withEquation in fork.js). The shader
+ * compiles in the background. Throws the checker's EquationError, changing
+ * nothing, when the equation is invalid. Discards the component's draft.
+ */
+export function applyEquation(nodeId, source) {
+    const next = withEquation(state.project, nodeId, source);
+    const ok = transact(p => Object.assign(p, { nodes: next.nodes, tracks: next.tracks }), { structural: true });
+    if (ok) {
+        discardDraft(nodeId);
+    }
+    return ok;
+}
+/** Turn a built-in component into its equivalent equation (the image is unchanged). */
+export function forkComponent(nodeId) {
+    return applyEquation(nodeId, equationSource(nodeById(nodeId)));
+}
+let draftTimer = null;
+/** The canvas preview of the selected component's draft: the project with the
+ * draft applied, or, while the text has an error, the last version that checked.
+ */
+function updateDraftPreview() {
+    clearTimeout(draftTimer);
+    const id = state.selected, source = state.drafts.get(id);
+    const previous = state.draftPreview?.node === id ? state.draftPreview : null;
+    let next = null;
+    if (source !== undefined) {
+        try {
+            const project = withEquation(state.project, id, source);
+            validateProject(project);
+            next = { node: id, project };
+        }
+        catch (e) {
+            next = previous;
+        }
+    }
+    if (next !== state.draftPreview) {
+        state.draftPreview = next;
+        markDirty();
+    }
+}
+/** Start or change an unapplied edit of a component's equation. The typeset
+ * lines follow at once (views listen to `draft`); the canvas preview, which
+ * compiles a new shader, follows a moment after typing pauses.
+ */
+export function setDraft(nodeId, source) {
+    const started = !state.drafts.has(nodeId);
+    state.drafts.set(nodeId, source);
+    emit('draft', nodeId);
+    clearTimeout(draftTimer);
+    if (started) {
+        updateDraftPreview();
+    }
+    else {
+        draftTimer = setTimeout(updateDraftPreview, 350);
+    }
+}
+/** Start editing: the draft begins as the component's equation, or the
+ * equivalent equation of a built-in component. */
+export function startEdit(nodeId) {
+    if (!state.drafts.has(nodeId)) {
+        setDraft(nodeId, equationSource(nodeById(nodeId)));
+    }
+}
+/** Drop an unapplied edit (Cancel). */
+export function discardDraft(nodeId) {
+    if (state.drafts.delete(nodeId)) {
+        emit('draft', nodeId);
+        updateDraftPreview();
+    }
+}
+/** True when the draft differs from what the component computes now. */
+export function draftChanged(nodeId) {
+    const node = nodeById(nodeId), source = state.drafts.get(nodeId);
+    return source !== undefined && !!node && source !== equationSource(node);
+}
 export function resetParam(nodeId, key) {
     return transact(p => {
         const n = p.nodes.find(v => v.id === nodeId);
@@ -397,7 +570,7 @@ export function resetParam(nodeId, key) {
 export function resetNode(nodeId) {
     return transact(p => {
         const n = p.nodes.find(v => v.id === nodeId);
-        for (const key of Object.keys(catalog[n.type].params)) {
+        for (const key of Object.keys(paramSpecs(n))) {
             n.params[key] = originalValue(state.baseline, n, key);
         }
         p.tracks = p.tracks.filter(t => t.node !== nodeId);

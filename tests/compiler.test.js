@@ -2,13 +2,14 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { presets, getPreset } from '../src/presets.js';
 import { makeNode } from '../src/graph.js';
-import { compileGraph, CONTRIBUTION_STYLES } from '../src/compiler.js';
+import { compileGraph, compileProgram, programKey, viewState, nodeMask, subgraph, withBypassed, comparePassSource, CONTRIBUTION_STYLES, MODES } from '../src/compiler.js';
 import { catalog } from '../src/catalog.js';
 
-/** Count occurrences of a substring outside GLSL line comments. */
+/** Shader text without GLSL line comments. */
 const codeOnly = fragment => fragment.replace(/\/\/.*$/gm, '');
+const bit = (mask, k) => ((mask[k >> 5] >>> (k & 31)) & 1) === 1;
 
-describe('shader generation', () => {
+describe('program generation', () => {
     for (const p of presets) {
         it(`compiles the preset: ${p.id}`, () => {
             const c = compileGraph(p);
@@ -16,118 +17,157 @@ describe('shader generation', () => {
             assert.equal(c.target, p.output);
             assert(!codeOnly(c.fragment).includes('undefined'));
             assert(c.order.length > 0);
-            assert.equal(c.order.at(-1), p.output);
+            assert.equal(c.order.at(-1), p.output, 'the target is evaluated last');
             assert.equal(c.type, catalog[p.nodes.find(n => n.id === p.output).type].output);
+            const whole = compileProgram(p);
+            assert.equal(whole.order.length, p.nodes.length, 'the whole-graph program holds every component');
         });
     }
-    it('reachable shared expressions compile only once', () => {
+    it('evaluates each shared component once', () => {
         const c = compileGraph(getPreset('bipolar'));
         assert.equal(c.order.filter(x => x === 'turbulence').length, 1);
+        assert.equal(codeOnly(c.fragment).match(/nebulaTurbulence\(/g).length, 2, 'one call plus the library definition');
     });
-    it('unreachable nodes do not generate shader code', () => {
+    it('a view program contains only the target’s subgraph', () => {
         const p = getPreset('bipolar');
         p.nodes.push(makeNode('solid', 'unused'));
         assert(!compileGraph(p).order.includes('unused'));
+        assert(compileProgram(p).order.includes('unused'));
+        assert.deepEqual(subgraph(p, 'shell').sort(), ['shell', 'space']);
     });
-    it('unconnected coordinate socket is zero, not implicit world space', () => {
+    it('an unconnected coordinate socket is zero, not implicit world space', () => {
         const p = getPreset('bipolar');
         delete p.nodes[1].inputs.p;
         assert(compileGraph(p).fragment.includes('nebulaGeometry(vec2(0),'));
     });
-    it('isolated scalar, coordinate and geometry use diagnostic conversions', () => {
+    it('reports each target’s type; looks color non-layer types', () => {
         const p = getPreset('bipolar');
         assert.equal(compileGraph(p, 'shell').type, 'geometry');
         assert.equal(compileGraph(p, 'turbulence').type, 'scalar');
         assert.equal(compileGraph(p, 'space').type, 'coord');
-        assert(compileGraph(p, 'turbulence').fragment.includes('tanh('));
+        const source = compileGraph(p, 'turbulence').fragment;
+        assert(source.includes('tanh(') && source.includes('vec3 present(vec4 f)'));
     });
-    it('a disabled node is bypassed in the shader', () => {
-        const p = getPreset('lensing');
-        p.nodes.find(n => n.id === 'lens').enabled = false;
-        const c = compileGraph(p), index = c.order.indexOf('lens');
-        assert(c.fragment.includes(`vec2 n${index} = n${c.order.indexOf('space')};`));
-        const q = getPreset('bipolar');
-        q.nodes.find(n => n.id === 'stars').enabled = false;
-        const d = compileGraph(q);
-        assert(d.fragment.includes(`vec4 n${d.order.indexOf('stars')} = vec4(0);`), 'content without a bypass becomes zero');
+    it('names parameters with readable aliases packed into u_params', () => {
+        const c = compileProgram(getPreset('bipolar')), shell = c.index.shell;
+        assert(c.fragment.includes(`#define n${shell}_pinch u_params[`));
+        assert(c.fragment.includes(`nebulaGeometry(n${c.index.space},n${shell}_pinch,n${shell}_shear,n${shell}_shells)`));
+        for (const slot of c.params) {
+            assert(c.order.includes(slot.node));
+            assert(slot.vector < c.vectors && slot.component < 4);
+            const alias = `n${c.index[slot.node]}_${slot.param}`;
+            assert.equal(codeOnly(c.fragment).split(`#define ${alias} `).length, 2, alias);
+        }
+        const used = new Set(c.params.map(s => `${s.vector}.${s.component}`));
+        assert.equal(used.size, c.params.length, 'no two parameters share a slot');
+        assert(c.fragment.includes(`uniform vec4 u_params[${c.vectors}];`));
     });
-    it('raw mode skips display conversion', () => {
-        const p = getPreset('bipolar'), raw = compileGraph(p, 'turbulence', { raw: true });
-        assert.equal(raw.raw, true);
-        assert(raw.fragment.includes('outputColor=field;return;'));
-        assert(!raw.fragment.includes('tanh('));
+    it('packs numbers four to a vector and gives each color its own vector', () => {
+        const p = getPreset('marble'), c = compileProgram(p);
+        const colors = c.params.filter(s => s.kind === 'color'), numbers = c.params.filter(s => s.kind === 'number');
+        assert.equal(colors.length, 2);
+        assert(colors.every(s => s.component === 0 && !numbers.some(n => n.vector === s.vector)));
+        assert.equal(c.vectors, colors.length + Math.ceil(numbers.length / 4));
     });
-    it('changing numbers preserves shader source', () => {
-        const p = getPreset('bipolar'), a = compileGraph(p).fragment;
+    it('the source ignores values, enabled flags and the output choice', () => {
+        const p = getPreset('bipolar'), a = compileProgram(p).fragment;
         p.nodes[1].params.pinch = .6;
-        assert.equal(a, compileGraph(p).fragment);
+        p.nodes.find(n => n.id === 'stars').enabled = false;
+        p.output = 'gas';
+        assert.equal(a, compileProgram(p).fragment);
+        assert.equal(programKey(getPreset('bipolar')), programKey(p));
     });
-    it('custom expression edits change shader source', () => {
-        const p = getPreset('kaleidoscope'), a = compileGraph(p).fragment;
-        p.nodes.find(n => n.id === 'petals').params.expression = '0.1';
-        assert.notEqual(a, compileGraph(p).fragment);
+    it('wiring and custom expression edits change the source', () => {
+        const p = getPreset('kaleidoscope'), a = compileProgram(p).fragment, key = programKey(p);
+        p.nodes.find(n => n.id === 'petals').params = { expression: '0.1' }; // no parameters declared any more
+        assert.notEqual(a, compileProgram(p).fragment);
+        assert.notEqual(key, programKey(p));
+        const q = getPreset('marble');
+        const before = programKey(q);
+        q.nodes.find(n => n.id === 'veins').inputs.p = 'space';
+        assert.notEqual(before, programKey(q));
+    });
+    it('every component can be bypassed at run time', () => {
+        const p = getPreset('lensing'), c = compileProgram(p), lens = c.index.lens, space = c.index.space;
+        assert(c.fragment.includes(`if(evaluated(${lens})){ if(included(${lens})) n${lens}=clusterLens(`));
+        assert(c.fragment.includes(`else n${lens}=n${space}; }`), 'a bypassed lens passes its coordinates through');
+        const q = getPreset('bipolar'), d = compileProgram(q), stars = d.index.stars;
+        assert(d.fragment.includes(`else n${stars}=vec4(0); }`), 'content without a bypass becomes zero');
     });
     it('the angular mirror uses the shared helper', () => {
-        assert(compileGraph(getPreset('kaleidoscope')).fragment.includes('angularMirror('));
+        assert(compileProgram(getPreset('kaleidoscope')).fragment.includes('angularMirror('));
     });
-    it('every uniform is declared exactly once and belongs to a reachable node', () => {
-        const p = getPreset('lensing'), c = compileGraph(p);
-        for (const u of c.uniforms) {
-            assert(c.order.includes(u.node));
-            assert.equal(codeOnly(c.fragment).split(`uniform ${u.type} ${u.name};`).length, 2);
-        }
-    });
-});
-
-describe('contribution mode', () => {
-    it('evaluates the output with and without the node', () => {
-        const p = getPreset('bipolar'), c = compileGraph(p, p.output, { contribution: 'stars' });
-        assert.equal(c.contribution, 'stars');
-        assert.equal(c.contributionStyle, 'highlight');
-        assert.equal(c.reachable, true);
-        assert(c.fragment.includes('vec4 shadeWithout(vec2 p)'));
-        // The node's own statement is zeroed only in the "without" variant.
-        const [withNode, without] = c.fragment.split('vec4 shadeWithout');
-        assert(withNode.includes('nebulaStars('));
-        assert(without.includes('vec4 n') && without.includes('= vec4(0);'));
-    });
-    it('removes a modifier by bypassing it, not by zeroing it', () => {
-        const p = getPreset('lensing'), c = compileGraph(p, p.output, { contribution: 'lens' });
-        const without = c.fragment.split('vec4 shadeWithout')[1], index = c.order.indexOf('lens'), source = c.order.indexOf('space');
-        assert(without.includes(`vec2 n${index} = n${source};`), 'the lens passes the coordinates through');
-    });
-    it('reports unreachable nodes and still compiles', () => {
-        const p = getPreset('bipolar');
-        p.nodes.push(makeNode('solid', 'unused'));
-        const c = compileGraph(p, p.output, { contribution: 'unused' });
-        assert.equal(c.reachable, false);
-        assert(c.fragment.includes('shadeWithout'));
-    });
-    it('supports every documented style and rejects others', () => {
+    it('rejects unknown targets and styles', () => {
         const p = getPreset('fire');
-        const sources = CONTRIBUTION_STYLES.map(style => compileGraph(p, p.output, { contribution: 'flame', contributionStyle: style }).fragment);
-        assert.equal(new Set(sources).size, CONTRIBUTION_STYLES.length);
+        assert.throws(() => compileGraph(p, 'nope'), /Unknown component/);
         assert.throws(() => compileGraph(p, p.output, { contribution: 'flame', contributionStyle: 'rainbow' }), /style/);
         assert.throws(() => compileGraph(p, p.output, { contribution: 'nope' }), /Unknown contribution/);
+        assert.deepEqual(CONTRIBUTION_STYLES, ['highlight', 'signed']);
+        assert.deepEqual(MODES, { display: 0, raw: 1 });
     });
 });
 
-describe('preview mode', () => {
-    it('computes every node once and selects by index', () => {
-        const p = getPreset('bipolar');
-        p.nodes.push(makeNode('solid', 'unused'));
-        const c = compileGraph(p, p.output, { preview: true });
-        assert.equal(c.preview, true);
-        assert.equal(c.target, null);
-        assert.equal(Object.keys(c.previewIndex).length, p.nodes.length);
-        assert(c.fragment.includes('vec4 shade(vec2 p,int index)'));
-        assert(c.fragment.includes('shade(p,u_previewIndex)'));
-        for (const [id, k] of Object.entries(c.previewIndex)) {
-            assert(c.fragment.includes(`if(index==${k}) return`), id);
+describe('view state', () => {
+    it('evaluates only what the target needs', () => {
+        const p = getPreset('bipolar'), c = compileProgram(p), s = viewState(c, p, 'turbulence');
+        assert.deepEqual(s.order, ['space', 'shell', 'turbulence']);
+        for (const id of c.order) {
+            assert.equal(bit(s.active, c.index[id]), s.order.includes(id), id);
         }
     });
-    it('layers are display-converted inside the preview shader', () => {
-        const c = compileGraph(getPreset('fire'), null, { preview: true });
-        assert(c.fragment.includes('displayColor(n1.rgb,u_exposure,u_tone)'));
+    it('a disabled component pulls in only its bypass input', () => {
+        const p = getPreset('lensing');
+        p.nodes.find(n => n.id === 'final').enabled = false; // Add light passes `a` (backdrop)
+        const c = compileProgram(p), s = viewState(c, p, 'final');
+        assert(!s.order.includes('cluster'));
+        assert(s.order.includes('backdrop'));
+        assert(!bit(s.enabled, c.index.final) && bit(s.enabled, c.index.backdrop));
+    });
+    it('the second image of what a component changes bypasses it', () => {
+        const p = getPreset('bipolar'), q = withBypassed(p, 'stars');
+        assert.equal(q.nodes.find(n => n.id === 'stars').enabled, false);
+        assert.equal(p.nodes.find(n => n.id === 'stars').enabled, true, 'the original is untouched');
+        const c = compileProgram(p);
+        assert.equal(bit(viewState(c, q, 'final').enabled, c.index.stars), false);
+    });
+    it('reports whether a contribution can change the target', () => {
+        const p = getPreset('bipolar');
+        p.nodes.push(makeNode('solid', 'unused'));
+        const c = compileProgram(p);
+        assert.equal(viewState(c, p, 'final', 'stars').reachable, true);
+        assert.equal(viewState(c, p, 'final', 'unused').reachable, false);
+        assert.throws(() => viewState(compileGraph(p, 'shell'), p, 'final'), /does not contain/);
+    });
+    it('masks set one bit per contained node', () => {
+        const c = { index: Object.fromEntries(Array.from({ length: 70 }, (_, k) => [`n${k}`, k])) };
+        const mask = nodeMask(c, ['n0', 'n31', 'n32', 'n69', 'missing']);
+        assert.equal(mask[0], (1 | 2 ** 31) >>> 0);
+        assert.equal(mask[1], 1);
+        assert.equal(mask[2], 1 << 5);
+        assert.equal(mask[3], 0);
+    });
+});
+
+describe('compileGraph descriptions', () => {
+    it('describes raw and contribution views without changing the source', () => {
+        const p = getPreset('bipolar');
+        const plain = compileGraph(p), raw = compileGraph(p, 'turbulence', { raw: true }), effect = compileGraph(p, p.output, { contribution: 'stars' });
+        assert.equal(raw.raw, true);
+        assert.equal(effect.contribution, 'stars');
+        assert.equal(effect.contributionStyle, 'highlight');
+        assert.equal(effect.reachable, true);
+        assert.equal(plain.fragment, effect.fragment);
+        assert(plain.fragment.includes('if(u_mode==1){outputColor=field;return;}'));
+        assert(!plain.fragment.includes('fieldColors') && !plain.fragment.includes('u_without'), 'looks and comparisons are separate passes, not part of the graph program');
+        assert(comparePassSource.includes('uniform highp sampler2D u_without;') && comparePassSource.includes('u_style==1'));
+    });
+    it('lists the nodes a view evaluates with the current enabled flags', () => {
+        const p = getPreset('bipolar');
+        p.nodes.find(n => n.id === 'stars').enabled = false;
+        const c = compileGraph(p);
+        assert(c.order.includes('stars'), 'the program still contains the bypassed node');
+        assert(c.evaluated.includes('stars'), 'a bypassed content node is still visited (it yields zero)');
+        p.nodes.find(n => n.id === 'final').enabled = false;
+        assert(!compileGraph(p).evaluated.includes('stars'), 'a bypassed combiner visits only its main input');
     });
 });

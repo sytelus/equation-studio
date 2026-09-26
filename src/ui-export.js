@@ -2,6 +2,7 @@ import { $, state, showError, pause, viewOptions } from './editor.js';
 import { clone } from './graph.js';
 import { makeZip, download, fileStem, frameTimes, embedPNGMetadata } from './export.js';
 import { updateClock } from './ui-timeline.js';
+import { frameLook } from './ui-look.js';
 /** Export dialog: still PNG with embedded project metadata, deterministic PNG
  * sequence ZIP, or a real-time browser video recording. Exports draw on the main
  * canvas at the requested size and restore the preview afterwards.
@@ -162,11 +163,16 @@ async function exportVideo(scene, drawAt, fps, stem) {
     }
     const probe = canvas.captureStream(0), manual = typeof probe.getVideoTracks()[0]?.requestFrame === 'function';
     probe.getTracks().forEach(t => t.stop());
-    // Manual capture is deterministic; if a browser delivers nothing that way, one
-    // compositor-driven pass is tried before giving up.
-    let pass = await recordPass(scene, drawAt, fps, mime, manual);
-    if (!pass.chunks.length && !abortExport && manual) {
-        pass = await recordPass(scene, drawAt, fps, mime, false);
+    // Manual capture is deterministic. If a pass delivers nothing (Chromium's first
+    // capture after a pop-up window closed does, on some backends), it is retried
+    // once each way before giving up.
+    const modes = manual ? [true, false, true] : [false, false];
+    let pass = null;
+    for (const mode of modes) {
+        pass = await recordPass(scene, drawAt, fps, mime, mode);
+        if (pass.chunks.length || abortExport) {
+            break;
+        }
     }
     if (abortExport) {
         throw new Error('Recording cancelled or exceeded the memory limit. No partial video was downloaded.');
@@ -186,6 +192,10 @@ $('startExport').onclick = async () => {
     const width = Number($('exportWidth').value), height = Number($('exportHeight').value), fps = Number($('exportFPS').value), mode = $('exportFormat').value;
     const useView = $('exportIsolated').checked && state.viewMode !== 'final';
     const options = useView ? viewOptions() : { target: state.project.output };
+    if (useView && state.viewMode === 'stage') {
+        // In the colors the canvas shows, with its current range for every frame.
+        options.look = frameLook(state.project, options.target);
+    }
     const savedTime = state.time, scene = clone(state.project), stem = fileStem(state.project.title);
     try {
         if (!Number.isInteger(width) || !Number.isInteger(height) || Math.min(width, height) < 32 || Math.max(width, height) > renderer.info.maxSize) {

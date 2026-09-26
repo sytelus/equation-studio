@@ -32,17 +32,321 @@
 <ul>
 <li><a href="#changelog" id="toc-changelog">Changelog</a>
 <ul>
-<li><a href="#september-2026" id="toc-september-2026">1.2.0 — 24
+<li><a href="#september-2026" id="toc-september-2026">1.4.0 — 25
 September 2026</a></li>
-<li><a href="#september-2026-1" id="toc-september-2026-1">1.1.0 — 23
+<li><a href="#september-2026-1" id="toc-september-2026-1">1.3.0 — 25
 September 2026</a></li>
-<li><a href="#september-2026-2" id="toc-september-2026-2">1.0.0 — 22
+<li><a href="#september-2026-2" id="toc-september-2026-2">1.2.0 — 24
+September 2026</a></li>
+<li><a href="#september-2026-3" id="toc-september-2026-3">1.1.0 — 23
+September 2026</a></li>
+<li><a href="#september-2026-4" id="toc-september-2026-4">1.0.0 — 22
 September 2026</a></li>
 </ul></li>
 </ul>
 </nav>
 <h1 id="changelog">Changelog</h1>
-<h2 id="september-2026">1.2.0 — 24 September 2026</h2>
+<h2 id="september-2026">1.4.0 — 25 September 2026</h2>
+<p>Clarity release: editing an equation is one obvious action on the
+equation itself, and the layout is calmer, with the screen always saying
+where you are. Projects from earlier versions open unchanged and render
+identically.</p>
+<h3 id="edit-the-equation-you-are-reading">Edit the equation you are
+reading</h3>
+<ul>
+<li><strong>✎ Edit</strong> sits in the heading of every equation (or
+double-click the equation). It opens the equation as text right where
+the steps were, for custom equations and built-in components alike, and
+the panel widens to give it room.</li>
+<li><strong>Built-in components open as their own math</strong>, line
+for line with the steps: the vortex as
+<code>alpha = kappa*exp(-(r/rho)^2) + omega*t</code> and
+<code>rotate2(p, alpha)</code>, the warp as two noises and
+<code>p + A*d</code>, and so on for 14 components (the others, loops
+over lattices or whole scenes, open as a call of their shader function).
+The GPU validation checks that all 29 render exactly the same values as
+the built-ins. In 1.3, “Edit as equation” was at the bottom of the
+inspector and produced a one-line kernel call.</li>
+<li><strong>The canvas previews the edit</strong> as a draft (labelled
+DRAFT) a moment after you pause typing, while the typeset lines update
+at once; <strong>Apply</strong> (Ctrl/⌘ Enter) puts it into the scene as
+one undo step, <strong>Cancel</strong> discards it. Drafts survive
+looking at other components (the pipeline marks them ✎). Nothing changes
+before Apply, and an equation with an error is never applied.</li>
+<li>Editing a <code>param</code> line’s default now sets the parameter
+to it; unchanged lines keep the slider’s value.</li>
+<li>A dimmed ✎ Edit explains why a component cannot be an equation (it
+reads a color layer or geometry).</li>
+<li>The component catalog lists each editable component’s equation.</li>
+</ul>
+<h3 id="always-know-where-you-are">Always know where you are</h3>
+<ul>
+<li><strong>Selecting never changes the canvas.</strong> Clicking a
+component anywhere (pipeline, graph, formulas, the panel) selects it;
+the canvas keeps showing what you chose above it: <strong>Final
+image</strong>, <strong>This step</strong> (named, e.g. <em>Step 7 ·
+Folded star lattices</em>) or <strong>What it changes</strong>, the last
+two following the selection. In 1.3 a pipeline click switched the canvas
+to that stage while a graph click did not.</li>
+<li><strong>A label on the canvas</strong> says what it shows: FINAL
+IMAGE, THIS STEP, WHAT IT CHANGES, DRAFT, PREVIEW or ORIGINAL.</li>
+<li><strong>The component panel</strong> has a header that stays in
+view: <strong>◀ Step 7 of 9 ▶</strong>, the include switch, the title
+and type. Its content is in four tabs (<strong>Equation</strong>,
+<strong>In &amp; out</strong>, <strong>Ideas</strong>,
+<strong>More</strong>) instead of twelve stacked sections, starts at the
+top for each component and keeps the tab you chose.</li>
+<li><strong>The Equation Playground is the same panel, made
+wide</strong> (⤢ or <code>E</code>), with the step and its profile on
+the canvas and the pipeline as a compact strip of step names. It no
+longer moves the inspector into a separate layout with its own
+navigation.</li>
+<li>Pipeline cards mark the step on the canvas (👁) and unapplied edits
+(✎). Clicking a card’s name selects it; only the checkbox includes or
+bypasses it (clicking the name used to toggle the checkbox).</li>
+<li><code>[</code> and <code>]</code> select the previous and next
+component; <code>Esc</code> backs out one level at a time.</li>
+<li>The browser tab and the top bar name the scene; its provenance label
+opens the research notes.</li>
+</ul>
+<h3 id="more-room-for-the-image">More room for the image</h3>
+<ul>
+<li><strong>The library is a drawer</strong> (☰ Scenes, or ＋
+Component), closed after a choice, or docked as a column if you
+prefer.</li>
+<li>One toolbar above the canvas; the pipeline’s controls moved into its
+tab bar; no empty row in the timeline; the pipeline’s height adapts to
+the window. At 1440 × 900 the canvas grows from 500 × 300 to 638 × 383
+pixels.</li>
+<li>The component panel is resizable (drag its edge) and sizes itself to
+the window by default.</li>
+</ul>
+<h3 id="fixes">Fixes</h3>
+<ul>
+<li>The Generated GLSL tab is now called Shader.</li>
+<li>Pipeline arrows stay level with the thumbnails in a tall bottom
+panel.</li>
+</ul>
+<h3 id="code-tests-and-documentation">Code, tests and documentation</h3>
+<ul>
+<li><code>fork.js</code>: <code>forkBlocker()</code>,
+<code>equationSource()</code> and <code>withEquation()</code>, the one
+operation behind the draft preview and Apply; catalog entries gained
+<code>source</code>.</li>
+<li><code>editor.js</code>: equation drafts (<code>setDraft</code>,
+<code>startEdit</code>, <code>discardDraft</code>,
+<code>draftChanged</code>) and <code>selectStep</code>;
+<code>ui-playground.js</code> now manages the panel width;
+<code>ui-library.js</code> the drawer.</li>
+<li>Unit tests grow to 259 (sources, withEquation, parameter merging).
+The workflow suite’s checks were rewritten for the new behavior
+(selection model, canvas label, tabs, in-place editing with a draft, the
+Playground, the drawer). The screenshot suite adds the library drawer
+and editing a built-in.</li>
+<li>The editor guide, README, architecture, development guide, recipes
+and catalog were updated.</li>
+</ul>
+<h2 id="september-2026-1">1.3.0 — 25 September 2026</h2>
+<p>Understanding and editing release: every equation now explains itself
+line by line, shows where its values come from and go, and can be
+edited; a new Equation Playground and pop-out window give it room; and
+the renderer was rebuilt so that interacting never freezes the page.
+Projects from 1.0–1.2 open unchanged and render identically (every
+stage, bypass and “what it changes” view of all twelve scenes matches
+1.2 within one level of 255). Projects that use the new equation
+features need 1.3.</p>
+<h3 id="understand-what-each-equation-does">Understand what each
+equation does</h3>
+<ul>
+<li><strong>How it is computed</strong>: each component’s equation is
+shown as numbered steps, each with a plain-language caption saying what
+the line computes and why; the result line is marked <strong>⇒</strong>.
+All 43 components were documented this way, e.g. <em>Folded star
+lattices</em>: fold the plane with arccos cos → distance to the lattice
+point → a star core and halo per lattice.</li>
+<li><strong>Colored symbols</strong>: inputs in the color of their type,
+parameters in peach, the output bold, time in pink. Hover a symbol to
+light it up everywhere, click an input to open the component that feeds
+it, and <strong>drag a parameter symbol sideways to change it</strong>
+(Shift for fine steps). <strong>Values</strong> replaces every parameter
+symbol by its live number.</li>
+<li><strong>Data flow</strong>: where each input comes from (with
+thumbnails) and where the output goes, with the downstream equation that
+uses it: <em>T is read by Add light as B in RGB = A + gB</em>.</li>
+<li><strong>Why it is written this way</strong>: 30 recurring ideas (the
+double-exponential gate, Gaussian bumps, folding with arccos cos,
+backward mapping, fractal noise, front-to-back selection, logarithmic
+spirals, …), each explained with a formula and a small plot with a knob
+to play with.</li>
+<li><strong>Key function</strong>: a live plot of the one-dimensional
+function at the heart of a component (a threshold’s S-curve, a ring’s
+profile, a star’s core and halo, a vortex’s twist, a stream’s width),
+redrawn as parameters change.</li>
+<li><strong>Formulas</strong> tab: the whole construction as a formula
+sheet: how the image is composed (<em>image = Gas emission + Central
+glow + Folded star lattices</em>), then every component’s equation with
+each input bound to the component that feeds it.</li>
+</ul>
+<h3 id="see-the-values-not-just-their-colors">See the values, not just
+their colors</h3>
+<ul>
+<li><strong>Automatic stage colors</strong>: a scalar stage is shown
+with a colormap over its actual range, diverging (cool below zero, dark
+at zero, warm above) when it takes both signs, with contour lines drawn
+only where the field actually crosses a level between neighboring pixels
+(so flat regions and decaying tails are never hatched); coordinates as
+the image of a regular grid with the q_x = 0 and q_y = 0 axes; geometry
+by channel; a clipped or black layer with adjusted exposure (labelled).
+The legend shows the range, a histogram, and a lock to compare parameter
+values fairly. Classic colors remain one click away.</li>
+<li><strong>Thumbnails</strong> in the Pipeline and graph use the same
+looks, each over its own range, so <em>Filaments &amp; haze</em> is no
+longer a white rectangle and the turbulence no longer saturates to black
+and white.</li>
+<li><strong>Profile</strong> (<code>V</code>): a plot under the canvas
+of the shown component’s raw values along the line through the cursor or
+the pinned reading.</li>
+</ul>
+<h3 id="equation-playground-and-pop-out">Equation Playground and
+pop-out</h3>
+<ul>
+<li><strong>⤢ Playground</strong> (<code>E</code>, or double-click any
+component): a wide study layout for one component: the canvas shows its
+stage with the profile under it, and the explanation, editor and
+controls get two columns beside it. A strip of chips walks the
+construction in evaluation order.</li>
+<li><strong>↗ Pop out</strong>: the explanation in a separate window,
+e.g. on a second screen; it follows the selection (or pins a component)
+and its controls edit the scene.</li>
+</ul>
+<h3 id="edit-equations">Edit equations</h3>
+<ul>
+<li><strong>✎ Edit as equation</strong>: turns any of 29 built-in
+components into an equivalent custom equation (verified to render
+identical values on the GPU), with its parameters named after their
+symbols (κ → <code>kappa</code>), then change it line by line.</li>
+<li><strong>The equation language</strong> gained parameters,
+definitions and captions: <code>param width = 0.1 [0.01, 1]</code> adds
+a slider (animatable, sweepable, part of variations),
+<code>param tint = #ffd080</code> a color,
+<code>d = length(p) - 1</code> a definition, <code>// …</code> a caption
+shown next to the typeset line. Whole numbers need no decimal point,
+<code>x^2</code> is a power (exact for negative x), <code>%</code> is
+mod, and every function of the shader libraries can be called
+(<code>fbm</code>, <code>rotate2</code>, <code>waterPlanet</code>, …).
+Equations are parsed, type-checked with readable messages (<em>“Unknown
+name raduis. Did you mean radius?”</em>) and re-printed as GLSL, never
+pasted into the shader.</li>
+<li>The editor shows the typeset steps and a <strong>live
+preview</strong> of the edited component as you type, compiled in the
+background; Apply commits it.</li>
+<li>New custom components start from a short example written in the
+language (sliders, a definition, captions), and <em>Kaleidoscope
+garden</em>’s two equations are written this way too (same image as
+before), as <em>Interference petals</em> and <em>Rainbow
+color</em>.</li>
+</ul>
+<h3 id="performance-and-hardware">Performance and hardware</h3>
+<ul>
+<li><strong>One compiled program per graph structure</strong> serves
+every view: ticking and unticking components, walking the stages, “what
+it changes”, thumbnails and probes change uniforms only. Fixes the
+reported freeze: on Direct3D, unticking a checkbox stalled the page for
+4–8 seconds while two new shaders compiled; it now takes a few
+milliseconds.</li>
+<li><strong>Background compilation</strong>
+(<code>KHR_parallel_shader_compile</code> plus a fenced warm-up draw):
+wiring edits and scene changes keep the page responsive; the last image
+stays up with a <strong>Compiling shader…</strong> indicator and a
+progress cursor. Browsers without the extension show the indicator
+before compiling.</li>
+<li>The program stays lean (colormaps and comparisons are small fixed
+post passes), so a whole scene compiles about as fast as a single view
+did in 1.2.</li>
+<li><strong>GPU detection</strong>: the LIVE badge says
+<strong>GPU</strong> or <strong>SOFTWARE</strong>, the footer names the
+graphics processor and API, and a <strong>GPU &amp; performance</strong>
+dialog lists capabilities, exact GPU frame times (timer queries where
+available), compiled programs and advice for enabling hardware
+acceleration.</li>
+<li><strong>Auto quality</strong> (new default) renders at the display’s
+pixel density, and drops resolution during a drag or playback when
+frames are slow, refining when you let go. Thumbnails, probes and
+statistics read back without blocking.</li>
+</ul>
+<h3 id="screens-and-devices">Screens and devices</h3>
+<ul>
+<li>Wider inspector on large screens; container-aware layouts for the
+explanation and the legend.</li>
+<li><strong>Tablets in portrait</strong> put the canvas across the full
+width with the panels below.</li>
+<li><strong>Phones</strong>: the canvas stays pinned at the top while
+one panel at a time (Pipeline, Inspect, Formulas, Graph) scrolls under
+it, pipeline stages wrap two to a row, and a compact transport stays at
+the bottom of the screen; the playground stacks.</li>
+<li><strong>Touch</strong>: larger targets; press and hold any control
+for its explanation. Phones and tablets use the playground instead of
+pop-out windows (which would open as hidden tabs), so the pop-out
+buttons are hidden there.</li>
+</ul>
+<h3 id="fixes-1">Fixes</h3>
+<ul>
+<li>Typesetting: operator names get TeX spacing (“arccos cos”, not
+“arccoscos”), spaces at the ends of text are kept (“scaled p”), and long
+equations wrap at their natural breaks instead of overflowing.</li>
+<li>The LIVE badge reported CPU submission time (“&lt;1 ms”) as the
+frame time; it now reports GPU time.</li>
+<li>The frame loop no longer forces a layout on every frame: not to size
+the canvas, not to draw the rulers, and not to restart the LIVE badge’s
+pulse.</li>
+<li>A tooltip that was still waiting for its delay was not cancelled
+when the pointer moved onto something without a tip, so it could appear
+later over the wrong place (e.g. a pipeline card’s tip while the pointer
+was on the canvas).</li>
+<li>Browser video export retries a recording pass that delivers no
+frames (Chromium’s first canvas capture after a pop-up window closed can
+be empty), instead of failing.</li>
+<li>Captions set TeX-style indices as sub- and superscripts
+(L<sub>s</sub>, |U|<sup>η</sup>).</li>
+</ul>
+<h3 id="code-tests-and-documentation-1">Code, tests and
+documentation</h3>
+<ul>
+<li>New modules: <code>looks.js</code> (colormaps, statistics, display
+conversion twin), <code>gpu-info.js</code>, <code>expression.js</code>
+(the equation language), <code>fork.js</code>, <code>concepts.js</code>,
+<code>plot.js</code>, <code>formula.js</code>, and the UI modules
+<code>ui-component-view.js</code>, <code>ui-look.js</code>,
+<code>ui-scope.js</code>, <code>ui-playground.js</code>,
+<code>ui-popout.js</code>, <code>ui-formula.js</code>,
+<code>ui-performance.js</code>, <code>ui-mobile.js</code>.
+<code>compiler.js</code> gained <code>compileProgram</code>;
+<code>compileGraph</code> now returns the program for one view’s
+subgraph (modes are chosen at draw time). The renderer gained
+<code>programFor</code>, <code>poll</code>, <code>whenReady</code>,
+<code>drawIfReady</code>, <code>sampleLine</code>, <code>rawImage</code>
+and asynchronous readbacks.</li>
+<li>The bundle uses no regular-expression lookbehind, so Safari before
+16.4 can still load it (the layout needs Safari 16).</li>
+<li><code>makeNode()</code> gives a custom node the declared values of
+its equation’s parameters; the renderer releases pending compilations,
+readbacks and timer queries when it is disposed or a program is
+evicted.</li>
+<li>Unit tests grow from 177 to 253 (equation language, forking, looks,
+formula sheet, GPU classification, catalog content). The workflow suite
+grows from 24 to 35 browser checks, GPU validation checks program reuse,
+subgraph/whole-graph agreement, line probes, float thumbnails and fork
+equivalence, and the screenshot suite checks the tablet and phone
+layouts (no sideways scrolling, bottom bar at the bottom) and the
+two-column playground.</li>
+<li><code>EQUATION_STUDIO_HARDWARE_GPU=1</code> now really selects the
+hardware GPU in headless Chromium.</li>
+<li>The editor guide, architecture, development guide, recipes and
+README were rewritten for the new features; the component catalog now
+includes every step’s explanation and the ideas behind each
+component.</li>
+</ul>
+<h2 id="september-2026-2">1.2.0 — 24 September 2026</h2>
 <p>Usability release focused on understanding a construction and
 experimenting safely. The project format is unchanged; 1.0 and 1.1 files
 open as before. The one behaviour change: <strong>disabling a component
@@ -139,7 +443,7 @@ bypass and exploration tools; README, architecture, development, recipes
 and the component catalog (now with typeset equations and symbol tables)
 are updated.</li>
 </ul>
-<h2 id="september-2026-1">1.1.0 — 23 September 2026</h2>
+<h2 id="september-2026-3">1.1.0 — 23 September 2026</h2>
 <p>Exploration and editing release. The project format is unchanged:
 every 1.0 project file and export opens as before.</p>
 <h3 id="seeing-what-each-component-does">Seeing what each component
@@ -220,7 +524,7 @@ manifest.</li>
 href="docs/DEVELOPMENT.html">Development guide</a>; README, architecture
 and animation documents updated.</li>
 </ul>
-<h2 id="september-2026-2">1.0.0 — 22 September 2026</h2>
+<h2 id="september-2026-4">1.0.0 — 22 September 2026</h2>
 <p>Initial release: GPU port of the supplied Bipolar Nebula equations,
 eleven further editable scenes, the typed function-graph editor,
 animation, exports and the retained Python reference.</p>

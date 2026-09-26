@@ -6,15 +6,24 @@ The browser is chosen in this order:
 2. ``/usr/bin/chromium`` when it exists (the documented Linux environment).
 3. Playwright's bundled Chromium (``python -m playwright install chromium``).
 
-The ANGLE/SwiftShader flags force the software GPU backend so that results are
-comparable across machines; set ``EQUATION_STUDIO_HARDWARE_GPU=1`` to let the
-browser pick its own backend instead.
+By default the ANGLE/SwiftShader flags force the software GPU backend so that
+results are comparable across machines. Set ``EQUATION_STUDIO_HARDWARE_GPU=1``
+to render on the machine's graphics processor instead: headless Chromium does
+not use it unless asked, so the platform's ANGLE backend (Direct3D 11, Metal or
+Vulkan) is requested explicitly. Timings and rounding then differ from the
+published report.
 """
 from __future__ import annotations
 import os
+import sys
 from pathlib import Path
 
 SOFTWARE_GPU_ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+HARDWARE_ANGLE = {'win32': 'd3d11', 'darwin': 'metal'}
+
+
+def hardware_gpu_args() -> list[str]:
+    return [f'--use-angle={HARDWARE_ANGLE.get(sys.platform, "vulkan")}', '--enable-gpu', '--ignore-gpu-blocklist']
 
 
 def chromium_path() -> str | None:
@@ -28,8 +37,7 @@ def chromium_path() -> str | None:
 def launch(playwright, **kwargs):
     """Launch Chromium headless with the project's standard flags."""
     args = list(kwargs.pop('args', []))
-    if not os.environ.get('EQUATION_STUDIO_HARDWARE_GPU'):
-        args = SOFTWARE_GPU_ARGS + args
+    args = (hardware_gpu_args() if os.environ.get('EQUATION_STUDIO_HARDWARE_GPU') else SOFTWARE_GPU_ARGS) + args
     options = {'headless': True, 'args': args, **kwargs}
     path = chromium_path()
     if path:
@@ -38,4 +46,4 @@ def launch(playwright, **kwargs):
 
 
 def describe_backend() -> str:
-    return 'browser-selected GPU backend' if os.environ.get('EQUATION_STUDIO_HARDWARE_GPU') else 'ANGLE / SwiftShader software backend'
+    return 'hardware GPU (ANGLE)' if os.environ.get('EQUATION_STUDIO_HARDWARE_GPU') else 'ANGLE / SwiftShader software backend'

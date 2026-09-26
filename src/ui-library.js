@@ -1,12 +1,14 @@
-import { $, esc, state, on, toast, showError, loadProject, addComponent, seek, readStorage, writeStorage, STORAGE } from './editor.js';
+import { $, esc, state, on, toast, showError, loadProject, addComponent, seek, readStorage, writeStorage, STORAGE, setPref } from './editor.js';
 import { catalog, typeNames, typeLabels } from './catalog.js';
 import { texToMathML } from './math-render.js';
 import { registerTipProvider } from './ui-tooltip.js';
 import { presets, getPreset } from './presets.js';
 import { thumbnails } from './thumbnails.js';
 import { parseSnapshots, addSnapshot, removeSnapshot, thumbnailFrom, relativeTime } from './snapshots.js';
-/** Left panel: scene presets, the component palette (click or drag to add) and
- * session snapshots.
+/** The library: scene presets, the component palette (click or drag to add) and
+ * session snapshots. It is a drawer over the left of the window, opened with
+ * ☰ Scenes (or ＋ Component) and closed after a choice; Dock keeps it open as a
+ * column of the layout instead (remembered).
  */
 export const DRAG_TYPE = 'application/x-equation-studio-component';
 let tab = 'scenes', dragged = null;
@@ -19,6 +21,36 @@ export function showLibraryTab(next) {
     tab = next;
     $('librarySearch').value = '';
     renderLibrary();
+}
+export function libraryOpen() {
+    return $('library').classList.contains('open');
+}
+/** Open the drawer (a no-op when docked), optionally on a tab. */
+export function openLibrary(next = null) {
+    if (next) {
+        showLibraryTab(next);
+    }
+    $('library').classList.add('open');
+    $('libraryButton').setAttribute('aria-expanded', 'true');
+    if (!state.prefs.libraryDocked) {
+        $('librarySearch').focus({ preventScroll: true });
+    }
+}
+export function closeLibrary() {
+    if (state.prefs.libraryDocked) {
+        return;
+    }
+    $('library').classList.remove('open');
+    $('libraryButton').setAttribute('aria-expanded', 'false');
+}
+function applyDock() {
+    const docked = state.prefs.libraryDocked;
+    $('app').classList.toggle('library-docked', docked);
+    $('library').classList.toggle('open', docked); // undocking puts it away as a closed drawer
+    $('libraryButton').setAttribute('aria-expanded', String(docked));
+    $('libraryDock').textContent = docked ? '⇤ Undock' : '⇥ Dock';
+    $('libraryDock').setAttribute('aria-pressed', String(docked));
+    $('libraryClose').hidden = docked;
 }
 function renderScenes(query) {
     const cards = presets.filter(p => `${p.title} ${p.status}`.toLowerCase().includes(query)).map(p => `<button class="scene-card ${state.project.id === p.id ? 'active' : ''}" data-preset="${p.id}" data-tip="${esc(p.title)} · ${esc(p.status)}|${esc(p.description)}
@@ -84,7 +116,7 @@ function restoreSnapshot(id) {
         // A snapshot of the scene being edited keeps that scene's original for Revert and reset.
         loadProject(s.project, { keepBaseline: s.project.id === state.baseline.id });
         seek(s.time);
-        $('library').classList.remove('open');
+        closeLibrary();
         toast('Snapshot restored. Undo returns to the previous state.');
     }
     catch (e) {
@@ -95,11 +127,12 @@ $('libraryContent').addEventListener('click', e => {
     const preset = e.target.closest('[data-preset]'), part = e.target.closest('[data-add]'), remove = e.target.closest('[data-remove-snapshot]'), snapshot = e.target.closest('[data-snapshot]');
     if (preset) {
         loadProject(getPreset(preset.dataset.preset));
-        $('library').classList.remove('open');
+        closeLibrary();
     }
     else if (part) {
         try {
             addComponent(part.dataset.add);
+            closeLibrary();
         }
         catch (err) {
             showError(err);
@@ -137,9 +170,12 @@ $('libraryContent').addEventListener('dragstart', e => {
     e.dataTransfer.effectAllowed = 'copy';
     document.body.classList.add('dragging-component');
 });
-$('libraryContent').addEventListener('dragend', () => {
+$('libraryContent').addEventListener('dragend', e => {
     dragged = null;
     document.body.classList.remove('dragging-component');
+    if (e.dataTransfer.dropEffect !== 'none') {
+        closeLibrary(); // dropped onto the graph, a card or the canvas
+    }
 });
 /** Palette tips: description, the typeset equation and how to add the component. */
 registerTipProvider('[data-add]', el => {
@@ -153,7 +189,28 @@ registerTipProvider('[data-add]', el => {
     return `<b>${esc(def.name)}</b><span class="tip-state">${esc(typeNames[def.output])}</span><p>${esc(def.description)}</p><div class="tip-math">${equation || esc(def.equation)}</div><p class="muted">Click to add it, or drag it onto the graph, a card or a matching input dot.</p>`;
 });
 $('librarySearch').oninput = renderLibrary;
+/** The library only changes with the scene (active preset highlight). */
+let libraryScene = null;
+function refreshLibrary() {
+    const key = `${state.project.id}|${state.project.status}`;
+    if (key !== libraryScene) {
+        libraryScene = key;
+        renderLibrary();
+    }
+}
 document.querySelectorAll('[data-library]').forEach(b => b.onclick = () => showLibraryTab(b.dataset.library));
-$('mobileLibrary').onclick = () => $('library').classList.toggle('open');
+$('libraryButton').onclick = () => libraryOpen() && !state.prefs.libraryDocked ? closeLibrary() : openLibrary(state.prefs.libraryDocked ? 'scenes' : null);
+$('libraryClose').onclick = closeLibrary;
+$('libraryDock').onclick = () => {
+    setPref('libraryDocked', !state.prefs.libraryDocked);
+    applyDock();
+};
+// A click outside the open drawer closes it.
+document.addEventListener('pointerdown', e => {
+    if (libraryOpen() && !state.prefs.libraryDocked && !e.target.closest('#library, #libraryButton, #addComponent')) {
+        closeLibrary();
+    }
+}, true);
 $('snapshotButton').onclick = () => takeSnapshot();
-on('refresh', renderLibrary);
+on('refresh', refreshLibrary);
+applyDock();

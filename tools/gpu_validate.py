@@ -41,10 +41,10 @@ with sync_playwright() as pw:
         assert r['energy'] > 0 and r['nonfinite'] == 0, (id, r['nonfinite'])
         (ROOT / 'gallery' / f'{id}.png').write_bytes(base64.b64decode(r.pop('png')))
         record('render + finite values: ' + id, r)
-    # Every catalog component compiles through the same graph compiler.
+    # Every catalog component compiles through the same graph compiler (its own subgraph program).
     all_types = page.evaluate('''()=>Object.keys(__modules['catalog.js'].catalog)''')
     for type in all_types:
-        result = page.evaluate('''type=>{const {makeNode:N}=__modules['graph.js'],{catalog}=__modules['catalog.js'];const p=testLibrary.getPreset('bipolar');p.nodes.push(N('noise','noiseInput',{p:'space'}));const d=catalog[type],m={coord:'space',scalar:'noiseInput',geometry:'shell',layer:'stars'};p.nodes.push(N(type,'candidate',Object.fromEntries(Object.entries(d.inputs).map(([k,t])=>[k,m[t]]))));p.output='candidate';renderer.draw(p,.37,64,40,{debug:1});const a=renderer.pixels();for(let i=0;i<a.length;i+=4)if(a[i]||a[i+1]||a[i+2])return false;return true;}''', type)
+        result = page.evaluate('''type=>{const {makeNode:N}=__modules['graph.js'],{catalog}=__modules['catalog.js'];const p=testLibrary.getPreset('bipolar');p.nodes.push(N('noise','noiseInput',{p:'space'}));const d=catalog[type],m={coord:'space',scalar:'noiseInput',geometry:'shell',layer:'stars'};p.nodes.push(N(type,'candidate',Object.fromEntries(Object.entries(d.inputs).map(([k,t])=>[k,m[t]]))));p.output='candidate';renderer.draw(p,.37,64,40,{debug:1,subgraph:true});const a=renderer.pixels();for(let i=0;i<a.length;i+=4)if(a[i]||a[i+1]||a[i+2])return false;return true;}''', type)
         assert result, type
     record(f'all {len(all_types)} component types compile and render finite defaults', len(all_types))
     # Animation must be state independent and produce visible change.
@@ -73,6 +73,28 @@ q.nodes.find(n=>n.id==='final').enabled=true;q.nodes.find(n=>n.id==='stars').ena
     # Numeric changes reuse the linked shader, not a recompiled variant.
     r = page.evaluate('''()=>{const p=testLibrary.getPreset('bipolar');const a=renderer.getProgram(p,p.output);p.nodes[1].params.pinch=.52;return a===renderer.getProgram(p,p.output);}''')
     assert r
+    # One program per structure: enabled flags, the output and the view are uniforms.
+    r = page.evaluate('''()=>{const p=testLibrary.getPreset('bipolar');const a=renderer.getProgram(p);p.nodes.find(n=>n.id==='stars').enabled=false;p.output='gas';const b=renderer.getProgram(p);
+      renderer.snapshot(p,0,32,20,{target:'turbulence'});renderer.snapshot(p,0,32,20,{contribution:'core',contributionStyle:'signed'});return {same:a===b,programs:renderer.cache.size};}''')
+    assert r['same'], r
+    record('bypass flags, the output and every view share the compiled program', r)
+    # The whole-graph program and a target's subgraph program render the same pixels.
+    r = page.evaluate('''()=>{const out={};for(const id of ['bipolar','water','lensing','kaleidoscope']){const p=testLibrary.getPreset(id);let worst=0;for(const n of p.nodes){const a=renderer.snapshot(p,0.8,48,30,{target:n.id}).data,b=renderer.snapshot(p,0.8,48,30,{target:n.id,subgraph:true}).data;for(let i=0;i<a.length;i++)worst=Math.max(worst,Math.abs(a[i]-b[i]));}out[id]=worst;}return out;}''')
+    assert all(v <= 1 for v in r.values()), r
+    record('whole-graph and subgraph programs agree for every stage (max byte difference)', r)
+    # Line probes agree with point probes, and float thumbnails with float snapshots.
+    r = page.evaluate('''()=>{const p=testLibrary.getPreset('bipolar');const line=renderer.sampleLine(p,0,'turbulence',[-1,0.3],[1,0.3],8);let worst=0;for(let i=0;i<8;i++){const x=-1+2*(i+0.5)/8,v=renderer.samplePoint(p,0,'turbulence',x,0.3)[0];worst=Math.max(worst,Math.abs(v-line[i*4]));}
+      const tiles=renderer.previewAtlas(p,0,['shell','cloud'],40,24,{raw:true});const snap=renderer.snapshot(p,0,40,24,{target:'cloud',raw:true}).data,tile=tiles.get('cloud').data;let atlas=0;for(let i=0;i<snap.length;i++)atlas=Math.max(atlas,Math.abs(snap[i]-tile[i])/Math.max(1,Math.abs(snap[i])));return {line:worst,atlas};}''')
+    assert r['line'] < 1e-4 and r['atlas'] < 1e-5, r
+    record('line probes match point probes; raw thumbnails match raw snapshots', r)
+    # Edit as equation: every forkable component renders the same raw values as an equation.
+    r = page.evaluate('''()=>{const {catalog}=__modules['catalog.js'],{makeNode}=__modules['graph.js'];const out={};const pts=[[0.13,-0.21],[-0.62,0.35],[0.9,0.44],[-0.05,0.02],[1.4,-0.6]];
+      for(const type of Object.keys(catalog).filter(testLibrary.forkable)){const p=testLibrary.getPreset('marble');p.nodes.push(makeNode('noise','scalarA',{p:'space'}));const d=catalog[type];
+        p.nodes.push(makeNode(type,'target',Object.fromEntries(Object.entries(d.inputs).map(([s,k])=>[s,k==='coord'?'space':'scalarA']))));p.output='target';
+        const fork=testLibrary.forkProgram(p.nodes.at(-1)),q=JSON.parse(JSON.stringify(p));Object.assign(q.nodes.at(-1),{type:fork.type,inputs:fork.inputs,params:fork.params});
+        let worst=0;for(const [x,y] of pts){const a=renderer.samplePoint(p,1.1,'target',x,y),b=renderer.samplePoint(q,1.1,'target',x,y);for(let k=0;k<4;k++)worst=Math.max(worst,Math.abs(a[k]-b[k])/Math.max(1,Math.abs(a[k])));}out[type]=worst;}return out;}''')
+    assert all(v < 1e-5 for v in r.values()), r
+    record(f'edit as equation: {len(r)} forked components reproduce their raw values', {'worst': max(r.values())})
     record('uniform-only edits reuse linked shader')
     # One preview program renders a finite thumbnail for every node of every preset.
     for id in preset_ids:

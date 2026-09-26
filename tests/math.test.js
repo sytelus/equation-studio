@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { texToMathML, expressionToMathML, parseExpression } from '../src/math-render.js';
+import { texToMathML, expressionToMathML, texSegments, texToMathMLSegments, numberMathML, symbolKey, nameMathML, programToMathML } from '../src/math-render.js';
+import { parseExpression } from '../src/expression.js';
 
 describe('TeX to MathML', () => {
     it('wraps output in a math element', () => {
@@ -69,14 +70,63 @@ describe('GLSL expressions to MathML', () => {
     it('adds a left-hand side when requested', () => {
         assert(expressionToMathML('x', '<mi>f</mi>').startsWith('<math display="block"><mrow><mi>f</mi><mo>=</mo>'));
     });
-    it('renders every preset expression', async () => {
+    it('renders every preset and starter equation', async () => {
         const { presets } = await import('../src/presets.js');
-        for (const p of presets) {
-            for (const n of p.nodes) {
-                if (typeof n.params.expression === 'string') {
-                    expressionToMathML(n.params.expression);
-                }
-            }
+        const { catalog } = await import('../src/catalog.js');
+        const sources = [...presets.flatMap(p => p.nodes.map(n => n.params.expression)), ...Object.values(catalog).map(d => d.params.expression?.value)];
+        for (const source of sources.filter(s => typeof s === 'string')) {
+            const rows = programToMathML(source);
+            assert.equal(rows.at(-1).kind, 'result');
+            assert(rows.every(r => r.mathml.startsWith('<math') && r.text), `every line has a caption: ${source}`);
         }
+    });
+    it('renders ^ as a superscript and a program’s result line', () => {
+        assert(expressionToMathML('x^2').includes('<msup><mi>x</mi><mn>2</mn></msup>'));
+        assert(expressionToMathML('(x + 1)^2').includes('<msup><mrow><mo>(</mo>'));
+        assert(expressionToMathML('param k = 2\nk*x').includes('<mi mathvariant="normal">k</mi>') === false);
+    });
+});
+
+describe('typesetting for explanation', () => {
+    it('spaces operator names like TeX and keeps spaces at the ends of text', () => {
+        const xml = texToMathML('M = \\arccos\\cos(\\text{rotated, scaled } p) + 4\\cos b', { display: false });
+        assert(xml.includes('<mi mathvariant="normal">arccos</mi><mspace width="0.167em"></mspace><mi mathvariant="normal">cos</mi><mo>(</mo>'), 'arccos cos, then no space before (');
+        assert(xml.includes('<mtext>rotated, scaled </mtext>'), 'a trailing space survives');
+        assert(xml.includes('<mn>4</mn><mspace width="0.167em"></mspace><mi mathvariant="normal">cos</mi><mspace width="0.167em"></mspace><mi>b</mi>'));
+        assert(texToMathML('\\cos\\left(x\\right)').includes('<mi mathvariant="normal">cos</mi><mo>(</mo>'));
+    });
+    it('annotates symbols by role and can substitute parameter values', () => {
+        const symbols = { '\\kappa': { role: 'param', param: 'strength', value: 4 }, 'c_x': { role: 'param', param: 'x', value: -0.25 }, p: { role: 'input', type: 'coord', socket: 'p' }, q: { role: 'output', type: 'coord' }, t: { role: 'time' } };
+        const xml = texToMathML('q = \\kappa\\, p + c_{x} + \\omega t', { symbols });
+        assert(xml.includes('<mrow class="sym sym-output coord"><mi>q</mi></mrow>'));
+        assert(xml.includes('<mrow class="sym sym-param" data-param="strength"><mi>κ</mi></mrow>'));
+        assert(xml.includes('<mrow class="sym sym-input coord" data-socket="p"><mi>p</mi></mrow>'));
+        assert(xml.includes('<mrow class="sym sym-param" data-param="x"><msub><mi>c</mi><mrow><mi>x</mi></mrow></msub></mrow>'), 'braces do not matter when matching');
+        assert(xml.includes('<mrow class="sym sym-time"><mi>t</mi></mrow>'));
+        assert(!xml.includes('ω</mi></mrow>'), 'unknown symbols stay plain');
+        const values = texToMathML('q = \\kappa\\, p + c_x', { symbols, values: true });
+        assert(values.includes('data-param="strength"><mn>4</mn></mrow>'));
+        assert(values.includes('data-param="x"><mrow><mo>(</mo><mo>−</mo><mn>0.25</mn><mo>)</mo></mrow></mrow>'), 'negative values are parenthesized');
+        assert.equal(numberMathML(0.123456), '<mn>0.1235</mn>');
+        assert.equal(symbolKey('c_{x} '), 'c_x');
+    });
+    it('splits long lines at top-level quads only', () => {
+        assert.deepEqual(texSegments('a = 1, \\quad b = 2'), ['a = 1', 'b = 2']);
+        assert.deepEqual(texSegments('f\\left(a \\quad b\\right) \\qquad g'), ['f\\left(a \\quad b\\right)', 'g']);
+        assert.deepEqual(texSegments('{a \\quad b}'), ['{a \\quad b}']);
+        const segments = texToMathMLSegments('x = 1, \\quad y = 2');
+        assert.equal(segments.length, 2);
+        assert(segments.every(s => s.startsWith('<math displaystyle="true">')));
+    });
+    it('typesets names and multi-line programs with captions', () => {
+        assert.equal(nameMathML('theta'), '<mi>θ</mi>');
+        assert.equal(nameMathML('w_0'), '<msub><mi>w</mi><mn>0</mn></msub>');
+        assert.equal(nameMathML('k_theta'), '<msub><mi>k</mi><mi>θ</mi></msub>');
+        assert.equal(nameMathML('radius'), '<mi mathvariant="normal">radius</mi>');
+        const lines = programToMathML('param w = 0.1 [0.01, 1]\nd = length(p) - 1 // distance to the circle\nexp(-(d/w)^2) // a bump', '<mi>f</mi>', { symbols: { w: { role: 'param', param: 'w', value: 0.1 } } });
+        assert.deepEqual(lines.map(l => [l.kind, l.name, l.text]), [['define', 'd', 'distance to the circle'], ['result', null, 'a bump']]);
+        assert(lines[0].mathml.includes('<mi>d</mi><mo>=</mo>'));
+        assert(lines[1].mathml.includes('data-param="w"'));
+        assert(lines[1].mathml.startsWith('<math displaystyle="true"><mrow><mi>f</mi><mo>=</mo>'));
     });
 });

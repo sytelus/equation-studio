@@ -34,11 +34,16 @@
 <ul>
 <li><a href="#is-the-picture-live" id="toc-is-the-picture-live">Is the
 picture live?</a></li>
-<li><a href="#the-panels" id="toc-the-panels">The panels</a></li>
+<li><a href="#where-things-are" id="toc-where-things-are">Where things
+are</a></li>
 <li><a href="#reading-a-construction"
 id="toc-reading-a-construction">Reading a construction</a></li>
-<li><a href="#understanding-a-component"
-id="toc-understanding-a-component">Understanding a component</a></li>
+<li><a href="#the-component-panel" id="toc-the-component-panel">The
+component panel</a></li>
+<li><a href="#the-equation-playground"
+id="toc-the-equation-playground">The Equation Playground</a></li>
+<li><a href="#editing-equations" id="toc-editing-equations">Editing
+equations</a></li>
 <li><a href="#experimenting-safely"
 id="toc-experimenting-safely">Experimenting safely</a></li>
 <li><a href="#including-and-bypassing-components"
@@ -48,6 +53,8 @@ components</a></li>
 <li><a href="#animation-and-the-timeline"
 id="toc-animation-and-the-timeline">Animation and the timeline</a></li>
 <li><a href="#export" id="toc-export">Export</a></li>
+<li><a href="#screens-tablets-and-phones"
+id="toc-screens-tablets-and-phones">Screens, tablets and phones</a></li>
 <li><a href="#keyboard-shortcuts" id="toc-keyboard-shortcuts">Keyboard
 shortcuts</a></li>
 <li><a href="#what-is-remembered" id="toc-what-is-remembered">What is
@@ -58,25 +65,42 @@ remembered</a></li>
 <h1 id="editor-guide">Editor guide</h1>
 <p>A tour of every panel, gesture and shortcut in Equation Studio. The
 <a href="../README.html">README</a> explains what the scenes are and what
-is or is not reconstructed; this guide explains how to read, explore and
-edit a construction. Everything runs locally; nothing is uploaded. Hover
-any control in the app for a short explanation of what it does, its
-shortcut, and whether it is currently on.</p>
+is or is not reconstructed; this guide explains how to read, understand,
+explore and edit a construction. Everything runs locally; nothing is
+uploaded. Hover any control in the app (or press and hold it on a touch
+screen) for a short explanation of what it does, its shortcut, and
+whether it is currently on.</p>
 <figure>
 <img src="../gallery/studio-desktop.png"
-alt="The editor: final image with rulers, the live pipeline, and the typeset equation" />
-<figcaption aria-hidden="true">The editor: final image with rulers, the
-live pipeline, and the typeset equation</figcaption>
+alt="The editor: the final image, the pipeline of steps under it, and the selected component explained step by step in the panel on the right" />
+<figcaption aria-hidden="true">The editor: the final image, the pipeline
+of steps under it, and the selected component explained step by step in
+the panel on the right</figcaption>
 </figure>
 <h2 id="is-the-picture-live">Is the picture live?</h2>
 <p>Yes. The canvas is computed on your GPU from the equations every time
-anything changes: a parameter, a wire, the camera, the playhead. The
-<strong>LIVE GPU</strong> badge in the corner of the image shows the
-resolution, the time the last frame took and a frame counter, and its
-dot pulses on each new frame. There is no stored picture behind the
-canvas. The only saved pictures are the small scene thumbnails in the
-library.</p>
-<h2 id="the-panels">The panels</h2>
+anything changes: a parameter, a wire, the camera, the playhead. There
+is no stored picture behind the canvas; the only saved pictures are the
+small scene thumbnails in the library.</p>
+<p>The <strong>LIVE</strong> badge in the corner of the image shows
+whether a hardware graphics processor does the work
+(<strong>GPU</strong>) or the browser fell back to software rendering
+(<strong>SOFTWARE</strong>, in amber), the resolution, the time the last
+frame took on the GPU, and a frame counter; its dot pulses on each new
+frame. Click it, or the footer, for the <strong>GPU &amp;
+performance</strong> dialog: the graphics processor and API, what it
+supports (float read-back, background shader compilation, GPU timers),
+the last frame time, the programs compiled for this scene and how long
+each took, and how to turn on hardware acceleration if it is off. Web
+pages cannot use a neural processing unit (NPU) for this kind of
+per-pixel work, so the GPU is the accelerator that matters.</p>
+<p>When you change the wiring, add a component or apply an equation, the
+scene’s shader is recompiled <strong>in the background</strong>: the
+previous image stays up with a <em>Compiling shader…</em> indicator and
+a progress cursor, and the page keeps responding. Everything else
+(parameters, ticking components, choosing what the canvas shows) never
+recompiles.</p>
+<h2 id="where-things-are">Where things are</h2>
 <table>
 <colgroup>
 <col style="width: 33%" />
@@ -85,80 +109,126 @@ library.</p>
 </colgroup>
 <thead>
 <tr>
-<th>Panel</th>
+<th>Area</th>
 <th>Where</th>
-<th>Purpose</th>
+<th>What it is for</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Library</td>
-<td>left</td>
-<td>Scenes to open, components to add, snapshots to return to</td>
+<td>Top bar</td>
+<td>top</td>
+<td><strong>☰ Scenes</strong> opens the library; the scene’s title and
+its provenance label; undo and redo, Revert, Open, Save, help and
+Export</td>
 </tr>
 <tr>
 <td>Canvas</td>
-<td>center top</td>
-<td>The live image, its view switch, rulers, readouts and the
-explorer</td>
+<td>center</td>
+<td>The live image; above it, what it shows (<strong>Final
+image</strong>, <strong>This step</strong>, <strong>What it
+changes</strong>) and its tools</td>
 </tr>
 <tr>
-<td>Pipeline / Function graph / GLSL</td>
-<td>center bottom</td>
-<td>Every component’s output in order; how components are wired; the
-generated shader</td>
+<td>Pipeline</td>
+<td>under the canvas</td>
+<td>The construction step by step, with a live picture of every step’s
+output; tabs switch to the <strong>Function graph</strong>, the
+<strong>Formulas</strong> and the <strong>Shader</strong></td>
 </tr>
 <tr>
-<td>Inspector</td>
+<td>Component panel</td>
 <td>right</td>
-<td>The selected component explained and edited</td>
+<td>The selected component: its equation, what goes in and out, the
+ideas behind it, and every control</td>
+</tr>
+<tr>
+<td>Timeline</td>
+<td>bottom</td>
+<td>Play, scrub, duration, output conversion and exposure; a lane for
+every animated parameter</td>
 </tr>
 </tbody>
 </table>
-<p>The timeline runs underneath. The footer reports the GPU backend, the
-autosave status and the component and track counts. Drag the thin bar
-above the bottom panel to resize it; double-click to reset. On narrow
-screens the library becomes a drawer behind ☰ and the panels stack.</p>
+<p>The library is a drawer: <strong>☰ Scenes</strong> (or <strong>＋
+Component</strong> in the pipeline bar) opens it over the left of the
+window, and it closes when you choose something, click elsewhere or
+press <code>Esc</code>. <strong>⇥ Dock</strong> keeps it open as a
+column instead. Drag the component panel’s left edge to make it wider or
+narrower, and the bar above the pipeline to give it more height;
+double-click either to reset.</p>
+<h3 id="three-questions-the-screen-always-answers">Three questions the
+screen always answers</h3>
+<ul>
+<li><strong>Which scene am I in?</strong> Its title in the top bar, with
+its provenance (<em>Source-equation port</em>, <em>Interpretive
+study</em>…; click the label for the research notes).</li>
+<li><strong>Which component am I looking at?</strong> The one
+highlighted in the pipeline, and named at the top of the panel with its
+position: <strong>◀ Step 7 of 9 ▶</strong>. <code>[</code> and
+<code>]</code>, or the arrows, move to the previous and next step.</li>
+<li><strong>What is the canvas showing?</strong> The highlighted button
+above it, and a label in the top-left corner of the image: <strong>FINAL
+IMAGE</strong>, <strong>THIS STEP · Step 7 · Folded star
+lattices</strong>, <strong>WHAT IT CHANGES · …</strong>, and, while it
+is temporarily showing something else, <strong>DRAFT</strong> (an
+equation edit not yet applied), <strong>PREVIEW</strong> (a sweep or
+variation under the pointer) or <strong>ORIGINAL</strong> (while you
+hold ◐ Original).</li>
+</ul>
+<h3 id="selecting-and-showing">Selecting and showing</h3>
+<p><strong>Clicking a component selects it</strong>, wherever it is: a
+pipeline card, a graph card, a formula block, an input or output in the
+panel. Selecting never changes what the canvas shows: if the canvas
+shows the final image, it keeps showing it while the panel explains the
+component. Choose <strong>This step</strong> (<code>I</code>) to see the
+selected component’s own output, or <strong>What it changes</strong>
+(<code>C</code>) to see its effect; both then follow your selection as
+you click around or step with <code>[</code> <code>]</code>.
+<strong>Final image</strong> (<code>Esc</code>) returns.
+<strong>Double-click</strong> a component to study it in the <a
+href="#the-equation-playground">Equation Playground</a>.</p>
 <h2 id="reading-a-construction">Reading a construction</h2>
 <h3 id="the-pipeline">The Pipeline</h3>
-<p>The <strong>Pipeline</strong> tab, open by default, lists every
-component in evaluation order, each after everything it reads. Each card
-shows:</p>
-<ul>
-<li>a checkbox to include or bypass the component, its step number and
-label;</li>
-<li>a <strong>live thumbnail of that component’s output</strong>, what
-the image is at that stage;</li>
-<li>its output type and what it feeds (for example “feeds Gas emission ·
-cloud”);</li>
-<li><strong>FINAL</strong> on the scene’s output,
-<strong>UNUSED</strong> on components nothing uses.</li>
-</ul>
-<p>Click a card to show that stage on the canvas. <code>[</code> and
-<code>]</code> step to the previous and next stage, so you can walk
-through a construction from coordinates to final image. The arrow keys
-move between cards when one has focus.</p>
+<p>The <strong>Pipeline</strong> lists every component in evaluation
+order, each after everything it reads. Each card shows a checkbox to
+include or bypass the component, its step number and label, a
+<strong>live thumbnail of its output</strong>, its output type and what
+it feeds, <strong>FINAL</strong> or <strong>UNUSED</strong> where they
+apply, 👁 when the canvas shows it, and ✎ when its equation has an edit
+that is not applied yet. Thumbnails of values that have no color of
+their own use the same automatic colors as the canvas (see below), each
+over its own range; a layer shown with adjusted exposure is labelled
+with the factor, e.g. <em>×0.033</em>.</p>
+<p>Click a card to select it; the checkbox alone includes or bypasses
+it. The arrow keys move between cards when one has focus. The bar above
+the cards holds the bypass shortcuts (see <a
+href="#including-and-bypassing-components">Including and
+bypassing</a>).</p>
 <h3 id="the-view-switch">The view switch</h3>
 <p>The switch above the canvas chooses what the canvas shows:</p>
 <ul>
 <li><strong>Final image</strong> (<code>Esc</code>): the scene’s
 finished output, the same image Export and Save use.</li>
-<li><strong>This stage</strong> (<code>I</code>): only the selected
-component’s output, before anything downstream uses it. You do not need
-to make a component the final output to see it.</li>
+<li><strong>This step</strong> (<code>I</code>): only the selected
+component’s output, before anything downstream uses it. The button names
+the step, e.g. <em>Step 2 · Pinched shell family</em>.</li>
 <li><strong>What it changes</strong> (<code>C</code>): the final image
-rendered with and without the selected component (bypassed), in one of
-two styles. <em>Changed pixels in color</em> keeps the image where the
-component matters and turns the rest gray. <em>Signed difference</em> is
-warm where the component adds light and cool where it removes
-light.</li>
+rendered with and without the selected component (bypassed). <em>Changed
+pixels in color</em> keeps the image where the component matters and
+turns the rest gray; <em>Signed difference</em> is warm where it adds
+light and cool where it removes light.</li>
 </ul>
+<p>In the step and change views the canvas follows your selection. Press
+<strong>🔓</strong> to lock it, e.g. to watch a field while you tune
+something upstream of it; select another component and the canvas stays
+where it is until you unlock.</p>
 <figure>
 <img src="../gallery/studio-stage.png"
-alt="This stage: the geometry of the Bipolar Nebula alone, with its false-color legend and typeset equation" />
-<figcaption aria-hidden="true">This stage: the geometry of the Bipolar
-Nebula alone, with its false-color legend and typeset
-equation</figcaption>
+alt="This step: the rim of the Bipolar Nebula’s shell geometry with a colormap, contour lines and its legend" />
+<figcaption aria-hidden="true">This step: the rim of the Bipolar
+Nebula’s shell geometry with a colormap, contour lines and its
+legend</figcaption>
 </figure>
 <figure>
 <img src="../gallery/studio-effect.png"
@@ -166,189 +236,380 @@ alt="What it changes: only the pixels the star lattices affect stay in color" />
 <figcaption aria-hidden="true">What it changes: only the pixels the star
 lattices affect stay in color</figcaption>
 </figure>
-<p>In the stage and change views the viewed component follows your
-selection. Press <strong>🔓</strong> to lock it: the canvas keeps
-showing that component while you select and edit others, for example to
-watch a field while you tune something upstream of it.</p>
-<p>Colors, layers and lights appear as themselves. Scalar, coordinate
-and geometry stages have no color of their own, so they are shown in
-false color, and a legend on the canvas explains it:</p>
+<h3 id="step-colors-and-the-legend">Step colors and the legend</h3>
+<p>Colors, layers and lights appear as themselves. Numbers, coordinates
+and geometry have no color of their own, so the canvas chooses one from
+the values actually in view, and the legend at the lower left explains
+it:</p>
 <table>
 <colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
 </colgroup>
 <thead>
 <tr>
-<th>Stage type</th>
-<th>False color</th>
+<th>Output type</th>
+<th>Automatic colors</th>
+<th>Legend</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>scalar field</td>
-<td>gray = ½ + ½·tanh(value): black is negative, mid-gray zero, white
-positive</td>
+<td>a colormap from the lowest to the highest value; when the field
+takes both signs, a diverging map: cool below zero, near-black at zero,
+warm above, symmetric about zero. White contour lines where the field
+crosses round values; the zero line is brighter</td>
+<td>a color bar with the range and a histogram of the values in
+view</td>
 </tr>
 <tr>
 <td>coordinates</td>
-<td>red = ½ + ½ sin x, green = ½ + ½ sin y, repeating every 2π</td>
+<td>the image of a regular grid: each cell of the output coordinates
+keeps its own pastel color, gray lines at multiples of the cell size,
+red where q_x = 0 and green where q_y = 0. A warp bends the grid; polar
+coordinates turn it into rings and spokes</td>
+<td>the cell size</td>
 </tr>
 <tr>
 <td>geometry</td>
-<td>red = 4 × rim A, green = coverage, blue = warp S</td>
+<td>one channel as a scalar field: S (the shell-following coordinate), A
+(the rim) or coverage; or all three in the classic red/green/blue</td>
+<td>a channel menu</td>
+</tr>
+<tr>
+<td>color layer</td>
+<td>as displayed, unless it is almost entirely clipped white or black at
+the scene exposure: then its exposure is adjusted so its structure is
+visible</td>
+<td>the factor, e.g. <em>×0.033 exposure</em></td>
 </tr>
 </tbody>
 </table>
-<p>The rulers’ readout gives the exact values behind these colors.</p>
+<p>The legend’s controls choose the channel, contours, auto exposure and
+<strong>Classic</strong> colors (the fixed 1.x diagnostic: gray = ½ +
+½·tanh(value); red/green = ½ + ½ sin of the coordinates; red rim, green
+coverage, blue warp). <strong>🔓</strong> locks the current color range,
+so you can change a parameter and compare colors fairly. On a narrow
+image the controls fold behind <strong>⚙</strong>. The rulers’ readout
+and the profile give the exact numbers behind any color.</p>
 <h3 id="rulers-grid-and-readouts">Rulers, grid and readouts</h3>
 <p><strong>Rulers</strong> (<code>R</code>) and <strong>Grid</strong>
 (<code>G</code>) are on by default. The rulers show world coordinates
-along the top and left with a 1–2–5 tick spacing that adapts to the
-zoom; the top-right corner shows the size of a major tick. The crosshair
-follows the cursor with a label giving:</p>
-<ul>
-<li>the world coordinate <code>x, y</code> of the pixel center;</li>
-<li>the pixel column and row (row 0 is the top);</li>
-<li>the displayed RGB bytes and hex color;</li>
-<li>the <strong>raw value of the shown component</strong> at that point
-(in the stage view) or of the selected component (otherwise): the
-scalar, the coordinate pair, the geometry channels S, A and coverage, or
-the RGBA radiance before exposure and tone mapping.</li>
-</ul>
-<p>Click the image to <strong>pin</strong> the reading; it stays at that
-point and updates as you edit or scrub. <strong>Unpin</strong> or
-<code>Esc</code> removes it. Alt-click reads one raw value into a
-message. Rulers, grid, readouts and legends are never part of an
-export.</p>
+with a 1–2–5 tick spacing that adapts to the zoom; the top-right corner
+shows the size of a major tick. The crosshair follows the cursor with
+the world coordinate, the pixel, the displayed color and the <strong>raw
+value of the shown component</strong> (in the step view) or the selected
+component (otherwise). Click the image to <strong>pin</strong> the
+reading; it stays and updates as you edit or scrub.
+<strong>Unpin</strong> or <code>Esc</code> removes it. Alt-click reads
+one raw value into a message. Rulers, grid, readouts and labels are
+never part of an export.</p>
+<h3 id="the-profile">The profile</h3>
+<p><strong>Profile</strong> (<code>V</code>) opens a plot under the
+canvas of the shown component’s <strong>actual values</strong> along the
+horizontal (or vertical) line through the cursor, or through the pinned
+reading. A dashed line on the image shows where it samples. Scalars plot
+one curve, coordinates their x and y, geometry S, A and coverage, layers
+their red, green, blue radiance (before exposure and tone mapping) and
+coverage. Below the plot are each channel’s minimum, maximum and mean
+along the line. The profile makes a function’s shape obvious: a Gaussian
+ring’s bump, a threshold’s step, the zigzag of a fold, the spikes of
+stars.</p>
+<h3 id="the-formulas-tab">The Formulas tab</h3>
+<p><strong>Formulas</strong> writes the whole construction out as a
+formula sheet. At the top, <strong>the image, composed</strong>: the
+combiners (Add light, Front over back, Tint, Mask, Combine scalar
+fields) written as operations over the components they combine, e.g.</p>
+<p><em>image = Gas emission + Central glow + Folded star
+lattices</em></p>
+<p>Below it, every component in evaluation order, with each input bound
+to the component that feeds it (<em>p ← Image coordinates · S, A ←
+Pinched shell family</em>), its equation, and where its output goes
+(<em>→ Add light as B</em>). Hover a line for its explanation; click a
+block to select that component.</p>
+<figure>
+<img src="../gallery/studio-formulas.png"
+alt="The Formulas tab: how the image is composed, then every component’s equation with its inputs bound" />
+<figcaption aria-hidden="true">The Formulas tab: how the image is
+composed, then every component’s equation with its inputs
+bound</figcaption>
+</figure>
 <h3 id="the-camera">The camera</h3>
 <p>Drag to pan. Scroll or pinch to zoom about the point under the
 cursor. <strong>Fit</strong> (<code>F</code>) restores the native
 framing; at 2000 × 1200 the canvas reproduces the supplied source grid
 exactly. The camera is part of the project and is saved and undone like
-any other edit. The quality menu sets how many pixels the canvas
-computes; lower is faster while exploring, and every setting evaluates
-the same equations.</p>
-<h2 id="understanding-a-component">Understanding a component</h2>
-<p>Select a component in the pipeline, the graph or the canvas view to
-open it in the inspector:</p>
+any other edit.</p>
+<p>The quality menu sets how many pixels the canvas computes.
+<strong>Auto · sharp</strong> (the default) matches your display,
+including high-density screens; during a drag or playback, when frames
+take longer than about 24 ms on the GPU, it renders at a lower
+resolution and refines when you let go. The fixed sizes render exactly
+that width. Every setting evaluates the same equations; exports choose
+their own size.</p>
+<h2 id="the-component-panel">The component panel</h2>
+<p>The panel on the right explains and edits the selected component. Its
+header stays in view while you scroll: <strong>◀ Step 7 of 9 ▶</strong>,
+the switch that includes or bypasses it (see below), its title
+(editable; the id stays fixed) and output type, <strong>⤢
+Playground</strong> and <strong>↗</strong> (pop out). Under it, four
+tabs; the panel keeps the tab you chose as you select other components,
+and starts each component at its top.</p>
 <ul>
-<li><strong>The switch</strong> at the top includes or bypasses it (see
-below). The title is editable; the id stays fixed.</li>
-<li><strong>Show this stage</strong>, <strong>What it changes</strong>
-and <strong>Make final output</strong>. The last one changes which
-component the scene outputs, which is what saves and exports use. To
-just look at a component, use Show this stage.</li>
-<li><strong>The equation</strong>, typeset as mathematics, followed by a
-<strong>where</strong> list: every parameter’s symbol, name and live
-value (click one to jump to its slider), every input and where it comes
-from, and the fixed symbols in the formula. <strong>GLSL</strong> shows
-the shader code the component contributes, with parameter names in place
-of uniforms. The section can be collapsed.</li>
-<li><strong>Inputs</strong>: which component feeds each socket.
-<em>Unconnected · zero</em> means the socket contributes a typed zero,
-not an implicit image coordinate. <strong>＋</strong> next to a
-connected input inserts a modifier on it (see Composing).</li>
-<li><strong>Parameters</strong>: each one says what it does, in plain
-language. Its label shows the symbol it has in the equation. Next to the
-value are <strong>◆</strong> (add a key at the playhead),
-<strong>↺</strong> (reset) and <strong>▦</strong> (sweep). A marker on
-the slider shows the original value.</li>
+<li><strong>Equation</strong>: what it computes.
+<ul>
+<li>A sentence on what the component is for, and a warning if it is
+bypassed or not connected to the final output.</li>
+<li><strong>How it is computed</strong>: the component’s equation as
+numbered steps, each typeset and followed by a caption that says what
+the line computes and why. The result line is marked <strong>⇒</strong>.
+Symbols are colored by role: <strong>inputs</strong> in the color of
+their type (blue coordinates, amber scalars, violet geometry, green
+layers), <strong>parameters</strong> in peach, the
+<strong>output</strong> bold, <strong>time</strong> in pink. Hover any
+symbol to light up all its occurrences and its parameter; click an input
+symbol to select the component that feeds it; <strong>drag a parameter
+symbol sideways</strong> to change it (hold Shift for fine steps; one
+drag is one undo step). <strong>Values</strong> replaces every parameter
+symbol by its current number, updated live. <strong>✎ Edit</strong>
+opens the equation as text: see <a href="#editing-equations">Editing
+equations</a>.</li>
+<li><strong>Parameters</strong>: each says what it does, in plain
+language, next to its symbol. Next to the value are <strong>◆</strong>
+(add a key at the playhead), <strong>↺</strong> (reset) and
+<strong>▦</strong> (sweep). A marker on the slider shows the original
+value. <strong>✦ Variations</strong> and <strong>↺ Reset all</strong>
+are in the heading.</li>
+<li><strong>Key function</strong>: for components built around a
+one-dimensional function, a live plot of it with the current parameters:
+the S-curve of a soft threshold, the profile of a ring or disc, the core
+and halo of one star, the twist of a vortex against distance, the width
+of a tidal stream along its length.</li>
+</ul></li>
+<li><strong>In &amp; out</strong>: where each input comes from (the
+component that feeds it, which you can change with the menu,
+<strong>＋</strong> to insert a modifier on it, and its thumbnail), and
+where the output goes: every component that reads it, the symbol it goes
+by there, and the downstream equation that uses it, e.g. the stars’
+output <em>T</em> is read by <em>Add light</em> as <em>B</em> in RGB = A
++ gB. Click one to select it. <strong>☆ Make it the final
+output</strong> changes what the scene outputs, saves and exports.</li>
+<li><strong>Ideas</strong>: why the equation is written this way: the
+recurring ideas it uses, e.g. <em>Folding with arccos(cos t)</em>,
+<em>The double-exponential gate</em>, <em>Front-to-back selection</em>,
+each with its formula, an explanation and often a small plot with a knob
+to play with; and the equation’s other symbols (fixed constants,
+intermediate quantities) and what they mean.</li>
+<li><strong>More</strong>: the shader code the component adds (and, for
+components that call a library function, that function’s source), its
+animation tracks (interpolation, keys), and <strong>Replace
+with…</strong>, <strong>Duplicate</strong> and
+<strong>Delete</strong>.</li>
 </ul>
+<p>Sections fold with the ▸ in their heading.</p>
+<h2 id="the-equation-playground">The Equation Playground</h2>
+<p><strong>⤢ Playground</strong> (<code>E</code>, the button in the
+panel’s header, or double-click any component) turns the panel into a
+workspace for studying one component: the panel widens to half the
+window, and on a wide screen its Equation tab gets two columns, the
+steps on one side and the parameters and key function on the other. The
+canvas shows the component’s own output with the
+<strong>profile</strong> of its values under it, and the pipeline
+becomes a compact strip of step names, so the canvas keeps its height.
+Nothing else moves: you still navigate with the strip, <code>[</code>
+<code>]</code> or ◀ ▶. <code>Esc</code> first returns the canvas to the
+final image, then closes the Playground; ⤢ or <code>E</code> closes it
+at once.</p>
+<figure>
+<img src="../gallery/studio-playground.png"
+alt="The Equation Playground: the step and its profile on the left, the component’s equation, parameters and key function side by side on the right" />
+<figcaption aria-hidden="true">The Equation Playground: the step and its
+profile on the left, the component’s equation, parameters and key
+function side by side on the right</figcaption>
+</figure>
+<h3 id="the-pop-out-window">The pop-out window</h3>
+<p><strong>↗</strong> opens the panel for the selected component in a
+separate browser window, for example on a second screen next to a
+full-size canvas. It follows your selection; tick <strong>Pin</strong>
+to keep it on one component while you select others. Its controls change
+the scene in the main window, and <code>Ctrl/⌘ Z</code> undoes there
+too. The window closes with the page. If the browser blocks pop-ups, the
+Playground opens instead; phones and tablets, which open no second
+windows, hide ↗ and use the Playground.</p>
+<figure>
+<img src="../gallery/studio-popout.png"
+alt="The pop-out window: the explanation of one component, following the selection" />
+<figcaption aria-hidden="true">The pop-out window: the explanation of
+one component, following the selection</figcaption>
+</figure>
+<h2 id="editing-equations">Editing equations</h2>
+<p>Every component whose inputs are numbers or coordinates can be edited
+as an equation: the custom components, and the built-in components that
+do not read color layers or geometry. The same three steps work for all
+of them:</p>
+<ol type="1">
+<li><strong>✎ Edit</strong> in the heading of <em>How it is
+computed</em> (or double-click the equation). The steps turn into an
+editor holding the equation as text, one line per step; the panel widens
+to give it room. For a built-in component, this is the component written
+out in the equation language, line for line with the steps you were
+reading, with its parameters as <code>param</code> lines named after
+their symbols (κ becomes <code>kappa</code>, c_x stays <code>c_x</code>)
+at their current values.</li>
+<li><strong>Change anything.</strong> As you type, the lines are typeset
+under <strong>As math</strong> exactly as the steps will read, the
+checker reports mistakes in words (<em>Line 3: Unknown name “raduis”.
+Did you mean “radius”?</em>; <em>Cannot add a vec2 and a vec3</em>;
+<em>The result must be a number (float), but it is a vec2</em>), and the
+<strong>canvas previews your edit</strong> a moment after you pause,
+labelled <strong>DRAFT</strong>. The draft is kept while you look at
+other components (the pipeline marks it ✎); only the selected
+component’s draft is previewed.</li>
+<li><strong>Apply</strong> (<code>Ctrl/⌘ Enter</code>) puts it into the
+scene as one undo step; <strong>Cancel</strong> discards it. An equation
+with an error is not applied, and nothing else changes. A built-in
+component becomes your equation when you apply: it keeps its wiring,
+parameter values and animation, and its label gets “· equation”; Undo
+restores the original.</li>
+</ol>
+<figure>
+<img src="../gallery/studio-equation.png"
+alt="Editing the turbulent warp of Living mineral: the component written out as an equation, changed, and previewed on the canvas as a draft" />
+<figcaption aria-hidden="true">Editing the turbulent warp of Living
+mineral: the component written out as an equation, changed, and
+previewed on the canvas as a draft</figcaption>
+</figure>
+<p>When you apply, a parameter keeps its current value if its
+<code>param</code> line is unchanged; if you edit its default
+(<code>param bands = 14</code> to <code>= 30</code>), it takes the new
+default. Parameters that no longer exist are dropped with their
+animation.</p>
+<p>Components that read a color layer or geometry (tint, mask, the
+combiners, most of the source nebula) cannot be written as equations
+yet; their ✎ Edit is dimmed and says why. Some built-in components are
+loops over many terms (the star lattices, the nebula clouds, whole
+scenes such as the water planet): their equation is a call of the
+shader-library function that does the loop, whose code is under More ▸
+Shader code. You can still change what goes into it and what comes
+out.</p>
+<h3 id="the-equation-language">The equation language</h3>
+<p>An equation is a short program, one statement per line:</p>
+<pre class="text"><code>// A glowing ring (lines starting with // are ignored)
+param radius = 1 [0.1, 3]      // distance of the rim from the center
+param width = 0.1 [0.005, 1]   // thickness of the rim
+d = length(p) - radius         // signed distance to the circle
+exp(-(d / width)^2)            // a Gaussian bump across it: the result</code></pre>
+<ul>
+<li><code>param name = value [min, max]</code> adds a
+<strong>parameter</strong> with a slider (<code>step 0.01</code> after
+the range sets its step). It behaves like any other parameter: reset,
+sweep, keyframes, variations. <code>param tint = #ffd080</code> adds a
+color.</li>
+<li><code>name = expression</code> is a <strong>definition</strong>,
+usable on the following lines.</li>
+<li>The <strong>last line is the result</strong>: a number for a scalar
+equation, a pair <code>vec2(…)</code> for a coordinate equation, a color
+<code>vec3(…)</code> (or <code>vec4(…)</code> with coverage) for a color
+equation.</li>
+<li><code>// …</code> after a line is its <strong>caption</strong>,
+shown next to the typeset line in <em>How it is computed</em>.</li>
+</ul>
+<p>Available names: <code>p</code> = (<code>x</code>, <code>y</code>),
+its polar radius <code>r</code> and angle <code>theta</code>, the
+optional inputs <code>a</code> and <code>b</code>, the time
+<code>t</code>, <code>PI</code> and <code>TAU</code>. You can call the
+GLSL built-in functions (<code>sin</code>, <code>mix</code>,
+<code>smoothstep</code>, <code>length</code>, <code>clamp</code>, …) and
+every function of the shader libraries: helpers such as
+<code>fbm</code>, <code>noise2</code>, <code>rotate2</code>,
+<code>gaussian</code>, <code>cutoff</code>, <code>softInside</code>,
+<code>spectrum</code>, <code>vortex</code>, <code>domainWarp</code>,
+<code>angularMirror</code>, and whole kernels such as
+<code>waterPlanet(p, 1, 0.6, 5, 2, t)</code> or
+<code>nebulaStars(p, 30, 1)</code>. The <strong>Insert…</strong> menu
+under the editor lists them with their arguments, and <em>How to write
+equations</em> beside it summarizes the rules. Whole numbers need no
+decimal point; <code>x^2</code> is a power (written out as
+<code>x·x</code>, so it is exact for negative <code>x</code>);
+<code>%</code> is <code>mod</code>; comparisons,
+<code>&amp;&amp;</code>, <code>||</code> and <code>cond ? a : b</code>
+work as in GLSL. Equations are checked and re-printed as shader code by
+the studio, never pasted into it, and they cannot contain loops or
+JavaScript.</p>
+<p>To start from scratch, add a <strong>Custom scalar</strong>,
+<strong>Custom coordinate</strong> or <strong>Custom color</strong>
+equation (＋ Component); each starts from a short example with a slider,
+a definition and captions.</p>
 <h2 id="experimenting-safely">Experimenting safely</h2>
 <p>Nothing you try is hard to take back:</p>
 <ul>
 <li><strong>↺ on a parameter</strong> returns it to its value when the
-scene was opened (for a component you added, the catalog default), and
-removes its animation. Double-clicking the parameter’s label does the
-same. Changed parameters are marked with a dot, and <strong>↺ Reset
+scene was opened (for a component you added, its default), and removes
+its animation. Double-clicking the parameter’s label does the same.
+Changed parameters are marked with a dot, and <strong>↺ Reset
 all</strong> resets the whole component.</li>
 <li><strong>◐ Original</strong>: press and hold the button, or hold
-<code>O</code>, to see the scene as it was when you opened it; release
-to return to your version.</li>
-<li><strong>⟲ Revert</strong> restores the whole scene as it was opened.
-Your selection, view and playhead stay where they are, and Undo brings
-your changes back.</li>
+<code>O</code>, to see the scene as it was when you opened it.</li>
+<li><strong>⟲ Revert</strong> restores the whole scene as it was opened;
+your selection, view and playhead stay, and Undo brings your changes
+back.</li>
 <li><strong>Undo and redo</strong> (<code>Ctrl/⌘ Z</code>,
-<code>Ctrl/⌘ Shift Z</code>) cover every edit, including the camera and
-bypass checkboxes.</li>
+<code>Ctrl/⌘ Shift Z</code>) cover every edit, including the camera,
+bypass checkboxes, dragged symbols and applied equations.</li>
 <li><strong>Snapshot</strong> (<code>S</code>) bookmarks the project and
-playhead in the Snapshots tab of the library; click one to return to it.
-Up to thirty are kept in this browser; they are not part of the saved
-file.</li>
+playhead in the library’s Snapshots tab. Up to thirty are kept in this
+browser; they are not part of the saved file.</li>
 </ul>
 <h3 id="sweeps-and-variations">Sweeps and variations</h3>
 <p><strong>▦</strong> on a parameter opens the explorer below the canvas
 with the image rendered at seven values across the parameter’s whole
-range. It is the quickest way to see what a parameter does. <strong>✦
-Variations</strong> in the inspector renders eight random variations of
-the component’s parameters. Its controls choose how far they may move
-(subtle, medium, bold) and whether to vary this component or the whole
-scene; <strong>⟳ Shuffle</strong> makes new ones.</p>
+range. <strong>✦ Variations</strong> renders eight random variations of
+the component’s parameters (or the whole scene’s), subtle, medium or
+bold; <strong>⟳ Shuffle</strong> makes new ones. Hover a thumbnail to
+preview it on the main canvas (labelled <strong>PREVIEW</strong>), click
+it to use it. The thumbnails use the current view, so a sweep while
+showing a step shows how that step changes.</p>
 <figure>
 <img src="../gallery/studio-explore.png"
 alt="A sweep of Neck pinch across its range; hovering a thumbnail previews it on the canvas" />
 <figcaption aria-hidden="true">A sweep of Neck pinch across its range;
 hovering a thumbnail previews it on the canvas</figcaption>
 </figure>
-<p>In both, hover a thumbnail to preview it on the main canvas, and
-click it to use it; the one in use is outlined. Each click is one undo
-step. <code>Esc</code> or <strong>×</strong> closes the explorer. The
-thumbnails use the current view, so a sweep while viewing a stage shows
-how that stage changes. For an animated parameter, a sweep edits the key
-at the playhead.</p>
 <h2 id="including-and-bypassing-components">Including and bypassing
 components</h2>
-<p>Every component has a checkbox, on its pipeline card, on its graph
-card and as the switch in the inspector. Unticking it
-<strong>bypasses</strong> the component:</p>
-<ul>
-<li>a <strong>modifier</strong> (a coordinate map such as Translate,
-Vortex, Lens or Custom coordinate; a Tint, Mask or Soft threshold)
-passes its input through unchanged, so unticking a warp simply removes
-the warp;</li>
-<li>a <strong>combiner</strong> passes its main input through: Add light
-passes A, Front over back passes the back layer, Combine scalar fields
-passes a;</li>
-<li><strong>content</strong> (a field, shape, light or star field)
-contributes nothing (zero).</li>
-</ul>
-<p>The tooltip on each checkbox says exactly what that component will do
-when bypassed. Ticking a component also ticks anything it needs that was
-unticked, and says so. Above the pipeline:</p>
-<ul>
-<li><strong>All</strong> includes every component.</li>
-<li><strong>Only structure</strong> bypasses every content component but
-keeps coordinates, combiners and modifiers. Tick components one at a
-time to watch the image build up.</li>
-<li><strong>Original</strong> restores which components were included
-when the scene was opened.</li>
-</ul>
+<p>Every component has a checkbox, on its pipeline card, its graph card
+and as the switch in the panel. Unticking it <strong>bypasses</strong>
+the component: a <strong>modifier</strong> (a coordinate map, a Tint,
+Mask or Soft threshold) passes its input through unchanged; a
+<strong>combiner</strong> passes its main input (Add light passes A,
+Front over back the back layer, Combine scalar fields a);
+<strong>content</strong> (a field, shape, light or star field)
+contributes nothing. The tooltip on each checkbox says exactly what that
+component will do when bypassed. Ticking a component also ticks anything
+it needs. In the pipeline bar, <strong>All</strong> includes everything,
+<strong>Only structure</strong> bypasses every content component so you
+can tick them one at a time and watch the image build up, and
+<strong>Original</strong> restores the scene’s own choice.</p>
+<p>Bypassing is instant: it never recompiles the shader.</p>
 <h2 id="composing">Composing</h2>
-<p><strong>Components</strong> in the library lists every building block
-with a live search. Hover an entry to see its description and typeset
-equation. Click it to add it: its inputs connect to the selection when
-the types match, otherwise to the first compatible component, and the
-canvas shows its output. Or drag it:</p>
-<ul>
-<li>onto an empty part of the graph to add it;</li>
-<li>onto an <strong>input dot</strong> to add it and wire it into that
-socket (incompatible types are refused with a message);</li>
-<li>onto a <strong>component card</strong> to wire it into that card’s
-first compatible input, preferring an empty one;</li>
-<li>onto the canvas to add it without wiring.</li>
-</ul>
-<p>In the inspector:</p>
-<ul>
-<li><strong>＋ on a connected input</strong> inserts a modifier between
-that input and whatever feeds it: a warp before a field, a tint before a
-layer, a threshold before a scalar. The old connection passes through
-the new component.</li>
-<li><strong>Replace with…</strong> swaps the component for another with
-the same output type. Its connections are kept wherever the new kind has
-a socket with the same name and type. The Ring Nebula scene is the
-Bipolar Nebula with its geometry replaced exactly this way.</li>
-</ul>
+<p><strong>＋ Component</strong> opens the library at its
+<strong>Components</strong> tab: every building block, with a live
+search. Hover an entry to see its description and typeset equation.
+Click it to add it (its inputs connect to the selection when the types
+match; the new component is selected and the canvas shows its output,
+This step), or drag it onto the graph, onto an <strong>input
+dot</strong> (added and wired into that socket), onto a
+<strong>component card</strong> (wired into its first compatible input)
+or onto the canvas. Dock the library first when you want to drag
+several.</p>
+<p>In the panel’s <strong>In &amp; out</strong> tab, <strong>＋ on a
+connected input</strong> inserts a modifier between that input and
+whatever feeds it; <strong>More ▸ Replace with…</strong> swaps the
+component for another with the same output type, keeping connections
+wherever the sockets match. The Filament ring scene is the Bipolar
+Nebula with its geometry replaced exactly this way.</p>
 <h3 id="the-function-graph">The function graph</h3>
 <figure>
 <img src="../gallery/studio-graph.png"
@@ -356,39 +617,23 @@ alt="The function graph with include checkboxes, live previews and typed sockets
 <figcaption aria-hidden="true">The function graph with include
 checkboxes, live previews and typed sockets</figcaption>
 </figure>
-<p>The <strong>Function graph</strong> tab shows the wiring. It is laid
-out automatically: components sit in the column of their dependency
-depth, in project order, so there are no positions to manage. Cards
-carry a colored edge and dots by type: blue coordinates, amber scalars,
-violet geometry, green layers. Each card has an include checkbox, a 👁
-button that shows its stage, and, with <strong>Previews</strong> on
-(<code>P</code>, default on), a live thumbnail.</p>
-<ul>
-<li>Hover a card to dim everything that is neither upstream nor
-downstream of it.</li>
-<li>Drag from an output dot to an input dot to wire them; compatible
-sockets light up while you drag. Clicking an output dot and then an
-input dot also works. Drag a wire off an input to disconnect it, or onto
-another input to move it. Connections that would form a cycle or mix
-types are refused and the previous state restored.</li>
-<li><strong>Locate</strong> (<code>L</code>) scrolls to the selected
-card. With the graph focused, <code>Delete</code> removes the selected
-component and <code>Ctrl/⌘ D</code> duplicates it.</li>
-</ul>
-<p>The <strong>Generated GLSL</strong> tab shows the single fragment
-shader compiled for the current view, with each component’s statement
-labelled by its id. <strong>Copy GLSL</strong> copies it.</p>
-<h3 id="custom-equations">Custom equations</h3>
-<p>The <em>Custom scalar</em>, <em>Custom coordinate</em> and <em>Custom
-color</em> components take a GLSL expression over
-<code>p, x, y, r, theta, t, a, b</code>. The inspector shows the
-expression <strong>typeset as mathematics above the editable
-text</strong>, and the typeset version updates as you type:
-<code>a/b</code> becomes a fraction, <code>pow(x, 2.0)</code> a power,
-<code>theta</code> θ, <code>vec2(x, y)</code> a tuple. The helper menu
-inserts the built-in functions at the cursor. <strong>Apply</strong> or
-<code>Ctrl/⌘ Enter</code> compiles; a failed compile shows the driver’s
-message and leaves the previous image in place.</p>
+<p>The <strong>Function graph</strong> tab shows the wiring, laid out
+automatically by dependency depth. Cards carry a colored edge and dots
+by type: blue coordinates, amber scalars, violet geometry, green layers.
+Each card has an include checkbox, a 👁 button that selects it and shows
+its output (This step) and, with <strong>Previews</strong> on
+(<code>P</code>), a live thumbnail. Hover a card to dim everything
+unrelated to it. Drag from an output dot to an input dot to wire them
+(compatible sockets light up), or click one and then the other; drag a
+wire off an input to disconnect it. Connections that would form a cycle
+or mix types are refused. <strong>Locate</strong> (<code>L</code>)
+scrolls to the selected card; with the graph focused,
+<code>Delete</code> removes the selected component and
+<code>Ctrl/⌘ D</code> duplicates it.</p>
+<p>The <strong>Shader</strong> tab shows the fragment shader for the
+current view, with each component’s statement labelled by its id and its
+parameters named <code>n3_radius</code>. <strong>Copy GLSL</strong>
+copies it.</p>
 <h2 id="animation-and-the-timeline">Animation and the timeline</h2>
 <p>Space plays and pauses; ↤ rewinds; <code>,</code> and <code>.</code>
 step one frame at 24 fps; <code>Home</code> and <code>End</code> jump to
@@ -398,17 +643,54 @@ the ends. The duration, <strong>Loop</strong>, output conversion
 playhead. After that, changing the parameter at another time adds or
 updates a key there. Each keyed parameter gets a lane in the timeline:
 click the lane to seek, click a key to jump to it, and drag a key to
-retime it. In the inspector’s Animation section, choose smooth, linear
-or hold interpolation, or delete keys and tracks. Tracked values update
-live during playback. See <a href="ANIMATION.html">Animation</a> for the
-interpolation rules and export determinism.</p>
+retime it. In the panel’s <strong>More</strong> tab, choose smooth,
+linear or hold interpolation, or delete keys and tracks. Parameters
+declared in an equation animate the same way. See <a
+href="ANIMATION.html">Animation</a> for the interpolation rules and export
+determinism.</p>
 <h2 id="export">Export</h2>
 <p><strong>Export</strong> renders a still PNG at any size up to the GPU
 limit (with the full project embedded as metadata), a deterministic PNG
 sequence in a ZIP with the project and a manifest, or a real-time
-browser video. When the canvas shows a stage or a “what it changes”
-view, a checkbox exports that view instead of the final image. Details
-and limits are in <a href="ANIMATION.html">Animation and export</a>.</p>
+browser video. When the canvas shows a step or a “what it changes” view,
+a checkbox exports that view instead of the final image, in the colors
+the canvas shows (a step keeps the color range it has on the canvas for
+every frame). Details and limits are in <a href="ANIMATION.html">Animation
+and export</a>.</p>
+<h2 id="screens-tablets-and-phones">Screens, tablets and phones</h2>
+<ul>
+<li><strong>Wide screens</strong>: the panel takes about a quarter of
+the window and gets two columns wherever it is wide enough (the
+Playground, while editing, a wide pop-out window). Dock the library if
+you like it open.</li>
+<li><strong>Laptops</strong>: the library is a drawer, so the canvas
+takes the width it frees; the pipeline’s height adapts to the
+window.</li>
+<li><strong>Tablets held upright</strong>: the canvas across the full
+width, the pipeline and the panel side by side below it.</li>
+<li><strong>Phones</strong>: the canvas stays pinned at the top while
+the panel below it scrolls; the tab bar under the canvas chooses the
+panel (<strong>Pipeline</strong>, <strong>Inspect</strong>,
+<strong>Formulas</strong>, <strong>Graph</strong>). Pipeline steps wrap
+two to a row. The transport stays at the bottom of the screen.
+Double-clicking a step (the Playground) opens its explanation under the
+canvas.</li>
+<li><strong>Touch</strong>: drag to pan and pinch to zoom the canvas;
+drag parameter symbols in an equation like sliders; <strong>press and
+hold</strong> any control for its explanation. Controls are larger on
+touch screens.</li>
+<li><strong>Trackpads</strong>: pinch to zoom, drag to pan.</li>
+</ul>
+<figure>
+<img src="../gallery/studio-tablet.png"
+alt="A tablet held upright: the canvas across the full width, the pipeline and the panel below" />
+<figcaption aria-hidden="true">A tablet held upright: the canvas across
+the full width, the pipeline and the panel below</figcaption>
+</figure>
+<p><img src="../gallery/studio-mobile.png"
+alt="On a phone: the canvas pinned on top, the tab bar and the pipeline below" />
+<img src="../gallery/studio-mobile-inspect.png"
+alt="On a phone: a component’s explanation under the canvas" /></p>
 <h2 id="keyboard-shortcuts">Keyboard shortcuts</h2>
 <p>Single-key shortcuts apply when no text field or dialog has
 focus.</p>
@@ -438,21 +720,31 @@ focus.</p>
 </tr>
 <tr>
 <td><code>[</code> / <code>]</code></td>
-<td>Show the previous / next stage of the pipeline</td>
+<td>Select the previous / next component (the canvas keeps its
+view)</td>
 </tr>
 <tr>
 <td><code>I</code></td>
-<td>Show the selected component’s stage (again: back to the final
-image)</td>
+<td>Show the selected component’s own output, This step (again: the
+final image)</td>
 </tr>
 <tr>
 <td><code>C</code></td>
 <td>Show what the selected component changes</td>
 </tr>
 <tr>
+<td><code>E</code></td>
+<td>Open or close the Equation Playground</td>
+</tr>
+<tr>
+<td><code>V</code></td>
+<td>Show or hide the profile</td>
+</tr>
+<tr>
 <td><code>Esc</code></td>
-<td>Close the explorer, cancel a connection, unpin a reading, or return
-to the final image</td>
+<td>Back out one level: close the library, cancel a connection, close
+the explorer, unpin a reading, leave an unchanged edit, return to the
+final image, close the Playground</td>
 </tr>
 <tr>
 <td>hold <code>O</code></td>
@@ -491,6 +783,10 @@ to the final image</td>
 <td>Duplicate the selected component</td>
 </tr>
 <tr>
+<td><code>Ctrl/⌘ Enter</code></td>
+<td>Apply the equation being edited</td>
+</tr>
+<tr>
 <td><code>Delete</code> / <code>Backspace</code></td>
 <td>Delete the selected component (graph focused)</td>
 </tr>
@@ -504,9 +800,11 @@ to the final image</td>
 <p>The project autosaves to this browser’s storage a moment after every
 edit, together with the scene as it was opened (so Original, reset and
 Revert still work after a reload). Preferences are stored the same way:
-preview quality, rulers, grid, previews, the bottom tab and the panel
-height. So are snapshots. Browser storage can be unavailable or cleared,
-so <strong>Save project</strong> remains the portable backup. Reference
-images are never stored.</p>
+quality, rulers, grid, previews, profile, step colors, the bottom tab,
+the pipeline height, the panel widths, the Playground and whether the
+library is docked. So are snapshots. Unapplied equation edits are not
+saved. Browser storage can be unavailable or cleared, so <strong>Save
+project</strong> remains the portable backup. Reference images are never
+stored.</p>
 </body>
 </html>

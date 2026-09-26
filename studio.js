@@ -1,940 +1,4 @@
 const __modules = Object.create(null);
-__modules['catalog.js'] = (() => {
-/** Single source of truth for the node palette, type system, UI and shader compiler.
- *
- * Each component declares:
- *   name, category, output      display name, palette group, output type
- *   inputs                      socket name → type ('coord' | 'scalar' | 'geometry' | 'layer')
- *   inputSymbols                optional socket name → TeX symbol used in the equation
- *   params                      parameter schema; every number/color has a TeX `symbol`
- *                               that appears in `tex`, and a plain-language `help`
- *   tex                         typeset equation lines (TeX subset, see math-render.js)
- *   notes                       [TeX symbol, meaning] for symbols that are not parameters
- *   equation                    one-line plain-text summary (search, docs)
- *   description                 what the component is for
- *   role                        'source' | 'modifier' | 'combine' | 'content'
- *   bypass                      socket passed through unchanged when the node is
- *                               disabled; null means a disabled node outputs typed zero
- *   emit(inputs, uniforms)      GLSL expression; receives GLSL expression strings,
- *                               not JS values. Numerical parameters are uniforms.
- */
-const num = (label, value, min, max, step, symbol, help) => ({ kind: 'number', label, value, min, max, step, symbol, help });
-const rgb = (label, value, symbol, help) => ({ kind: 'color', label, value, symbol, help: `${help} A linear radiance multiplier; display conversion happens only after composition.` });
-const expr = value => ({ kind: 'expression', label: 'GLSL expression', value, help: 'Use p, x, y, r, theta, t, a and b. Expression only: no statements, loops, declarations, or JavaScript.' });
-const component = def => ({ inputs: {}, inputSymbols: {}, params: {}, notes: [], role: 'content', bypass: null, ...def });
-const customNotes = [['p = (x, y)', 'input coordinates'], ['r, \\theta', 'polar radius and angle of p'], ['a, b', 'optional scalar inputs'], ['t', 'time in seconds']];
-const catalog = {
-    coordinates: component({
-        name: 'Image coordinates', category: 'Coordinates', output: 'coord', role: 'source',
-        equation: 'p = (pixel − center) × worldUnitsPerPixel / zoom + pan',
-        tex: ['p = \\frac{W}{w\\, z}\\left(\\mathbf{x} - \\frac{\\mathbf{s}}{2}\\right) + \\mathbf{o}'],
-        notes: [['\\mathbf{x}', 'pixel position'], ['\\mathbf{s}, w', 'image size and width in pixels'], ['W', 'world width, 2000/420 units'], ['z, \\mathbf{o}', 'camera zoom and pan']],
-        description: 'World-space coordinates of every pixel. Native 2000 × 1200 sampling keeps the original +1/840 offset on each axis. Most scenes feed all their components from this one field.',
-        emit: () => 'p'
-    }),
-    transform: component({
-        name: 'Translate · rotate · scale', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
-        params: {
-            x: num('Center X', 0, -5, 5, 0.01, 'c_x', 'Horizontal position of the local origin in world units. Moves whatever is sampled downstream right (+) or left (−).'),
-            y: num('Center Y', 0, -5, 5, 0.01, 'c_y', 'Vertical position of the local origin. Moves the downstream object up (+) or down (−).'),
-            angle: num('Rotation', 0, -6.28, 6.28, 0.01, '\\theta', 'Counter-clockwise rotation in radians (6.28 is one full turn).'),
-            scale: num('Scale', 1, 0.05, 5, 0.01, 's', 'Uniform size: values above 1 enlarge the downstream object, below 1 shrink it.'),
-            stretch: num('Vertical stretch', 1, 0.1, 4, 0.01, 'k', 'Extra vertical scale on top of Scale: above 1 makes the object taller, below 1 flatter.')
-        },
-        equation: 'q = R(−angle) (p − center) / scale',
-        tex: ['q = \\operatorname{diag}(s,\\ s k)^{-1}\\, R(-\\theta)\\,(p - c), \\quad c = (c_x, c_y)'],
-        notes: [['R(\\theta)', 'rotation matrix']],
-        description: 'Inverse-map world pixels into local object coordinates. This moves the object without stretching a stored picture.',
-        emit: (i, u) => `rotate2(${i.p}-vec2(${u.x},${u.y}),-${u.angle})/vec2(${u.scale},${u.scale}*${u.stretch})`
-    }),
-    vortex: component({
-        name: 'Localized vortex', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
-        params: {
-            strength: num('Twist', 4, -16, 16, 0.1, '\\kappa', 'Rotation at the center in radians; negative twists the other way. The twist fades to zero away from the center.'),
-            radius: num('Influence radius', 1, 0.02, 4, 0.02, '\\rho', 'Distance over which the twist fades (Gaussian falloff). Larger values twist a wider area.'),
-            speed: num('Rotation speed', 0, -2, 2, 0.01, '\\omega', 'Extra rotation that grows with time, in radians per second. Zero keeps the twist static.')
-        },
-        equation: 'q = R(strength · exp(−r²/radius²) + speed · t) p',
-        tex: ['q = R\\left(\\kappa\\, e^{-|p|^2/\\rho^2} + \\omega t\\right) p'],
-        notes: [['R(\\cdot)', 'rotation by the given angle'], ['t', 'time in seconds']],
-        description: 'A smooth local coordinate twist. Send any texture, star field or silhouette through this map.',
-        emit: (i, u) => `vortex(${i.p},${u.strength},${u.radius},${u.speed}*u_time)`
-    }),
-    domainwarp: component({
-        name: 'Turbulent coordinate warp', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
-        params: {
-            amplitude: num('Displacement', 0.4, 0, 2, 0.01, 'A', 'How far coordinates are pushed, in world units. Zero leaves them unchanged.'),
-            frequency: num('Frequency', 2, 0.1, 12, 0.1, 'f', 'Spatial frequency of the displacement noise. Higher values give smaller, busier wobbles.'),
-            speed: num('Flow speed', 0.1, -2, 2, 0.01, '\\omega', 'How quickly the noise pattern drifts over time. Zero freezes it.')
-        },
-        equation: 'q = p + amplitude · (noise₁(p,t), noise₂(p,t))',
-        tex: ['q = p + A\\left[\\left(n_1(f p + \\omega t),\\ n_2(f p - \\omega t)\\right) - \\frac{1}{2}\\right]'],
-        notes: [['n_1, n_2', 'independent five-octave fractal noise, 0 to 1'], ['t', 'time in seconds']],
-        description: 'Independent smooth fields displace the two coordinate axes. A reusable alternative to drawing complicated boundaries directly.',
-        emit: (i, u) => `domainWarp(${i.p},${u.amplitude},${u.frequency},u_time*${u.speed})`
-    }),
-    polar: component({
-        name: 'Polar coordinates', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
-        params: {
-            angleScale: num('Angle scale', 1, 0.1, 12, 0.1, 'k_\\theta', 'Multiplies the angle before it becomes the x coordinate. Integer values tile the pattern around the circle without a seam.'),
-            radiusScale: num('Radius scale', 1, 0.1, 12, 0.1, 'k_r', 'Multiplies the distance from the center before it becomes the y coordinate. Higher values repeat the pattern more often outward.')
-        },
-        equation: 'q = (atan2(y,x), length(p))',
-        tex: ['q = (k_\\theta\\, \\theta,\\ k_r\\, r), \\quad \\theta = \\operatorname{atan2}(p_y, p_x),\\ r = |p|'],
-        description: 'Unroll angles and radii into a texture plane. There is a branch seam at ±π; integer angular repetition can hide it.',
-        emit: (i, u) => `vec2(angleOf(${i.p})*${u.angleScale},length(${i.p})*${u.radiusScale})`
-    }),
-    kaleidoscope: component({
-        name: 'Angular mirror', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
-        params: {
-            sectors: num('Sectors', 6, 2, 24, 1, 'n', 'Number of mirrored wedges around the center.'),
-            spin: num('Rotation speed', 0.1, -1, 1, 0.01, '\\omega', 'Rotates the mirror pattern over time, in radians per second.')
-        },
-        equation: 'a = |mod(theta + π/n, 2π/n) − π/n|',
-        tex: ['\\varphi = \\left|\\left(\\theta + \\omega t + \\frac{\\pi}{n}\\right) \\bmod \\frac{2\\pi}{n} - \\frac{\\pi}{n}\\right|, \\quad q = |p|\\,(\\cos\\varphi,\\ \\sin\\varphi)'],
-        notes: [['\\theta', 'angle of p'], ['t', 'time in seconds']],
-        description: 'Fold the angular coordinate into mirrored sectors. Reuse any source pattern to create symmetry.',
-        emit: (i, u) => `angularMirror(${i.p},${u.sectors},u_time*${u.spin})`
-    }),
-    noise: component({
-        name: 'Fractal value noise', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
-        params: {
-            frequency: num('Frequency', 3, 0.1, 30, 0.1, '\\nu', 'Size of the noise features: higher values are finer.'),
-            octaves: num('Octaves', 6, 1, 8, 1, 'N', 'Number of noise layers, each about twice as fine and half as strong. More octaves add fine detail.'),
-            speed: num('Flow speed', 0.1, -2, 2, 0.01, '\\omega', 'Vertical drift of the pattern per second.'),
-            seed: num('Seed offset', 0, 0, 100, 1, '\\sigma', 'Shifts to a different but equally random-looking pattern.')
-        },
-        equation: 'f(p) = Σ 2⁻ᵏ noise(2ᵏ Rp + offset)',
-        tex: ['f = \\frac{1}{Z}\\sum_{k=0}^{N-1} 2^{-k}\\, n\\left(2.03^{k} M^{k} q\\right), \\quad q = \\nu p + (\\sigma,\\ \\omega t)'],
-        notes: [['n', 'smooth value noise, 0 to 1'], ['M', 'fixed small rotation between octaves'], ['Z', 'normalization so f stays in 0 to 1']],
-        description: 'Smooth deterministic multiscale noise. Not part of the original nebula formulas; useful for new organic surfaces.',
-        emit: (i, u) => `fbm(${i.p}*${u.frequency}+vec2(${u.seed},u_time*${u.speed}),${u.octaves})`
-    }),
-    waves: component({
-        name: 'Nested cosine bands', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
-        params: {
-            frequency: num('Frequency', 9, 0.1, 80, 0.1, '\\nu', 'Bands per world unit: higher values give thinner, denser bands.'),
-            bend: num('Phase bending', 4, 0, 20, 0.1, '\\beta', 'How strongly a second wave bends the bands. Zero gives straight parallel stripes.'),
-            speed: num('Phase speed', 0.5, -4, 4, 0.01, '\\omega', 'Speed of the bending wave over time.')
-        },
-        equation: 'f = ½ + ½ cos(kx + b sin(ky − t))',
-        tex: ['f = \\frac{1}{2} + \\frac{1}{2}\\cos\\left(\\nu x + \\beta \\sin(0.65\\, \\nu y - \\omega t)\\right)'],
-        notes: [['p = (x, y)', 'input coordinates']],
-        description: 'A compact example of phase modulation: one wave bends another. It becomes marbling under a coordinate warp.',
-        emit: (i, u) => `(0.5+0.5*cos(${i.p}.x*${u.frequency}+${u.bend}*sin(${i.p}.y*${u.frequency}*0.65-u_time*${u.speed})))`
-    }),
-    disc: component({
-        name: 'Soft disc / sphere mask', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
-        params: {
-            radius: num('Radius', 1, 0.02, 3, 0.01, 'r', 'Radius of the disc in world units.'),
-            edge: num('Edge softness', 0.02, 0.001, 0.6, 0.001, '\\epsilon', 'Width of the soft transition at the rim. Small values give a crisp edge.')
-        },
-        equation: 'mask = 1 − smoothstep(−edge, edge, |p| − radius)',
-        tex: ['m = 1 - \\operatorname{smoothstep}\\left(-\\epsilon,\\ \\epsilon,\\ |p| - r\\right)'],
-        description: 'Coverage mask: 1 inside, 0 outside. Connect it to Mask layer, or use it to modulate another field.',
-        emit: (i, u) => `softInside(length(${i.p})-${u.radius},${u.edge})`
-    }),
-    ring: component({
-        name: 'Gaussian ring', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
-        params: {
-            radius: num('Radius', 1, 0, 3, 0.01, 'r', 'Distance of the bright rim from the center.'),
-            width: num('Width', 0.1, 0.005, 1, 0.005, 'w', 'Thickness of the rim (Gaussian width).')
-        },
-        equation: 'f = exp(−((|p| − radius)/width)²)',
-        tex: ['f = \\exp\\left(-\\left(\\frac{|p| - r}{w}\\right)^2\\right)'],
-        description: 'A luminous rim with a hollow center. A Gaussian field, not a geometric mesh.',
-        emit: (i, u) => `gaussian(length(${i.p})-${u.radius},${u.width})`
-    }),
-    threshold: component({
-        name: 'Soft threshold', category: 'Scalar fields', output: 'scalar', inputs: { field: 'scalar' }, inputSymbols: { field: 'g' }, role: 'modifier', bypass: 'field',
-        params: {
-            level: num('Threshold', 0.5, -2, 2, 0.01, '\\ell', 'Input value where the output crosses about 0.37. Raise it to keep only the highest parts of the field.'),
-            sharpness: num('Sharpness', 8, 0.1, 60, 0.1, 's', 'Steepness of the transition. High values give hard-edged islands; low values a gentle ramp.')
-        },
-        equation: 'f = exp(−exp(−sharpness · (field − level)))',
-        tex: ['f = \\exp\\left(-e^{-s\\,(g - \\ell)}\\right)'],
-        description: 'The same nested-exponential gate used by the source equations. Turns smooth variation into wisps, islands or filaments.',
-        emit: (i, u) => `cutoff(-${u.sharpness}*(${i.field}-${u.level}))`
-    }),
-    fieldmath: component({
-        name: 'Combine scalar fields', category: 'Scalar fields', output: 'scalar', inputs: { a: 'scalar', b: 'scalar' }, role: 'combine', bypass: 'a',
-        params: {
-            weightA: num('A weight', 1, -5, 5, 0.01, 'w_a', 'Multiplier for input a.'),
-            weightB: num('B weight', 1, -5, 5, 0.01, 'w_b', 'Multiplier for input b. Use a negative value to subtract b.'),
-            product: num('Product weight', 0, -5, 5, 0.01, 'w_p', 'Weight of the product a·b; use it to modulate one field by another.'),
-            bias: num('Bias', 0, -4, 4, 0.01, 'c', 'Constant added to the result.')
-        },
-        equation: 'f = wa·a + wb·b + wp·a·b + bias',
-        tex: ['f = w_a\\, a + w_b\\, b + w_p\\, a b + c'],
-        description: 'One small arithmetic node supports sums, differences, products and threshold offsets.',
-        emit: (i, u) => `(${u.weightA}*${i.a}+${u.weightB}*${i.b}+${u.product}*${i.a}*${i.b}+${u.bias})`
-    }),
-    expression: component({
-        name: 'Custom scalar equation', category: 'Authoring', output: 'scalar', inputs: { p: 'coord', a: 'scalar', b: 'scalar' },
-        params: { expression: expr('0.5 + 0.5*cos(8.0*r - 3.0*theta - t)') },
-        equation: 'float f(p,a,b,t) = your expression', tex: ['f(p, a, b, t) = \\text{your expression}'], notes: customNotes,
-        description: 'Compile an editable GLSL scalar expression. x,y,r,theta are derived from p. Additional scalar sockets a and b can carry any fields.',
-        emit: () => ''
-    }),
-    vectorExpression: component({
-        name: 'Custom coordinate equation', category: 'Authoring', output: 'coord', inputs: { p: 'coord', a: 'scalar', b: 'scalar' }, role: 'modifier', bypass: 'p',
-        params: { expression: expr('rotate2(p, 0.5*sin(r*3.0-t))') },
-        equation: 'vec2 q(p,a,b,t) = your expression', tex: ['q(p, a, b, t) = \\text{your expression}'], notes: customNotes,
-        description: 'Author new coordinate maps without rewriting the renderer. Returns vec2; no JavaScript execution.',
-        emit: () => ''
-    }),
-    colorExpression: component({
-        name: 'Custom color equation', category: 'Authoring', output: 'layer', inputs: { p: 'coord', a: 'scalar', b: 'scalar' },
-        params: { expression: expr('spectrum(r - t*0.1, 0.0) * (0.5 + 0.5*cos(theta*6.0))') },
-        equation: 'vec3 color(p,a,b,t) = your expression', tex: ['\\mathrm{RGB}(p, a, b, t) = \\text{your expression}'], notes: customNotes,
-        description: 'Author RGB radiance. Returns vec3; alpha is set to one. Combine with a mask for transparency.',
-        emit: () => ''
-    }),
-    palette: component({
-        name: 'Two-color emission', category: 'Color & composition', output: 'layer', inputs: { field: 'scalar' }, inputSymbols: { field: 'f' },
-        params: {
-            low: rgb('Low color', '#09212e', 'C_0', 'Color where the field is 0 or below.'),
-            high: rgb('High color', '#62edc3', 'C_1', 'Color where the field is 1 or above.'),
-            gain: num('Emission', 1, 0, 5, 0.01, 'g', 'Overall brightness multiplier, before exposure and tone mapping.'),
-            power: num('Contrast power', 1, 0.1, 8, 0.05, '\\gamma', 'Shapes the blend: above 1 keeps more of the low color, below 1 pushes toward the high color.')
-        },
-        equation: 'RGB = gain · mix(low, high, clamp(field)^power)',
-        tex: ['\\mathrm{RGB} = g\\cdot \\operatorname{mix}\\left(C_0,\\ C_1,\\ \\operatorname{clamp}(f, 0, 1)^{\\gamma}\\right), \\quad \\alpha = 1'],
-        description: 'Color a scalar field. This returns straight RGB with full coverage; add a mask when the layer should be transparent.',
-        emit: (i, u) => `vec4(mix(${u.low},${u.high},pow(clamp(${i.field},0.0,1.0),${u.power}))*${u.gain},1)`
-    }),
-    solid: component({
-        name: 'Solid color', category: 'Color & composition', output: 'layer',
-        params: {
-            color: rgb('Color', '#030712', 'C', 'The constant color.'),
-            gain: num('Gain', 1, 0, 4, 0.01, 'g', 'Brightness multiplier.')
-        },
-        equation: 'RGB = color × gain', tex: ['\\mathrm{RGB} = g\\, C, \\quad \\alpha = 1'],
-        description: 'A background or constant radiance layer.',
-        emit: (i, u) => `vec4(${u.color}*${u.gain},1)`
-    }),
-    tint: component({
-        name: 'Tint & gain', category: 'Color & composition', output: 'layer', inputs: { layer: 'layer' }, inputSymbols: { layer: 'L' }, role: 'modifier', bypass: 'layer',
-        params: {
-            color: rgb('RGB multiplier', '#ffffff', 'C', 'Per-channel multiplier; white leaves the layer unchanged.'),
-            gain: num('Gain', 1, 0, 5, 0.01, 'g', 'Overall brightness multiplier.')
-        },
-        equation: 'RGB = incoming RGB × tint × gain',
-        tex: ['\\mathrm{RGB} = g\\, C \\odot L_{\\mathrm{rgb}}, \\quad \\alpha = L_{\\alpha}'],
-        description: 'Multiply floating-point radiance before output conversion. Does not discard highlight detail.',
-        emit: (i, u) => `vec4(${i.layer}.rgb*${u.color}*${u.gain},${i.layer}.a)`
-    }),
-    mask: component({
-        name: 'Mask layer', category: 'Color & composition', output: 'layer', inputs: { layer: 'layer', mask: 'scalar' }, inputSymbols: { layer: 'L', mask: 'm' }, role: 'modifier', bypass: 'layer',
-        params: { strength: num('Strength', 1, 0, 1, 0.01, 's', 'How much the mask applies: 0 ignores it, 1 applies it fully.') },
-        equation: 'alpha = alpha × mix(1, clamp(mask), strength)',
-        tex: ['\\alpha = L_{\\alpha} \\cdot \\operatorname{mix}\\left(1,\\ \\operatorname{clamp}(m, 0, 1),\\ s\\right), \\quad \\mathrm{RGB} = L_{\\mathrm{rgb}}'],
-        description: 'Changes coverage, not straight RGB. Use Over to honor alpha; Add intentionally sums emitted RGB regardless of coverage.',
-        emit: (i, u) => `vec4(${i.layer}.rgb,${i.layer}.a*mix(1.0,clamp(${i.mask},0.0,1.0),${u.strength}))`
-    }),
-    add: component({
-        name: 'Add light', category: 'Color & composition', output: 'layer', inputs: { a: 'layer', b: 'layer' }, inputSymbols: { a: 'A', b: 'B' }, role: 'combine', bypass: 'a',
-        params: { gain: num('B gain', 1, 0, 5, 0.01, 'g', 'Brightness of layer B before it is added to A. Zero removes B; 2 doubles it.') },
-        equation: 'RGB = A.rgb + gain · B.rgb',
-        tex: ['\\mathrm{RGB} = A_{\\mathrm{rgb}} + g\\, B_{\\mathrm{rgb}}, \\quad \\alpha = \\max(A_{\\alpha}, B_{\\alpha})'],
-        description: 'Sum radiance before tone mapping. Alpha does not attenuate emission; use Over for opaque objects or alpha-masked layers.',
-        emit: (i, u) => `addLight(${i.a},${i.b},${u.gain})`
-    }),
-    over: component({
-        name: 'Front over back', category: 'Color & composition', output: 'layer', inputs: { front: 'layer', back: 'layer' }, inputSymbols: { front: 'F', back: 'B' }, role: 'combine', bypass: 'back',
-        equation: 'alpha = af + ab(1−af); RGB = (af Cf + (1−af)ab Cb)/alpha',
-        tex: ['\\alpha = \\alpha_F + \\alpha_B(1 - \\alpha_F), \\quad C = \\frac{\\alpha_F C_F + (1 - \\alpha_F)\\,\\alpha_B C_B}{\\alpha}'],
-        notes: [['C_F, \\alpha_F', 'front color and coverage'], ['C_B, \\alpha_B', 'back color and coverage']],
-        description: 'Correct straight-alpha composition. Use it to hide background stars behind a planet, feathers, or a silhouette.',
-        emit: i => `overLayer(${i.front},${i.back})`
-    }),
-    nebulaGeometry: component({
-        name: 'Pinched shell family · S,A', category: 'Source nebula', output: 'geometry', inputs: { p: 'coord' },
-        params: {
-            pinch: num('Neck pinch', 0.3, 0.05, 0.8, 0.005, '\\eta', 'Exponent that squeezes the shells toward the vertical center line, forming the waist between the two lobes. The source uses 0.3; higher values pinch harder.'),
-            shear: num('Shell shear', 0.15, -0.5, 0.6, 0.005, '\\sigma', 'Common tilt added to every shell’s sheared coordinates. The source uses 0.15; changing it leans and skews the lobes.'),
-            shells: num('Shell count', 27, 1, 27, 1, 'N', 'How many of the 27 source shells are evaluated, from the first. Fewer shells give fewer overlapping contours.')
-        },
-        equation: 'Lₛ = sqrt(Uₛ² + (2Rₛ^0.3 |Uₛ|^−0.3 Vₛ)²) − Rₛ',
-        tex: [
-            'U_s = x + (\\sigma + c_s)\\, y, \\quad V_s = y - (\\sigma + d_s)\\, x',
-            'L_s = \\sqrt{U_s^2 + \\left(\\frac{2 R_s^{\\eta}\\, V_s}{|U_s|^{\\eta}}\\right)^2} - R_s, \\quad s = 1 \\ldots N',
-            'w_s = J_s \\prod_{u<s}(1 - J_u), \\quad J_s = e^{-e^{25 - 50 s}}\\, e^{-e^{10 L_s}}',
-            'S = \\sum_s 2 w_s L_s, \\quad A = \\sum_s \\frac{w_s}{4}\\, e^{-e^{0.15(s - 23)}}\\, e^{-e^{-3 L_s}}'
-        ],
-        notes: [['R_s, c_s, d_s', 'fixed per-shell radius and shears from the source'], ['S', 'shell-following texture coordinate (warp)'], ['A', 'emission rim'], ['w_s', 'ordered first-hit weight of shell s']],
-        description: 'Exact structural port at defaults. Ordered soft first-hit selection produces S (texture coordinate), A (emission rim), and coverage. These are separate meanings.',
-        emit: (i, u) => `nebulaGeometry(${i.p},${u.pinch},${u.shear},${u.shells})`
-    }),
-    ringGeometry: component({
-        name: 'Replacement ring geometry', category: 'Source nebula', output: 'geometry', inputs: { p: 'coord' },
-        params: {
-            radius: num('Radius', 1.1, 0.1, 2, 0.01, 'r', 'Radius of the ring in world units.'),
-            width: num('Rim width', 0.16, 0.01, 0.7, 0.01, 'w', 'Thickness of the emitting rim.'),
-            flatten: num('Vertical compression', 1.5, 0.2, 3, 0.01, 'k', 'Squashes the ring vertically: 1 is a circle, larger values a flatter ellipse.')
-        },
-        equation: 'S=2d; A=0.22 exp(−(d/width)²); d=|scaled p|−radius',
-        tex: ['d = \\sqrt{x^2 + (k y)^2} - r, \\quad S = 2 d, \\quad A = 0.22\\, e^{-(d/w)^2}, \\quad \\text{coverage} = e^{-(d/w)^2}'],
-        description: 'New geometry with the same interface as the pinched shell family. Reuse the entire original cloud machinery unchanged.',
-        emit: (i, u) => `ringGeometry(${i.p},${u.radius},${u.width},${u.flatten})`
-    }),
-    geometryField: component({
-        name: 'Inspect geometry channel', category: 'Source nebula', output: 'scalar', inputs: { geometry: 'geometry' },
-        params: {
-            channel: num('0=warp · 1=rim · 2=coverage', 1, 0, 2, 1, 'c', 'Which geometry channel to output: 0 the shell-following warp coordinate S, 1 the emission rim A, 2 the coverage.'),
-            gain: num('Display gain', 4, 0.1, 10, 0.1, 'g', 'Multiplier applied to the extracted channel.')
-        },
-        equation: 'f = geometry.warp / rim / coverage',
-        tex: ['f = g \\cdot G_c, \\quad G_0 = S,\\ G_1 = A,\\ G_2 = \\text{coverage}'],
-        description: 'Extract one named field for diagnosis, masks or further composition. The rim and coverage are deliberately not interchangeable.',
-        emit: (i, u) => `((${u.channel}<0.5)?${i.geometry}.warp:((${u.channel}<1.5)?${i.geometry}.rim:${i.geometry}.coverage))*${u.gain}`
-    }),
-    nebulaTurbulence: component({
-        name: 'Nested-cosine turbulence · E', category: 'Source nebula', output: 'scalar', inputs: { p: 'coord', geometry: 'geometry' }, inputSymbols: { geometry: 'S' },
-        params: {
-            bands: num('Bands', 50, 1, 50, 1, 'N', 'Number of the 50 source cosine terms summed, from the largest scale. Fewer bands give smoother, blobbier turbulence.'),
-            speed: num('Phase speed', 0, -1, 1, 0.01, '\\omega', 'Optional animation that shifts the cosine phases over time. The source is static (0).')
-        },
-        equation: 'E = Σ (19/20)ˢ Dₛ(S,Qₛ)',
-        tex: [
-            'E = \\sum_{s=1}^{N} 0.95^{s} \\cos\\left(a_s + 4\\cos b_s + \\phi_s + \\omega t\\right)\\cos\\left(c_s + 4\\cos d_s + \\psi_s - \\omega t\\right)',
-            'a_s, b_s, c_s, d_s = 1.25^{s} \\times \\text{fixed rotations of } (S, Q_s), \\quad Q_s = p \\cdot (\\cos 15 s^2,\\ \\sin 15 s^2)'
-        ],
-        notes: [['S', 'warp coordinate from the geometry'], ['\\phi_s, \\psi_s', 'fixed phases from the source']],
-        description: 'Original 50-band signed modulation. It perturbs the filament threshold and central glow. Motion is an optional new phase shift, zero in source mode.',
-        emit: (i, u) => `nebulaTurbulence(${i.p},${i.geometry},${u.bands},u_time*${u.speed})`
-    }),
-    nebulaCloud: component({
-        name: 'Filaments & haze · K', category: 'Source nebula', output: 'layer', inputs: { p: 'coord', geometry: 'geometry', turbulence: 'scalar' }, inputSymbols: { geometry: 'S, A', turbulence: 'E' },
-        params: {
-            bands: num('Bands', 50, 1, 50, 1, 'N', 'Number of the 50 source filament bands summed, coarse to fine. Fewer bands remove the finest filaments.'),
-            detail: num('Sharp filament gain', 1, 0, 3, 0.01, '\\delta', 'Weight of the sharp filament term (45 in the source). Zero leaves only the soft haze.')
-        },
-        equation: 'Iₛ=45 C₁,ₛ+6 C₀,ₛ; Kᵥ=Σ Iₛ (19/20)ˢ κᵥ,ₛ',
-        tex: [
-            'Z_s = C_s - 1.25 + 2A + \\frac{E}{7}, \\quad I_s = 45\\,\\delta\\, e^{-e^{-4 Z_s}} + 6\\, e^{-e^{-Z_s/4}}',
-            'K = \\sum_{s=1}^{N} 0.95^{s}\\, I_s\\, \\kappa_s'
-        ],
-        notes: [['C_s', 'product of two cosines of S and the rotated coordinate at frequency 0.2·1.15^s'], ['\\kappa_s', 'fixed per-band RGB weight (can be negative)']],
-        description: 'Original RGB field before the geometry rim and core cutout are applied. Preview looks over-bright because masking happens downstream.',
-        emit: (i, u) => `nebulaCloud(${i.p},${i.geometry},${i.turbulence},${u.bands},${u.detail})`
-    }),
-    nebulaGas: component({
-        name: 'Gas emission · Hgas', category: 'Source nebula', output: 'layer', inputs: { p: 'coord', geometry: 'geometry', turbulence: 'scalar', cloud: 'layer' }, inputSymbols: { geometry: 'A', turbulence: 'E', cloud: 'K' },
-        params: { gain: num('Gas gain', 1, 0, 3, 0.01, 'g', 'Brightness of the shell gas emission.') },
-        equation: 'Hgas = 1.1 (1−W) K A',
-        tex: ['H_{\\text{gas}} = 1.1\\, g\\, (1 - W)\\, K A, \\quad W = e^{-e^{10|p| - 1 + E/4}}'],
-        notes: [['W', 'central glow mask']],
-        description: 'Original gas contribution. A confines emission to shell rims; 1−W clears the central glow region.',
-        emit: (i, u) => `nebulaGas(${i.p},${i.geometry},${i.turbulence},${i.cloud},${u.gain})`
-    }),
-    nebulaCore: component({
-        name: 'Central glow · W', category: 'Source nebula', output: 'layer', inputs: { p: 'coord', turbulence: 'scalar' }, inputSymbols: { turbulence: 'E' },
-        params: { gain: num('Core gain', 1, 0, 3, 0.01, 'g', 'Brightness of the central glow.') },
-        equation: 'W=exp(−exp(10|p|−1+E/4)); Hcore=W(2,2,3)',
-        tex: ['W = e^{-e^{10|p| - 1 + E/4}}, \\quad H_{\\text{core}} = g\\, W\\, (2, 2, 3)'],
-        description: 'Original glow. The square root in the source contains x²+y² only, not −1 or E/4.',
-        emit: (i, u) => `nebulaCore(${i.p},${i.turbulence},${u.gain})`
-    }),
-    nebulaStars: component({
-        name: 'Folded star lattices · T', category: 'Source nebula', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            bands: num('Lattices', 30, 1, 30, 1, 'L', 'Number of the 30 folded star lattices summed. Fewer lattices give a sparser star field.'),
-            gain: num('Starlight', 1, 0, 3, 0.01, 'g', 'Brightness of all stars.')
-        },
-        equation: 'M,N=acos(cos(rotated coordinates)); T=Σ colored(center+halo)',
-        tex: [
-            'M_s, N_s = \\arccos\\cos(\\text{rotated, scaled } p), \\quad \\rho_s^2 = M_s^2 + N_s^2',
-            'T = g \\sum_{s=1}^{L} \\left(4\\, e^{-e^{200(\\rho_s^2 - 0.00125 - B_s/200)}} + e^{-e^{20 \\rho_s^2 - 0.14}}\\right) \\chi_s'
-        ],
-        notes: [['B_s', 'angular modulation that makes the pointed star shapes'], ['\\chi_s', 'alternating warm and cool star color']],
-        description: 'Original deterministic stars with pointed centers. Folded-angle lattices, not random sprites or an astronomical catalog.',
-        emit: (i, u) => `nebulaStars(${i.p},${u.bands},${u.gain})`
-    }),
-    scatterStars: component({
-        name: 'Seeded star field', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            density: num('Density scale', 22, 3, 60, 1, '\\rho', 'Grid frequency of the star cells: higher values give more, closer stars.'),
-            gain: num('Starlight', 0.7, 0, 3, 0.01, 'g', 'Brightness of all stars.'),
-            seed: num('Seed', 17, 0, 100, 1, '\\sigma', 'Chooses a different random arrangement.'),
-            speed: num('Twinkle speed', 0.1, 0, 2, 0.01, '\\omega', 'How fast the stars twinkle (±12% brightness).')
-        },
-        equation: 'star = Gaussian core + halo + cross rays',
-        tex: [
-            'q_\\ell = \\rho\\,(1 + 0.71\\,\\ell)\\, p, \\quad \\ell = 0, 1, 2, \\quad \\text{cells hashed with seed } \\sigma',
-            'I = g \\sum_{\\ell} \\sum_{\\text{cells}} \\left(e^{-(d/r)^2} + 0.018\\, e^{-(d/6r)^2}\\right) b\\, \\left(0.88 + 0.12 \\sin(\\omega t + 2\\pi h)\\right)'
-        ],
-        notes: [['d', 'distance to the jittered star in the cell (hashed with seed σ)'], ['r, b, h', 'hashed star size, brightness and phase']],
-        description: 'New deterministic jittered-cell stars. Three scales and warm/cool variation; distinct from the original folded lattice algorithm.',
-        emit: (i, u) => `scatterStars(${i.p},${u.density},${u.gain},${u.seed},u_time*${u.speed})`
-    }),
-    planet: component({
-        name: 'Cyclonic water planet', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            radius: num('Radius', 1.08, 0.1, 2, 0.01, 'R', 'Planet radius in world units.'),
-            cloud: num('Cloud cover', 0.65, 0, 2, 0.01, 'c', 'How much of the surface is covered by bright cloud; 0 shows mostly ocean.'),
-            twist: num('Cyclone twist', 5, 0, 14, 0.1, '\\tau', 'Strength of the seven storm vortices that swirl the clouds.'),
-            light: num('Light angle', 2.25, 0, 6.28, 0.01, '\\lambda', 'Direction of the sunlight around the planet, in radians.'),
-            speed: num('Cloud drift', 0.5, -2, 2, 0.01, '\\omega', 'How fast the cloud pattern drifts east–west.')
-        },
-        equation: 'visible sphere → spherical coordinates → cyclone maps → clouds → lighting',
-        tex: [
-            'd = p / R, \\quad \\mathbf{n} = \\left(d_x,\\ d_y,\\ \\sqrt{1 - |d|^2}\\right)',
-            'u = \\operatorname{cyclones}_{\\tau}(\\text{lon}, \\text{lat}) + (0.025\\, \\omega t,\\ 0), \\quad m = \\operatorname{smoothstep}(0.62 - 0.3 c,\\ 0.79 - 0.28 c,\\ n(u))',
-            'C = \\operatorname{mix}(C_{\\text{ocean}},\\ C_{\\text{cloud}},\\ m)\\,\\left(0.06 + \\max(\\mathbf{n} \\cdot \\mathbf{l},\\ 0)\\right), \\quad \\mathbf{l} \\propto (\\cos\\lambda,\\ 0.35,\\ \\sin\\lambda)'
-        ],
-        notes: [['\\mathbf{n}', 'sphere normal (lighting)'], ['n(u)', 'fractal noise of the cyclone-warped surface coordinate']],
-        description: 'Subject-inspired study, not the artist’s unretrieved formula. Rotated cloud coordinates, finite-octave noise, Lambert-like light, glint and rim scattering.',
-        emit: (i, u) => `waterPlanet(${i.p},${u.radius},${u.cloud},${u.twist},${u.light},u_time*${u.speed})`
-    }),
-    atmosphere: component({
-        name: 'Atmospheric rim', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            radius: num('Radius', 1.08, 0.1, 2, 0.01, 'R', 'Radius of the glowing limb; match it to the planet radius.'),
-            gain: num('Glow', 0.7, 0, 3, 0.01, 'g', 'Brightness of the atmospheric rim.')
-        },
-        equation: 'glow = Gaussian(|p|−radius)',
-        tex: ['I = g\\left(e^{-(\\Delta/0.025)^2} + 0.18\\, e^{-(\\Delta/0.07)^2}\\right)(0.08, 0.25, 0.55), \\quad \\Delta = |p| - R'],
-        description: 'An independent analytic limb glow; align its radius with the planet when composing them.',
-        emit: (i, u) => `atmosphere(${i.p},${u.radius},${u.gain})`
-    }),
-    lens: component({
-        name: 'Star-cluster lens map', category: 'Astronomical studies', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
-        params: {
-            strength: num('Deflection strength', 1, 0, 3, 0.01, 'k', 'Scales every lens mass. 0 is no lensing (the identity map); higher values bend the background into bigger arcs.'),
-            count: num('Lenses', 7, 1, 12, 1, 'n', 'How many cluster members deflect light; the first is the heavy central one.'),
-            softening: num('Softening', 0.015, 0.001, 0.2, 0.001, '\\epsilon', 'Core radius that keeps the deflection finite near each lens; larger values give softer, smaller distortion.')
-        },
-        equation: 'β = θ − Σ mᵢ(θ−θᵢ)/(|θ−θᵢ|²+ε²)',
-        tex: ['q = p - \\sum_{i=0}^{n-1} m_i\\, \\frac{p - c_i}{|p - c_i|^2 + \\epsilon^2}, \\quad m_0 = 0.18\\, k,\\ m_{i>0} = 0.024\\, k'],
-        notes: [['c_i', 'fixed golden-angle cluster positions (shared with Foreground cluster stars)']],
-        description: 'Illustrative softened thin-lens backward mapping. Zero strength is the identity. Feed the result into a galaxy; draw foreground lens stars in the unwarped plane.',
-        emit: (i, u) => `clusterLens(${i.p},${u.strength},${u.count},${u.softening})`
-    }),
-    clusterLights: component({
-        name: 'Foreground cluster stars', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            gain: num('Brightness', 1, 0, 3, 0.01, 'g', 'Brightness of the foreground cluster stars.'),
-            count: num('Stars', 7, 1, 12, 1, 'n', 'How many cluster stars are drawn; keep it equal to the lens count.')
-        },
-        equation: 'centers share the lens map’s deterministic positions',
-        tex: ['I = g \\sum_{i=0}^{n-1} \\left(1.8\\, e^{-(|p - c_i|/0.014)^2} + 0.14\\, e^{-(|p - c_i|/0.055)^2} + \\text{rays}\\right) \\chi_i'],
-        notes: [['c_i', 'the lens map’s cluster positions'], ['\\chi_i', 'per-star color']],
-        description: 'Draw these AFTER lensing the background. Moving a background star image through this node would not model a foreground lens cluster.',
-        emit: (i, u) => `clusterLights(${i.p},${u.gain},${u.count})`
-    }),
-    galaxy: component({
-        name: 'Logarithmic spiral galaxy', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            arms: num('Spiral arms', 3, 1, 8, 1, 'm', 'Number of spiral arms.'),
-            pitch: num('Winding', 7, 0.5, 15, 0.1, 'k', 'How tightly the arms wind: higher values wrap them around the center more times.'),
-            radius: num('Scale', 0.75, 0.1, 2, 0.01, 's', 'Overall size of the galaxy.'),
-            dust: num('Dust lanes', 0.6, 0, 1, 0.01, '\\delta', 'Strength of the dark dust lanes across the disk.'),
-            speed: num('Phase speed', 0.2, -2, 2, 0.01, '\\omega', 'Rotation of the arm pattern over time.')
-        },
-        equation: 'phase = arms·theta − pitch·log(r+0.1)',
-        tex: [
-            '\\phi = m\\, \\theta - k \\log(r/s + 0.1) - 0.1\\, \\omega t, \\quad \\text{arm} = \\left(\\frac{1}{2} + \\frac{1}{2}\\cos(\\phi + \\text{noise})\\right)^8',
-            'I = C(r)\\,(0.17 + \\text{arm})\\, e^{-1.65\\, r/s}\\,(1 - \\delta\\, \\text{lanes}) + \\text{bulge} + \\text{knots}'
-        ],
-        notes: [['r, \\theta', 'polar coordinates of the tilted, flattened p']],
-        description: 'New analytic spiral arms, Gaussian-like central bulge, radial fade, dusty modulation and emission knots. Its input coordinates can be gravitationally warped.',
-        emit: (i, u) => `spiralGalaxy(${i.p},${u.arms},${u.pitch},${u.radius},${u.dust},u_time*${u.speed})`
-    }),
-    aurora: component({
-        name: 'Spiral auroral curtain', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            turns: num('Winding', 4, 0.5, 12, 0.1, 'k', 'How tightly the ribbon spirals around its center.'),
-            width: num('Ribbon width', 0.115, 0.01, 0.4, 0.005, 'w', 'Thickness of the bright ribbon, in phase units.'),
-            curtain: num('Fine rays', 1, 0, 3, 0.01, 'c', 'Strength of the thin radial rays within the ribbon; 0 gives a smooth ribbon.'),
-            speed: num('Flow speed', 0.5, -2, 2, 0.01, '\\omega', 'How fast the spiral and its rays move.')
-        },
-        equation: 'ribbon = exp(−[sin(theta + turns·log(r+0.12))/width]²)',
-        tex: [
-            '\\phi = \\theta + k \\log(r + 0.12) + 0.18\\, \\omega t + \\text{noise}, \\quad B = e^{-(\\sin\\phi / w)^2}(1 - e^{-8r})\\, e^{-0.7 r}',
-            'F = 0.28 + 0.72\\left(\\frac{1}{2} + \\frac{1}{2}\\sin(175\\,\\theta + \\ldots)\\right)^2, \\quad I = (0.05, 0.86, 0.22)\\, B\\,(0.4 + c F) + \\text{fringe}'
-        ],
-        notes: [['r, \\theta', 'polar coordinates around the spiral center']],
-        description: 'New projected spiral ribbon with green/purple emission and angular striations. It illustrates appearance, not an auroral plasma simulation.',
-        emit: (i, u) => `auroraVortex(${i.p},${u.turns},${u.width},${u.curtain},u_time*${u.speed})`
-    }),
-    disk: component({
-        name: 'Accretion disk & shadow', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            radius: num('Shadow scale', 0.34, 0.06, 0.8, 0.005, '\\rho', 'Size of the black-hole shadow; the disk and arc scale with it.'),
-            inclination: num('Projection flattening', 3, 1, 7, 0.05, '\\iota', 'How edge-on the disk appears: 1 is face-on, higher values flatter.'),
-            spin: num('Texture winding', 4, 0, 12, 0.1, '\\tau', 'How much the disk’s ring texture spirals.'),
-            speed: num('Flow speed', 0.5, -2, 2, 0.01, '\\omega', 'Speed of the swirling texture.')
-        },
-        equation: 'projected annulus + bent rear arc − central shadow',
-        tex: [
-            'r = \\sqrt{x_r^2 + (\\iota\\, y_r)^2}, \\quad E = e^{-((r - 1.65\\rho)/0.65\\rho)^2}',
-            '\\text{rings} = \\frac{1}{2} + \\frac{1}{2}\\sin\\left(90 r + 4\\sin(3\\theta + \\tau\\log(r + 0.1) - 0.8\\, \\omega t)\\right), \\quad \\text{shadow: } |p| < 0.9\\rho'
-        ],
-        notes: [['x_r, y_r', 'p rotated by −0.28 rad'], ['\\theta', 'angle in the flattened disk plane']],
-        description: 'New stylized construction. The bright-side weighting and bent arc are artistic terms, not a relativistic transfer calculation.',
-        emit: (i, u) => `accretionDisk(${i.p},${u.radius},${u.inclination},${u.spin},u_time*${u.speed})`
-    }),
-    tidal: component({
-        name: 'Stretched star & tidal stream', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            stretch: num('Taper power', 2.5, 0.3, 6, 0.05, 'a', 'How quickly the stream widens toward the star; higher values keep it thin for longer.'),
-            size: num('Star width', 0.13, 0.02, 0.4, 0.005, '\\sigma', 'Size of the disrupted star and the stream’s maximum width.'),
-            speed: num('Stream speed', 0.5, -2, 2, 0.01, '\\omega', 'Speed of the wiggle and fibers along the stream.')
-        },
-        equation: 'emission = Gaussian(distance to tapered centerline) + star core',
-        tex: [
-            'u = \\operatorname{clamp}\\left(\\frac{x + 0.05}{1.65}, 0, 1\\right), \\quad y_c = 0.14 + 0.4 u^2 + 0.05 \\sin(5u - 0.25\\, \\omega t)',
-            'w = \\operatorname{mix}(0.015,\\ \\sigma,\\ u^{a}), \\quad I = e^{-((y - y_c)/w)^2}\\, \\text{fibers} + 2.4\\, e^{-(|p - p_\\star|/\\sigma)^2} + \\text{glow}'
-        ],
-        notes: [['p_\\star', 'position of the star at the stream’s end']],
-        description: 'New narrow curved stream broadening toward a luminous star. Independent from the disk so it can be translated, masked or reused as a comet.',
-        emit: (i, u) => `tidalStream(${i.p},${u.stretch},${u.size},u_time*${u.speed})`
-    }),
-    feather: component({
-        name: 'Single eyespot feather', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            width: num('Width', 0.095, 0.02, 0.3, 0.005, 'w_0', 'Maximum half-width of the feather vane.'),
-            eye: num('Eyespot scale', 1, 0.3, 2, 0.01, 's', 'Size of the eyespot rings near the tip.'),
-            speed: num('Barb motion', 0.2, 0, 2, 0.01, '\\omega', 'Speed of the shimmering barb pattern.')
-        },
-        equation: 'tapered local silhouette + oblique cosine barbs + nested eyespot rings',
-        tex: [
-            'w(v) = w_0 \\sin(\\pi v)^{0.55}, \\quad \\text{coverage} = [\\,|x| < w(v)\\,]',
-            '\\text{barbs} = 0.25 + 0.75\\left(\\frac{1}{2} + \\frac{1}{2}\\cos(250(v + 1.3|x|) + 0.4 \\sin \\omega t)\\right)^3',
-            'e = \\sqrt{\\left(\\frac{x}{0.76\\, w_0 s}\\right)^2 + \\left(\\frac{v - 0.79}{0.107\\, s}\\right)^2} \\quad \\text{(eyespot rings at fixed } e\\text{)}'
-        ],
-        notes: [['p = (x, v)', 'local coordinates: base at v = 0, tip at v = 1']],
-        description: 'Reusable analytic stamp. Base at (0,0), tip at (0,1). No texture. The fan node instances this exact kernel many times.',
-        emit: (i, u) => `feather(${i.p},${u.width},${u.eye},u_time*${u.speed})`
-    }),
-    fan: component({
-        name: 'Peacock feather fan', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            spread: num('Fan spread', 2.9, 0.4, 3.5, 0.01, '\\Delta', 'Total opening angle of the fan in radians (3.14 is a half circle).'),
-            rows: num('Feather rows', 4, 1, 4, 1, 'N', 'Number of feather rows, outermost first (23, 20, 17 and 14 feathers).'),
-            width: num('Feather width', 0.095, 0.03, 0.2, 0.005, 'w', 'Width of each feather.'),
-            speed: num('Breeze speed', 0.3, 0, 2, 0.01, '\\omega', 'Speed of the gentle swaying.')
-        },
-        equation: 'fan = Overᵢ feather(Rᵢ(p−base)/lengthᵢ)',
-        tex: [
-            'F = \\mathrm{Over}_{r=0}^{N-1}\\ \\mathrm{Over}_{i}\\ \\operatorname{feather}\\left(\\frac{R(a_{ri})\\,(p - b)}{\\ell_r};\\ w\\right)',
-            'a_{ri} = \\left(\\frac{i}{n_r - 1} - \\frac{1}{2}\\right)\\Delta + 0.015\\sin(1.8\\, i + 0.45\\, \\omega t), \\quad \\ell_r = 2.12 - 0.26\\, r'
-        ],
-        notes: [['b', 'common base point'], ['n_r', 'feathers in row r']],
-        description: 'New full-display construction, not a recovered 2026 formula. Outer-to-inner rows, shared feather kernels and staggered phase give repeated yet varied detail.',
-        emit: (i, u) => `peacockFan(${i.p},${u.spread},${u.rows},${u.width},u_time*${u.speed})`
-    }),
-    peacockBody: component({
-        name: 'Peacock body & crest', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
-        params: { size: num('Size', 1, 0.3, 2, 0.01, 's', 'Overall size of the body, neck, head and crest.') },
-        equation: 'body ellipses + curved neck + head + crest segments',
-        tex: ['q = p / s, \\quad \\text{coverage} = \\max(\\text{body},\\ \\text{neck},\\ \\text{head},\\ \\text{beak},\\ \\text{crest})(q)'],
-        description: 'A separate opaque silhouette over the feather fan, so changing the fan does not distort the bird.',
-        emit: (i, u) => `peacockBody(${i.p},${u.size})`
-    }),
-    fire: component({
-        name: 'Tapered flame field', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            height: num('Height', 2, 0.2, 3, 0.01, 'h', 'Height of the flame envelope.'),
-            width: num('Base width', 0.8, 0.1, 2, 0.01, 'b', 'Width of the flame at its base.'),
-            turbulence: num('Turbulence', 1, 0, 2, 0.01, '\\tau', 'How much noise tears the envelope into tongues; 0 gives a smooth teardrop.'),
-            speed: num('Rise speed', 1, 0, 3, 0.01, '\\omega', 'How fast the flame pattern rises.')
-        },
-        equation: 'tapered silhouette + advected noise + heat palette',
-        tex: [
-            'q = \\left(\\frac{x}{b},\\ \\frac{y + 1.05}{h}\\right), \\quad u = \\operatorname{warp}_{0.75\\tau}\\left(2 q_x,\\ 3.8\\, q_y - 0.3\\, \\omega t\\right)',
-            '\\text{flame} = 1 - \\operatorname{smoothstep}\\left(-0.13,\\ 0.13,\\ |q_x| - 0.7(1 - q_y)^{0.63} - 0.65\\,\\tau\\,\\left(n(u) - \\frac{1}{2}\\right)\\right)'
-        ],
-        notes: [['n(u)', 'fractal noise of the upward-advected coordinate'], ['\\text{heat}', 'flame × height falloff, mapped red → yellow → white']],
-        description: 'New explanatory fire study. Moving the sampling coordinates creates upward flow without storing a simulation state. Not a reconstruction of the linked video.',
-        emit: (i, u) => `firePlume(${i.p},${u.height},${u.width},${u.turbulence},u_time*${u.speed})`
-    }),
-    hedgehog: component({
-        name: 'Hedgehog & quill field', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
-        params: {
-            quills: num('Quill length', 0.28, 0.02, 0.7, 0.01, 'L', 'Length of the quills.'),
-            density: num('Quill count', 160, 10, 160, 1, 'N', 'Number of quills drawn (up to 160).'),
-            speed: num('Breathing speed', 0.5, 0, 2, 0.01, '\\omega', 'Speed of the subtle breathing motion.')
-        },
-        equation: 'elliptical body + repeated tapered segment quills + facial masks',
-        tex: [
-            '\\text{body} = [\\,|q/(0.91, 0.59)| < 1\\,], \\quad q = (p - c)\\,/\\,(1,\\ 1 + 0.007 \\sin(1.8\\, \\omega t))',
-            '\\text{quill}_i = e^{-(d_i/0.007(1.1 - 0.8 u_i))^2}, \\quad |\\text{quill}_i| = L\\,(0.65 + 0.35\\, h_i), \\quad i < N'
-        ],
-        notes: [['d_i, u_i', 'distance to quill i and position along it'], ['h_i', 'hashed per-quill variation']],
-        description: 'New constructive hedgehog example. Separate local stamps supply a readable silhouette and repeated surface detail; no claim about the inaccessible video steps.',
-        emit: (i, u) => `hedgehog(${i.p},${u.quills},${u.density},u_time*${u.speed})`
-    })
-};
-const typeNames = { coord: 'Coordinates · vec2', scalar: 'Scalar field · float', geometry: 'Geometry · S/A/coverage', layer: 'Radiance + alpha · vec4' };
-const typeLabels = { coord: 'coordinates', scalar: 'scalar field', geometry: 'geometry', layer: 'color layer' };
-const zeroByType = { coord: 'vec2(0)', scalar: '0.0', geometry: 'Geometry(0.0,0.0,0.0)', layer: 'vec4(0)' };
-function parameterDefaults(type) {
-    if (!Object.hasOwn(catalog, type)) {
-        throw new Error(`Unknown component: ${type}`);
-    }
-    return Object.fromEntries(Object.entries(catalog[type].params).map(([key, spec]) => [key, spec.value]));
-}
-/** Socket passed through when a node of this type is disabled, or null. */
-function bypassSocket(type) {
-    return catalog[type]?.bypass ?? null;
-}
-/** Types that can be inserted on a wire of `kind`: modifiers whose bypass socket
- * and output both have that type, so the old connection passes through them.
- */
-function insertableTypes(kind) {
-    return Object.entries(catalog).filter(([, d]) => d.output === kind && d.bypass && d.inputs[d.bypass] === kind).map(([type]) => type);
-}
-/** Types with the same output that could replace a node of `type`. */
-function replacementTypes(type) {
-    const output = catalog[type].output;
-    return Object.entries(catalog).filter(([t, d]) => t !== type && d.output === output).map(([t]) => t);
-}
-/** GLSL for one node with readable names: socket names for inputs and parameter
- * keys for uniforms. Shown in the inspector next to the typeset equation.
- */
-function emitPreview(type, params = {}) {
-    const d = catalog[type], names = keys => Object.fromEntries(keys.map(k => [k, k]));
-    return d.emit(names(Object.keys(d.inputs)), names(Object.keys(d.params))) || params.expression || '';
-}
-
-return {catalog,typeNames,typeLabels,zeroByType,parameterDefaults,bypassSocket,insertableTypes,replacementTypes,emitPreview};
-})();
-__modules['graph.js'] = (() => {
-const { catalog, parameterDefaults, bypassSocket } = __modules['catalog.js'];
-/** JSON-only graph model; imported projects are data, never executable JavaScript. */
-const SCHEMA_VERSION = 1;
-const MAX_NODES = 80;
-const MAX_TRACKS = 160;
-const MAX_KEYS = 500;
-const MAX_LABEL = 160;
-/** Camera bounds shared by validation and the canvas gestures. */
-const VIEW_LIMITS = { zoom: [0.1, 12], pan: [-20, 20] };
-const DURATION_LIMITS = [0.1, 120];
-const EXPOSURE_LIMITS = [0, 8];
-const validId = /^[a-zA-Z][a-zA-Z0-9_-]{0,47}$/;
-function clone(value) {
-    return JSON.parse(JSON.stringify(value));
-}
-function makeNode(type, id, inputs = {}, params = {}) {
-    return { id, type, label: catalog[type]?.name || type, inputs: { ...inputs }, params: { ...parameterDefaults(type), ...params }, enabled: true };
-}
-function validateExpression(value) {
-    if (typeof value !== 'string' || !value.trim() || value.length > 3000) {
-        throw new Error('An expression must contain 1–3000 characters.');
-    }
-    // Expressions cannot declare variables, call JS, create textures, or contain loops.
-    // GLSL itself performs the remaining symbol and return-type checks.
-    if (!/^[a-zA-Z0-9_\s.+\-*/%(),?:<>=!&|]*$/.test(value) || /\b(?:while|for|do|return|discard|uniform|precision|layout|void)\b/.test(value) || /(?:\/\/|\/\*|\*\/|\+\+|--)/.test(value) || /(?<![<>=!])=(?!=)/.test(value)) {
-        throw new Error('Use a GLSL expression only. Statements, assignments, comments, loops and declarations are not allowed.');
-    }
-    return value;
-}
-function finiteRange(x, min, max, label) {
-    if (typeof x !== 'number' || !Number.isFinite(x) || x < min || x > max) {
-        throw new Error(`${label} must be a finite number in [${min}, ${max}].`);
-    }
-}
-function validateProject(project) {
-    if (!project || typeof project !== 'object' || Array.isArray(project) || project.schemaVersion !== SCHEMA_VERSION) {
-        throw new Error('Unsupported project schema. Expected equation-studio schemaVersion 1.');
-    }
-    if (typeof project.title !== 'string' || project.title.length > MAX_LABEL) {
-        throw new Error(`Project title must be at most ${MAX_LABEL} characters.`);
-    }
-    if (!Array.isArray(project.nodes) || !project.nodes.length || project.nodes.length > MAX_NODES) {
-        throw new Error(`Projects require 1–${MAX_NODES} components.`);
-    }
-    finiteRange(project.duration, ...DURATION_LIMITS, 'Duration');
-    finiteRange(project.exposure, ...EXPOSURE_LIMITS, 'Exposure');
-    if (!['source', 'filmic', 'linear'].includes(project.tone)) {
-        throw new Error('Unknown output conversion.');
-    }
-    if (!project.view || typeof project.view !== 'object') {
-        throw new Error('Missing view settings.');
-    }
-    finiteRange(project.view.zoom, ...VIEW_LIMITS.zoom, 'View zoom');
-    finiteRange(project.view.x, ...VIEW_LIMITS.pan, 'View X');
-    finiteRange(project.view.y, ...VIEW_LIMITS.pan, 'View Y');
-    const byId = new Map();
-    for (const n of project.nodes) {
-        if (!n || !validId.test(n.id) || byId.has(n.id)) {
-            throw new Error(`Invalid or duplicate node id: ${n?.id}`);
-        }
-        if (!Object.hasOwn(catalog, n.type)) {
-            throw new Error(`Unknown component type: ${n.type}`);
-        }
-        if (typeof n.label !== 'string' || n.label.length > MAX_LABEL) {
-            throw new Error(`Node labels must be strings of at most ${MAX_LABEL} characters.`);
-        }
-        if (typeof n.enabled !== 'boolean') {
-            throw new Error(`${n.id}: enabled must be boolean.`);
-        }
-        if (!n.params || typeof n.params !== 'object' || Array.isArray(n.params) || !n.inputs || typeof n.inputs !== 'object' || Array.isArray(n.inputs)) {
-            throw new Error(`Invalid inputs or params for ${n.id}.`);
-        }
-        const def = catalog[n.type];
-        for (const k of Object.keys(n.params)) {
-            if (!Object.hasOwn(def.params, k)) {
-                throw new Error(`Unknown parameter ${n.id}.${k}.`);
-            }
-        }
-        for (const [k, s] of Object.entries(def.params)) {
-            const v = n.params[k];
-            if (s.kind === 'number') {
-                finiteRange(v, s.min, s.max, `${n.id}.${k}`);
-            }
-            else if (s.kind === 'color' && (typeof v !== 'string' || !/^#[0-9a-f]{6}$/i.test(v))) {
-                throw new Error(`Invalid RGB color at ${n.id}.${k}.`);
-            }
-            else if (s.kind === 'expression') {
-                validateExpression(v);
-            }
-        }
-        for (const k of Object.keys(n.inputs)) {
-            if (!Object.hasOwn(def.inputs, k)) {
-                throw new Error(`Unknown socket ${n.id}.${k}.`);
-            }
-        }
-        byId.set(n.id, n);
-    }
-    for (const n of project.nodes) {
-        for (const [key, target] of Object.entries(n.inputs)) {
-            if (target === null || target === '') {
-                continue;
-            }
-            if (typeof target !== 'string' || !byId.has(target)) {
-                throw new Error(`Missing input ${target} on ${n.id}.${key}.`);
-            }
-            const actual = catalog[byId.get(target).type].output, expected = catalog[n.type].inputs[key];
-            if (actual !== expected) {
-                throw new Error(`${n.id}.${key} expects ${expected}, not ${actual}.`);
-            }
-        }
-    }
-    if (!byId.has(project.output)) {
-        throw new Error('The output component does not exist.');
-    }
-    // Validate all nodes, including disconnected ones. Never permit latent cycles.
-    const colors = new Map();
-    function visit(id) {
-        if (colors.get(id) === 1) {
-            throw new Error(`Cycle detected at ${id}. Connections must form a directed acyclic graph.`);
-        }
-        if (colors.get(id) === 2) {
-            return;
-        }
-        colors.set(id, 1);
-        for (const t of Object.values(byId.get(id).inputs)) {
-            if (t) {
-                visit(t);
-            }
-        }
-        colors.set(id, 2);
-    }
-    for (const id of byId.keys()) {
-        visit(id);
-    }
-    if (!Array.isArray(project.tracks) || project.tracks.length > MAX_TRACKS) {
-        throw new Error('Invalid animation tracks.');
-    }
-    const trackIds = new Set();
-    for (const track of project.tracks) {
-        const n = byId.get(track.node), s = n && catalog[n.type].params[track.param], key = `${track.node}.${track.param}`;
-        if (!s || s.kind !== 'number' || trackIds.has(key)) {
-            throw new Error(`Invalid or duplicate track: ${key}`);
-        }
-        trackIds.add(key);
-        if (!['linear', 'smooth', 'hold'].includes(track.interpolation)) {
-            throw new Error(`Invalid interpolation for ${key}.`);
-        }
-        if (!Array.isArray(track.keys) || track.keys.length > MAX_KEYS) {
-            throw new Error(`A track can have at most ${MAX_KEYS} keys.`);
-        }
-        let previous = -1;
-        for (const k of track.keys) {
-            finiteRange(k.time, 0, project.duration, 'Key time');
-            finiteRange(k.value, s.min, s.max, 'Key value');
-            if (k.time <= previous) {
-                throw new Error('Key times must be unique and increasing.');
-            }
-            previous = k.time;
-        }
-    }
-    return project;
-}
-/** Inputs a node actually evaluates. A disabled node is bypassed: it evaluates only
- * its pass-through socket (catalog `bypass`), or nothing when it has none.
- */
-function activeInputs(node) {
-    if (node.enabled) {
-        return Object.values(node.inputs).filter(Boolean);
-    }
-    const socket = bypassSocket(node.type);
-    return socket && node.inputs[socket] ? [node.inputs[socket]] : [];
-}
-/** Dependencies of `target` in evaluation order, ending with the target itself.
- * Disabled nodes pull in only their bypass input. Pass `null` to order every
- * node, which the multi-target preview shader uses.
- */
-function topologicalOrder(project, target = project.output) {
-    const map = new Map(project.nodes.map(n => [n.id, n])), seen = new Set(), order = [];
-    function walk(id) {
-        if (seen.has(id)) {
-            return;
-        }
-        const n = map.get(id);
-        if (!n) {
-            throw new Error(`Unknown component ${id}`);
-        }
-        seen.add(id);
-        for (const i of activeInputs(n)) {
-            walk(i);
-        }
-        order.push(n);
-    }
-    if (target === null) {
-        for (const n of project.nodes) {
-            walk(n.id);
-        }
-    }
-    else {
-        walk(target);
-    }
-    return order;
-}
-/** Every node in a valid evaluation order, following all connections whatever the
- * enabled flags. This is the order of the Pipeline panel: each node appears after
- * everything it reads.
- */
-function evaluationOrder(project) {
-    const map = new Map(project.nodes.map(n => [n.id, n])), seen = new Set(), order = [];
-    const walk = id => {
-        if (seen.has(id) || !map.has(id)) {
-            return;
-        }
-        seen.add(id);
-        for (const source of Object.values(map.get(id).inputs)) {
-            if (source) {
-                walk(source);
-            }
-        }
-        order.push(map.get(id));
-    };
-    project.nodes.forEach(n => walk(n.id));
-    return order;
-}
-/** Nodes that read `id` directly, with the socket they read it through. */
-function consumers(project, id) {
-    const result = [];
-    for (const n of project.nodes) {
-        for (const [socket, source] of Object.entries(n.inputs)) {
-            if (source === id) {
-                result.push({ node: n, socket });
-            }
-        }
-    }
-    return result;
-}
-/** IDs that `id` depends on, transitively (regardless of enabled flags). */
-function upstream(project, id) {
-    const map = new Map(project.nodes.map(n => [n.id, n])), result = new Set();
-    const walk = current => {
-        for (const source of Object.values(map.get(current)?.inputs || {})) {
-            if (source && !result.has(source)) {
-                result.add(source);
-                walk(source);
-            }
-        }
-    };
-    walk(id);
-    return result;
-}
-/** IDs that depend on `id`, transitively (regardless of enabled flags). */
-function downstream(project, id) {
-    const result = new Set();
-    let frontier = [id];
-    while (frontier.length) {
-        const next = [];
-        for (const n of project.nodes) {
-            if (!result.has(n.id) && Object.values(n.inputs).some(source => frontier.includes(source))) {
-                result.add(n.id);
-                next.push(n.id);
-            }
-        }
-        frontier = next;
-    }
-    return result;
-}
-function parseProject(text) {
-    if (typeof text !== 'string' || text.length > 1000000) {
-        throw new Error('Project files are limited to 1 MB.');
-    }
-    return validateProject(JSON.parse(text));
-}
-function uniqueId(project, type) {
-    const ids = new Set(project.nodes.map(n => n.id));
-    for (let i = 1; i <= MAX_NODES + 1; i++) {
-        if (!ids.has(`${type}${i}`)) {
-            return `${type}${i}`;
-        }
-    }
-    throw new Error('No free component identifier.');
-}
-/** Delete a node, its incoming references and its tracks; the output falls back
- * to the last remaining node. Mutates and revalidates `project`.
- */
-function removeNode(project, id) {
-    if (project.nodes.length === 1) {
-        throw new Error('The project must keep at least one component.');
-    }
-    project.nodes = project.nodes.filter(n => n.id !== id);
-    for (const n of project.nodes) {
-        for (const k of Object.keys(n.inputs)) {
-            if (n.inputs[k] === id) {
-                delete n.inputs[k];
-            }
-        }
-    }
-    project.tracks = project.tracks.filter(t => t.node !== id);
-    if (project.output === id) {
-        project.output = project.nodes.at(-1).id;
-    }
-    return validateProject(project);
-}
-/** Undo/redo stack of project snapshots. Every entry is an independent clone. */
-class History {
-    constructor(limit = 60) {
-        this.limit = limit;
-        this.past = [];
-        this.future = [];
-    }
-    push(project) {
-        this.past.push(clone(project));
-        if (this.past.length > this.limit) {
-            this.past.shift();
-        }
-        this.future = [];
-    }
-    undo(current) {
-        if (!this.past.length) {
-            return null;
-        }
-        this.future.push(clone(current));
-        return this.past.pop();
-    }
-    redo(current) {
-        if (!this.future.length) {
-            return null;
-        }
-        this.past.push(clone(current));
-        return this.future.pop();
-    }
-}
-
-return {SCHEMA_VERSION,MAX_NODES,MAX_TRACKS,MAX_KEYS,MAX_LABEL,VIEW_LIMITS,DURATION_LIMITS,EXPOSURE_LIMITS,clone,makeNode,validateExpression,validateProject,activeInputs,topologicalOrder,evaluationOrder,consumers,upstream,downstream,parseProject,uniqueId,removeNode,History};
-})();
 __modules['math-glsl.js'] = (() => {
 /** Shared analytic atoms. GLSL ES 3.00, highp float. No image textures or RNG state. */
 const mathGLSL = `
@@ -1388,183 +452,2659 @@ vec4 hedgehog(vec2 p,float quillLength,float density,float time) {
 
 return {motifsGLSL};
 })();
-__modules['compiler.js'] = (() => {
-const { catalog, zeroByType, bypassSocket } = __modules['catalog.js'];
-const { validateProject, topologicalOrder } = __modules['graph.js'];
+__modules['expression.js'] = (() => {
 const { mathGLSL } = __modules['math-glsl.js'];
 const { nebulaGLSL } = __modules['nebula-glsl.js'];
 const { motifsGLSL } = __modules['motifs-glsl.js'];
-/** Typed DAG → one fused GLSL ES 3.00 fragment shader.
+/** The custom equation language: GLSL-style expressions, written like math.
  *
- * Every reachable node becomes one local variable inside `shade()`. A disabled
- * node is bypassed: it forwards its catalog `bypass` input unchanged, or yields a
- * typed zero when it has none (content such as a star field). Numeric and
- * color parameters become uniforms, so value edits never recompile. Only the
- * structure (types, wiring, enabled flags, custom expressions, compile mode)
- * changes the generated source.
+ * A custom equation is a small program, one statement per line (or separated
+ * by `;`), with an optional `// caption` on each line:
  *
- * Compile modes (see `compileGraph` options):
- *   default       the target's value, converted for display (diagnostic
- *                 false color for non-layer types)
- *   raw           the target's numeric value without any conversion; used by
- *                 float probes
- *   contribution  the target with and without one node (bypassed, exactly as if
- *                 it were disabled), shown as a highlight or signed-difference
- *                 view of the pixels it changes
- *   preview       every node computed once; `u_previewIndex` selects which
- *                 one is shown, so all graph thumbnails share one program
+ *   param radius = 1 [0.1, 3]   // a named slider: default and range
+ *   param tint = #62edc3        // a color parameter
+ *   d = length(p) - radius      // a definition, usable on later lines
+ *   exp(-(d / 0.1)^2)           // the last line is the result
+ *
+ * Names available: p = (x, y), r and theta (polar coordinates of p), the inputs
+ * a and b, the time t, PI and TAU, the parameters and earlier definitions, the
+ * GLSL built-in functions and every function of the shader libraries (fbm,
+ * rotate2, gaussian, waterPlanet, …). Whole numbers may be written without a
+ * decimal point; `^` is a power (x^2 = x·x, safe for negative x); `%` is mod.
+ *
+ * The program is parsed, type-checked (float, vec2, vec3, vec4, bool) with
+ * readable error messages, and printed back as GLSL by this module, so no user
+ * text is ever pasted into the shader. Pure: no DOM, no WebGL.
  */
-const glslTypes = { coord: 'vec2', scalar: 'float', geometry: 'Geometry', layer: 'vec4' };
-const expressionTypes = { expression: 'float', vectorExpression: 'vec2', colorExpression: 'vec3' };
+const LIMITS = { length: 3000, params: 8, definitions: 24, name: 24 };
+const RESULT_TYPES = { expression: ['float'], vectorExpression: ['vec2'], colorExpression: ['vec3', 'vec4'] };
+/** A language error with the 1-based line (and character) where it was found. */
+class EquationError extends Error {
+    constructor(message, line = null, column = null) {
+        super(line ? `Line ${line}: ${message}` : message);
+        this.name = 'EquationError';
+        this.line = line;
+        this.column = column;
+        this.plain = message;
+    }
+}
+// ---- Names --------------------------------------------------------------------
+const LOCALS = { p: 'vec2', x: 'float', y: 'float', r: 'float', theta: 'float', a: 'float', b: 'float', t: 'float' };
+const CONSTANTS = { PI: 'float', TAU: 'float' };
+const RESERVED = new Set(('attribute const uniform varying layout centroid flat smooth break continue do for while switch case default if else in out inout float int void bool true false '
+    + 'invariant discard return mat2 mat3 mat4 vec2 vec3 vec4 ivec2 ivec3 ivec4 bvec2 bvec3 bvec4 uint uvec2 uvec3 uvec4 lowp mediump highp precision sampler2D sampler3D samplerCube struct '
+    + 'param Geometry u_time main shade evaluate present outputColor').split(/\s+/));
+const GEN = ['float', 'vec2', 'vec3', 'vec4'];
+const SIZE = { float: 1, vec2: 2, vec3: 3, vec4: 4 };
+const vecOf = n => ['float', 'float', 'vec2', 'vec3', 'vec4'][n];
+/** Built-in GLSL functions: name → checker(argument types) → result type or throws. */
+const same = (args, n) => {
+    if (args.length !== n || !GEN.includes(args[0]) || args.some(t => t !== args[0])) {
+        return null;
+    }
+    return args[0];
+};
+const gen1 = args => same(args, 1);
+const BUILTINS = {
+    abs: gen1, sign: gen1, floor: gen1, ceil: gen1, fract: gen1, round: gen1, trunc: gen1, sqrt: gen1, inversesqrt: gen1, exp: gen1, log: gen1, exp2: gen1, log2: gen1,
+    sin: gen1, cos: gen1, tan: gen1, asin: gen1, acos: gen1, sinh: gen1, cosh: gen1, tanh: gen1, asinh: gen1, acosh: gen1, atanh: gen1, radians: gen1, degrees: gen1, normalize: gen1,
+    atan: args => args.length === 1 ? gen1(args) : same(args, 2),
+    pow: args => same(args, 2),
+    mod: args => same(args, 2) || (args.length === 2 && GEN.includes(args[0]) && args[1] === 'float' ? args[0] : null),
+    min: args => same(args, 2) || (args.length === 2 && GEN.includes(args[0]) && args[1] === 'float' ? args[0] : null),
+    max: args => same(args, 2) || (args.length === 2 && GEN.includes(args[0]) && args[1] === 'float' ? args[0] : null),
+    clamp: args => same(args, 3) || (args.length === 3 && GEN.includes(args[0]) && args[1] === 'float' && args[2] === 'float' ? args[0] : null),
+    mix: args => same(args, 3) || (args.length === 3 && GEN.includes(args[0]) && args[1] === args[0] && args[2] === 'float' ? args[0] : null),
+    step: args => same(args, 2) || (args.length === 2 && args[0] === 'float' && GEN.includes(args[1]) ? args[1] : null),
+    smoothstep: args => same(args, 3) || (args.length === 3 && args[0] === 'float' && args[1] === 'float' && GEN.includes(args[2]) ? args[2] : null),
+    length: args => args.length === 1 && GEN.includes(args[0]) ? 'float' : null,
+    distance: args => same(args, 2) ? 'float' : null,
+    dot: args => same(args, 2) ? 'float' : null,
+    reflect: args => same(args, 2),
+    cross: args => args.length === 2 && args[0] === 'vec3' && args[1] === 'vec3' ? 'vec3' : null
+};
+const BUILTIN_HINTS = {
+    atan: 'atan(y, x) or atan(v)', pow: 'pow(x, y) with the same types', mod: 'mod(x, y)', min: 'min(x, y)', max: 'max(x, y)', clamp: 'clamp(x, low, high)',
+    mix: 'mix(a, b, t)', step: 'step(edge, x)', smoothstep: 'smoothstep(edge0, edge1, x)', length: 'length(v)', distance: 'distance(a, b)', dot: 'dot(a, b)', reflect: 'reflect(v, n)', cross: 'cross(a, b) of two vec3'
+};
+/** Library functions (the shader's own helpers and kernels), read from the GLSL
+ * sources: name → {params: [types], returns}. Functions that take or return
+ * types the language does not have (Geometry, int) are left out.
+ */
+const LIBRARY = (() => {
+    const table = {};
+    const pattern = /^(float|vec2|vec3|vec4)\s+([A-Za-z]\w*)\s*\(([^)]*)\)/gm;
+    for (const source of [mathGLSL, nebulaGLSL, motifsGLSL]) {
+        for (const [, returns, name, list] of source.matchAll(pattern)) {
+            const params = list.split(',').map(s => s.trim()).filter(Boolean).map(s => ({ type: s.split(/\s+/)[0], name: s.split(/\s+/)[1] }));
+            if (params.every(p => GEN.includes(p.type)) && name !== 'displayColor') {
+                table[name] = { params, returns };
+            }
+        }
+    }
+    return table;
+})();
+/** Every function a program may call, for the editor's helper menu and errors. */
+function functionNames() {
+    return [...Object.keys(BUILTINS), ...Object.keys(LIBRARY)];
+}
+/** Edit distance with adjacent transpositions (optimal string alignment). */
+function editDistance(a, b) {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array(b.length).fill(0)]);
+    for (let j = 1; j <= b.length; j++) {
+        d[0][j] = j;
+    }
+    for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+            d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+            if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+                d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1); // a swapped pair of letters is one typo
+            }
+        }
+    }
+    return d[a.length][b.length];
+}
+function suggestion(name, candidates) {
+    let best = null, score = Infinity;
+    for (const c of candidates) {
+        const s = editDistance(name.toLowerCase(), c.toLowerCase());
+        if (s < score) {
+            best = c;
+            score = s;
+        }
+    }
+    return best && score <= Math.max(1, Math.floor(name.length / 3)) ? ` Did you mean “${best}”?` : '';
+}
+// ---- Tokens and parsing ---------------------------------------------------------
+const TOKEN = /\s*(?:(#[0-9a-fA-F]{6}\b)|(\d+\.?\d*(?:[eE][-+]?\d+)?|\.\d+(?:[eE][-+]?\d+)?)|([A-Za-z_]\w*)|(<=|>=|==|!=|&&|\|\||[-+*/%^(),?:.<>!=\[\]]))/y;
+function tokenize(text, line) {
+    const tokens = [];
+    TOKEN.lastIndex = 0;
+    while (TOKEN.lastIndex < text.length) {
+        if (/^\s*$/.test(text.slice(TOKEN.lastIndex))) {
+            break;
+        }
+        const at = TOKEN.lastIndex, m = TOKEN.exec(text);
+        if (!m) {
+            const column = at + text.slice(at).search(/\S/);
+            throw new EquationError(`Unexpected character “${text[column]}”.`, line, column + 1);
+        }
+        const column = m.index + m[0].search(/\S/) + 1;
+        tokens.push(m[1] !== undefined ? { kind: 'color', value: m[1].toLowerCase(), column } : m[2] !== undefined ? { kind: 'num', value: m[2], column } : m[3] !== undefined ? { kind: 'id', value: m[3], column } : { kind: 'op', value: m[4], column });
+    }
+    return tokens;
+}
+/** Binding strength of binary operators (higher binds tighter). */
+const PRECEDENCE = { '||': 1, '&&': 2, '==': 3, '!=': 3, '<': 4, '>': 4, '<=': 4, '>=': 4, '+': 5, '-': 5, '*': 6, '/': 6, '%': 6 };
+/** Parse one expression from tokens. Grammar (lowest to highest precedence):
+ * ternary ?:, ||, &&, == !=, < > <= >=, + -, * / %, unary - + !, power ^ (right
+ * associative, so -x^2 = -(x^2)), member access .xy, calls and parentheses.
+ */
+function parseTokens(tokens, line) {
+    let k = 0;
+    const peek = () => tokens[k], take = () => tokens[k++];
+    const fail = (message, token = peek()) => new EquationError(message, line, token?.column ?? null);
+    const expect = value => {
+        const t = take();
+        if (!t || t.value !== value) {
+            throw fail(`Expected “${value}”${t ? ` but found “${t.value}”` : ' at the end'}.`, t);
+        }
+    };
+    function primary() {
+        const t = take();
+        if (!t) {
+            throw fail('Unexpected end: the expression stops too early.');
+        }
+        let node;
+        if (t.kind === 'num') {
+            node = { type: 'num', value: t.value, column: t.column };
+        }
+        else if (t.kind === 'color') {
+            throw fail('Colors like #rrggbb are only allowed in param lines.', t);
+        }
+        else if (t.kind === 'id') {
+            if (peek()?.value === '(') {
+                take();
+                const args = [];
+                if (peek()?.value !== ')') {
+                    do {
+                        args.push(ternary());
+                    } while (peek()?.value === ',' && take());
+                }
+                expect(')');
+                node = { type: 'call', name: t.value, args, column: t.column };
+            }
+            else {
+                node = { type: 'id', name: t.value, column: t.column };
+            }
+        }
+        else if (t.value === '(') {
+            node = { type: 'group', body: ternary(), column: t.column };
+            expect(')');
+        }
+        else {
+            throw fail(`Unexpected “${t.value}”.`, t);
+        }
+        while (peek()?.value === '.') {
+            take();
+            const field = take();
+            if (!field || field.kind !== 'id') {
+                throw fail('Expected a component name such as x or rgb after “.”.', field);
+            }
+            node = { type: 'member', object: node, field: field.value, column: field.column };
+        }
+        return node;
+    }
+    function power() {
+        const base = primary();
+        if (peek()?.value === '^') {
+            const t = take();
+            return { type: 'binary', op: '^', left: base, right: unary(), column: t.column };
+        }
+        return base;
+    }
+    function unary() {
+        const t = peek();
+        if (t && t.kind === 'op' && (t.value === '-' || t.value === '+' || t.value === '!')) {
+            take();
+            return { type: 'unary', op: t.value, arg: unary(), column: t.column };
+        }
+        return power();
+    }
+    function binary(level) {
+        let left = unary();
+        for (;;) {
+            const t = peek();
+            if (!t || t.kind !== 'op' || !Object.hasOwn(PRECEDENCE, t.value) || PRECEDENCE[t.value] < level) {
+                return left;
+            }
+            take();
+            left = { type: 'binary', op: t.value, left, right: binary(PRECEDENCE[t.value] + 1), column: t.column };
+        }
+    }
+    function ternary() {
+        const cond = binary(1);
+        if (peek()?.value !== '?') {
+            return cond;
+        }
+        const t = take();
+        const a = ternary();
+        expect(':');
+        return { type: 'ternary', cond, a, b: ternary(), column: t.column };
+    }
+    const tree = ternary();
+    if (k < tokens.length) {
+        throw fail(`Unexpected “${tokens[k].value}”.`, tokens[k]);
+    }
+    return tree;
+}
+/** Parse a single expression (no definitions) into an AST. */
+function parseExpression(source) {
+    return parseTokens(tokenize(String(source), null), null);
+}
+/** Split source into statements: {text, comment, line}. */
+function statements(source) {
+    const out = [];
+    String(source).split(/\r?\n/).forEach((raw, index) => {
+        const cut = raw.indexOf('//'), code = cut >= 0 ? raw.slice(0, cut) : raw, comment = cut >= 0 ? raw.slice(cut + 2).trim() : '';
+        const parts = code.split(';').map(s => s.trim()).filter(Boolean);
+        parts.forEach((text, i) => out.push({ text, comment: i === parts.length - 1 ? comment : '', line: index + 1 }));
+    });
+    return out;
+}
+function parseNumber(tokens, k, line) {
+    let sign = 1;
+    if (tokens[k]?.value === '-') {
+        sign = -1;
+        k++;
+    }
+    const t = tokens[k];
+    if (!t || t.kind !== 'num') {
+        throw new EquationError('Expected a number.', line, t?.column ?? null);
+    }
+    return [sign * Number(t.value), k + 1];
+}
+/** `param name = value [min, max] step s` (range and step optional) → spec. */
+function parseParam(tokens, line, comment) {
+    const name = tokens[1];
+    if (!name || name.kind !== 'id') {
+        throw new EquationError('Write a parameter as: param name = value [min, max].', line);
+    }
+    if (tokens[2]?.value !== '=') {
+        throw new EquationError(`Give ${name.value} a starting value: param ${name.value} = 1 [0, 2].`, line);
+    }
+    if (tokens[3]?.kind === 'color') {
+        if (tokens.length > 4) {
+            throw new EquationError('A color parameter takes only its value, e.g. param tint = #ffd080.', line);
+        }
+        return { name: name.value, kind: 'color', value: tokens[3].value, label: comment || name.value, help: comment, line };
+    }
+    let [value, k] = parseNumber(tokens, 3, line), min, max, step = null;
+    if (tokens[k]?.value === '[') {
+        [min, k] = parseNumber(tokens, k + 1, line);
+        if (tokens[k]?.value !== ',') {
+            throw new EquationError('Write the range as [min, max].', line);
+        }
+        [max, k] = parseNumber(tokens, k + 1, line);
+        if (tokens[k]?.value !== ']') {
+            throw new EquationError('Close the range with ].', line);
+        }
+        k++;
+    }
+    else {
+        const span = Math.max(Math.abs(value), 1);
+        min = value >= 0 ? 0 : -2 * span;
+        max = 2 * span;
+    }
+    if (tokens[k]?.kind === 'id' && tokens[k].value === 'step') {
+        [step, k] = parseNumber(tokens, k + 1, line);
+    }
+    if (k < tokens.length) {
+        throw new EquationError(`Unexpected “${tokens[k].value}” after the parameter.`, line, tokens[k].column);
+    }
+    if (!(min < max) || !Number.isFinite(min) || !Number.isFinite(max)) {
+        throw new EquationError(`The range of ${name.value} must have min < max.`, line);
+    }
+    if (!(value >= min && value <= max)) {
+        throw new EquationError(`The value of ${name.value} (${value}) is outside its range [${min}, ${max}].`, line);
+    }
+    step = step && step > 0 ? step : Number(((max - min) / 200).toPrecision(1));
+    return { name: name.value, kind: 'number', value, min, max, step, label: name.value, help: comment, line };
+}
+/** Parse a program into {params, definitions, result}. Throws EquationError. */
+function parseProgram(source) {
+    const text = String(source ?? '');
+    if (!text.trim() || text.length > LIMITS.length) {
+        throw new EquationError(`An equation must contain 1–${LIMITS.length} characters.`);
+    }
+    const program = { params: [], definitions: [], result: null };
+    const list = statements(text);
+    if (!list.length) {
+        throw new EquationError('The equation is empty: write an expression such as 0.5 + 0.5*cos(10*r).');
+    }
+    list.forEach((s, index) => {
+        const tokens = tokenize(s.text, s.line), last = index === list.length - 1;
+        if (tokens[0]?.kind === 'id' && tokens[0].value === 'param') {
+            if (last) {
+                throw new EquationError('The last line must be the result, not a parameter.', s.line);
+            }
+            program.params.push(parseParam(tokens, s.line, s.comment));
+        }
+        else if (tokens[0]?.kind === 'id' && tokens[1]?.value === '=') {
+            if (last) {
+                throw new EquationError(`The last line must be the result expression, not a definition of ${tokens[0].value}. Add a line with just ${tokens[0].value}.`, s.line);
+            }
+            program.definitions.push({ name: tokens[0].value, expr: parseTokens(tokens.slice(2), s.line), comment: s.comment, line: s.line });
+        }
+        else if (last) {
+            program.result = { expr: parseTokens(tokens, s.line), comment: s.comment, line: s.line };
+        }
+        else {
+            throw new EquationError('Only the last line may be a bare expression. Name it (d = …) or make it the last line.', s.line);
+        }
+    });
+    if (program.params.length > LIMITS.params) {
+        throw new EquationError(`At most ${LIMITS.params} parameters.`);
+    }
+    if (program.definitions.length > LIMITS.definitions) {
+        throw new EquationError(`At most ${LIMITS.definitions} definitions.`);
+    }
+    return program;
+}
+// ---- Types --------------------------------------------------------------------
+function checkName(name, line, taken) {
+    if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(name) || name.length > LIMITS.name || name.includes('__') || /^gl_/i.test(name)) {
+        throw new EquationError(`“${name}” is not a valid name: use letters, digits and single underscores, up to ${LIMITS.name} characters.`, line);
+    }
+    if (RESERVED.has(name) || Object.hasOwn(LOCALS, name) || Object.hasOwn(CONSTANTS, name) || Object.hasOwn(BUILTINS, name) || Object.hasOwn(LIBRARY, name) || name === 'expression') {
+        throw new EquationError(`“${name}” is already taken by the language; choose another name.`, line);
+    }
+    if (taken.has(name)) {
+        throw new EquationError(`${name} is defined twice.`, line);
+    }
+}
+function typeError(message, node, line) {
+    return new EquationError(message, line, node?.column ?? null);
+}
+/** The type of an expression in `scope` (name → type). Annotates node.valueType. */
+function typeOf(node, scope, line) {
+    const set = type => {
+        node.valueType = type;
+        return type;
+    };
+    switch (node.type) {
+        case 'num':
+            return set('float');
+        case 'group':
+            return set(typeOf(node.body, scope, line));
+        case 'id': {
+            if (scope.has(node.name)) {
+                return set(scope.get(node.name));
+            }
+            if (Object.hasOwn(BUILTINS, node.name) || Object.hasOwn(LIBRARY, node.name) || /^vec[234]$/.test(node.name)) {
+                throw typeError(`${node.name} is a function: call it as ${node.name}(…).`, node, line);
+            }
+            throw typeError(`Unknown name “${node.name}”.${suggestion(node.name, [...scope.keys()])}`, node, line);
+        }
+        case 'member': {
+            const t = typeOf(node.object, scope, line);
+            const valid = /^[xyzw]{1,4}$/.test(node.field) || /^[rgba]{1,4}$/.test(node.field);
+            const index = c => 'xyzwrgba'.indexOf(c) % 4;
+            if (!valid || t === 'float' || t === 'bool' || [...node.field].some(c => index(c) >= SIZE[t])) {
+                throw typeError(`.${node.field} is not a component of a ${t}.`, node, line);
+            }
+            return set(vecOf(node.field.length));
+        }
+        case 'unary': {
+            const t = typeOf(node.arg, scope, line);
+            if (node.op === '!') {
+                if (t !== 'bool') {
+                    throw typeError('“!” needs a condition (true/false), such as x > 0.', node, line);
+                }
+                return set('bool');
+            }
+            if (!GEN.includes(t)) {
+                throw typeError(`Cannot negate a ${t}.`, node, line);
+            }
+            return set(t);
+        }
+        case 'ternary': {
+            if (typeOf(node.cond, scope, line) !== 'bool') {
+                throw typeError('The condition before “?” must be a comparison, such as r < 1.', node, line);
+            }
+            const a = typeOf(node.a, scope, line), b = typeOf(node.b, scope, line);
+            if (a !== b) {
+                throw typeError(`Both choices of “? :” must have the same type (${a} and ${b}).`, node, line);
+            }
+            return set(a);
+        }
+        case 'binary': {
+            const a = typeOf(node.left, scope, line), b = typeOf(node.right, scope, line), op = node.op;
+            if (op === '&&' || op === '||') {
+                if (a !== 'bool' || b !== 'bool') {
+                    throw typeError(`“${op}” combines conditions (true/false).`, node, line);
+                }
+                return set('bool');
+            }
+            if (op === '<' || op === '>' || op === '<=' || op === '>=') {
+                if (a !== 'float' || b !== 'float') {
+                    throw typeError(`“${op}” compares two numbers; use length(v) or v.x for vectors.`, node, line);
+                }
+                return set('bool');
+            }
+            if (op === '==' || op === '!=') {
+                if (a !== b || a === 'bool') {
+                    throw typeError(`“${op}” compares two values of the same type.`, node, line);
+                }
+                return set('bool');
+            }
+            if (!GEN.includes(a) || !GEN.includes(b)) {
+                throw typeError(`“${op}” needs numbers or vectors, not ${a === 'bool' ? a : b}.`, node, line);
+            }
+            if (op === '^') {
+                if (b !== 'float' && b !== a) {
+                    throw typeError('The exponent of “^” must be a number or the same type as the base.', node, line);
+                }
+                return set(a);
+            }
+            if (op === '%' && b !== 'float' && b !== a) {
+                throw typeError('“%” (mod) needs a number or the same type on the right.', node, line);
+            }
+            if (a === b || a === 'float' || b === 'float') {
+                return set(a === 'float' ? b : a);
+            }
+            throw typeError(`Cannot ${{ '+': 'add', '-': 'subtract', '*': 'multiply', '/': 'divide', '%': 'take mod of' }[op]} a ${a} and a ${b}.`, node, line);
+        }
+        case 'call': {
+            const args = node.args.map(arg => typeOf(arg, scope, line)), name = node.name;
+            const shown = `${name}(${args.join(', ')})`;
+            if (/^vec[234]$/.test(name)) {
+                const n = Number(name[3]), total = args.reduce((s, t) => s + (SIZE[t] || 99), 0);
+                const ok = args.length && args.every(t => GEN.includes(t)) && (total === n || (args.length === 1 && (args[0] === 'float' || SIZE[args[0]] >= n)));
+                if (!ok) {
+                    throw typeError(`${name} needs ${n} components in total, got ${shown}.`, node, line);
+                }
+                return set(name);
+            }
+            if (Object.hasOwn(BUILTINS, name)) {
+                const result = BUILTINS[name](args);
+                if (!result) {
+                    throw typeError(`${shown} is not valid${BUILTIN_HINTS[name] ? `; use ${BUILTIN_HINTS[name]}` : ''}.`, node, line);
+                }
+                return set(result);
+            }
+            if (Object.hasOwn(LIBRARY, name)) {
+                const f = LIBRARY[name];
+                if (args.length !== f.params.length || args.some((t, i) => t !== f.params[i].type)) {
+                    throw typeError(`${name} expects (${f.params.map(p => `${p.type} ${p.name}`).join(', ')}), got ${shown}.`, node, line);
+                }
+                return set(f.returns);
+            }
+            throw typeError(`Unknown function “${name}”.${suggestion(name, functionNames())}`, node, line);
+        }
+    }
+    throw typeError(`Cannot use ${node.type} here.`, node, line);
+}
+/** Parse and type-check a custom equation of the given component type
+ * ('expression', 'vectorExpression' or 'colorExpression'). Returns the program
+ * with {resultType, types: name → type}. Throws EquationError.
+ */
+function checkProgram(source, kind) {
+    const program = parseProgram(source), scope = new Map(Object.entries({ ...LOCALS, ...CONSTANTS })), taken = new Set();
+    for (const param of program.params) {
+        checkName(param.name, param.line, taken);
+        taken.add(param.name);
+        scope.set(param.name, param.kind === 'color' ? 'vec3' : 'float');
+    }
+    for (const d of program.definitions) {
+        checkName(d.name, d.line, taken);
+        const type = typeOf(d.expr, scope, d.line);
+        if (type === 'bool') {
+            throw new EquationError(`${d.name} is a condition (true/false); use it inside “? :” instead.`, d.line);
+        }
+        taken.add(d.name);
+        scope.set(d.name, type);
+        d.valueType = type;
+    }
+    const resultType = typeOf(program.result.expr, scope, program.result.line), allowed = RESULT_TYPES[kind];
+    if (allowed && !allowed.includes(resultType)) {
+        const want = { expression: 'a number (float)', vectorExpression: 'a coordinate pair (vec2)', colorExpression: 'a color (vec3, or vec4 with coverage)' }[kind];
+        const hint = kind === 'colorExpression' && resultType === 'float' ? ' For gray, write vec3(v).' : kind === 'vectorExpression' && resultType === 'float' ? ' Build a pair with vec2(x, y).' : '';
+        throw new EquationError(`The result must be ${want}, but it is a ${resultType}.${hint}`, program.result.line);
+    }
+    program.resultType = resultType;
+    program.types = Object.fromEntries(scope);
+    return program;
+}
+const cache = new Map();
+/** checkProgram() with a small cache, since validation runs on every edit and draw. */
+function compileEquation(source, kind) {
+    const key = `${kind}\u0000${source}`;
+    if (cache.has(key)) {
+        const hit = cache.get(key);
+        if (hit instanceof Error) {
+            throw hit;
+        }
+        return hit;
+    }
+    let result;
+    try {
+        result = checkProgram(source, kind);
+    }
+    catch (e) {
+        result = e;
+    }
+    if (cache.size > 200) {
+        cache.clear();
+    }
+    cache.set(key, result);
+    if (result instanceof Error) {
+        throw result;
+    }
+    return result;
+}
+/** Parameter specs declared by a custom equation, keyed by name, in the shape of
+ * catalog parameters: {kind, label, value, min, max, step, symbol, help}.
+ */
+function equationParams(source, kind) {
+    const program = compileEquation(source, kind);
+    return Object.fromEntries(program.params.map(p => [p.name, p.kind === 'color'
+        ? { kind: 'color', label: p.name, value: p.value, symbol: p.name, help: p.help || `Color parameter ${p.name} of this equation.`, custom: true }
+        : { kind: 'number', label: p.name, value: p.value, min: p.min, max: p.max, step: p.step, symbol: p.name, help: p.help || `Parameter ${p.name} of this equation, from ${p.min} to ${p.max}.`, custom: true }]));
+}
+// ---- Formatting ------------------------------------------------------------------
+const TIGHT = new Set(['*', '/', '^', '%']);
+function formatPrecedence(node) {
+    if (node.type === 'group') {
+        return formatPrecedence(node.body);
+    }
+    return node.type === 'binary' ? (node.op === '^' ? 8 : PRECEDENCE[node.op]) : node.type === 'ternary' ? 0 : node.type === 'unary' ? 7 : 9;
+}
+/** An expression as readable text with only the parentheses its meaning needs:
+ * spaces around + − and comparisons, none around * / ^ %.
+ */
+function formatExpression(node) {
+    const wrap = (child, level, strict = false) => {
+        const p = formatPrecedence(child), text = formatExpression(child);
+        return p < level || (strict && p === level) ? `(${text})` : text;
+    };
+    switch (node.type) {
+        case 'num':
+            return node.value;
+        case 'id':
+            return node.name;
+        case 'group':
+            return formatExpression(node.body);
+        case 'member':
+            return `${wrap(node.object, 9)}.${node.field}`;
+        case 'unary':
+            return `${node.op}${wrap(node.arg, 7)}`;
+        case 'ternary':
+            return `${wrap(node.cond, 1)} ? ${formatExpression(node.a)} : ${formatExpression(node.b)}`;
+        case 'call':
+            return `${node.name}(${node.args.map(formatExpression).join(', ')})`;
+        case 'binary': {
+            if (node.op === '^') {
+                return `${wrap(node.left, 9)}^${wrap(node.right, 7)}`;
+            }
+            const level = PRECEDENCE[node.op], right = wrap(node.right, level, node.op === '-' || node.op === '/' || node.op === '%');
+            return TIGHT.has(node.op) ? `${wrap(node.left, level)}${node.op}${right}` : `${wrap(node.left, level)} ${node.op} ${right}`;
+        }
+    }
+    throw new Error(`Cannot format ${node.type}`);
+}
+// ---- GLSL -----------------------------------------------------------------------
+const glslNumber = text => /^\d+$/.test(text) ? `${text}.0` : /^\d+\.$/.test(text) ? `${text}0` : text;
+/** Print an expression as fully parenthesized GLSL. `names` maps a user name to its GLSL name. */
+function toGLSL(node, names) {
+    const go = n => toGLSL(n, names);
+    switch (node.type) {
+        case 'num':
+            return glslNumber(node.value);
+        case 'id':
+            return names.get(node.name) ?? node.name;
+        case 'group':
+            return `(${go(node.body)})`;
+        case 'member':
+            return `${go(node.object)}.${node.field}`;
+        case 'unary':
+            return `(${node.op}${go(node.arg)})`;
+        case 'ternary':
+            return `(${go(node.cond)}?${go(node.a)}:${go(node.b)})`;
+        case 'call':
+            return `${node.name}(${node.args.map(go).join(',')})`;
+        case 'binary': {
+            const a = go(node.left), b = go(node.right);
+            if (node.op === '%') {
+                return `mod(${a},${b})`;
+            }
+            if (node.op === '^') {
+                const k = node.right.type === 'num' ? Number(node.right.value) : NaN;
+                if (k === 2 || k === 3 || k === 4) { // exact and safe for negative bases, unlike pow()
+                    return `(${new Array(k).fill(`(${a})`).join('*')})`;
+                }
+                if (k === 1) {
+                    return `(${a})`;
+                }
+                return node.left.valueType !== 'float' && node.right.valueType === 'float' ? `pow(${a},${node.left.valueType}(${b}))` : `pow(${a},${b})`;
+            }
+            return `(${a}${node.op}${b})`;
+        }
+    }
+    throw new Error(`Cannot print ${node.type}`);
+}
+/** A GLSL function for a checked program. `params` maps a parameter name to the
+ * GLSL expression holding its value (a uniform alias). Returns {code, returns}.
+ */
+function programGLSL(program, functionName, params = {}) {
+    const names = new Map();
+    const lines = [];
+    for (const p of program.params) {
+        names.set(p.name, `k_${p.name}`);
+        lines.push(`${p.kind === 'color' ? 'vec3' : 'float'} k_${p.name}=${params[p.name] ?? (p.kind === 'color' ? 'vec3(0)' : glslNumber(String(p.value)))};`);
+    }
+    for (const d of program.definitions) {
+        names.set(d.name, `d_${d.name}`);
+        lines.push(`${d.valueType} d_${d.name}=${toGLSL(d.expr, names)};`);
+    }
+    const returns = program.resultType;
+    const code = `${returns} ${functionName}(vec2 p,float a,float b,float t){float x=p.x,y=p.y,r=length(p),theta=angleOf(p);${lines.join('')}return ${toGLSL(program.result.expr, names)};}`;
+    return { code, returns };
+}
+
+return {LIMITS,RESULT_TYPES,EquationError,LIBRARY,functionNames,PRECEDENCE,parseExpression,parseProgram,checkProgram,compileEquation,equationParams,formatExpression,programGLSL};
+})();
+__modules['catalog.js'] = (() => {
+/** Single source of truth for the node palette, type system, UI and shader compiler.
+ *
+ * Each component declares:
+ *   name, category, output      display name, palette group, output type
+ *   inputs                      socket name → type ('coord' | 'scalar' | 'geometry' | 'layer')
+ *   inputSymbols                optional socket name → TeX symbol(s) used for it in the steps
+ *   params                      parameter schema; every number/color has a TeX `symbol`
+ *                               that appears in the steps, and a plain-language `help`
+ *   steps                       the equation, one step per line: {tex, text}, where
+ *                               `text` says what the line computes and why
+ *   outputSymbols               TeX symbols that are the component's result in the steps
+ *   notes                       [TeX symbol, meaning] for symbols that are not parameters
+ *   concepts                    ids of the ideas behind the equation (concepts.js)
+ *   curve                       optional plot of the key function with live parameters:
+ *                               {title, x, y, domain(P), series: [{label, f(x, P)}], marks(P)}
+ *   source                      optional: the same computation in the equation language
+ *                               (expression.js), one line per step with a caption; `$key`
+ *                               stands for parameter `key`, inputs are p, a and b. "Edit"
+ *                               starts from it (fork.js), so a user edits the math shown
+ *                               in the steps rather than a call of the shader kernel. It
+ *                               must compute exactly what `emit` computes (GPU-validated).
+ *   equation                    one-line plain-text summary (search, docs)
+ *   description                 what the component is for
+ *   role                        'source' | 'modifier' | 'combine' | 'content'
+ *   bypass                      socket passed through unchanged when the node is
+ *                               disabled; null means a disabled node outputs typed zero
+ *   emit(inputs, uniforms)      GLSL expression; receives GLSL expression strings,
+ *                               not JS values. Numerical parameters are uniforms.
+ *
+ * `tex` (the list of step equations) is derived for compatibility.
+ */
+const { equationParams } = __modules['expression.js'];
+const num = (label, value, min, max, step, symbol, help) => ({ kind: 'number', label, value, min, max, step, symbol, help });
+const rgb = (label, value, symbol, help) => ({ kind: 'color', label, value, symbol, help: `${help} A linear radiance multiplier; display conversion happens only after composition.` });
+const expr = value => ({ kind: 'expression', label: 'Equation', value, help: 'Use p, x, y, r, theta, t, a and b, parameters (param name = value [min, max]) and definitions (name = …), one per line; the last line is the result. No loops or JavaScript.' });
+const step = (tex, text) => ({ tex, text });
+const component = def => {
+    const full = { inputs: {}, inputSymbols: {}, params: {}, notes: [], role: 'content', bypass: null, outputSymbols: [], concepts: [], curve: null, ...def };
+    full.tex = full.steps.map(s => s.tex);
+    return full;
+};
+const gate = x => Math.exp(-Math.exp(Math.max(-80, Math.min(6, x))));
+const smooth = (a, b, x) => {
+    const u = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return u * u * (3 - 2 * u);
+};
+const customNotes = [['p = (x, y)', 'input coordinates'], ['r, \\theta', 'polar radius and angle of p'], ['a, b', 'optional scalar inputs'], ['t', 'time in seconds']];
+const catalog = {
+    coordinates: component({
+        name: 'Image coordinates', category: 'Coordinates', output: 'coord', role: 'source',
+        equation: 'p = (pixel − center) × worldUnitsPerPixel / zoom + pan',
+        steps: [step('p = \\frac{W}{w\\, z}\\left(\\mathbf{x} - \\frac{\\mathbf{s}}{2}\\right) + \\mathbf{o}', 'Each pixel x, measured from the image center, becomes a point p of an endless plane: the image is W = 4.76 world units wide at zoom z = 1, and the pan o moves the window. Every other component works with points like p, never with pixels.')],
+        outputSymbols: ['p'],
+        notes: [['\\mathbf{x}', 'pixel position'], ['\\mathbf{s}, w', 'image size and width in pixels'], ['W', 'world width, 2000/420 units'], ['z, \\mathbf{o}', 'camera zoom and pan']],
+        concepts: ['pixel-to-world'],
+        description: 'World-space coordinates of every pixel. Native 2000 × 1200 sampling keeps the original +1/840 offset on each axis. Most scenes feed all their components from this one field.',
+        emit: () => 'p'
+    }),
+    transform: component({
+        name: 'Translate · rotate · scale', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
+        params: {
+            x: num('Center X', 0, -5, 5, 0.01, 'c_x', 'Horizontal position of the local origin in world units. Moves whatever is sampled downstream right (+) or left (−).'),
+            y: num('Center Y', 0, -5, 5, 0.01, 'c_y', 'Vertical position of the local origin. Moves the downstream object up (+) or down (−).'),
+            angle: num('Rotation', 0, -6.28, 6.28, 0.01, '\\theta', 'Counter-clockwise rotation in radians (6.28 is one full turn).'),
+            scale: num('Scale', 1, 0.05, 5, 0.01, 's', 'Uniform size: values above 1 enlarge the downstream object, below 1 shrink it.'),
+            stretch: num('Vertical stretch', 1, 0.1, 4, 0.01, 'k', 'Extra vertical scale on top of Scale: above 1 makes the object taller, below 1 flatter.')
+        },
+        equation: 'q = R(−angle) (p − center) / scale',
+        steps: [
+            step('c = (c_x, c_y)', 'The point where the object’s own origin should land.'),
+            step('q = \\operatorname{diag}(s,\\ s k)^{-1}\\, R(-\\theta)\\,(p - c)', 'Backward mapping: instead of moving the object, every pixel asks where it came from. Subtract c, turn back by θ and divide by the scale. Whatever reads q is drawn moved to c, turned by θ and scaled by s (and k vertically).')
+        ],
+        outputSymbols: ['q'],
+        notes: [['R(\\theta)', 'rotation matrix']],
+        concepts: ['backward-map', 'rotation'],
+        source: [
+            'c = vec2($x, $y)   // the point where the object’s own origin should land',
+            'rotate2(p - c, -$angle)/vec2($scale, $scale*$stretch)   // backward mapping: subtract c, turn back by the angle, divide by the scale'
+        ],
+        description: 'Inverse-map world pixels into local object coordinates. This moves the object without stretching a stored picture.',
+        emit: (i, u) => `rotate2(${i.p}-vec2(${u.x},${u.y}),-${u.angle})/vec2(${u.scale},${u.scale}*${u.stretch})`
+    }),
+    vortex: component({
+        name: 'Localized vortex', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
+        params: {
+            strength: num('Twist', 4, -16, 16, 0.1, '\\kappa', 'Rotation at the center in radians; negative twists the other way. The twist fades to zero away from the center.'),
+            radius: num('Influence radius', 1, 0.02, 4, 0.02, '\\rho', 'Distance over which the twist fades (Gaussian falloff). Larger values twist a wider area.'),
+            speed: num('Rotation speed', 0, -2, 2, 0.01, '\\omega', 'Extra rotation that grows with time, in radians per second. Zero keeps the twist static.')
+        },
+        equation: 'q = R(strength · exp(−r²/radius²) + speed · t) p',
+        steps: [
+            step('\\alpha = \\kappa\\, e^{-|p|^2/\\rho^2} + \\omega t', 'The twist angle of each point: κ at the center, fading to zero with distance (a Gaussian of width ρ), plus a steady spin ωt.'),
+            step('q = R(\\alpha)\\, p', 'Rotate each point about the origin by its own angle. Near the center the plane twists; far away it is untouched, so anything drawn with q gets a swirl.')
+        ],
+        outputSymbols: ['q'],
+        notes: [['R(\\cdot)', 'rotation by the given angle'], ['\\alpha', 'twist angle at this point'], ['t', 'time in seconds']],
+        concepts: ['rotation', 'gaussian', 'backward-map'],
+        curve: { title: 'Twist angle against distance', x: 'distance |p|', y: 'angle α (rad)', domain: P => [0, 3 * P.radius], series: [{ f: (r, P) => P.strength * Math.exp(-(r * r) / (P.radius * P.radius)) }], marks: P => [{ x: P.radius, label: 'ρ' }] },
+        source: [
+            'alpha = $strength*exp(-(r/$radius)^2) + $speed*t   // the twist angle: κ at the center, fading with distance, plus a steady spin',
+            'rotate2(p, alpha)   // turn each point about the center by its own angle: a swirl in the middle, nothing far away'
+        ],
+        description: 'A smooth local coordinate twist. Send any texture, star field or silhouette through this map.',
+        emit: (i, u) => `vortex(${i.p},${u.strength},${u.radius},${u.speed}*u_time)`
+    }),
+    domainwarp: component({
+        name: 'Turbulent coordinate warp', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
+        params: {
+            amplitude: num('Displacement', 0.4, 0, 2, 0.01, 'A', 'How far coordinates are pushed, in world units. Zero leaves them unchanged.'),
+            frequency: num('Frequency', 2, 0.1, 12, 0.1, 'f', 'Spatial frequency of the displacement noise. Higher values give smaller, busier wobbles.'),
+            speed: num('Flow speed', 0.1, -2, 2, 0.01, '\\omega', 'How quickly the noise pattern drifts over time. Zero freezes it.')
+        },
+        equation: 'q = p + amplitude · (noise₁(p,t), noise₂(p,t))',
+        steps: [
+            step('\\mathbf{d} = \\left(n_1(f p + \\omega t),\\ n_2(f p - \\omega t)\\right) - \\frac{1}{2}', 'Two independent fractal noise fields, centered on zero, give every point a smooth pseudo-random direction to move in. f sets the size of the wobbles; ω makes them drift.'),
+            step('q = p + A\\,\\mathbf{d}', 'Push every point by A times that displacement. Straight lines become wavy and shapes drawn with q get organic, marbled edges.')
+        ],
+        outputSymbols: ['q'],
+        notes: [['n_1, n_2', 'independent five-octave fractal noise, 0 to 1'], ['\\mathbf{d}', 'displacement direction'], ['t', 'time in seconds']],
+        concepts: ['domain-warp', 'fbm', 'backward-map'],
+        source: [
+            'd = vec2(fbm(p*$frequency + vec2($speed*t, 0), 5), fbm(p*$frequency + vec2(9.2, -($speed*t)), 5)) - 0.5   // two independent fractal noises centered on zero: a direction for each point to move in',
+            'p + $amplitude*d   // push every point by the displacement: straight lines become wavy'
+        ],
+        description: 'Independent smooth fields displace the two coordinate axes. A reusable alternative to drawing complicated boundaries directly.',
+        emit: (i, u) => `domainWarp(${i.p},${u.amplitude},${u.frequency},u_time*${u.speed})`
+    }),
+    polar: component({
+        name: 'Polar coordinates', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
+        params: {
+            angleScale: num('Angle scale', 1, 0.1, 12, 0.1, 'k_\\theta', 'Multiplies the angle before it becomes the x coordinate. Integer values tile the pattern around the circle without a seam.'),
+            radiusScale: num('Radius scale', 1, 0.1, 12, 0.1, 'k_r', 'Multiplies the distance from the center before it becomes the y coordinate. Higher values repeat the pattern more often outward.')
+        },
+        equation: 'q = (atan2(y,x), length(p))',
+        steps: [
+            step('\\theta = \\operatorname{atan2}(p_y, p_x), \\quad r = |p|', 'The angle around the origin (−π to π) and the distance from it.'),
+            step('q = (k_\\theta\\, \\theta,\\ k_r\\, r)', 'Use them as the new x and y. Circles around the origin become horizontal lines and rays become vertical ones, so stripes downstream wrap into rings or spokes.')
+        ],
+        outputSymbols: ['q'],
+        concepts: ['polar'],
+        source: [
+            'vec2($angleScale*theta, $radiusScale*r)   // the angle θ around the origin and the distance r become the new x and y: circles turn into lines'
+        ],
+        description: 'Unroll angles and radii into a texture plane. There is a branch seam at ±π; integer angular repetition can hide it.',
+        emit: (i, u) => `vec2(angleOf(${i.p})*${u.angleScale},length(${i.p})*${u.radiusScale})`
+    }),
+    kaleidoscope: component({
+        name: 'Angular mirror', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
+        params: {
+            sectors: num('Sectors', 6, 2, 24, 1, 'n', 'Number of mirrored wedges around the center.'),
+            spin: num('Rotation speed', 0.1, -1, 1, 0.01, '\\omega', 'Rotates the mirror pattern over time, in radians per second.')
+        },
+        equation: 'a = |mod(theta + π/n, 2π/n) − π/n|',
+        steps: [
+            step('\\varphi = \\left|\\left(\\theta + \\omega t + \\frac{\\pi}{n}\\right) \\bmod \\frac{2\\pi}{n} - \\frac{\\pi}{n}\\right|', 'Fold the angle θ of p into a single wedge of width 2π/n (mod) and mirror it about the wedge’s center line (abs): all n wedges map onto the same half-wedge.'),
+            step('q = |p|\\,(\\cos\\varphi,\\ \\sin\\varphi)', 'Rebuild a point at the same distance with the folded angle. Anything drawn with q repeats n times with mirror symmetry, like a kaleidoscope.')
+        ],
+        outputSymbols: ['q'],
+        notes: [['\\theta', 'angle of p'], ['t', 'time in seconds']],
+        concepts: ['polar', 'fold'],
+        source: [
+            'w = TAU/$sectors   // the width of one wedge, 2π/n',
+            'phi = abs(mod(theta + $spin*t + 0.5*w, w) - 0.5*w)   // fold the angle into one wedge and mirror it about the wedge’s center line',
+            'r*vec2(cos(phi), sin(phi))   // the point at the same distance with the folded angle: n mirrored copies'
+        ],
+        description: 'Fold the angular coordinate into mirrored sectors. Reuse any source pattern to create symmetry.',
+        emit: (i, u) => `angularMirror(${i.p},${u.sectors},u_time*${u.spin})`
+    }),
+    noise: component({
+        name: 'Fractal value noise', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
+        params: {
+            frequency: num('Frequency', 3, 0.1, 30, 0.1, '\\nu', 'Size of the noise features: higher values are finer.'),
+            octaves: num('Octaves', 6, 1, 8, 1, 'N', 'Number of noise layers, each about twice as fine and half as strong. More octaves add fine detail.'),
+            speed: num('Flow speed', 0.1, -2, 2, 0.01, '\\omega', 'Vertical drift of the pattern per second.'),
+            seed: num('Seed offset', 0, 0, 100, 1, '\\sigma', 'Shifts to a different but equally random-looking pattern.')
+        },
+        equation: 'f(p) = Σ 2⁻ᵏ noise(2ᵏ Rp + offset)',
+        steps: [
+            step('q = \\nu p + (\\sigma,\\ \\omega t)', 'Scale the plane by the frequency ν, shift it sideways by the seed σ and upward over time.'),
+            step('f = \\frac{1}{Z}\\sum_{k=0}^{N-1} 2^{-k}\\, n\\left(2.03^{k} M^{k} q\\right)', 'Add N octaves of smooth value noise, each about twice as fine and half as strong as the last, turned slightly (M) so their grids never line up. Z rescales the sum to 0–1.')
+        ],
+        outputSymbols: ['f'],
+        notes: [['n', 'smooth value noise, 0 to 1'], ['M', 'fixed small rotation between octaves'], ['Z', 'normalization so f stays in 0 to 1']],
+        concepts: ['value-noise', 'fbm'],
+        curve: { title: 'Weight of each octave', x: 'octave k', y: 'weight 2⁻ᵏ / Z', domain: P => [-0.5, Math.max(P.octaves, 1) - 0.5], bars: P => { const n = Math.round(P.octaves), z = (1 - 0.5 ** n) * 2; return Array.from({ length: n }, (_, k) => [k, 0.5 ** k / z]); } },
+        source: [
+            'q = p*$frequency + vec2($seed, $speed*t)   // scale the plane by the frequency, shift it by the seed, drift it over time',
+            'fbm(q, $octaves)   // octaves of smooth value noise, each twice as fine and half as strong (the loop is inside fbm: More ▸ Code)'
+        ],
+        description: 'Smooth deterministic multiscale noise. Not part of the original nebula formulas; useful for new organic surfaces.',
+        emit: (i, u) => `fbm(${i.p}*${u.frequency}+vec2(${u.seed},u_time*${u.speed}),${u.octaves})`
+    }),
+    waves: component({
+        name: 'Nested cosine bands', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
+        params: {
+            frequency: num('Frequency', 9, 0.1, 80, 0.1, '\\nu', 'Bands per world unit: higher values give thinner, denser bands.'),
+            bend: num('Phase bending', 4, 0, 20, 0.1, '\\beta', 'How strongly a second wave bends the bands. Zero gives straight parallel stripes.'),
+            speed: num('Phase speed', 0.5, -4, 4, 0.01, '\\omega', 'Speed of the bending wave over time.')
+        },
+        equation: 'f = ½ + ½ cos(kx + b sin(ky − t))',
+        steps: [
+            step('\\phi = \\nu x + \\beta \\sin(0.65\\, \\nu y - \\omega t)', 'The phase: vertical stripes, ν per world unit, pushed sideways by a slower wave that runs along y. This inner wave is what bends the stripes.'),
+            step('f = \\frac{1}{2} + \\frac{1}{2}\\cos\\phi', 'Turn the phase into bands between 0 and 1.')
+        ],
+        outputSymbols: ['f'],
+        notes: [['p = (x, y)', 'input coordinates'], ['\\phi', 'phase']],
+        concepts: ['phase-modulation'],
+        curve: { title: 'One row of the field (y = 0.3)', x: 'x', y: 'f', domain: P => [0, Math.min(3, 12 / Math.max(P.frequency, 0.1))], series: [{ f: (x, P) => 0.5 + 0.5 * Math.cos(P.frequency * x + P.bend * Math.sin(0.65 * P.frequency * 0.3)) }, { label: 'y = 0.6', f: (x, P) => 0.5 + 0.5 * Math.cos(P.frequency * x + P.bend * Math.sin(0.65 * P.frequency * 0.6)) }], range: () => [0, 1] },
+        source: [
+            'phase = x*$frequency + $bend*sin(y*$frequency*0.65 - $speed*t)   // vertical stripes, pushed sideways by a slower wave along y',
+            '0.5 + 0.5*cos(phase)   // bands between 0 and 1'
+        ],
+        description: 'A compact example of phase modulation: one wave bends another. It becomes marbling under a coordinate warp.',
+        emit: (i, u) => `(0.5+0.5*cos(${i.p}.x*${u.frequency}+${u.bend}*sin(${i.p}.y*${u.frequency}*0.65-u_time*${u.speed})))`
+    }),
+    disc: component({
+        name: 'Soft disc / sphere mask', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
+        params: {
+            radius: num('Radius', 1, 0.02, 3, 0.01, 'r', 'Radius of the disc in world units.'),
+            edge: num('Edge softness', 0.02, 0.001, 0.6, 0.001, '\\epsilon', 'Width of the soft transition at the rim. Small values give a crisp edge.')
+        },
+        equation: 'mask = 1 − smoothstep(−edge, edge, |p| − radius)',
+        steps: [
+            step('d = |p| - r', 'Signed distance to the circle of radius r: negative inside, zero on the rim, positive outside.'),
+            step('m = 1 - \\operatorname{smoothstep}\\left(-\\epsilon,\\ \\epsilon,\\ d\\right)', '1 inside, 0 outside, with a smooth transition 2ε wide across the rim.')
+        ],
+        outputSymbols: ['m'],
+        notes: [['d', 'signed distance to the rim']],
+        concepts: ['sdf', 'smoothstep'],
+        curve: { title: 'Mask across the rim', x: 'distance |p|', y: 'm', domain: P => [0, 2 * P.radius + 3 * P.edge], series: [{ f: (d, P) => 1 - smooth(-P.edge, P.edge, d - P.radius) }], marks: P => [{ x: P.radius, label: 'r' }], range: () => [0, 1.05] },
+        source: [
+            'd = length(p) - $radius   // signed distance to the circle: negative inside, positive outside',
+            '1 - smoothstep(-$edge, $edge, d)   // 1 inside, 0 outside, with a soft edge 2ε wide'
+        ],
+        description: 'Coverage mask: 1 inside, 0 outside. Connect it to Mask layer, or use it to modulate another field.',
+        emit: (i, u) => `softInside(length(${i.p})-${u.radius},${u.edge})`
+    }),
+    ring: component({
+        name: 'Gaussian ring', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
+        params: {
+            radius: num('Radius', 1, 0, 3, 0.01, 'r', 'Distance of the bright rim from the center.'),
+            width: num('Width', 0.1, 0.005, 1, 0.005, 'w', 'Thickness of the rim (Gaussian width).')
+        },
+        equation: 'f = exp(−((|p| − radius)/width)²)',
+        steps: [
+            step('d = |p| - r', 'Signed distance from the circle of radius r.'),
+            step('f = \\exp\\left(-\\left(\\frac{d}{w}\\right)^2\\right)', 'A Gaussian bump across that distance: 1 on the circle, 0.37 at distance w from it, fading to 0 beyond.')
+        ],
+        outputSymbols: ['f'],
+        notes: [['d', 'signed distance to the circle']],
+        concepts: ['sdf', 'gaussian'],
+        curve: { title: 'Profile across the ring', x: 'distance |p|', y: 'f', domain: P => [0, P.radius + 4 * P.width + 0.2], series: [{ f: (x, P) => Math.exp(-(((x - P.radius) / P.width) ** 2)) }], marks: P => [{ x: P.radius, label: 'r' }], range: () => [0, 1.05] },
+        source: [
+            'd = length(p) - $radius   // signed distance from the circle',
+            'exp(-(d/$width)^2)   // a Gaussian bump: 1 on the circle, 0.37 at distance w from it'
+        ],
+        description: 'A luminous rim with a hollow center. A Gaussian field, not a geometric mesh.',
+        emit: (i, u) => `gaussian(length(${i.p})-${u.radius},${u.width})`
+    }),
+    threshold: component({
+        name: 'Soft threshold', category: 'Scalar fields', output: 'scalar', inputs: { field: 'scalar' }, inputSymbols: { field: 'g' }, role: 'modifier', bypass: 'field',
+        params: {
+            level: num('Threshold', 0.5, -2, 2, 0.01, '\\ell', 'Input value where the output crosses about 0.37. Raise it to keep only the highest parts of the field.'),
+            sharpness: num('Sharpness', 8, 0.1, 60, 0.1, 's', 'Steepness of the transition. High values give hard-edged islands; low values a gentle ramp.')
+        },
+        equation: 'f = exp(−exp(−sharpness · (field − level)))',
+        steps: [step('f = \\exp\\left(-e^{-s\\,(g - \\ell)}\\right)', 'A double-exponential gate: nearly 0 where the input g is well below the level ℓ, nearly 1 well above it, rising smoothly over about 1/s. It crosses 1/e ≈ 0.37 exactly at g = ℓ. Thresholding a smooth field this way turns it into islands, wisps or filaments.')],
+        outputSymbols: ['f'],
+        concepts: ['gate'],
+        curve: { title: 'Output against input', x: 'input g', y: 'f', domain: P => [P.level - Math.max(4 / P.sharpness, 0.2), P.level + Math.max(4 / P.sharpness, 0.2)], series: [{ f: (g, P) => gate(-P.sharpness * (g - P.level)) }], marks: P => [{ x: P.level, label: 'ℓ' }], range: () => [0, 1.05] },
+        source: [
+            'exp(-exp(-$sharpness*(a - $level)))   // the double-exponential gate: nearly 0 below the level, nearly 1 above it'
+        ],
+        description: 'The same nested-exponential gate used by the source equations. Turns smooth variation into wisps, islands or filaments.',
+        emit: (i, u) => `cutoff(-${u.sharpness}*(${i.field}-${u.level}))`
+    }),
+    fieldmath: component({
+        name: 'Combine scalar fields', category: 'Scalar fields', output: 'scalar', inputs: { a: 'scalar', b: 'scalar' }, role: 'combine', bypass: 'a',
+        params: {
+            weightA: num('A weight', 1, -5, 5, 0.01, 'w_a', 'Multiplier for input a.'),
+            weightB: num('B weight', 1, -5, 5, 0.01, 'w_b', 'Multiplier for input b. Use a negative value to subtract b.'),
+            product: num('Product weight', 0, -5, 5, 0.01, 'w_p', 'Weight of the product a·b; use it to modulate one field by another.'),
+            bias: num('Bias', 0, -4, 4, 0.01, 'c', 'Constant added to the result.')
+        },
+        equation: 'f = wa·a + wb·b + wp·a·b + bias',
+        steps: [step('f = w_a\\, a + w_b\\, b + w_p\\, a b + c', 'A weighted sum of the two fields, plus their product and a constant. Sums blend fields, a negative weight subtracts, the product lets one field modulate the other, and the constant shifts the result, e.g. before a threshold.')],
+        outputSymbols: ['f'],
+        source: [
+            '$weightA*a + $weightB*b + $product*a*b + $bias   // a weighted sum of the two fields, their product and a constant'
+        ],
+        description: 'One small arithmetic node supports sums, differences, products and threshold offsets.',
+        emit: (i, u) => `(${u.weightA}*${i.a}+${u.weightB}*${i.b}+${u.product}*${i.a}*${i.b}+${u.bias})`
+    }),
+    expression: component({
+        name: 'Custom scalar equation', category: 'Authoring', output: 'scalar', inputs: { p: 'coord', a: 'scalar', b: 'scalar' }, custom: true,
+        params: { expression: expr([
+            'param rings = 8 [0, 30] step 0.1   // rings per unit of distance from the center',
+            'param arms = 3 [-12, 12] step 1    // spiral arms; whole numbers join up without a seam',
+            '0.5 + 0.5*cos(rings*r - arms*theta - t)   // a wave between 0 and 1 that spirals out and moves with time'
+        ].join('\n')) },
+        equation: 'float f(p,a,b,t) = your expression',
+        steps: [step('f(p, a, b, t) = \\text{your expression}', 'Any expression of the point p = (x, y), its polar coordinates r and θ, two optional input fields a and b, and the time t.')],
+        outputSymbols: ['f'],
+        notes: customNotes,
+        description: 'Your own equation for a number at every point, written line by line: parameters become sliders, definitions name intermediate values, and the last line is the result. It can use p = (x, y), r, θ, the time t, two input fields a and b, and every function of the shader libraries.',
+        emit: () => ''
+    }),
+    vectorExpression: component({
+        name: 'Custom coordinate equation', category: 'Authoring', output: 'coord', inputs: { p: 'coord', a: 'scalar', b: 'scalar' }, role: 'modifier', bypass: 'p', custom: true,
+        params: { expression: expr([
+            'param amount = 0.5 [-3, 3] step 0.01   // largest rotation, in radians',
+            'param ripple = 3 [0, 20] step 0.1      // how often the rotation reverses with distance',
+            'angle = amount*sin(ripple*r - t)       // each circle of radius r turns by its own angle',
+            'rotate2(p, angle)                      // the point turned about the center: a rippling swirl'
+        ].join('\n')) },
+        equation: 'vec2 q(p,a,b,t) = your expression',
+        steps: [step('q(p, a, b, t) = \\text{your expression}', 'A new point for every input point: a coordinate map of your own, applied by everything that reads q.')],
+        outputSymbols: ['q'],
+        notes: customNotes,
+        concepts: ['backward-map'],
+        description: 'Your own coordinate map: the last line is a new point vec2(…) for every input point p, and everything that reads it is drawn through the map. Written like the other custom equations; bypassed, it passes p through.',
+        emit: () => ''
+    }),
+    colorExpression: component({
+        name: 'Custom color equation', category: 'Authoring', output: 'layer', inputs: { p: 'coord', a: 'scalar', b: 'scalar' }, custom: true,
+        params: { expression: expr([
+            'param petals = 6 [1, 24] step 1      // bright lobes around the center',
+            'param flow = 0.1 [-1, 1] step 0.01   // how fast the rainbow moves outward',
+            'hue = spectrum(r - flow*t, 0)        // a rainbow color for each distance r',
+            'hue * (0.5 + 0.5*cos(petals*theta))  // brightened in petals around the center'
+        ].join('\n')) },
+        equation: 'vec3 color(p,a,b,t) = your expression',
+        steps: [step('\\mathrm{RGB}(p, a, b, t) = \\text{your expression}', 'A color (radiance) for every point; a vec4 also sets the coverage, otherwise it is opaque.')],
+        outputSymbols: ['\\mathrm{RGB}'],
+        notes: customNotes,
+        concepts: ['radiance'],
+        description: 'Your own color layer: the last line is a radiance vec3(…), opaque, or vec4(…) with coverage. Written like the other custom equations; combine with a mask for transparency.',
+        emit: () => ''
+    }),
+    palette: component({
+        name: 'Two-color emission', category: 'Color & composition', output: 'layer', inputs: { field: 'scalar' }, inputSymbols: { field: 'f' },
+        params: {
+            low: rgb('Low color', '#09212e', 'C_0', 'Color where the field is 0 or below.'),
+            high: rgb('High color', '#62edc3', 'C_1', 'Color where the field is 1 or above.'),
+            gain: num('Emission', 1, 0, 5, 0.01, 'g', 'Overall brightness multiplier, before exposure and tone mapping.'),
+            power: num('Contrast power', 1, 0.1, 8, 0.05, '\\gamma', 'Shapes the blend: above 1 keeps more of the low color, below 1 pushes toward the high color.')
+        },
+        equation: 'RGB = gain · mix(low, high, clamp(field)^power)',
+        steps: [
+            step('u = \\operatorname{clamp}(f, 0, 1)^{\\gamma}', 'Clamp the field to 0–1, then bend it with the contrast power γ (above 1 favors the low end).'),
+            step('\\mathrm{RGB} = g\\cdot \\operatorname{mix}\\left(C_0,\\ C_1,\\ u\\right), \\quad \\alpha = 1', 'Blend from the low color C₀ (u = 0) to the high color C₁ (u = 1) and multiply by the emission g. The layer is opaque everywhere.')
+        ],
+        outputSymbols: ['\\mathrm{RGB}'],
+        notes: [['u', 'blend position between the two colors']],
+        concepts: ['mix', 'radiance'],
+        curve: { title: 'Blend position against the field', x: 'field f', y: 'u', domain: () => [-0.2, 1.2], series: [{ f: (x, P) => Math.max(0, Math.min(1, x)) ** P.power }], range: () => [0, 1.05], gradient: P => [P.low, P.high] },
+        source: [
+            'u = clamp(a, 0, 1)^$power   // the field clipped to 0–1 and bent by the contrast power',
+            'vec4(mix($low, $high, u)*$gain, 1)   // blend from the low to the high color, times the emission; opaque'
+        ],
+        description: 'Color a scalar field. This returns straight RGB with full coverage; add a mask when the layer should be transparent.',
+        emit: (i, u) => `vec4(mix(${u.low},${u.high},pow(clamp(${i.field},0.0,1.0),${u.power}))*${u.gain},1)`
+    }),
+    solid: component({
+        name: 'Solid color', category: 'Color & composition', output: 'layer',
+        params: {
+            color: rgb('Color', '#030712', 'C', 'The constant color.'),
+            gain: num('Gain', 1, 0, 4, 0.01, 'g', 'Brightness multiplier.')
+        },
+        equation: 'RGB = color × gain',
+        steps: [step('\\mathrm{RGB} = g\\, C, \\quad \\alpha = 1', 'The same color C, times the gain g, at every point: a background or a constant light.')],
+        outputSymbols: ['\\mathrm{RGB}'],
+        source: [
+            'vec4($color*$gain, 1)   // the same color, times the gain, at every point; opaque'
+        ],
+        description: 'A background or constant radiance layer.',
+        emit: (i, u) => `vec4(${u.color}*${u.gain},1)`
+    }),
+    tint: component({
+        name: 'Tint & gain', category: 'Color & composition', output: 'layer', inputs: { layer: 'layer' }, inputSymbols: { layer: 'L' }, role: 'modifier', bypass: 'layer',
+        params: {
+            color: rgb('RGB multiplier', '#ffffff', 'C', 'Per-channel multiplier; white leaves the layer unchanged.'),
+            gain: num('Gain', 1, 0, 5, 0.01, 'g', 'Overall brightness multiplier.')
+        },
+        equation: 'RGB = incoming RGB × tint × gain',
+        steps: [step('\\mathrm{RGB} = g\\, C \\odot L_{\\mathrm{rgb}}, \\quad \\alpha = L_{\\alpha}', 'Multiply each channel of the incoming layer L by the matching channel of C (⊙ multiplies channel by channel) and by g. Coverage passes through unchanged.')],
+        outputSymbols: ['\\mathrm{RGB}'],
+        concepts: ['radiance'],
+        description: 'Multiply floating-point radiance before output conversion. Does not discard highlight detail.',
+        emit: (i, u) => `vec4(${i.layer}.rgb*${u.color}*${u.gain},${i.layer}.a)`
+    }),
+    mask: component({
+        name: 'Mask layer', category: 'Color & composition', output: 'layer', inputs: { layer: 'layer', mask: 'scalar' }, inputSymbols: { layer: 'L', mask: 'm' }, role: 'modifier', bypass: 'layer',
+        params: { strength: num('Strength', 1, 0, 1, 0.01, 's', 'How much the mask applies: 0 ignores it, 1 applies it fully.') },
+        equation: 'alpha = alpha × mix(1, clamp(mask), strength)',
+        steps: [step('\\alpha = L_{\\alpha} \\cdot \\operatorname{mix}\\left(1,\\ \\operatorname{clamp}(m, 0, 1),\\ s\\right), \\quad \\mathrm{RGB} = L_{\\mathrm{rgb}}', 'Scale the layer’s coverage by the mask m (clamped to 0–1), blended in by the strength s. The color is untouched, so the mask hides things only where the layer is composited with Over.')],
+        outputSymbols: ['\\alpha'],
+        concepts: ['alpha', 'mix'],
+        curve: { title: 'Coverage factor against the mask', x: 'mask m', y: 'coverage × …', domain: () => [-0.2, 1.2], series: [{ f: (m, P) => 1 + (Math.max(0, Math.min(1, m)) - 1) * P.strength }], range: () => [0, 1.05] },
+        description: 'Changes coverage, not straight RGB. Use Over to honor alpha; Add intentionally sums emitted RGB regardless of coverage.',
+        emit: (i, u) => `vec4(${i.layer}.rgb,${i.layer}.a*mix(1.0,clamp(${i.mask},0.0,1.0),${u.strength}))`
+    }),
+    add: component({
+        name: 'Add light', category: 'Color & composition', output: 'layer', inputs: { a: 'layer', b: 'layer' }, inputSymbols: { a: 'A', b: 'B' }, role: 'combine', bypass: 'a',
+        params: { gain: num('B gain', 1, 0, 5, 0.01, 'g', 'Brightness of layer B before it is added to A. Zero removes B; 2 doubles it.') },
+        equation: 'RGB = A.rgb + gain · B.rgb',
+        steps: [step('\\mathrm{RGB} = A_{\\mathrm{rgb}} + g\\, B_{\\mathrm{rgb}}, \\quad \\alpha = \\max(A_{\\alpha}, B_{\\alpha})', 'Light adds up: the result is the light of A plus g times the light of B. Coverage hides nothing here; use Front over back for opaque objects.')],
+        outputSymbols: ['\\mathrm{RGB}'],
+        concepts: ['additive-light'],
+        description: 'Sum radiance before tone mapping. Alpha does not attenuate emission; use Over for opaque objects or alpha-masked layers.',
+        emit: (i, u) => `addLight(${i.a},${i.b},${u.gain})`
+    }),
+    over: component({
+        name: 'Front over back', category: 'Color & composition', output: 'layer', inputs: { front: 'layer', back: 'layer' }, inputSymbols: { front: 'F', back: 'B' }, role: 'combine', bypass: 'back',
+        equation: 'alpha = af + ab(1−af); RGB = (af Cf + (1−af)ab Cb)/alpha',
+        steps: [
+            step('\\alpha = \\alpha_F + \\alpha_B(1 - \\alpha_F)', 'The front covers a fraction α_F of the pixel; the back fills part of what is left.'),
+            step('C = \\frac{\\alpha_F C_F + (1 - \\alpha_F)\\,\\alpha_B C_B}{\\alpha}', 'The color is the coverage-weighted mix of front and back, divided by the total coverage to stay a straight (unpremultiplied) color.')
+        ],
+        outputSymbols: ['C', '\\alpha'],
+        notes: [['C_F, \\alpha_F', 'front color and coverage'], ['C_B, \\alpha_B', 'back color and coverage']],
+        concepts: ['over', 'alpha'],
+        description: 'Correct straight-alpha composition. Use it to hide background stars behind a planet, feathers, or a silhouette.',
+        emit: i => `overLayer(${i.front},${i.back})`
+    }),
+    nebulaGeometry: component({
+        name: 'Pinched shell family · S,A', category: 'Source nebula', output: 'geometry', inputs: { p: 'coord' },
+        params: {
+            pinch: num('Neck pinch', 0.3, 0.05, 0.8, 0.005, '\\eta', 'Exponent that squeezes the shells toward the vertical center line, forming the waist between the two lobes. The source uses 0.3; higher values pinch harder.'),
+            shear: num('Shell shear', 0.15, -0.5, 0.6, 0.005, '\\sigma', 'Common tilt added to every shell’s sheared coordinates. The source uses 0.15; changing it leans and skews the lobes.'),
+            shells: num('Shell count', 27, 1, 27, 1, 'N', 'How many of the 27 source shells are evaluated, from the first. Fewer shells give fewer overlapping contours.')
+        },
+        equation: 'Lₛ = sqrt(Uₛ² + (2Rₛ^0.3 |Uₛ|^−0.3 Vₛ)²) − Rₛ',
+        steps: [
+            step('U_s = x + (\\sigma + c_s)\\, y, \\quad V_s = y - (\\sigma + d_s)\\, x', 'For each shell s = 1 … N, shear the plane by its own amounts: σ is shared, c_s and d_s are fixed per shell, so every shell leans its own way.'),
+            step('L_s = \\sqrt{U_s^2 + \\left(\\frac{2 R_s^{\\eta}\\, V_s}{|U_s|^{\\eta}}\\right)^2} - R_s, \\quad s = 1 \\ldots N', 'An implicit shell of radius R_s: L_s < 0 inside, 0 on the shell, > 0 outside. Dividing V by |U|^η makes the shell very thin near U = 0, pinching it into the two-lobed hourglass; η sets how hard.'),
+            step('w_s = J_s \\prod_{u<s}(1 - J_u), \\quad J_s = e^{-e^{25 - 50 s}}\\, e^{-e^{10 L_s}}', 'J_s ≈ 1 inside shell s and ≈ 0 outside (a double-exponential gate of L_s). w_s hands each point to the first shell that contains it, as if looking through stacked sheets front to back.'),
+            step('S = \\sum_s 2 w_s L_s, \\quad A = \\sum_s \\frac{w_s}{4}\\, e^{-e^{0.15(s - 23)}}\\, e^{-e^{-3 L_s}}', 'The two outputs. S is the selected shell’s L: a coordinate that follows the shell surfaces, used to lay the filaments along them. A peaks just inside each shell’s rim: the envelope where the gas glows. Coverage (the sum of the w_s) is a third, diagnostic output.')
+        ],
+        outputSymbols: ['S', 'A'],
+        notes: [['R_s, c_s, d_s', 'fixed per-shell radius and shears from the source'], ['L_s', 'implicit shell residual of shell s'], ['J_s', 'soft membership of shell s'], ['w_s', 'ordered first-hit weight of shell s']],
+        concepts: ['shear', 'implicit-curve', 'gate', 'first-hit'],
+        curve: { title: 'Membership gate of one shell', x: 'shell residual L', y: 'J', domain: () => [-0.6, 0.6], series: [{ label: 'J = e^−e^(10L)', f: L => gate(10 * L) }, { label: 'rim e^−e^(−3L)', f: L => gate(-3 * L) }], range: () => [0, 1.05], marks: () => [{ x: 0, label: 'shell' }] },
+        description: 'Exact structural port at defaults. Ordered soft first-hit selection produces S (texture coordinate), A (emission rim), and coverage. These are separate meanings.',
+        emit: (i, u) => `nebulaGeometry(${i.p},${u.pinch},${u.shear},${u.shells})`
+    }),
+    ringGeometry: component({
+        name: 'Replacement ring geometry', category: 'Source nebula', output: 'geometry', inputs: { p: 'coord' },
+        params: {
+            radius: num('Radius', 1.1, 0.1, 2, 0.01, 'r', 'Radius of the ring in world units.'),
+            width: num('Rim width', 0.16, 0.01, 0.7, 0.01, 'w', 'Thickness of the emitting rim.'),
+            flatten: num('Vertical compression', 1.5, 0.2, 3, 0.01, 'k', 'Squashes the ring vertically: 1 is a circle, larger values a flatter ellipse.')
+        },
+        equation: 'S=2d; A=0.22 exp(−(d/width)²); d=|scaled p|−radius',
+        steps: [
+            step('d = \\sqrt{x^2 + (k y)^2} - r', 'Distance-like value to an ellipse: a circle of radius r squashed vertically by k.'),
+            step('S = 2 d, \\quad A = 0.22\\, e^{-(d/w)^2}, \\quad \\text{coverage} = e^{-(d/w)^2}', 'The same three outputs as the pinched shells, so it can replace them: S follows the ring, A glows on it with width w.')
+        ],
+        outputSymbols: ['S', 'A'],
+        concepts: ['sdf', 'gaussian'],
+        description: 'New geometry with the same interface as the pinched shell family. Reuse the entire original cloud machinery unchanged.',
+        emit: (i, u) => `ringGeometry(${i.p},${u.radius},${u.width},${u.flatten})`
+    }),
+    geometryField: component({
+        name: 'Inspect geometry channel', category: 'Source nebula', output: 'scalar', inputs: { geometry: 'geometry' },
+        params: {
+            channel: num('0=warp · 1=rim · 2=coverage', 1, 0, 2, 1, 'c', 'Which geometry channel to output: 0 the shell-following warp coordinate S, 1 the emission rim A, 2 the coverage.'),
+            gain: num('Display gain', 4, 0.1, 10, 0.1, 'g', 'Multiplier applied to the extracted channel.')
+        },
+        equation: 'f = geometry.warp / rim / coverage',
+        steps: [step('f = g \\cdot G_c, \\quad G_0 = S,\\ G_1 = A,\\ G_2 = \\text{coverage}', 'Pick one of the geometry’s three fields and scale it by g, turning it into an ordinary scalar field for masks, thresholds or colors.')],
+        outputSymbols: ['f'],
+        description: 'Extract one named field for diagnosis, masks or further composition. The rim and coverage are deliberately not interchangeable.',
+        emit: (i, u) => `((${u.channel}<0.5)?${i.geometry}.warp:((${u.channel}<1.5)?${i.geometry}.rim:${i.geometry}.coverage))*${u.gain}`
+    }),
+    nebulaTurbulence: component({
+        name: 'Nested-cosine turbulence · E', category: 'Source nebula', output: 'scalar', inputs: { p: 'coord', geometry: 'geometry' }, inputSymbols: { geometry: 'S' },
+        params: {
+            bands: num('Bands', 50, 1, 50, 1, 'N', 'Number of the 50 source cosine terms summed, from the largest scale. Fewer bands give smoother, blobbier turbulence.'),
+            speed: num('Phase speed', 0, -1, 1, 0.01, '\\omega', 'Optional animation that shifts the cosine phases over time. The source is static (0).')
+        },
+        equation: 'E = Σ (19/20)ˢ Dₛ(S,Qₛ)',
+        steps: [
+            step('Q_s = p \\cdot (\\cos 15 s^2,\\ \\sin 15 s^2)', 'For band s, the position measured along its own direction: every band runs a different way.'),
+            step('a_s, b_s, c_s, d_s = 1.25^{s} \\times \\text{fixed rotations of } (S, Q_s)', 'Four fixed mixtures of the shell coordinate S and Q_s, scaled by the band frequency 1.25^s. Because S enters, the waves follow the shells.'),
+            step('E = \\sum_{s=1}^{N} 0.95^{s} \\cos\\left(a_s + 4\\cos b_s + \\phi_s + \\omega t\\right)\\cos\\left(c_s + 4\\cos d_s + \\psi_s - \\omega t\\right)', 'Sum N bands of nested cosines (a cosine inside a cosine bends the waves), each finer and 5% weaker than the last: a signed, turbulent field. Downstream it roughens the filament threshold and the edge of the central glow.')
+        ],
+        outputSymbols: ['E'],
+        notes: [['S', 'warp coordinate from the geometry'], ['Q_s', 'position along band s’s direction'], ['\\phi_s, \\psi_s', 'fixed phases from the source']],
+        concepts: ['sum-of-bands', 'phase-modulation'],
+        curve: { title: 'Frequency and weight of each band', x: 'band s', y: 'weight 0.95ˢ', domain: P => [0.5, P.bands + 0.5], bars: P => Array.from({ length: Math.round(P.bands) }, (_, k) => [k + 1, 0.95 ** (k + 1)]) },
+        description: 'Original 50-band signed modulation. It perturbs the filament threshold and central glow. Motion is an optional new phase shift, zero in source mode.',
+        emit: (i, u) => `nebulaTurbulence(${i.p},${i.geometry},${u.bands},u_time*${u.speed})`
+    }),
+    nebulaCloud: component({
+        name: 'Filaments & haze · K', category: 'Source nebula', output: 'layer', inputs: { p: 'coord', geometry: 'geometry', turbulence: 'scalar' }, inputSymbols: { geometry: 'S, A', turbulence: 'E' },
+        params: {
+            bands: num('Bands', 50, 1, 50, 1, 'N', 'Number of the 50 source filament bands summed, coarse to fine. Fewer bands remove the finest filaments.'),
+            detail: num('Sharp filament gain', 1, 0, 3, 0.01, '\\delta', 'Weight of the sharp filament term (45 in the source). Zero leaves only the soft haze.')
+        },
+        equation: 'Iₛ=45 C₁,ₛ+6 C₀,ₛ; Kᵥ=Σ Iₛ (19/20)ˢ κᵥ,ₛ',
+        steps: [
+            step('Z_s = C_s - 1.25 + 2A + \\frac{E}{7}', 'For band s: a cosine pattern C_s laid along the shells (it is built from S), lifted where the rim A is bright and roughened by the turbulence E.'),
+            step('I_s = 45\\,\\delta\\, e^{-e^{-4 Z_s}} + 6\\, e^{-e^{-Z_s/4}}', 'Two gates of Z_s: a steep one (weight 45δ) turns the tops of the pattern into thin bright filaments, a gentle one (weight 6) adds soft haze.'),
+            step('K = \\sum_{s=1}^{N} 0.95^{s}\\, I_s\\, \\kappa_s', 'Color each band with its own RGB weight κ_s and sum N bands, coarse to fine. K is very bright here; the gas stage multiplies it by the rim A.')
+        ],
+        outputSymbols: ['K'],
+        notes: [['C_s', 'product of two cosines of S and the rotated coordinate at frequency 0.2·1.15^s'], ['\\kappa_s', 'fixed per-band RGB weight (can be negative)']],
+        concepts: ['gate', 'sum-of-bands', 'radiance'],
+        curve: { title: 'Filament and haze gates', x: 'Z', y: 'I', domain: () => [-3, 3], series: [{ label: 'filaments', f: (z, P) => 45 * P.detail * gate(-4 * z) }, { label: 'haze', f: z => 6 * gate(-z / 4) }] },
+        description: 'Original RGB field before the geometry rim and core cutout are applied. Preview looks over-bright because masking happens downstream.',
+        emit: (i, u) => `nebulaCloud(${i.p},${i.geometry},${i.turbulence},${u.bands},${u.detail})`
+    }),
+    nebulaGas: component({
+        name: 'Gas emission · Hgas', category: 'Source nebula', output: 'layer', inputs: { p: 'coord', geometry: 'geometry', turbulence: 'scalar', cloud: 'layer' }, inputSymbols: { geometry: 'A', turbulence: 'E', cloud: 'K' },
+        params: { gain: num('Gas gain', 1, 0, 3, 0.01, 'g', 'Brightness of the shell gas emission.') },
+        equation: 'Hgas = 1.1 (1−W) K A',
+        steps: [
+            step('W = e^{-e^{10|p| - 1 + E/4}}', 'The central glow mask: about 1 within 0.1 of the center and 0 outside, its edge roughened by the turbulence E.'),
+            step('H_{\\text{gas}} = 1.1\\, g\\, (1 - W)\\, K A', 'The gas light: the filament color K, kept only along the shell rims (× A) and removed at the center (× (1 − W)), where the core glow takes over.')
+        ],
+        outputSymbols: ['H_{\\text{gas}}'],
+        notes: [['W', 'central glow mask']],
+        concepts: ['gate', 'masking'],
+        description: 'Original gas contribution. A confines emission to shell rims; 1−W clears the central glow region.',
+        emit: (i, u) => `nebulaGas(${i.p},${i.geometry},${i.turbulence},${i.cloud},${u.gain})`
+    }),
+    nebulaCore: component({
+        name: 'Central glow · W', category: 'Source nebula', output: 'layer', inputs: { p: 'coord', turbulence: 'scalar' }, inputSymbols: { turbulence: 'E' },
+        params: { gain: num('Core gain', 1, 0, 3, 0.01, 'g', 'Brightness of the central glow.') },
+        equation: 'W=exp(−exp(10|p|−1+E/4)); Hcore=W(2,2,3)',
+        steps: [
+            step('W = e^{-e^{10|p| - 1 + E/4}}', 'The same central mask as in the gas: about 1 near the center, 0 outside.'),
+            step('H_{\\text{core}} = g\\, W\\, (2, 2, 3)', 'A bluish-white light where W is on. The values exceed 1, so the very center saturates to white.')
+        ],
+        outputSymbols: ['H_{\\text{core}}'],
+        notes: [['W', 'central glow mask']],
+        concepts: ['gate'],
+        curve: { title: 'Glow mask against distance (E = 0)', x: 'distance |p|', y: 'W', domain: () => [0, 0.5], series: [{ f: r => gate(10 * r - 1) }], range: () => [0, 1.05] },
+        description: 'Original glow. The square root in the source contains x²+y² only, not −1 or E/4.',
+        emit: (i, u) => `nebulaCore(${i.p},${i.turbulence},${u.gain})`
+    }),
+    nebulaStars: component({
+        name: 'Folded star lattices · T', category: 'Source nebula', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            bands: num('Lattices', 30, 1, 30, 1, 'L', 'Number of the 30 folded star lattices summed. Fewer lattices give a sparser star field.'),
+            gain: num('Starlight', 1, 0, 3, 0.01, 'g', 'Brightness of all stars.')
+        },
+        equation: 'M,N=acos(cos(rotated coordinates)); T=Σ colored(center+halo)',
+        steps: [
+            step('M_s, N_s = \\arccos\\cos(\\text{rotated, scaled } p)', 'For lattice s, turn and scale the plane, then fold each coordinate with arccos(cos ·), a triangle wave. The plane becomes a grid of identical mirrored cells, and the folded origin (M, N) = (0, 0) sits at every cell center.'),
+            step('\\rho_s^2 = M_s^2 + N_s^2', 'The squared distance to the nearest cell center: small only near the lattice points.'),
+            step('T = g \\sum_{s=1}^{L} \\left(4\\, e^{-e^{200(\\rho_s^2 - 0.00125 - B_s/200)}} + e^{-e^{20 \\rho_s^2 - 0.14}}\\right) \\chi_s', 'Each lattice puts a star on every cell center: a sharp core (a steep gate of ρ², its radius wobbled by B_s to make the points) plus a soft halo, in a warm or cool color χ_s. L lattices at growing frequencies give stars of many sizes and spacings.')
+        ],
+        outputSymbols: ['T'],
+        notes: [['\\rho_s', 'distance to the nearest lattice point'], ['B_s', 'angular modulation that makes the pointed star shapes'], ['\\chi_s', 'alternating warm and cool star color']],
+        concepts: ['fold', 'gate', 'additive-light'],
+        curve: { title: 'One star’s profile (without B)', x: 'distance ρ to the lattice point', y: 'brightness', domain: () => [0, 0.35], series: [{ label: 'core', f: r => 4 * gate(200 * (r * r - 0.00125)) }, { label: 'halo', f: r => gate(20 * r * r - 0.14) }] },
+        description: 'Original deterministic stars with pointed centers. Folded-angle lattices, not random sprites or an astronomical catalog.',
+        emit: (i, u) => `nebulaStars(${i.p},${u.bands},${u.gain})`
+    }),
+    scatterStars: component({
+        name: 'Seeded star field', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            density: num('Density scale', 22, 3, 60, 1, '\\rho', 'Grid frequency of the star cells: higher values give more, closer stars.'),
+            gain: num('Starlight', 0.7, 0, 3, 0.01, 'g', 'Brightness of all stars.'),
+            seed: num('Seed', 17, 0, 100, 1, '\\sigma', 'Chooses a different random arrangement.'),
+            speed: num('Twinkle speed', 0.1, 0, 2, 0.01, '\\omega', 'How fast the stars twinkle (±12% brightness).')
+        },
+        equation: 'star = Gaussian core + halo + cross rays',
+        steps: [
+            step('q_\\ell = \\rho\\,(1 + 0.71\\,\\ell)\\, p, \\quad \\ell = 0, 1, 2, \\quad \\text{cells hashed with seed } \\sigma', 'Three grids of cells at different densities. A hash of each cell (with the seed σ) decides whether it holds a star and gives it a position, size, brightness and color.'),
+            step('I = g \\sum_{\\ell} \\sum_{\\text{cells}} \\left(e^{-(d/r)^2} + 0.018\\, e^{-(d/6r)^2}\\right) b\\, \\left(0.88 + 0.12 \\sin(\\omega t + 2\\pi h)\\right)', 'Each star is a Gaussian core plus a faint wide glow, twinkling by ±12%. Only the 3 × 3 neighboring cells are checked per pixel, so thousands of stars cost little.')
+        ],
+        outputSymbols: ['I'],
+        notes: [['d', 'distance to the jittered star in the cell (hashed with seed σ)'], ['r, b, h', 'hashed star size, brightness and phase']],
+        concepts: ['hash', 'gaussian', 'additive-light'],
+        description: 'New deterministic jittered-cell stars. Three scales and warm/cool variation; distinct from the original folded lattice algorithm.',
+        emit: (i, u) => `scatterStars(${i.p},${u.density},${u.gain},${u.seed},u_time*${u.speed})`
+    }),
+    planet: component({
+        name: 'Cyclonic water planet', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            radius: num('Radius', 1.08, 0.1, 2, 0.01, 'R', 'Planet radius in world units.'),
+            cloud: num('Cloud cover', 0.65, 0, 2, 0.01, 'c', 'How much of the surface is covered by bright cloud; 0 shows mostly ocean.'),
+            twist: num('Cyclone twist', 5, 0, 14, 0.1, '\\tau', 'Strength of the seven storm vortices that swirl the clouds.'),
+            light: num('Light angle', 2.25, 0, 6.28, 0.01, '\\lambda', 'Direction of the sunlight around the planet, in radians.'),
+            speed: num('Cloud drift', 0.5, -2, 2, 0.01, '\\omega', 'How fast the cloud pattern drifts east–west.')
+        },
+        equation: 'visible sphere → spherical coordinates → cyclone maps → clouds → lighting',
+        steps: [
+            step('d = p / R, \\quad \\mathbf{n} = \\left(d_x,\\ d_y,\\ \\sqrt{1 - |d|^2}\\right)', 'Treat the disc |d| < 1 as the visible half of a sphere of radius R: n is the surface point and its normal, facing the viewer.'),
+            step('u = \\operatorname{cyclones}_{\\tau}(\\text{lon}, \\text{lat}) + (0.025\\, \\omega t,\\ 0), \\quad m = \\operatorname{smoothstep}(0.62 - 0.3 c,\\ 0.79 - 0.28 c,\\ n(u))', 'Longitude and latitude on the sphere, swirled by seven vortices of strength τ and drifting over time, sample fractal noise n; a threshold set by the cloud cover c turns it into clouds m.'),
+            step('C = \\operatorname{mix}(C_{\\text{ocean}},\\ C_{\\text{cloud}},\\ m)\\,\\left(0.06 + \\max(\\mathbf{n} \\cdot \\mathbf{l},\\ 0)\\right), \\quad \\mathbf{l} \\propto (\\cos\\lambda,\\ 0.35,\\ \\sin\\lambda)', 'Mix ocean and cloud colors and light them by how directly the surface faces the sun l (plus a little ambient light). A sun glint on the ocean and a blue rim are added in the kernel.')
+        ],
+        outputSymbols: ['C'],
+        notes: [['\\mathbf{n}', 'sphere normal (lighting)'], ['n(u)', 'fractal noise of the cyclone-warped surface coordinate'], ['m', 'cloud amount']],
+        concepts: ['sphere-normal', 'domain-warp', 'fbm', 'lambert'],
+        description: 'Subject-inspired study, not the artist’s unretrieved formula. Rotated cloud coordinates, finite-octave noise, Lambert-like light, glint and rim scattering.',
+        emit: (i, u) => `waterPlanet(${i.p},${u.radius},${u.cloud},${u.twist},${u.light},u_time*${u.speed})`
+    }),
+    atmosphere: component({
+        name: 'Atmospheric rim', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            radius: num('Radius', 1.08, 0.1, 2, 0.01, 'R', 'Radius of the glowing limb; match it to the planet radius.'),
+            gain: num('Glow', 0.7, 0, 3, 0.01, 'g', 'Brightness of the atmospheric rim.')
+        },
+        equation: 'glow = Gaussian(|p|−radius)',
+        steps: [
+            step('\\Delta = |p| - R', 'Distance from the planet’s edge.'),
+            step('I = g\\left(e^{-(\\Delta/0.025)^2} + 0.18\\, e^{-(\\Delta/0.07)^2}\\right)(0.08, 0.25, 0.55)', 'A thin bright Gaussian plus a wider faint one, in blue: the glow of the atmosphere seen edge-on.')
+        ],
+        outputSymbols: ['I'],
+        concepts: ['gaussian', 'additive-light'],
+        curve: { title: 'Glow across the limb', x: 'distance |p|', y: 'brightness', domain: P => [P.radius - 0.25, P.radius + 0.25], series: [{ f: (x, P) => P.gain * (Math.exp(-(((x - P.radius) / 0.025) ** 2)) + 0.18 * Math.exp(-(((x - P.radius) / 0.07) ** 2))) }], marks: P => [{ x: P.radius, label: 'R' }] },
+        source: [
+            'd = length(p) - $radius   // distance from the planet’s edge',
+            'glow = exp(-(d/0.025)^2) + 0.18*exp(-(d/0.07)^2)   // a thin bright ring plus a wider faint one',
+            'vec4(vec3(0.08, 0.25, 0.55)*glow*$gain, clamp(glow, 0, 1))   // blue light; its coverage follows the glow'
+        ],
+        description: 'An independent analytic limb glow; align its radius with the planet when composing them.',
+        emit: (i, u) => `atmosphere(${i.p},${u.radius},${u.gain})`
+    }),
+    lens: component({
+        name: 'Star-cluster lens map', category: 'Astronomical studies', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
+        params: {
+            strength: num('Deflection strength', 1, 0, 3, 0.01, 'k', 'Scales every lens mass. 0 is no lensing (the identity map); higher values bend the background into bigger arcs.'),
+            count: num('Lenses', 7, 1, 12, 1, 'n', 'How many cluster members deflect light; the first is the heavy central one.'),
+            softening: num('Softening', 0.015, 0.001, 0.2, 0.001, '\\epsilon', 'Core radius that keeps the deflection finite near each lens; larger values give softer, smaller distortion.')
+        },
+        equation: 'β = θ − Σ mᵢ(θ−θᵢ)/(|θ−θᵢ|²+ε²)',
+        steps: [
+            step('m_0 = 0.18\\, k,\\ m_{i>0} = 0.024\\, k', 'The lens masses: one heavy central member and n − 1 light ones, all scaled by k.'),
+            step('q = p - \\sum_{i=0}^{n-1} m_i\\, \\frac{p - c_i}{|p - c_i|^2 + \\epsilon^2}', 'Thin-lens backward mapping: each pixel looks toward the masses by m/distance, so a background sampled at q appears pushed away from them and stretched into arcs around them. ε keeps it finite at each mass.')
+        ],
+        outputSymbols: ['q'],
+        notes: [['c_i', 'fixed golden-angle cluster positions (shared with Foreground cluster stars)']],
+        concepts: ['lensing', 'backward-map'],
+        curve: { title: 'Deflection by the central mass', x: 'distance |p − c₀|', y: 'shift', domain: () => [0, 1], series: [{ f: (d, P) => 0.18 * P.strength * d / (d * d + P.softening * P.softening) }], marks: P => [{ x: P.softening, label: 'ε' }] },
+        description: 'Illustrative softened thin-lens backward mapping. Zero strength is the identity. Feed the result into a galaxy; draw foreground lens stars in the unwarped plane.',
+        emit: (i, u) => `clusterLens(${i.p},${u.strength},${u.count},${u.softening})`
+    }),
+    clusterLights: component({
+        name: 'Foreground cluster stars', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            gain: num('Brightness', 1, 0, 3, 0.01, 'g', 'Brightness of the foreground cluster stars.'),
+            count: num('Stars', 7, 1, 12, 1, 'n', 'How many cluster stars are drawn; keep it equal to the lens count.')
+        },
+        equation: 'centers share the lens map’s deterministic positions',
+        steps: [step('I = g \\sum_{i=0}^{n-1} \\left(1.8\\, e^{-(|p - c_i|/0.014)^2} + 0.14\\, e^{-(|p - c_i|/0.055)^2} + \\text{rays}\\right) \\chi_i', 'A bright core, a glow and thin cross-shaped rays at each lens position c_i, so the drawn cluster sits exactly where the lens bends light.')],
+        outputSymbols: ['I'],
+        notes: [['c_i', 'the lens map’s cluster positions'], ['\\chi_i', 'per-star color']],
+        concepts: ['gaussian', 'additive-light'],
+        description: 'Draw these AFTER lensing the background. Moving a background star image through this node would not model a foreground lens cluster.',
+        emit: (i, u) => `clusterLights(${i.p},${u.gain},${u.count})`
+    }),
+    galaxy: component({
+        name: 'Logarithmic spiral galaxy', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            arms: num('Spiral arms', 3, 1, 8, 1, 'm', 'Number of spiral arms.'),
+            pitch: num('Winding', 7, 0.5, 15, 0.1, 'k', 'How tightly the arms wind: higher values wrap them around the center more times.'),
+            radius: num('Scale', 0.75, 0.1, 2, 0.01, 's', 'Overall size of the galaxy.'),
+            dust: num('Dust lanes', 0.6, 0, 1, 0.01, '\\delta', 'Strength of the dark dust lanes across the disk.'),
+            speed: num('Phase speed', 0.2, -2, 2, 0.01, '\\omega', 'Rotation of the arm pattern over time.')
+        },
+        equation: 'phase = arms·theta − pitch·log(r+0.1)',
+        steps: [
+            step('\\phi = m\\, \\theta - k \\log(r/s + 0.1) - 0.1\\, \\omega t, \\quad \\text{arm} = \\left(\\frac{1}{2} + \\frac{1}{2}\\cos(\\phi + \\text{noise})\\right)^8', 'In polar coordinates of the tilted disk, a phase that turns m times around the center and decreases with log-radius: its bright bands are m logarithmic spiral arms. The 8th power sharpens them; noise roughens them.'),
+            step('I = C(r)\\,(0.17 + \\text{arm})\\, e^{-1.65\\, r/s}\\,(1 - \\delta\\, \\text{lanes}) + \\text{bulge} + \\text{knots}', 'Arms over a faint disk, fading exponentially with radius, darkened by noisy dust lanes (δ), plus a Gaussian central bulge and bright knots.')
+        ],
+        outputSymbols: ['I'],
+        notes: [['r, \\theta', 'polar coordinates of the tilted, flattened p']],
+        concepts: ['log-spiral', 'polar', 'fbm'],
+        description: 'New analytic spiral arms, Gaussian-like central bulge, radial fade, dusty modulation and emission knots. Its input coordinates can be gravitationally warped.',
+        emit: (i, u) => `spiralGalaxy(${i.p},${u.arms},${u.pitch},${u.radius},${u.dust},u_time*${u.speed})`
+    }),
+    aurora: component({
+        name: 'Spiral auroral curtain', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            turns: num('Winding', 4, 0.5, 12, 0.1, 'k', 'How tightly the ribbon spirals around its center.'),
+            width: num('Ribbon width', 0.115, 0.01, 0.4, 0.005, 'w', 'Thickness of the bright ribbon, in phase units.'),
+            curtain: num('Fine rays', 1, 0, 3, 0.01, 'c', 'Strength of the thin radial rays within the ribbon; 0 gives a smooth ribbon.'),
+            speed: num('Flow speed', 0.5, -2, 2, 0.01, '\\omega', 'How fast the spiral and its rays move.')
+        },
+        equation: 'ribbon = exp(−[sin(theta + turns·log(r+0.12))/width]²)',
+        steps: [
+            step('\\phi = \\theta + k \\log(r + 0.12) + 0.18\\, \\omega t + \\text{noise}, \\quad B = e^{-(\\sin\\phi / w)^2}(1 - e^{-8r})\\, e^{-0.7 r}', 'A logarithmic spiral phase; the ribbon B is bright where sin φ ≈ 0 (a Gaussian of width w), faded near the center and far away.'),
+            step('F = 0.28 + 0.72\\left(\\frac{1}{2} + \\frac{1}{2}\\sin(175\\,\\theta + \\ldots)\\right)^2, \\quad I = (0.05, 0.86, 0.22)\\, B\\,(0.4 + c F) + \\text{fringe}', 'About 175 thin angular rays F streak the green ribbon (strength c); a faint purple fringe sits just outside it.')
+        ],
+        outputSymbols: ['I'],
+        notes: [['r, \\theta', 'polar coordinates around the spiral center'], ['B', 'ribbon brightness'], ['F', 'fine ray pattern']],
+        concepts: ['log-spiral', 'gaussian'],
+        curve: { title: 'Ribbon across its phase', x: 'phase φ (mod π)', y: 'B', domain: () => [-Math.PI / 2, Math.PI / 2], series: [{ f: (x, P) => Math.exp(-((Math.sin(x) / P.width) ** 2)) }], range: () => [0, 1.05] },
+        description: 'New projected spiral ribbon with green/purple emission and angular striations. It illustrates appearance, not an auroral plasma simulation.',
+        emit: (i, u) => `auroraVortex(${i.p},${u.turns},${u.width},${u.curtain},u_time*${u.speed})`
+    }),
+    disk: component({
+        name: 'Accretion disk & shadow', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            radius: num('Shadow scale', 0.34, 0.06, 0.8, 0.005, '\\rho', 'Size of the black-hole shadow; the disk and arc scale with it.'),
+            inclination: num('Projection flattening', 3, 1, 7, 0.05, '\\iota', 'How edge-on the disk appears: 1 is face-on, higher values flatter.'),
+            spin: num('Texture winding', 4, 0, 12, 0.1, '\\tau', 'How much the disk’s ring texture spirals.'),
+            speed: num('Flow speed', 0.5, -2, 2, 0.01, '\\omega', 'Speed of the swirling texture.')
+        },
+        equation: 'projected annulus + bent rear arc − central shadow',
+        steps: [
+            step('r = \\sqrt{x_r^2 + (\\iota\\, y_r)^2}, \\quad E = e^{-((r - 1.65\\rho)/0.65\\rho)^2}', 'Squash circles vertically by ι to see a flat disk at an angle; E is a Gaussian band of that disk around radius 1.65ρ.'),
+            step('\\text{rings} = \\frac{1}{2} + \\frac{1}{2}\\sin\\left(90 r + 4\\sin(3\\theta + \\tau\\log(r + 0.1) - 0.8\\, \\omega t)\\right)', 'Fine rings, bent into a spiral by τ and swirling over time, give the disk its texture.'),
+            step('I = E\\, \\text{rings}\\, D(\\theta) + \\text{arc}, \\quad I = 0 \\text{ where } |p| < 0.9\\rho', 'The disk band is brighter on one side (D, an artistic Doppler term); a thin bright arc stands in for light bent over the top; the shadow |p| < 0.9ρ is black.')
+        ],
+        outputSymbols: ['I'],
+        notes: [['x_r, y_r', 'p rotated by −0.28 rad'], ['\\theta', 'angle in the flattened disk plane'], ['D(\\theta)', 'one-sided brightening']],
+        concepts: ['phase-modulation', 'gaussian'],
+        description: 'New stylized construction. The bright-side weighting and bent arc are artistic terms, not a relativistic transfer calculation.',
+        emit: (i, u) => `accretionDisk(${i.p},${u.radius},${u.inclination},${u.spin},u_time*${u.speed})`
+    }),
+    tidal: component({
+        name: 'Stretched star & tidal stream', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            stretch: num('Taper power', 2.5, 0.3, 6, 0.05, 'a', 'How quickly the stream widens toward the star; higher values keep it thin for longer.'),
+            size: num('Star width', 0.13, 0.02, 0.4, 0.005, '\\sigma', 'Size of the disrupted star and the stream’s maximum width.'),
+            speed: num('Stream speed', 0.5, -2, 2, 0.01, '\\omega', 'Speed of the wiggle and fibers along the stream.')
+        },
+        equation: 'emission = Gaussian(distance to tapered centerline) + star core',
+        steps: [
+            step('u = \\operatorname{clamp}\\left(\\frac{x + 0.05}{1.65}, 0, 1\\right), \\quad y_c = 0.14 + 0.4 u^2 + 0.05 \\sin(5u - 0.25\\, \\omega t)', 'Position along the stream from its tail (u = 0) to the star (u = 1); the centerline y_c curves upward and wiggles over time.'),
+            step('w = \\operatorname{mix}(0.015,\\ \\sigma,\\ u^{a}), \\quad I = e^{-((y - y_c)/w)^2}\\, \\text{fibers} + 2.4\\, e^{-(|p - p_\\star|/\\sigma)^2} + \\text{glow}', 'The stream is a Gaussian across the centerline whose width grows from 0.015 to σ (later for larger a), streaked with fibers; the star is a bright Gaussian at the end.')
+        ],
+        outputSymbols: ['I'],
+        notes: [['p_\\star', 'position of the star at the stream’s end'], ['u', 'position along the stream'], ['w', 'stream width at u']],
+        concepts: ['gaussian', 'mix'],
+        curve: { title: 'Stream width along its length', x: 'position u (tail → star)', y: 'width w', domain: () => [0, 1], series: [{ f: (u, P) => 0.015 + (P.size - 0.015) * u ** P.stretch }] },
+        description: 'New narrow curved stream broadening toward a luminous star. Independent from the disk so it can be translated, masked or reused as a comet.',
+        emit: (i, u) => `tidalStream(${i.p},${u.stretch},${u.size},u_time*${u.speed})`
+    }),
+    feather: component({
+        name: 'Single eyespot feather', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            width: num('Width', 0.095, 0.02, 0.3, 0.005, 'w_0', 'Maximum half-width of the feather vane.'),
+            eye: num('Eyespot scale', 1, 0.3, 2, 0.01, 's', 'Size of the eyespot rings near the tip.'),
+            speed: num('Barb motion', 0.2, 0, 2, 0.01, '\\omega', 'Speed of the shimmering barb pattern.')
+        },
+        equation: 'tapered local silhouette + oblique cosine barbs + nested eyespot rings',
+        steps: [
+            step('w(v) = w_0 \\sin(\\pi v)^{0.55}, \\quad \\text{coverage} = [\\,|x| < w(v)\\,]', 'The vane’s half-width along the shaft v (0 at the base, 1 at the tip): widest in the middle, closing at both ends. Inside it the coverage is 1.'),
+            step('\\text{barbs} = 0.25 + 0.75\\left(\\frac{1}{2} + \\frac{1}{2}\\cos(250(v + 1.3|x|) + 0.4 \\sin \\omega t)\\right)^3', 'Narrow oblique stripes slanting away from the shaft: the barbs, shimmering slightly over time.'),
+            step('e = \\sqrt{\\left(\\frac{x}{0.76\\, w_0 s}\\right)^2 + \\left(\\frac{v - 0.79}{0.107\\, s}\\right)^2} \\quad \\text{(eyespot rings at fixed } e\\text{)}', 'An elliptical distance from the eyespot center near the tip; bands of color at fixed values of e draw the nested eye.')
+        ],
+        notes: [['p = (x, v)', 'local coordinates: base at v = 0, tip at v = 1'], ['e', 'elliptical distance from the eyespot center']],
+        concepts: ['stamp', 'sdf', 'alpha'],
+        curve: { title: 'Vane half-width along the shaft', x: 'v (base → tip)', y: 'w(v)', domain: () => [0, 1], series: [{ f: (v, P) => P.width * Math.sin(Math.PI * v) ** 0.55 }] },
+        description: 'Reusable analytic stamp. Base at (0,0), tip at (0,1). No texture. The fan node instances this exact kernel many times.',
+        emit: (i, u) => `feather(${i.p},${u.width},${u.eye},u_time*${u.speed})`
+    }),
+    fan: component({
+        name: 'Peacock feather fan', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            spread: num('Fan spread', 2.9, 0.4, 3.5, 0.01, '\\Delta', 'Total opening angle of the fan in radians (3.14 is a half circle).'),
+            rows: num('Feather rows', 4, 1, 4, 1, 'N', 'Number of feather rows, outermost first (23, 20, 17 and 14 feathers).'),
+            width: num('Feather width', 0.095, 0.03, 0.2, 0.005, 'w', 'Width of each feather.'),
+            speed: num('Breeze speed', 0.3, 0, 2, 0.01, '\\omega', 'Speed of the gentle swaying.')
+        },
+        equation: 'fan = Overᵢ feather(Rᵢ(p−base)/lengthᵢ)',
+        steps: [
+            step('a_{ri} = \\left(\\frac{i}{n_r - 1} - \\frac{1}{2}\\right)\\Delta + 0.015\\sin(1.8\\, i + 0.45\\, \\omega t), \\quad \\ell_r = 2.12 - 0.26\\, r', 'Feather i of row r points at an angle spread evenly across the opening Δ, swaying a little over time; inner rows are shorter (length ℓ_r).'),
+            step('F = \\mathrm{Over}_{r=0}^{N-1}\\ \\mathrm{Over}_{i}\\ \\operatorname{feather}\\left(\\frac{R(a_{ri})\\,(p - b)}{\\ell_r};\\ w\\right)', 'Every feather is the same stamp, sampled in coordinates rotated about the common base b and scaled by the row length, then layered with Over, outer rows first.')
+        ],
+        outputSymbols: ['F'],
+        notes: [['b', 'common base point'], ['n_r', 'feathers in row r']],
+        concepts: ['stamp', 'backward-map', 'over'],
+        description: 'New full-display construction, not a recovered 2026 formula. Outer-to-inner rows, shared feather kernels and staggered phase give repeated yet varied detail.',
+        emit: (i, u) => `peacockFan(${i.p},${u.spread},${u.rows},${u.width},u_time*${u.speed})`
+    }),
+    peacockBody: component({
+        name: 'Peacock body & crest', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
+        params: { size: num('Size', 1, 0.3, 2, 0.01, 's', 'Overall size of the body, neck, head and crest.') },
+        equation: 'body ellipses + curved neck + head + crest segments',
+        steps: [step('q = p / s, \\quad \\text{coverage} = \\max(\\text{body},\\ \\text{neck},\\ \\text{head},\\ \\text{beak},\\ \\text{crest})(q)', 'Scale the plane by the size s; the silhouette is the union (max) of soft ellipses and segments for the body, neck, head, beak and crest, each with its own color.')],
+        concepts: ['sdf', 'union', 'alpha'],
+        description: 'A separate opaque silhouette over the feather fan, so changing the fan does not distort the bird.',
+        emit: (i, u) => `peacockBody(${i.p},${u.size})`
+    }),
+    fire: component({
+        name: 'Tapered flame field', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            height: num('Height', 2, 0.2, 3, 0.01, 'h', 'Height of the flame envelope.'),
+            width: num('Base width', 0.8, 0.1, 2, 0.01, 'b', 'Width of the flame at its base.'),
+            turbulence: num('Turbulence', 1, 0, 2, 0.01, '\\tau', 'How much noise tears the envelope into tongues; 0 gives a smooth teardrop.'),
+            speed: num('Rise speed', 1, 0, 3, 0.01, '\\omega', 'How fast the flame pattern rises.')
+        },
+        equation: 'tapered silhouette + advected noise + heat palette',
+        steps: [
+            step('q = \\left(\\frac{x}{b},\\ \\frac{y + 1.05}{h}\\right), \\quad u = \\operatorname{warp}_{0.75\\tau}\\left(2 q_x,\\ 3.8\\, q_y - 0.3\\, \\omega t\\right)', 'Normalize the flame’s box (base width b, height h). The noise coordinate u slides downward over time, so the pattern read through it rises, and is warped by the turbulence τ.'),
+            step('\\text{flame} = 1 - \\operatorname{smoothstep}\\left(-0.13,\\ 0.13,\\ |q_x| - 0.7(1 - q_y)^{0.63} - 0.65\\,\\tau\\,\\left(n(u) - \\frac{1}{2}\\right)\\right)', 'A teardrop envelope narrowing upward, its edge torn into tongues by the rising noise n(u); a red–yellow–white heat palette colors it by height and intensity.')
+        ],
+        notes: [['n(u)', 'fractal noise of the upward-advected coordinate'], ['\\text{heat}', 'flame × height falloff, mapped red → yellow → white']],
+        concepts: ['domain-warp', 'fbm', 'smoothstep'],
+        curve: { title: 'Flame half-width along its height (τ = 0)', x: 'height q_y', y: 'half-width', domain: () => [0, 1], series: [{ f: y => 0.7 * (1 - y) ** 0.63 }] },
+        description: 'New explanatory fire study. Moving the sampling coordinates creates upward flow without storing a simulation state. Not a reconstruction of the linked video.',
+        emit: (i, u) => `firePlume(${i.p},${u.height},${u.width},${u.turbulence},u_time*${u.speed})`
+    }),
+    hedgehog: component({
+        name: 'Hedgehog & quill field', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            quills: num('Quill length', 0.28, 0.02, 0.7, 0.01, 'L', 'Length of the quills.'),
+            density: num('Quill count', 160, 10, 160, 1, 'N', 'Number of quills drawn (up to 160).'),
+            speed: num('Breathing speed', 0.5, 0, 2, 0.01, '\\omega', 'Speed of the subtle breathing motion.')
+        },
+        equation: 'elliptical body + repeated tapered segment quills + facial masks',
+        steps: [
+            step('\\text{body} = [\\,|q/(0.91, 0.59)| < 1\\,], \\quad q = (p - c)\\,/\\,(1,\\ 1 + 0.007 \\sin(1.8\\, \\omega t))', 'An ellipse for the body, breathing very slightly over time.'),
+            step('\\text{quill}_i = e^{-(d_i/0.007(1.1 - 0.8 u_i))^2}, \\quad |\\text{quill}_i| = L\\,(0.65 + 0.35\\, h_i), \\quad i < N', 'N quills, each a Gaussian line that tapers along its length, starting at a hashed point on the body and about L long; they are layered with Over, and the head, ear, eye and feet are added the same way.')
+        ],
+        notes: [['d_i, u_i', 'distance to quill i and position along it'], ['h_i', 'hashed per-quill variation']],
+        concepts: ['hash', 'gaussian', 'over', 'stamp'],
+        description: 'New constructive hedgehog example. Separate local stamps supply a readable silhouette and repeated surface detail; no claim about the inaccessible video steps.',
+        emit: (i, u) => `hedgehog(${i.p},${u.quills},${u.density},u_time*${u.speed})`
+    })
+};
+const typeNames = { coord: 'Coordinates · vec2', scalar: 'Scalar field · float', geometry: 'Geometry · S/A/coverage', layer: 'Radiance + alpha · vec4' };
+const typeLabels = { coord: 'coordinates', scalar: 'scalar field', geometry: 'geometry', layer: 'color layer' };
+const zeroByType = { coord: 'vec2(0)', scalar: '0.0', geometry: 'Geometry(0.0,0.0,0.0)', layer: 'vec4(0)' };
+function parameterDefaults(type) {
+    if (!Object.hasOwn(catalog, type)) {
+        throw new Error(`Unknown component: ${type}`);
+    }
+    return Object.fromEntries(Object.entries(catalog[type].params).map(([key, spec]) => [key, spec.value]));
+}
+/** Parameter specs of a node: its component's, plus the parameters a custom
+ * equation declares with `param` lines (see expression.js). An equation that
+ * does not parse contributes none; validation reports it.
+ */
+function paramSpecs(node) {
+    const def = catalog[node.type];
+    if (!def?.custom) {
+        return def?.params || {};
+    }
+    try {
+        return { ...def.params, ...equationParams(node.params.expression, node.type) };
+    }
+    catch (e) {
+        return def.params;
+    }
+}
+/** Socket passed through when a node of this type is disabled, or null. */
+function bypassSocket(type) {
+    return catalog[type]?.bypass ?? null;
+}
+/** Types that can be inserted on a wire of `kind`: modifiers whose bypass socket
+ * and output both have that type, so the old connection passes through them.
+ */
+function insertableTypes(kind) {
+    return Object.entries(catalog).filter(([, d]) => d.output === kind && d.bypass && d.inputs[d.bypass] === kind).map(([type]) => type);
+}
+/** Types with the same output that could replace a node of `type`. */
+function replacementTypes(type) {
+    const output = catalog[type].output;
+    return Object.entries(catalog).filter(([t, d]) => t !== type && d.output === output).map(([t]) => t);
+}
+/** GLSL for one node with readable names: socket names for inputs and parameter
+ * keys for uniforms. Shown in the inspector next to the typeset equation.
+ */
+function emitPreview(type, params = {}) {
+    const d = catalog[type], names = keys => Object.fromEntries(keys.map(k => [k, k]));
+    return d.emit(names(Object.keys(d.inputs)), names(Object.keys(d.params))) || params.expression || '';
+}
+
+return {catalog,typeNames,typeLabels,zeroByType,parameterDefaults,paramSpecs,bypassSocket,insertableTypes,replacementTypes,emitPreview};
+})();
+__modules['graph.js'] = (() => {
+const { catalog, parameterDefaults, bypassSocket, paramSpecs } = __modules['catalog.js'];
+const { compileEquation, EquationError } = __modules['expression.js'];
+/** JSON-only graph model; imported projects are data, never executable JavaScript. */
+const SCHEMA_VERSION = 1;
+const MAX_NODES = 80;
+const MAX_TRACKS = 160;
+const MAX_KEYS = 500;
+const MAX_LABEL = 160;
+/** Camera bounds shared by validation and the canvas gestures. */
+const VIEW_LIMITS = { zoom: [0.1, 12], pan: [-20, 20] };
+const DURATION_LIMITS = [0.1, 120];
+const EXPOSURE_LIMITS = [0, 8];
+const validId = /^[a-zA-Z][a-zA-Z0-9_-]{0,47}$/;
+function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+}
+function makeNode(type, id, inputs = {}, params = {}) {
+    const node = { id, type, label: catalog[type]?.name || type, inputs: { ...inputs }, params: { ...parameterDefaults(type), ...params }, enabled: true };
+    // Parameters declared by a custom equation (`param` lines) start at their declared values.
+    for (const [key, spec] of Object.entries(paramSpecs(node))) {
+        if (!Object.hasOwn(node.params, key)) {
+            node.params[key] = spec.value;
+        }
+    }
+    return node;
+}
+/** Check a custom equation (see expression.js): it must parse and, when `kind`
+ * (the component type) is given, have that component's result type. Equations
+ * are data: they are type-checked and re-printed as GLSL, never pasted. Returns
+ * the source unchanged.
+ */
+function validateExpression(value, kind = null) {
+    if (typeof value !== 'string') {
+        throw new EquationError('An equation must be text.');
+    }
+    compileEquation(value, kind);
+    return value;
+}
+function finiteRange(x, min, max, label) {
+    if (typeof x !== 'number' || !Number.isFinite(x) || x < min || x > max) {
+        throw new Error(`${label} must be a finite number in [${min}, ${max}].`);
+    }
+}
+function validateProject(project) {
+    if (!project || typeof project !== 'object' || Array.isArray(project) || project.schemaVersion !== SCHEMA_VERSION) {
+        throw new Error('Unsupported project schema. Expected equation-studio schemaVersion 1.');
+    }
+    if (typeof project.title !== 'string' || project.title.length > MAX_LABEL) {
+        throw new Error(`Project title must be at most ${MAX_LABEL} characters.`);
+    }
+    if (!Array.isArray(project.nodes) || !project.nodes.length || project.nodes.length > MAX_NODES) {
+        throw new Error(`Projects require 1–${MAX_NODES} components.`);
+    }
+    finiteRange(project.duration, ...DURATION_LIMITS, 'Duration');
+    finiteRange(project.exposure, ...EXPOSURE_LIMITS, 'Exposure');
+    if (!['source', 'filmic', 'linear'].includes(project.tone)) {
+        throw new Error('Unknown output conversion.');
+    }
+    if (!project.view || typeof project.view !== 'object') {
+        throw new Error('Missing view settings.');
+    }
+    finiteRange(project.view.zoom, ...VIEW_LIMITS.zoom, 'View zoom');
+    finiteRange(project.view.x, ...VIEW_LIMITS.pan, 'View X');
+    finiteRange(project.view.y, ...VIEW_LIMITS.pan, 'View Y');
+    const byId = new Map();
+    for (const n of project.nodes) {
+        if (!n || !validId.test(n.id) || byId.has(n.id)) {
+            throw new Error(`Invalid or duplicate node id: ${n?.id}`);
+        }
+        if (!Object.hasOwn(catalog, n.type)) {
+            throw new Error(`Unknown component type: ${n.type}`);
+        }
+        if (typeof n.label !== 'string' || n.label.length > MAX_LABEL) {
+            throw new Error(`Node labels must be strings of at most ${MAX_LABEL} characters.`);
+        }
+        if (typeof n.enabled !== 'boolean') {
+            throw new Error(`${n.id}: enabled must be boolean.`);
+        }
+        if (!n.params || typeof n.params !== 'object' || Array.isArray(n.params) || !n.inputs || typeof n.inputs !== 'object' || Array.isArray(n.inputs)) {
+            throw new Error(`Invalid inputs or params for ${n.id}.`);
+        }
+        const def = catalog[n.type];
+        if (def.custom) {
+            try {
+                validateExpression(n.params.expression, n.type);
+            }
+            catch (e) {
+                throw new Error(`${n.label || n.id}: ${e.message}`);
+            }
+        }
+        const specs = paramSpecs(n);
+        for (const k of Object.keys(n.params)) {
+            if (!Object.hasOwn(specs, k)) {
+                throw new Error(`Unknown parameter ${n.id}.${k}.`);
+            }
+        }
+        for (const [k, s] of Object.entries(specs)) {
+            const v = n.params[k];
+            if (s.kind === 'number') {
+                finiteRange(v, s.min, s.max, `${n.id}.${k}`);
+            }
+            else if (s.kind === 'color' && (typeof v !== 'string' || !/^#[0-9a-f]{6}$/i.test(v))) {
+                throw new Error(`Invalid RGB color at ${n.id}.${k}.`);
+            }
+            else if (s.kind === 'expression' && typeof v !== 'string') {
+                throw new Error(`Invalid equation at ${n.id}.${k}.`);
+            }
+        }
+        for (const k of Object.keys(n.inputs)) {
+            if (!Object.hasOwn(def.inputs, k)) {
+                throw new Error(`Unknown socket ${n.id}.${k}.`);
+            }
+        }
+        byId.set(n.id, n);
+    }
+    for (const n of project.nodes) {
+        for (const [key, target] of Object.entries(n.inputs)) {
+            if (target === null || target === '') {
+                continue;
+            }
+            if (typeof target !== 'string' || !byId.has(target)) {
+                throw new Error(`Missing input ${target} on ${n.id}.${key}.`);
+            }
+            const actual = catalog[byId.get(target).type].output, expected = catalog[n.type].inputs[key];
+            if (actual !== expected) {
+                throw new Error(`${n.id}.${key} expects ${expected}, not ${actual}.`);
+            }
+        }
+    }
+    if (!byId.has(project.output)) {
+        throw new Error('The output component does not exist.');
+    }
+    // Validate all nodes, including disconnected ones. Never permit latent cycles.
+    const colors = new Map();
+    function visit(id) {
+        if (colors.get(id) === 1) {
+            throw new Error(`Cycle detected at ${id}. Connections must form a directed acyclic graph.`);
+        }
+        if (colors.get(id) === 2) {
+            return;
+        }
+        colors.set(id, 1);
+        for (const t of Object.values(byId.get(id).inputs)) {
+            if (t) {
+                visit(t);
+            }
+        }
+        colors.set(id, 2);
+    }
+    for (const id of byId.keys()) {
+        visit(id);
+    }
+    if (!Array.isArray(project.tracks) || project.tracks.length > MAX_TRACKS) {
+        throw new Error('Invalid animation tracks.');
+    }
+    const trackIds = new Set();
+    for (const track of project.tracks) {
+        const n = byId.get(track.node), s = n && paramSpecs(n)[track.param], key = `${track.node}.${track.param}`;
+        if (!s || s.kind !== 'number' || trackIds.has(key)) {
+            throw new Error(`Invalid or duplicate track: ${key}`);
+        }
+        trackIds.add(key);
+        if (!['linear', 'smooth', 'hold'].includes(track.interpolation)) {
+            throw new Error(`Invalid interpolation for ${key}.`);
+        }
+        if (!Array.isArray(track.keys) || track.keys.length > MAX_KEYS) {
+            throw new Error(`A track can have at most ${MAX_KEYS} keys.`);
+        }
+        let previous = -1;
+        for (const k of track.keys) {
+            finiteRange(k.time, 0, project.duration, 'Key time');
+            finiteRange(k.value, s.min, s.max, 'Key value');
+            if (k.time <= previous) {
+                throw new Error('Key times must be unique and increasing.');
+            }
+            previous = k.time;
+        }
+    }
+    return project;
+}
+/** Inputs a node actually evaluates. A disabled node is bypassed: it evaluates only
+ * its pass-through socket (catalog `bypass`), or nothing when it has none.
+ */
+function activeInputs(node) {
+    if (node.enabled) {
+        return Object.values(node.inputs).filter(Boolean);
+    }
+    const socket = bypassSocket(node.type);
+    return socket && node.inputs[socket] ? [node.inputs[socket]] : [];
+}
+/** Dependencies of `target` in evaluation order, ending with the target itself.
+ * Disabled nodes pull in only their bypass input. Pass `null` to order every
+ * node, which the multi-target preview shader uses.
+ */
+function topologicalOrder(project, target = project.output) {
+    const map = new Map(project.nodes.map(n => [n.id, n])), seen = new Set(), order = [];
+    function walk(id) {
+        if (seen.has(id)) {
+            return;
+        }
+        const n = map.get(id);
+        if (!n) {
+            throw new Error(`Unknown component ${id}`);
+        }
+        seen.add(id);
+        for (const i of activeInputs(n)) {
+            walk(i);
+        }
+        order.push(n);
+    }
+    if (target === null) {
+        for (const n of project.nodes) {
+            walk(n.id);
+        }
+    }
+    else {
+        walk(target);
+    }
+    return order;
+}
+/** Every node in a valid evaluation order, following all connections whatever the
+ * enabled flags. This is the order of the Pipeline panel: each node appears after
+ * everything it reads.
+ */
+function evaluationOrder(project) {
+    const map = new Map(project.nodes.map(n => [n.id, n])), seen = new Set(), order = [];
+    const walk = id => {
+        if (seen.has(id) || !map.has(id)) {
+            return;
+        }
+        seen.add(id);
+        for (const source of Object.values(map.get(id).inputs)) {
+            if (source) {
+                walk(source);
+            }
+        }
+        order.push(map.get(id));
+    };
+    project.nodes.forEach(n => walk(n.id));
+    return order;
+}
+/** Nodes that read `id` directly, with the socket they read it through. */
+function consumers(project, id) {
+    const result = [];
+    for (const n of project.nodes) {
+        for (const [socket, source] of Object.entries(n.inputs)) {
+            if (source === id) {
+                result.push({ node: n, socket });
+            }
+        }
+    }
+    return result;
+}
+/** IDs that `id` depends on, transitively (regardless of enabled flags). */
+function upstream(project, id) {
+    const map = new Map(project.nodes.map(n => [n.id, n])), result = new Set();
+    const walk = current => {
+        for (const source of Object.values(map.get(current)?.inputs || {})) {
+            if (source && !result.has(source)) {
+                result.add(source);
+                walk(source);
+            }
+        }
+    };
+    walk(id);
+    return result;
+}
+/** IDs that depend on `id`, transitively (regardless of enabled flags). */
+function downstream(project, id) {
+    const result = new Set();
+    let frontier = [id];
+    while (frontier.length) {
+        const next = [];
+        for (const n of project.nodes) {
+            if (!result.has(n.id) && Object.values(n.inputs).some(source => frontier.includes(source))) {
+                result.add(n.id);
+                next.push(n.id);
+            }
+        }
+        frontier = next;
+    }
+    return result;
+}
+function parseProject(text) {
+    if (typeof text !== 'string' || text.length > 1000000) {
+        throw new Error('Project files are limited to 1 MB.');
+    }
+    return validateProject(JSON.parse(text));
+}
+function uniqueId(project, type) {
+    const ids = new Set(project.nodes.map(n => n.id));
+    for (let i = 1; i <= MAX_NODES + 1; i++) {
+        if (!ids.has(`${type}${i}`)) {
+            return `${type}${i}`;
+        }
+    }
+    throw new Error('No free component identifier.');
+}
+/** Delete a node, its incoming references and its tracks; the output falls back
+ * to the last remaining node. Mutates and revalidates `project`.
+ */
+function removeNode(project, id) {
+    if (project.nodes.length === 1) {
+        throw new Error('The project must keep at least one component.');
+    }
+    project.nodes = project.nodes.filter(n => n.id !== id);
+    for (const n of project.nodes) {
+        for (const k of Object.keys(n.inputs)) {
+            if (n.inputs[k] === id) {
+                delete n.inputs[k];
+            }
+        }
+    }
+    project.tracks = project.tracks.filter(t => t.node !== id);
+    if (project.output === id) {
+        project.output = project.nodes.at(-1).id;
+    }
+    return validateProject(project);
+}
+/** Undo/redo stack of project snapshots. Every entry is an independent clone. */
+class History {
+    constructor(limit = 60) {
+        this.limit = limit;
+        this.past = [];
+        this.future = [];
+    }
+    push(project) {
+        this.past.push(clone(project));
+        if (this.past.length > this.limit) {
+            this.past.shift();
+        }
+        this.future = [];
+    }
+    undo(current) {
+        if (!this.past.length) {
+            return null;
+        }
+        this.future.push(clone(current));
+        return this.past.pop();
+    }
+    redo(current) {
+        if (!this.future.length) {
+            return null;
+        }
+        this.past.push(clone(current));
+        return this.future.pop();
+    }
+}
+
+return {SCHEMA_VERSION,MAX_NODES,MAX_TRACKS,MAX_KEYS,MAX_LABEL,VIEW_LIMITS,DURATION_LIMITS,EXPOSURE_LIMITS,clone,makeNode,validateExpression,validateProject,activeInputs,topologicalOrder,evaluationOrder,consumers,upstream,downstream,parseProject,uniqueId,removeNode,History};
+})();
+__modules['looks.js'] = (() => {
+/** Looks: how a field that has no color of its own is shown on screen.
+ *
+ * A scalar, a coordinate pair or a geometry bundle is a number (or several) at
+ * every pixel, not a color. To see one we must choose an encoding, a "look". The
+ * same tables drive the shader (GLSL is generated from them below) and the
+ * thumbnails painted on the CPU, so a stage looks identical on the canvas and in
+ * the Pipeline.
+ *
+ *   scalar    auto     colormap over the field's actual range, with contour lines:
+ *                      a diverging map (cool < 0 < warm, dark at zero) when the
+ *                      field takes both signs, a sequential map otherwise
+ *             classic  gray = ½ + ½·tanh(value), the 1.x diagnostic
+ *   coord     auto     the image of a regular grid: where each grid cell of the
+ *                      output coordinates lands, with the q_x = 0 and q_y = 0 axes
+ *             classic  red = ½ + ½ sin x, green = ½ + ½ sin y
+ *   geometry  auto     one channel (S, A or coverage) as a scalar
+ *             classic  red = 4·rim, green = coverage, blue = ½ + ½·tanh(warp)
+ *   layer     auto     natural display, or an exposure-adjusted one when the
+ *                      layer is almost entirely clipped or black (see layerGain)
+ *             classic  natural display at the scene exposure
+ *             alpha    coverage as gray
+ *
+ * Everything here is pure: no DOM and no WebGL, so it is unit tested in Node.
+ */
+const LOOK_CODES = { classic: 0, auto: 1, alpha: 2 };
+const TYPE_CODES = { coord: 0, scalar: 1, geometry: 2, layer: 3 };
+const GEOMETRY_CHANNELS = ['S', 'A', 'coverage'];
+/** Colormap stops [position 0–1, '#rrggbb'], interpolated linearly in display RGB. */
+const COLORMAPS = {
+    // Dark to bright for fields that do not change sign (inferno-like; matplotlib's maps are CC0).
+    sequential: [[0, '#000004'], [0.13, '#1b0c41'], [0.25, '#4a0c6b'], [0.38, '#781c6d'], [0.5, '#a52c60'], [0.63, '#cf4446'], [0.75, '#ed6925'], [0.88, '#fb9b06'], [1, '#fcffa4']],
+    // Signed fields: cool below zero, near-black at zero, warm above zero. The same
+    // warm/cool convention as the "signed difference" view of what a component changes.
+    diverging: [[0, '#c4ecff'], [0.18, '#4a9df0'], [0.36, '#1f4f8f'], [0.5, '#0c1015'], [0.64, '#7a3314'], [0.82, '#ea6d2c'], [1, '#ffecb0']]
+};
+const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+function hexToRGB(hex) {
+    return [1, 3, 5].map(k => parseInt(hex.slice(k, k + 2), 16) / 255);
+}
+/** Color of a colormap at t (clamped to 0–1), as [r, g, b] in 0–1. */
+function sampleColormap(stops, t) {
+    const x = clamp(Number.isFinite(t) ? t : 0, 0, 1);
+    for (let i = 1; i < stops.length; i++) {
+        const [a, ca] = stops[i - 1], [b, cb] = stops[i];
+        if (x <= b) {
+            const u = (x - a) / (b - a), p = hexToRGB(ca), q = hexToRGB(cb);
+            return [0, 1, 2].map(k => p[k] + (q[k] - p[k]) * u);
+        }
+    }
+    return hexToRGB(stops.at(-1)[1]);
+}
+/** A CSS linear-gradient of a colormap, for legends. */
+function colormapCSS(stops, direction = '90deg') {
+    return `linear-gradient(${direction}, ${stops.map(([t, c]) => `${c} ${(t * 100).toFixed(1)}%`).join(', ')})`;
+}
+/** Smallest 1–2–5 × 10ⁿ step that is at least `x`. */
+function niceStep(x) {
+    if (!(x > 0) || !Number.isFinite(x)) {
+        return 1;
+    }
+    const magnitude = 10 ** Math.floor(Math.log10(x));
+    for (const m of [1, 2, 5, 10]) {
+        if (m * magnitude >= x * (1 - 1e-9)) {
+            return m * magnitude;
+        }
+    }
+    return 10 * magnitude;
+}
+/** Robust summary of one channel of interleaved float data (RGBA by default).
+ * `lo`/`hi` are the 0.5th and 99.5th percentiles, so a few extreme pixels do not
+ * wash out the colormap. Percentiles come from a 1024-bin histogram (linear time).
+ */
+function fieldStats(data, { channel = 0, stride = 4, low = 0.005, high = 0.995, bins = 48 } = {}) {
+    let min = Infinity, max = -Infinity, sum = 0, count = 0, nonfinite = 0;
+    for (let i = channel; i < data.length; i += stride) {
+        const v = data[i];
+        if (!Number.isFinite(v)) {
+            nonfinite++;
+            continue;
+        }
+        if (v < min) {
+            min = v;
+        }
+        if (v > max) {
+            max = v;
+        }
+        sum += v;
+        count++;
+    }
+    if (!count) {
+        return { count: 0, nonfinite, min: 0, max: 0, mean: 0, median: 0, lo: 0, hi: 0, histogram: new Array(bins).fill(0) };
+    }
+    const span = max - min, fine = new Uint32Array(1024), histogram = new Array(bins).fill(0);
+    if (span > 0) {
+        for (let i = channel; i < data.length; i += stride) {
+            const v = data[i];
+            if (Number.isFinite(v)) {
+                const u = (v - min) / span;
+                fine[Math.min(1023, Math.floor(u * 1024))]++;
+                histogram[Math.min(bins - 1, Math.floor(u * bins))]++;
+            }
+        }
+    }
+    else {
+        histogram[0] = count;
+    }
+    const percentile = q => {
+        if (span <= 0) {
+            return min;
+        }
+        const target = q * count;
+        let seen = 0;
+        for (let b = 0; b < 1024; b++) {
+            seen += fine[b];
+            if (seen >= target) {
+                return min + span * (b + (q < 0.5 ? 0 : 1)) / 1024;
+            }
+        }
+        return max;
+    };
+    return { count, nonfinite, min, max, mean: sum / count, median: percentile(0.5), lo: Math.max(min, percentile(low)), hi: Math.min(max, percentile(high)), histogram };
+}
+/** Colormap range for a scalar field from its statistics.
+ * Returns {lo, hi, signed, constant, contour}: a field is shown as signed
+ * (diverging, symmetric about zero) when both signs carry at least 2% of its
+ * magnitude; `contour` is a round contour-line spacing (about ten lines).
+ */
+function scalarRange(stats, { contours = true } = {}) {
+    if (!stats || !stats.count) {
+        return { lo: -1, hi: 1, signed: true, constant: false, contour: contours ? 0.2 : 0 };
+    }
+    let { lo, hi } = stats;
+    const magnitude = Math.max(Math.abs(lo), Math.abs(hi), 1e-30);
+    if (hi - lo <= 1e-7 * magnitude) {
+        const pad = Math.max(Math.abs(lo) * 0.5, 0.5);
+        return { lo: lo - pad, hi: hi + pad, signed: false, constant: true, value: lo, contour: 0 };
+    }
+    const signed = lo < 0 && hi > 0 && Math.min(-lo, hi) >= 0.02 * magnitude;
+    if (signed) {
+        const m = Math.max(-lo, hi);
+        lo = -m;
+        hi = m;
+    }
+    return { lo, hi, signed, constant: false, contour: contours ? niceStep((hi - lo) / 10) : 0 };
+}
+/** Grid spacing for the coordinate look: about eight cells across the larger
+ * extent of the output coordinates in view (x in channel 0, y in channel 1).
+ */
+function gridStep(statsX, statsY) {
+    const extent = Math.max(statsX?.count ? statsX.hi - statsX.lo : 0, statsY?.count ? statsY.hi - statsY.lo : 0);
+    return extent > 0 ? niceStep(extent / 8) : 0.5;
+}
+/** Exposure multiplier for the automatic layer look. A layer that is readable at
+ * the scene exposure keeps gain 1 (natural). One that is almost entirely clipped
+ * (median of its brightest channel above 1.5) or almost black (99.5th percentile
+ * below 0.02) is scaled so its 99.5th percentile maps to 0.9.
+ * `stats` describes max(R, G, B) × scene exposure.
+ */
+function layerGain(stats) {
+    if (!stats || !stats.count || !(stats.hi > 0)) {
+        return 1;
+    }
+    if (stats.hi < 0.02 || stats.median > 1.5) {
+        return clamp(0.9 / stats.hi, 1e-6, 1e6);
+    }
+    return 1;
+}
+// ---- Display conversion (the JavaScript twin of displayColor in math-glsl.js) ----
+const cutoff = x => Math.exp(-Math.exp(clamp(x, -80, 6)));
+/** One displayed channel, 0–1, from radiance × exposure `h`, as in the shader. */
+function displayChannel(h, tone) {
+    if (tone === 'source') {
+        const f = 255 * cutoff(-1000 * h) * Math.pow(Math.max(Math.abs(h), 1e-30), cutoff(1000 * (h - 1)));
+        return clamp(Math.floor(f), 0, 255) / 255;
+    }
+    if (tone === 'filmic') {
+        return Math.pow(1 - Math.exp(-Math.max(h, 0)), 1 / 2.2);
+    }
+    return clamp(h, 0, 1);
+}
+// ---- CPU painting of raw float tiles (thumbnails) ------------------------------
+const hsvToRGB = (h, s, v) => {
+    const f = n => {
+        const k = (n + h * 6) % 6;
+        return v - v * s * Math.max(0, Math.min(k, 4 - k, 1));
+    };
+    return [f(5), f(3), f(1)];
+};
+/** Base color of one grid cell in the coordinate look: a slowly varying pastel hue
+ * so cells can be followed through strong warps, alternating in brightness.
+ */
+const cellColors = new Map();
+function gridCellColor(cx, cy) {
+    const key = `${cx},${cy}`;
+    let color = cellColors.get(key);
+    if (!color) {
+        const hue = ((cx * 0.13 + cy * 0.29) % 1 + 1) % 1, checker = ((cx + cy) % 2 + 2) % 2;
+        color = hsvToRGB(hue, 0.35, checker ? 0.33 : 0.22);
+        if (cellColors.size > 4096) {
+            cellColors.clear();
+        }
+        cellColors.set(key, color);
+    }
+    return color;
+}
+/** A colormap sampled into a 1024-entry byte table (r, g, b per entry) for fast
+ * painting; within 1/255 of sampleColormap and of the shader.
+ */
+const LUT_SIZE = 1024, luts = new Map();
+function colormapTable(stops) {
+    if (!luts.has(stops)) {
+        const table = new Uint8ClampedArray(LUT_SIZE * 3);
+        for (let i = 0; i < LUT_SIZE; i++) {
+            const c = sampleColormap(stops, i / (LUT_SIZE - 1));
+            table.set(c.map(v => Math.round(v * 255)), i * 3);
+        }
+        luts.set(stops, table);
+    }
+    return luts.get(stops);
+}
+/** Display byte (0–255) of radiance × exposure `h`; displayChannel() × 255 with a
+ * fast exact path for the common middle range of the source mapping.
+ */
+function displayByte(h, tone) {
+    if (tone === 'source') { // exact shortcuts where the nested gates are exactly 0 or 1 in double precision
+        if (h >= 0.08 && h <= 0.9) {
+            return Math.floor(255 * h);
+        }
+        if (h >= 1.1) {
+            return 255;
+        }
+        if (h <= 0) {
+            return 0;
+        }
+        if (h < 0.08) {
+            return Math.floor(255 * Math.exp(-Math.exp(-1000 * h)) * h); // the outer exponent is exactly 1 here
+        }
+    }
+    return Math.round(displayChannel(h, tone) * 255);
+}
+const GRID_LINE = [158, 173, 184], AXIS_X = [242, 115, 102], AXIS_Y = [115, 230, 140];
+/** Paint a raw float tile (RGBA, top row first) as display bytes using a look.
+ * `look` = {type, mode: 'auto'|'classic'|'alpha', channel, range, gain, step,
+ * exposure, tone}; see lookForStats() for how the automatic parameters are chosen.
+ */
+function paintTile(values, width, height, look) {
+    const out = new Uint8ClampedArray(width * height * 4);
+    const { type, mode = 'auto', exposure = 1, tone = 'filmic' } = look, range = look.range;
+    const classic = mode === 'classic' || (type !== 'layer' && type !== 'coord' && !range);
+    const signed = !!range?.signed, table = colormapTable(signed ? COLORMAPS.diverging : COLORMAPS.sequential);
+    const lo = range?.lo ?? 0, span = Math.max((range?.hi ?? 1) - lo, 1e-30), half = Math.max(Math.abs(range?.lo ?? 1), Math.abs(range?.hi ?? 1), 1e-30);
+    const channel = type === 'geometry' ? (look.channel ?? 0) : 0, gain = (look.gain ?? 1) * exposure, step = look.step || 0.5;
+    const setRGB = (i, r, g, b) => {
+        out[i] = r;
+        out[i + 1] = g;
+        out[i + 2] = b;
+        out[i + 3] = 255;
+    };
+    const setUnit = (i, r, g, b) => setRGB(i, Math.round(clamp(r, 0, 1) * 255), Math.round(clamp(g, 0, 1) * 255), Math.round(clamp(b, 0, 1) * 255));
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4, a = values[i], b = values[i + 1], c = values[i + 2], d = values[i + 3];
+            if (!(Number.isFinite(a) && Number.isFinite(b) && Number.isFinite(c) && Number.isFinite(d))) {
+                setRGB(i, 255, 0, 255); // nonfinite values are magenta, as in the shader
+                continue;
+            }
+            if (type === 'layer') {
+                if (mode === 'alpha') {
+                    setUnit(i, d, d, d);
+                }
+                else {
+                    setRGB(i, displayByte(a * gain, tone), displayByte(b * gain, tone), displayByte(c * gain, tone));
+                }
+            }
+            else if (type === 'coord') {
+                if (mode === 'classic') {
+                    setUnit(i, 0.5 + 0.5 * Math.sin(a), 0.5 + 0.5 * Math.sin(b), 0.5);
+                    continue;
+                }
+                // Screen-space derivative from the neighbors gives a one-pixel line width.
+                const nx = x + 1 < width ? i + 4 : x > 0 ? i - 4 : i, ny = y + 1 < height ? i + width * 4 : y > 0 ? i - width * 4 : i;
+                const wx = Math.abs(values[nx] - a) + Math.abs(values[ny] - a), wy = Math.abs(values[nx + 1] - b) + Math.abs(values[ny + 1] - b);
+                if (Math.abs(b) < wy * 1.5) {
+                    setRGB(i, ...AXIS_Y);
+                }
+                else if (Math.abs(a) < wx * 1.5) {
+                    setRGB(i, ...AXIS_X);
+                }
+                else {
+                    const dx = Math.abs(((a / step + 0.5) % 1 + 1) % 1 - 0.5) * step, dy = Math.abs(((b / step + 0.5) % 1 + 1) % 1 - 0.5) * step;
+                    if (dx < wx || dy < wy) {
+                        setRGB(i, ...GRID_LINE);
+                    }
+                    else {
+                        const cell = gridCellColor(Math.floor(a / step), Math.floor(b / step));
+                        setUnit(i, cell[0], cell[1], cell[2]);
+                    }
+                }
+            }
+            else if (type === 'geometry' && mode === 'classic') {
+                setUnit(i, b * 4, c, 0.5 + 0.5 * Math.tanh(a));
+            }
+            else {
+                const v = channel === 0 ? a : channel === 1 ? b : c;
+                if (classic) {
+                    const g = Math.round((0.5 + 0.5 * Math.tanh(v)) * 255);
+                    setRGB(i, g, g, g);
+                    continue;
+                }
+                const t = signed ? 0.5 + 0.5 * v / half : (v - lo) / span, k = Math.round(clamp(t, 0, 1) * (LUT_SIZE - 1)) * 3;
+                setRGB(i, table[k], table[k + 1], table[k + 2]);
+            }
+        }
+    }
+    return out;
+}
+/** Automatic look parameters for a raw float tile of the given type.
+ * Returns {mode, channel, range, gain, step, stats} ready for paintTile() and for
+ * the shader's look uniforms. `options` = {mode, channel, exposure, natural}:
+ * `natural` keeps a layer at gain 1 (the scene's final output).
+ */
+function lookForStats(values, type, options = {}) {
+    const { mode = 'auto', channel = 0, exposure = 1, natural = false } = options;
+    if (type === 'layer') {
+        if (mode !== 'auto' || natural) {
+            return { mode: mode === 'alpha' ? 'alpha' : 'classic', gain: 1 };
+        }
+        const bright = new Float32Array(values.length / 4);
+        for (let i = 0, j = 0; i < values.length; i += 4, j++) {
+            bright[j] = Math.max(values[i], values[i + 1], values[i + 2]) * exposure;
+        }
+        const stats = fieldStats(bright, { stride: 1 });
+        return { mode: 'auto', gain: layerGain(stats), stats };
+    }
+    if (mode === 'classic') {
+        return { mode: 'classic' };
+    }
+    if (type === 'coord') {
+        const x = fieldStats(values, { channel: 0 }), y = fieldStats(values, { channel: 1 });
+        return { mode: 'auto', step: gridStep(x, y), stats: [x, y] };
+    }
+    const stats = fieldStats(values, { channel: type === 'geometry' ? channel : 0 });
+    return { mode: 'auto', channel, range: scalarRange(stats), stats };
+}
+// ---- GLSL -------------------------------------------------------------------
+const glslFloat = x => {
+    const s = String(Number(x.toFixed(6)));
+    return /[.e]/.test(s) ? s : `${s}.0`;
+};
+const glslColor = hex => `vec3(${hexToRGB(hex).map(glslFloat).join(',')})`;
+/** A GLSL function `vec3 name(float t)` evaluating a colormap exactly like sampleColormap. */
+function colormapGLSL(name, stops) {
+    const lines = [`vec3 ${name}(float t) {`, ' t=clamp(t,0.0,1.0);'];
+    for (let i = 1; i < stops.length; i++) {
+        const [a, ca] = stops[i - 1], [b, cb] = stops[i];
+        lines.push(` if(t<=${glslFloat(b)}) return mix(${glslColor(ca)},${glslColor(cb)},(t-${glslFloat(a)})/${glslFloat(b - a)});`);
+    }
+    lines.push(` return ${glslColor(stops.at(-1)[1])};`, '}');
+    return lines.join('\n');
+}
+/** The display conversion inside every graph program: layers through the output
+ * conversion (times an exposure gain, or their coverage as gray), other types
+ * through the classic diagnostic. Deliberately small: the automatic looks run in
+ * a separate pass (lookPassSource) so they never slow down compiling a graph.
+ */
+const presentGLSL = `
+uniform int u_type;     // coord 0, scalar 1, geometry 2, layer 3
+uniform int u_look;     // classic 0, auto 1, alpha 2
+uniform float u_gain;   // layer exposure multiplier of the auto look
+vec3 present(vec4 f){
+ if(u_type==3) return u_look==2?vec3(clamp(f.a,0.0,1.0)):displayColor(f.rgb*u_gain,u_exposure,u_tone);
+ if(u_type==1) return vec3(0.5+0.5*tanh(f.x));
+ if(u_type==0) return vec3(0.5+0.5*sin(f.x),0.5+0.5*sin(f.y),0.5);
+ return vec3(f.y*4.0,f.z,0.5+0.5*tanh(f.x));
+}
+`;
+/** The automatic look as a post pass: raw values of a scalar, coordinate or
+ * geometry stage (a float texture written by the graph program in raw mode)
+ * become colors. Compiled once, whatever the graph.
+ */
+const lookPassSource = `#version 300 es
+precision highp float;
+precision highp int;
+uniform highp sampler2D u_field; // raw values, one texel per output pixel
+uniform vec2 u_origin;           // framebuffer position of texel (0, 0)
+uniform int u_type;              // coord 0, scalar 1, geometry 2
+uniform int u_channel;           // geometry channel: S 0, A 1, coverage 2
+uniform vec4 u_range;            // colormap low, high, signed (0/1), contour spacing (0 = none)
+uniform float u_grid;            // grid spacing of the coordinate look
+out vec4 outputColor;
+${colormapGLSL('sequentialMap', COLORMAPS.sequential)}
+${colormapGLSL('divergingMap', COLORMAPS.diverging)}
+vec3 hsv2rgb(vec3 c){vec3 k=clamp(abs(mod(c.x*6.0+vec3(0,4,2),6.0)-3.0)-1.0,0.0,1.0);return c.z*mix(vec3(1),k,c.y);}
+float channelOf(vec4 f){return u_type==1?f.x:(u_channel==0?f.x:(u_channel==1?f.y:f.z));}
+float valueAt(ivec2 at){return channelOf(texelFetch(u_field,clamp(at,ivec2(0),textureSize(u_field,0)-1),0));}
+// A contour line is drawn where a level (a multiple of the spacing) lies between
+// this pixel's value v and a neighbor's value n, on the pixel nearer the crossing.
+// No crossing, no line: a field that only approaches a level (a decaying tail, a
+// flat region) is never outlined, however small its values.
+float crossing(float v,float n,float spacing){
+ float a=floor(v/spacing), b=floor(n/spacing);
+ if(a==b) return 0.0;
+ float level=max(a,b)*spacing;
+ return 1.0-smoothstep(0.3,0.7,(v-level)/(v-n)); // (v-level)/(v-n): 0 here, 1 at the neighbor
+}
+vec3 fieldColors(ivec2 at,float v){
+ float lo=u_range.x, hi=u_range.y;
+ vec3 c=u_range.z>0.5?divergingMap(0.5+0.5*v/max(max(abs(lo),abs(hi)),1e-30)):sequentialMap((v-lo)/max(hi-lo,1e-30));
+ if(u_range.w>0.0){
+  float line=0.0, zero=0.0;
+  for(int k=0;k<4;k++){
+   ivec2 o=k==0?ivec2(1,0):k==1?ivec2(-1,0):k==2?ivec2(0,1):ivec2(0,-1);
+   float n=valueAt(at+o);
+   if(isnan(n)||isinf(n)) continue;
+   line=max(line,crossing(v,n,u_range.w));
+   if(u_range.z>0.5&&(v<0.0)!=(n<0.0)) zero=max(zero,1.0-smoothstep(0.3,0.7,v/(v-n))); // the zero line of a signed field
+  }
+  c=mix(c,vec3(1),0.42*line);
+  c=mix(c,vec3(1),0.55*zero);
+ }
+ return c;
+}
+vec3 gridColors(vec2 q){
+ float s=max(u_grid,1e-6); vec2 cell=floor(q/s);
+ float hue=fract(cell.x*0.13+cell.y*0.29), checker=mod(cell.x+cell.y,2.0);
+ vec3 c=hsv2rgb(vec3(hue,0.35,checker>0.5?0.33:0.22));
+ vec2 w=max(fwidth(q),vec2(1e-30)), d=abs(fract(q/s+0.5)-0.5)*s, line=1.0-smoothstep(0.5*w,1.5*w,d);
+ c=mix(c,vec3(0.62,0.68,0.72),max(line.x,line.y)*0.85);
+ vec2 axis=1.0-smoothstep(w,2.5*w,abs(q));
+ c=mix(c,vec3(0.95,0.45,0.4),axis.x);
+ c=mix(c,vec3(0.45,0.9,0.55),axis.y);
+ return c;
+}
+void main(){
+ ivec2 at=ivec2(gl_FragCoord.xy-u_origin);
+ vec4 f=texelFetch(u_field,at,0);
+ if(any(isnan(f))||any(isinf(f))){outputColor=vec4(1,0,1,1);return;}
+ vec3 c=u_type==0?gridColors(f.xy):fieldColors(at,channelOf(f));
+ outputColor=vec4(c,1);
+}
+`;
+/** Look uniform values for renderer.execute(). `look` as returned by lookForStats
+ * (or {mode: 'classic'}); missing fields fall back to the classic diagnostic.
+ */
+function lookUniforms(type, look = {}) {
+    const mode = look.mode || 'classic', range = look.range;
+    return {
+        type: TYPE_CODES[type] ?? 3,
+        look: LOOK_CODES[mode] ?? 0,
+        channel: look.channel ?? 0,
+        range: range ? [range.lo, range.hi, range.signed ? 1 : 0, range.contour || 0] : [-1, 1, 1, 0],
+        gain: look.gain ?? 1,
+        grid: look.step ?? 0.5
+    };
+}
+
+return {LOOK_CODES,TYPE_CODES,GEOMETRY_CHANNELS,COLORMAPS,hexToRGB,sampleColormap,colormapCSS,niceStep,fieldStats,scalarRange,gridStep,layerGain,displayChannel,gridCellColor,colormapTable,paintTile,lookForStats,colormapGLSL,presentGLSL,lookPassSource,lookUniforms};
+})();
+__modules['compiler.js'] = (() => {
+const { catalog, zeroByType, bypassSocket, paramSpecs } = __modules['catalog.js'];
+const { compileEquation, programGLSL } = __modules['expression.js'];
+const { validateProject, evaluationOrder, topologicalOrder, upstream, MAX_NODES } = __modules['graph.js'];
+const { mathGLSL } = __modules['math-glsl.js'];
+const { nebulaGLSL } = __modules['nebula-glsl.js'];
+const { motifsGLSL } = __modules['motifs-glsl.js'];
+const { presentGLSL } = __modules['looks.js'];
+/** Typed DAG → one GLSL ES 3.00 fragment program per graph STRUCTURE.
+ *
+ * Every component becomes one local variable inside `evaluate()`. What changes
+ * from frame to frame is passed as uniforms, never baked into the source:
+ *
+ *   parameters          u_params, four numbers per vec4 (named by #define aliases)
+ *   which is shown      u_target: the index of the component whose value is output
+ *   included / bypassed u_enabled: one bit per component
+ *   what is evaluated   u_active: one bit per component, the target's dependencies,
+ *                       so a program for the whole graph only computes what the
+ *                       current view needs
+ *   view mode           u_mode: display colors or raw values
+ *
+ * So ticking a checkbox, walking the pipeline, showing what a component changes,
+ * rendering every thumbnail and probing raw values all reuse one linked program.
+ * Only wiring, component kinds and custom equations change the source. This
+ * matters because some drivers take seconds to compile a large program; for the
+ * same reason the program stays lean: "what it changes" is two ordinary draws
+ * combined by comparePassSource, and the automatic colormaps of looks.js are a
+ * post pass over raw values, both small fixed shaders compiled once.
+ *
+ * A bypassed component forwards its catalog `bypass` input unchanged, or a typed
+ * zero when it has none (content such as a star field).
+ */
+const MODES = { display: 0, raw: 1 };
 const CONTRIBUTION_STYLES = ['highlight', 'signed'];
+const glslTypes = { coord: 'vec2', scalar: 'float', geometry: 'Geometry', layer: 'vec4' };
 const vertexSource = `#version 300 es
 precision highp float;
 void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);gl_Position=vec4(p*2.0-1.0,0,1);}`;
-/** Convert a typed node value to vec4. Non-layer types get a lossy diagnostic
- * false-color view unless `raw` is requested (see ARCHITECTURE.md).
+/** A typed value as the raw vec4 every program returns: scalar (v,0,0,1),
+ * coordinates (x,y,0,1), geometry (warp,rim,coverage,1), layers unchanged.
  */
-function toVec4(type, name, raw) {
+function rawVec4(type, name) {
     if (type === 'scalar') {
-        return raw ? `vec4(${name},0,0,1)` : `vec4(vec3(0.5+0.5*tanh(${name})),1)`;
+        return `vec4(${name},0,0,1)`;
     }
     if (type === 'coord') {
-        return raw ? `vec4(${name},0,1)` : `vec4(0.5+0.5*sin(${name}.x),0.5+0.5*sin(${name}.y),0.5,1)`;
+        return `vec4(${name},0,1)`;
     }
     if (type === 'geometry') {
-        return raw ? `vec4(${name}.warp,${name}.rim,${name}.coverage,1)` : `vec4(${name}.rim*4.0,${name}.coverage,0.5+0.5*tanh(${name}.warp),1)`;
+        return `vec4(${name}.warp,${name}.rim,${name}.coverage,1)`;
     }
     return name;
 }
-/** Final displayed RGB of a vec4 field of the given type. */
-function presentGLSL(type) {
-    return type === 'layer' ? 'displayColor(f.rgb,u_exposure,u_tone)' : 'clamp(f.rgb,0.0,1.0)';
+/** GLSL for each input socket: the source's variable, or a typed zero when unconnected. */
+function inputExpressions(node, names) {
+    return Object.fromEntries(Object.entries(catalog[node.type].inputs).map(([socket, type]) => {
+        const source = node.inputs[socket];
+        return [socket, source && names.has(source) ? names.get(source) : zeroByType[type]];
+    }));
 }
 /** What a bypassed node evaluates to: its pass-through input, or a typed zero. */
 function bypassExpression(node, names) {
     const socket = bypassSocket(node.type), source = socket && node.inputs[socket];
     return source && names.has(source) ? names.get(source) : zeroByType[catalog[node.type].output];
 }
-function compileGraph(project, target = project.output, options = {}) {
-    const { raw = false, contribution = null, contributionStyle = 'highlight', preview = false } = options;
+/** A custom equation as a small typed GLSL function (expression.js prints it from
+ * the checked program; parameters read their uniform aliases).
+ */
+function customFunction(node, name, uniforms) {
+    return programGLSL(compileEquation(node.params.expression, node.type), `equation_${name}`, uniforms);
+}
+/** GLSL expression of an included node. */
+function nodeExpression(node, name, inputs, uniforms, custom) {
+    if (custom) {
+        const call = `equation_${name}(${inputs.p},${inputs.a},${inputs.b},u_time)`;
+        return custom.returns === 'vec3' ? `vec4(${call},1)` : call;
+    }
+    return catalog[node.type].emit(inputs, uniforms);
+}
+/** Everything that changes the generated source. Parameter values, enabled
+ * flags, the output choice and the view are uniforms and are excluded.
+ */
+function programKey(project, subset = null) {
+    const include = subset ? new Set(subset) : null;
+    return JSON.stringify(evaluationOrder(project).filter(n => !include || include.has(n.id)).map(n => [n.id, n.type, n.inputs, n.params.expression ?? null]));
+}
+/** The target and everything upstream of it, whatever the enabled flags: the
+ * nodes a program for viewing `target` must contain.
+ */
+function subgraph(project, target) {
+    return [...upstream(project, target), target];
+}
+/** Compile a project (or the `subset` of its node ids) into one fragment program.
+ * Returns {vertex, fragment, key, order, index, types, params, vectors}:
+ *   order    node ids in evaluation order (index = position)
+ *   types    node id → output type
+ *   params   [{node, param, kind, vector, component}]: where each numeric or color
+ *            parameter lives in u_params
+ */
+function compileProgram(project, { subset = null } = {}) {
     validateProject(project);
+    const include = subset ? new Set(subset) : null;
+    const order = evaluationOrder(project).filter(n => !include || include.has(n.id));
+    if (!order.length) {
+        throw new Error('Nothing to compile.');
+    }
+    if (order.length > MAX_NODES) {
+        throw new Error(`A program holds at most ${MAX_NODES} components.`);
+    }
+    const names = new Map(order.map((n, k) => [n.id, `n${k}`]));
+    const params = [], aliases = [], functions = [], statements = [], selects = [];
+    let vectors = 0, open = null;
+    const allocate = (node, key, kind, alias) => {
+        let vector, component = 0, swizzle;
+        if (kind === 'color') {
+            vector = vectors++;
+            swizzle = 'rgb';
+        }
+        else {
+            if (!open || open.next === 4) {
+                open = { vector: vectors++, next: 0 };
+            }
+            vector = open.vector;
+            component = open.next++;
+            swizzle = 'xyzw'[component];
+        }
+        params.push({ node, param: key, kind, vector, component });
+        aliases.push(`#define ${alias} u_params[${vector}].${swizzle}`);
+        return alias;
+    };
+    order.forEach((n, k) => {
+        const d = catalog[n.type], name = names.get(n.id), uniforms = {};
+        for (const [key, spec] of Object.entries(paramSpecs(n))) {
+            if (spec.kind !== 'expression') {
+                uniforms[key] = allocate(n.id, key, spec.kind, `${name}_${key}`);
+            }
+        }
+        let custom = null;
+        if (d.custom) {
+            custom = customFunction(n, name, uniforms);
+            functions.push(custom.code);
+        }
+        const expression = nodeExpression(n, name, inputExpressions(n, names), uniforms, custom);
+        statements.push(`  // ${name}: ${d.name.replace(/\n/g, ' ')} [${n.id}]
+  ${glslTypes[d.output]} ${name}=${zeroByType[d.output]};
+  if(evaluated(${k})){ if(included(${k})) ${name}=${expression}; else ${name}=${bypassExpression(n, names)}; }`);
+        selects.push(`  if(u_target==${k}) return ${rawVec4(d.output, name)};`);
+    });
+    const fragment = `#version 300 es
+precision highp float;
+precision highp int;
+// Equation Studio program: ${order.length} components. One program serves every view of
+// this graph: the component shown, which are included and how values are colored are
+// uniforms. See docs/ARCHITECTURE.md, "The compiler".
+uniform vec2 u_resolution;
+uniform vec2 u_offset;   // framebuffer origin of the current tile (atlas rendering)
+uniform vec3 u_view;     // pan x, pan y, zoom
+uniform int u_sampling;  // 0 camera grid, 1 points along u_line
+uniform vec4 u_line;     // line sampling: start (xy) and end (zw) in world units
+uniform float u_time;
+uniform float u_exposure;
+uniform int u_tone;
+uniform int u_debug;
+uniform int u_mode;      // 0 display colors, 1 raw values
+uniform int u_target;    // index of the component shown
+uniform uvec4 u_active;  // one bit per component: evaluate it
+uniform uvec4 u_enabled; // one bit per component: include it (otherwise bypass it)
+uniform vec4 u_params[${Math.max(vectors, 1)}];
+out vec4 outputColor;
+${mathGLSL}
+${nebulaGLSL}
+${motifsGLSL}
+${presentGLSL}
+bool componentBit(uvec4 mask,int i){return ((mask[i>>5]>>uint(i&31))&1u)!=0u;}
+bool evaluated(int i){return componentBit(u_active,i);}
+bool included(int i){return componentBit(u_enabled,i);}
+// Parameters: node variable _ parameter name
+${aliases.join('\n')}
+${functions.join('\n')}
+vec4 evaluate(vec2 p){
+${statements.join('\n')}
+${selects.join('\n')}
+  return vec4(0);
+}
+bool nonfinite(vec4 v){return any(isnan(v))||any(isinf(v));}
+void main(){
+ vec2 p;
+ if(u_sampling==1){
+  p=mix(u_line.xy,u_line.zw,(gl_FragCoord.x-u_offset.x)/u_resolution.x);
+ } else {
+  // Fixed horizontal field of view; other aspect ratios crop or extend vertically.
+  p=(gl_FragCoord.xy-u_offset-0.5*u_resolution)*(2000.0/420.0)/u_resolution.x;
+  p=p/u_view.z+u_view.xy+vec2(0.5/420.0);
+ }
+ vec4 field=evaluate(p);
+ if(u_mode==1){outputColor=field;return;}
+ if(nonfinite(field)){outputColor=vec4(1,0,1,1);return;}
+ if(u_debug==1){outputColor=vec4(0,0,0,1);return;}
+ if(u_debug==2){outputColor=vec4(vec3(field.a),1);return;}
+ outputColor=vec4(present(field),1);
+}
+`;
+    return {
+        vertex: vertexSource,
+        fragment,
+        key: programKey(project, subset),
+        order: order.map(n => n.id),
+        index: Object.fromEntries(order.map((n, k) => [n.id, k])),
+        types: Object.fromEntries(order.map(n => [n.id, catalog[n.type].output])),
+        params,
+        vectors: Math.max(vectors, 1)
+    };
+}
+/** "What it changes": the displayed image with the component (u_with) and with it
+ * bypassed (u_without), both drawn by the graph program, compared per pixel.
+ * `highlight` keeps the pixels it changes in color and dims the rest to gray;
+ * `signed` is warm where it adds light and cool where it removes light.
+ */
+const comparePassSource = `#version 300 es
+precision highp float;
+precision highp int;
+uniform highp sampler2D u_with;
+uniform highp sampler2D u_without;
+uniform vec2 u_origin;  // framebuffer position of texel (0, 0)
+uniform int u_style;    // 0 highlight, 1 signed
+out vec4 outputColor;
+bool magenta(vec3 c){return c.r>0.999&&c.g<0.001&&c.b>0.999;}
+void main(){
+ ivec2 at=ivec2(gl_FragCoord.xy-u_origin);
+ vec3 a=texelFetch(u_with,at,0).rgb, b=texelFetch(u_without,at,0).rgb;
+ if(magenta(a)||magenta(b)){outputColor=vec4(1,0,1,1);return;} // a nonfinite value in either image
+ if(u_style==1){
+  // Warm where the component brightens the result, cool where it darkens it.
+  vec3 diff=a-b; float s=dot(diff,vec3(1.0/3.0));
+  vec3 heat=s>0.0?vec3(1.0,0.45,0.15)*s:vec3(0.25,0.55,1.0)*(-s);
+  outputColor=vec4(clamp(heat*4.0,0.0,1.0),1);
+ } else {
+  // Pixels the component changes keep their color; the rest becomes dim gray.
+  float d=max(max(abs(a.r-b.r),abs(a.g-b.g)),abs(a.b-b.b));
+  float lum=dot(a,vec3(0.2126,0.7152,0.0722));
+  outputColor=vec4(mix(vec3(lum)*0.18+0.02,a,smoothstep(0.0,0.02,d)),1);
+ }
+}
+`;
+/** Four 32-bit words with one bit set per listed node that the program contains. */
+function nodeMask(program, ids) {
+    const words = new Uint32Array(4);
+    for (const id of ids) {
+        const k = program.index[id];
+        if (k !== undefined) {
+            words[k >> 5] |= 1 << (k & 31);
+        }
+    }
+    return words;
+}
+/** Per-frame component state for drawing `target` with `program`:
+ * {order, active, enabled, reachable}. `order` lists the nodes the view actually
+ * evaluates (a disabled node pulls in only its bypass input); `reachable` says
+ * whether `contribution` influences the target at all.
+ */
+function viewState(program, project, target, contribution = null) {
+    if (program.index[target] === undefined) {
+        throw new Error(`The program does not contain ${target}.`);
+    }
+    const order = topologicalOrder(project, target).map(n => n.id);
+    return {
+        order,
+        active: nodeMask(program, order),
+        enabled: nodeMask(program, project.nodes.filter(n => n.enabled).map(n => n.id)),
+        reachable: contribution ? order.includes(contribution) : true
+    };
+}
+/** The project with one more component bypassed: the second image of "what it changes". */
+function withBypassed(project, id) {
+    return { ...project, nodes: project.nodes.map(n => n.id === id ? { ...n, enabled: false } : n) };
+}
+/** The program for viewing one target, as a readable description of that view.
+ * Contains only the target's subgraph, so it is the smallest program that can
+ * show it; raw values and "what it changes" are chosen at draw time (MODES).
+ * Returns the compileProgram() result plus {target, type, raw, contribution,
+ * contributionStyle, reachable, evaluated}; `evaluated` lists the nodes the view
+ * evaluates with the current enabled flags.
+ */
+function compileGraph(project, target = project.output, options = {}) {
+    const { raw = false, contribution = null, contributionStyle = 'highlight' } = options;
+    validateProject(project);
+    if (!project.nodes.some(n => n.id === target)) {
+        throw new Error(`Unknown component ${target}.`);
+    }
     if (contribution && !project.nodes.some(n => n.id === contribution)) {
         throw new Error(`Unknown contribution node ${contribution}.`);
     }
     if (!CONTRIBUTION_STYLES.includes(contributionStyle)) {
         throw new Error(`Unknown contribution style ${contributionStyle}.`);
     }
-    const order = topologicalOrder(project, preview ? null : target);
-    const names = new Map(order.map((n, k) => [n.id, `n${k}`]));
-    const uniforms = [], functions = [], expressions = new Map();
-    for (const n of order) {
-        const d = catalog[n.type], name = names.get(n.id);
-        const inputs = Object.fromEntries(Object.entries(d.inputs).map(([k, t]) => [k, n.inputs[k] ? names.get(n.inputs[k]) : zeroByType[t]]));
-        const params = {};
-        for (const [k, spec] of Object.entries(d.params)) {
-            if (spec.kind === 'expression') {
-                continue;
-            }
-            const uname = `u_${name}_${k}`;
-            params[k] = uname;
-            uniforms.push({ name: uname, node: n.id, param: k, type: spec.kind === 'color' ? 'vec3' : 'float' });
-        }
-        let expression;
-        if (!n.enabled) {
-            expression = bypassExpression(n, names);
-        }
-        else if (Object.hasOwn(expressionTypes, n.type)) {
-            // Custom equations become small typed functions with the documented local names.
-            functions.push(`${expressionTypes[n.type]} equation_${name}(vec2 p,float a,float b,float t){float x=p.x,y=p.y,r=length(p),theta=angleOf(p);return ${n.params.expression};}`);
-            expression = `equation_${name}(${inputs.p},${inputs.a},${inputs.b},u_time)`;
-            if (n.type === 'colorExpression') {
-                expression = `vec4(${expression},1)`;
-            }
-        }
-        else {
-            expression = d.emit(inputs, params);
-        }
-        expressions.set(n.id, expression);
-    }
-    const statement = (n, bypassed = false) => {
-        const d = catalog[n.type], name = names.get(n.id);
-        return `  // ${name}: ${d.name.replace(/\n/g, ' ')} [${n.id}]\n  ${glslTypes[d.output]} ${name} = ${bypassed ? bypassExpression(n, names) : expressions.get(n.id)};`;
-    };
-    const last = order.at(-1), type = preview ? 'layer' : catalog[last.type].output;
-    let shaders, fieldCall, presentation;
-    if (preview) {
-        // One program for every thumbnail: layers are display-converted inside so
-        // that all node kinds return a displayable value.
-        const cases = order.map(n => {
-            const name = names.get(n.id), out = catalog[n.type].output;
-            const value = out === 'layer' ? `vec4(displayColor(${name}.rgb,u_exposure,u_tone),1)` : toVec4(out, name, false);
-            return `  if(index==${order.indexOf(n)}) return ${value};`;
-        });
-        shaders = `vec4 shade(vec2 p,int index){\n${order.map(n => statement(n)).join('\n')}\n${cases.join('\n')}\n  return vec4(0,0,0,1);\n}`;
-        fieldCall = 'shade(p,u_previewIndex)';
-        presentation = 'outputColor=vec4(clamp(field.rgb,0.0,1.0),1);';
-    }
-    else {
-        const result = toVec4(type, names.get(last.id), raw);
-        shaders = `vec3 present(vec4 f){ return ${presentGLSL(type)}; }\nvec4 shade(vec2 p){\n${order.map(n => statement(n)).join('\n')}\n  return ${result};\n}`;
-        fieldCall = 'shade(p)';
-        presentation = 'outputColor=vec4(present(field),1);';
-        if (contribution) {
-            shaders += `\nvec4 shadeWithout(vec2 p){\n${order.map(n => statement(n, n.id === contribution)).join('\n')}\n  return ${result};\n}`;
-            const compare = contributionStyle === 'signed'
-                // Warm where the node brightens the result, cool where it darkens it.
-                ? 'vec3 diff=a-b; float s=dot(diff,vec3(1.0/3.0));\n vec3 heat=s>0.0?vec3(1.0,0.45,0.15)*s:vec3(0.25,0.55,1.0)*(-s);\n outputColor=vec4(clamp(heat*4.0,0.0,1.0),1);'
-                // Pixels the node changes keep their color; the rest becomes dim gray.
-                : 'float d=max(max(abs(a.r-b.r),abs(a.g-b.g)),abs(a.b-b.b));\n float lum=dot(a,vec3(0.2126,0.7152,0.0722));\n outputColor=vec4(mix(vec3(lum)*0.18+0.02,a,smoothstep(0.0,0.02,d)),1);';
-            presentation = `vec4 without=shadeWithout(p);
- if(any(isnan(without))||any(isinf(without))){outputColor=vec4(1,0,1,1);return;}
- vec3 a=present(field), b=present(without);
- ${compare}`;
-        }
-    }
-    const fragment = `#version 300 es
-precision highp float;
-precision highp int;
-uniform vec2 u_resolution;
-uniform vec2 u_offset; // framebuffer origin of the current tile (atlas rendering)
-uniform vec3 u_view; // pan.x, pan.y, zoom
-uniform float u_time;
-uniform float u_exposure;
-uniform int u_tone;
-uniform int u_debug;
-uniform int u_previewIndex;
-${uniforms.map(u => `uniform ${u.type} ${u.name};`).join('\n')}
-out vec4 outputColor;
-${mathGLSL}\n${nebulaGLSL}\n${motifsGLSL}\n${functions.join('\n')}
-${shaders}
-void main(){
- // Fixed horizontal field of view; arbitrary aspect ratios crop/extend vertically.
- vec2 p=(gl_FragCoord.xy-u_offset-0.5*u_resolution)*(2000.0/420.0)/u_resolution.x;
- p=p/u_view.z+u_view.xy+vec2(0.5/420.0);
- vec4 field=${fieldCall};
- ${raw && !contribution ? 'outputColor=field;return;' : ''}
- if(any(isnan(field))||any(isinf(field))){outputColor=vec4(1,0,1,1);return;}
- if(u_debug==1){outputColor=vec4(0,0,0,1);return;}
- if(u_debug==2){outputColor=vec4(vec3(field.a),1);return;}
- ${presentation}
-}
-`;
+    const program = compileProgram(project, { subset: subgraph(project, target) });
+    const state = viewState(program, project, target, contribution);
     return {
-        vertex: vertexSource,
-        fragment,
-        uniforms,
-        order: order.map(n => n.id),
-        target: preview ? null : target,
-        type,
+        ...program,
+        target,
+        type: catalog[project.nodes.find(n => n.id === target).type].output,
         raw: raw && !contribution,
         contribution,
         contributionStyle: contribution ? contributionStyle : null,
-        reachable: contribution ? order.some(n => n.id === contribution) : true,
-        preview,
-        previewIndex: preview ? Object.fromEntries(order.map((n, k) => [n.id, k])) : null
+        reachable: state.reachable,
+        evaluated: state.order
     };
 }
 
-return {CONTRIBUTION_STYLES,vertexSource,compileGraph};
+return {MODES,CONTRIBUTION_STYLES,vertexSource,programKey,subgraph,compileProgram,comparePassSource,nodeMask,viewState,withBypassed,compileGraph};
 })();
 __modules['timeline.js'] = (() => {
 /** Stateless animation evaluation. Rendering t never depends on previous frames. */
@@ -1638,30 +3178,125 @@ function loopTime(time, duration) {
 
 return {interpolateTrack,animatedParameters,insertKey,moveKey,loopTime};
 })();
+__modules['gpu-info.js'] = (() => {
+/** What is actually rendering: a hardware GPU or a software rasterizer.
+ *
+ * Browsers report the WebGL renderer as a free-form string, often wrapped by
+ * ANGLE, e.g. "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 (0x00002F04) Direct3D11
+ * vs_5_0 ps_5_0, D3D11)" or "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro,
+ * Unspecified Version)". describeRenderer() turns it into a short name, the
+ * graphics API underneath and whether it is a software fallback. Pure; the one
+ * browser probe (probeSoftwareFallback) is kept separate.
+ */
+const SOFTWARE = /swiftshader|llvmpipe|softpipe|software|basic render|lavapipe|mesa offscreen|microsoft basic/i;
+const APIS = [
+    [/direct3d ?11|d3d11/i, 'Direct3D 11'], [/direct3d ?12|d3d12/i, 'Direct3D 12'], [/direct3d ?9|d3d9/i, 'Direct3D 9'],
+    [/metal/i, 'Metal'], [/vulkan/i, 'Vulkan'], [/opengl es/i, 'OpenGL ES'], [/opengl/i, 'OpenGL']
+];
+/** {kind: 'hardware'|'software'|'unknown', name, api, raw} for a renderer string. */
+function describeRenderer(renderer = '', vendor = '') {
+    const raw = String(renderer || '').trim();
+    const kind = !raw ? 'unknown' : SOFTWARE.test(raw) ? 'software' : 'hardware';
+    const api = APIS.find(([pattern]) => pattern.test(raw))?.[1] || null;
+    let name = raw;
+    const angle = /^ANGLE \((.*)\)$/s.exec(raw);
+    if (angle) {
+        // ANGLE (vendor, device [details], backend): keep the device.
+        const parts = angle[1].split(/,\s*/);
+        name = parts.length >= 2 ? parts[1] : parts[0];
+        name = name.replace(/^ANGLE Metal Renderer:\s*/i, '');
+    }
+    name = name
+        .replace(/\s*\(0x[0-9a-f]+\)/ig, '')
+        .replace(/\s+Direct3D\d+.*$/i, '')
+        .replace(/\s+vs_\d_\d.*$/i, '')
+        .replace(/\/PCIe\/SSE2/i, '')
+        .replace(/,?\s*or similar$/i, '')
+        .replace(/\s*\(Subzero\)/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!name) {
+        name = vendor || 'Unknown GPU';
+    }
+    if (kind === 'software' && /swiftshader/i.test(raw)) {
+        name = 'SwiftShader (software)';
+    }
+    return { kind, name, api, raw };
+}
+/** True when the browser would give this page only a slow (software) WebGL 2
+ * context, as reported by `failIfMajorPerformanceCaveat`. Creates and releases one
+ * throwaway context; returns null when WebGL 2 is unavailable altogether.
+ */
+function probeSoftwareFallback(createCanvas = () => document.createElement('canvas')) {
+    const strict = createCanvas().getContext('webgl2', { failIfMajorPerformanceCaveat: true });
+    if (strict) {
+        strict.getExtension('WEBGL_lose_context')?.loseContext();
+        return false;
+    }
+    const relaxed = createCanvas().getContext('webgl2');
+    if (!relaxed) {
+        return null;
+    }
+    relaxed.getExtension('WEBGL_lose_context')?.loseContext();
+    return true;
+}
+/** Advice shown when rendering falls back to software. */
+const SOFTWARE_ADVICE = 'The browser is drawing with a software rasterizer, so every frame is computed on the CPU. Turn on hardware acceleration (Chrome/Edge: Settings → System → “Use graphics acceleration when available”; Firefox: Settings → Performance), update the graphics driver, or try another browser.';
+
+return {describeRenderer,probeSoftwareFallback,SOFTWARE_ADVICE};
+})();
 __modules['renderer.js'] = (() => {
-const { compileGraph } = __modules['compiler.js'];
+const { compileProgram, programKey, subgraph, viewState, withBypassed, comparePassSource, vertexSource, MODES, CONTRIBUTION_STYLES } = __modules['compiler.js'];
 const { animatedParameters } = __modules['timeline.js'];
 const { validateProject } = __modules['graph.js'];
+const { lookUniforms, lookPassSource } = __modules['looks.js'];
+const { describeRenderer } = __modules['gpu-info.js'];
 /** A single fullscreen triangle evaluates the field graph independently per pixel.
  * No mesh, image texture, off-site requests, runtime dependency or CPU pixel loop.
  *
- * `draw()` renders to the visible canvas. `snapshot()`, `previewAtlas()` and
- * `samplePoint()` render into temporary framebuffers, so inspection never resizes
- * or disturbs the visible image. Linked programs are cached by graph structure;
- * numeric edits only upload uniforms.
+ * Programs. One program is compiled per graph structure (compiler.js) and serves
+ * every view of it. Compilation is asynchronous where the browser allows it
+ * (KHR_parallel_shader_compile): `programFor()` starts it, `poll()` advances it,
+ * and a program is "ready" only after one warm-up draw has finished on the GPU,
+ * because several drivers finish compiling at the first draw. Synchronous calls
+ * (draw, snapshot, probes) simply wait for the program.
+ *
+ * Views. Most views are one draw of the graph program. "What it changes" draws the
+ * image with and without the component into two textures and combines them with
+ * a small compare shader; the automatic colors of a non-color stage draw its raw
+ * values into a float texture and color them with a small look shader. Both
+ * helper shaders are compiled once, so the graph program stays lean.
+ *
+ * Drawing. `draw()` renders to the visible canvas; `snapshot()`, `previewAtlas()`,
+ * `samplePoint()`, `sampleLine()` and `rawImage()` render into temporary
+ * framebuffers, so inspection never resizes or disturbs the visible image. The
+ * *Async variants read back through a pixel-pack buffer and a fence, so the page
+ * never waits for the GPU.
+ *
+ * Frame options (draw, snapshot, …):
+ *   target               node shown (default: the project's output)
+ *   contribution, contributionStyle  show what one node changes (two draws)
+ *   raw                  output raw values instead of display colors
+ *   look                 how non-color values are colored (looks.js); default classic
+ *   subgraph             compile only the target's subgraph (smaller, faster to compile)
+ *   debug                1: finite values black, nonfinite magenta; 2: alpha
  */
 const toneIndex = { source: 0, filmic: 1, linear: 2 };
-const builtinUniforms = ['u_resolution', 'u_offset', 'u_view', 'u_time', 'u_exposure', 'u_tone', 'u_debug', 'u_previewIndex'];
+const BUILTINS = ['u_resolution', 'u_offset', 'u_view', 'u_sampling', 'u_line', 'u_time', 'u_exposure', 'u_tone', 'u_debug', 'u_mode', 'u_target', 'u_active', 'u_enabled', 'u_params', 'u_type', 'u_look', 'u_gain'];
+const PASS_UNIFORMS = { look: ['u_field', 'u_origin', 'u_type', 'u_channel', 'u_range', 'u_grid'], compare: ['u_with', 'u_without', 'u_origin', 'u_style'] };
+/** Largest line or point probe, in samples. */
+const MAX_LINE_SAMPLES = 4096;
 /** readPixels returns the bottom row first; images and ImageData want the top row first. */
 function flipRows(pixels, width, height) {
-    const out = new Uint8ClampedArray(pixels.length), row = width * 4;
+    const out = new pixels.constructor(pixels.length), row = width * 4;
     for (let y = 0; y < height; y++) {
         out.set(pixels.subarray(y * row, (y + 1) * row), (height - 1 - y) * row);
     }
     return out;
 }
+const now = () => performance.now();
 class Renderer {
-    constructor(canvas, { programCacheSize = 32 } = {}) {
+    constructor(canvas, { programCacheSize = 12 } = {}) {
         this.canvas = canvas;
         this.programCacheSize = programCacheSize;
         this.gl = canvas.getContext('webgl2', { alpha: false, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance', premultipliedAlpha: false });
@@ -1669,14 +3304,27 @@ class Renderer {
             throw new Error('WebGL 2 is unavailable. Enable browser hardware acceleration and use a browser with WebGL 2 support. The Python reference remains available.');
         }
         const gl = this.gl;
+        /** Program entries by structural key, least recently used first. */
         this.cache = new Map();
         /** Program entry of the most recent visible draw, or null. */
         this.current = null;
         this.lost = false;
+        /** Last measured GPU time of a visible draw in ms, and whether it is exact (timer query) or an upper bound. */
+        this.gpuTime = null;
+        this.gpuTimeExact = false;
+        /** Pixels of the draw that gpuTime measured. */
+        this.gpuPixels = 0;
+        this.readbacks = [];
+        this.timers = [];
         this.configureContext();
         canvas.addEventListener('webglcontextlost', e => {
             e.preventDefault();
             this.lost = true;
+            for (const r of this.readbacks) {
+                r.reject(new Error('GPU context lost.'));
+            }
+            this.readbacks = [];
+            this.timers = [];
             this.onLost?.();
         });
         canvas.addEventListener('webglcontextrestored', () => {
@@ -1684,21 +3332,27 @@ class Renderer {
             this.current = null;
             this.lost = false;
             this.configureContext();
-            this.info.rawFields = !!gl.getExtension('EXT_color_buffer_float');
+            this.info.rawFields = this.rawFieldsSupported;
             this.onRestored?.();
         });
         const fp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
-        const info = gl.getExtension('WEBGL_debug_renderer_info');
+        const debug = gl.getExtension('WEBGL_debug_renderer_info');
+        const renderer = debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+        const vendor = debug ? gl.getParameter(debug.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR);
         this.info = {
             backend: 'WebGL 2 / GLSL ES 3.00',
-            renderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
+            renderer,
+            vendor,
+            gpu: describeRenderer(renderer, vendor),
             precisionBits: fp?.precision ?? null,
-            rawFields: !!gl.getExtension('EXT_color_buffer_float'),
+            rawFields: this.rawFieldsSupported,
+            parallelCompile: !!this.parallel,
+            gpuTimer: !!this.timerExt,
             maxSize: Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), gl.getParameter(gl.MAX_TEXTURE_SIZE), 4096),
             maxUniformVectors: gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS)
         };
     }
-    /** Fixed-function state; repeated after a context restoration. */
+    /** Fixed-function state and extensions; repeated after a context restoration. */
     configureContext() {
         const gl = this.gl;
         gl.disable(gl.DITHER);
@@ -1707,74 +3361,221 @@ class Renderer {
         gl.disable(gl.SCISSOR_TEST);
         this.vao = gl.createVertexArray();
         gl.bindVertexArray(this.vao);
+        this.rawFieldsSupported = !!gl.getExtension('EXT_color_buffer_float');
+        this.parallel = gl.getExtension('KHR_parallel_shader_compile');
+        this.timerExt = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+        this.warmTarget = null;
+        /** The fixed look and compare shaders, compiled on first use. */
+        this.passes = {};
+        /** Reusable render targets of the multi-draw views, by name. */
+        this.targets = new Map();
     }
-    /** Everything that changes the generated shader; numeric values are excluded. */
-    structuralKey(project, target, options = {}) {
-        const { raw = false, contribution = null, contributionStyle = 'highlight', preview = false } = options;
-        return JSON.stringify({
-            target: preview ? null : target, raw, contribution, contributionStyle: contribution ? contributionStyle : null, preview,
-            nodes: project.nodes.map(n => ({ id: n.id, type: n.type, inputs: n.inputs, enabled: n.enabled, expression: n.params.expression }))
-        });
-    }
-    /** Compile, link and cache the program for one graph structure. Throws with the
-     * driver log when a custom expression fails, leaving the previous image intact.
+    // ---- Programs ---------------------------------------------------------------
+    /** The program entry for a project, or for the subset of nodes a view needs.
+     * Creates it when needed. With `wait` it is linked before returning (this
+     * blocks, and throws if compilation failed); otherwise compilation continues
+     * in the background and `entry.status` reports 'queued', 'compiling',
+     * 'warming', 'ready' or 'failed'.
      */
-    getProgram(project, target, options = {}) {
-        const key = this.structuralKey(project, target, options);
-        if (this.cache.has(key)) {
-            const entry = this.cache.get(key);
+    programFor(project, { subset = null, wait = false } = {}) {
+        const key = programKey(project, subset);
+        let entry = this.cache.get(key);
+        if (entry) {
             this.cache.delete(key);
             this.cache.set(key, entry); // most recently used goes last
-            return entry;
         }
-        const compiled = compileGraph(project, target, options), gl = this.gl;
-        const shader = (kind, source) => {
-            const s = gl.createShader(kind);
-            gl.shaderSource(s, source);
-            gl.compileShader(s);
-            if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-                const log = gl.getShaderInfoLog(s);
-                gl.deleteShader(s);
-                throw new Error(`Shader compilation failed:\n${log}`);
-            }
-            return s;
-        };
-        let vs = null, fs = null, program = null;
-        try {
-            vs = shader(gl.VERTEX_SHADER, compiled.vertex);
-            fs = shader(gl.FRAGMENT_SHADER, compiled.fragment);
-            program = gl.createProgram();
-            gl.attachShader(program, vs);
-            gl.attachShader(program, fs);
-            gl.linkProgram(program);
-            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-                throw new Error(`Shader link failed:\n${gl.getProgramInfoLog(program)}`);
+        else {
+            entry = { key, compiled: compileProgram(project, { subset }), status: 'queued', program: null, shaders: [], error: null, started: now(), finished: null, fence: null, locations: null, waiters: [] };
+            this.cache.set(key, entry);
+            this.evict();
+            if (this.parallel) {
+                this.startCompile(entry); // the driver compiles on its own threads
             }
         }
-        catch (e) {
-            if (program) {
-                gl.deleteProgram(program);
+        if (wait && (entry.status === 'queued' || entry.status === 'compiling')) {
+            if (entry.status === 'queued') {
+                this.startCompile(entry);
             }
-            throw e;
+            this.link(entry, false);
         }
-        finally {
-            if (vs) {
-                gl.deleteShader(vs);
-            }
-            if (fs) {
-                gl.deleteShader(fs);
-            }
-        }
-        const names = [...builtinUniforms, ...compiled.uniforms.map(u => u.name)];
-        const entry = { program, compiled, locations: Object.fromEntries(names.map(n => [n, gl.getUniformLocation(program, n)])) };
-        this.cache.set(key, entry);
-        while (this.cache.size > this.programCacheSize) {
-            const oldest = this.cache.keys().next().value;
-            gl.deleteProgram(this.cache.get(oldest).program);
-            this.cache.delete(oldest);
+        if (wait && entry.status === 'failed') {
+            throw entry.error;
         }
         return entry;
     }
+    /** Legacy name: the whole-graph program, linked. */
+    getProgram(project) {
+        return this.programFor(project, { wait: true });
+    }
+    /** Drop the least recently used programs beyond the cache size, never the one on screen. */
+    evict() {
+        for (const [key, entry] of this.cache) {
+            if (this.cache.size <= this.programCacheSize) {
+                break;
+            }
+            if (entry === this.current) {
+                continue;
+            }
+            this.release(entry);
+            this.cache.delete(key);
+            this.settle(entry, new Error('Program evicted before it was ready.'));
+        }
+    }
+    /** Delete an entry's GPU objects: program, unfinished shaders and warm-up fence. */
+    release(entry) {
+        const gl = this.gl;
+        if (entry.program) {
+            gl.deleteProgram(entry.program);
+            entry.program = null;
+        }
+        for (const s of entry.shaders) {
+            gl.deleteShader(s);
+        }
+        entry.shaders = [];
+        if (entry.fence) {
+            gl.deleteSync(entry.fence);
+            entry.fence = null;
+        }
+    }
+    startCompile(entry) {
+        const gl = this.gl, shader = (kind, source) => {
+            const s = gl.createShader(kind);
+            gl.shaderSource(s, source);
+            gl.compileShader(s);
+            return s;
+        };
+        entry.shaders = [shader(gl.VERTEX_SHADER, entry.compiled.vertex), shader(gl.FRAGMENT_SHADER, entry.compiled.fragment)];
+        entry.program = gl.createProgram();
+        for (const s of entry.shaders) {
+            gl.attachShader(entry.program, s);
+        }
+        gl.linkProgram(entry.program);
+        entry.status = 'compiling';
+    }
+    /** Read the link result (blocking until the driver is done) and, when `warm`,
+     * start a one-pixel warm-up draw whose completion poll() waits for.
+     */
+    link(entry, warm) {
+        const gl = this.gl;
+        if (!gl.getProgramParameter(entry.program, gl.LINK_STATUS)) {
+            const log = entry.shaders.map(s => gl.getShaderInfoLog(s)).filter(Boolean).join('\n') || gl.getProgramInfoLog(entry.program);
+            gl.deleteProgram(entry.program);
+            entry.program = null;
+            entry.status = 'failed';
+            entry.error = new Error(`Shader compilation failed:\n${log}`);
+        }
+        else {
+            entry.locations = Object.fromEntries(BUILTINS.map(n => [n, gl.getUniformLocation(entry.program, n)]));
+            entry.status = 'ready';
+        }
+        for (const s of entry.shaders) {
+            gl.deleteShader(s);
+        }
+        entry.shaders = [];
+        if (entry.status === 'ready' && warm && !this.lost) {
+            try {
+                this.warmUp(entry);
+                entry.status = 'warming';
+                return;
+            }
+            catch (e) { /* A failed warm-up only means the first real draw pays the cost. */
+            }
+        }
+        if (entry.status !== 'warming') {
+            entry.finished = now();
+            this.settle(entry);
+        }
+    }
+    /** One pixel of every component into a private 1×1 target, then a fence. */
+    warmUp(entry) {
+        const gl = this.gl;
+        if (!this.warmTarget) {
+            const texture = gl.createTexture(), framebuffer = gl.createFramebuffer();
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+            this.warmTarget = { texture, framebuffer };
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.warmTarget.framebuffer);
+        gl.viewport(0, 0, 1, 1);
+        const loc = entry.locations;
+        gl.useProgram(entry.program);
+        gl.bindVertexArray(this.vao);
+        gl.uniform2f(loc.u_resolution, 1, 1);
+        gl.uniform3f(loc.u_view, 0, 0, 1);
+        gl.uniform4ui(loc.u_active, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff);
+        gl.uniform4ui(loc.u_enabled, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        entry.fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+        gl.flush();
+    }
+    settle(entry, error = null) {
+        for (const w of entry.waiters.splice(0)) {
+            if (error || entry.status === 'failed') {
+                w.reject(error || entry.error);
+            }
+            else {
+                w.resolve(entry);
+            }
+        }
+    }
+    /** Advance background work: compilations, warm-ups, readbacks and GPU timers.
+     * Call once per animation frame. Returns true when a program became ready or
+     * failed, so the caller can redraw.
+     */
+    poll() {
+        if (this.lost) {
+            return false;
+        }
+        const gl = this.gl;
+        let changed = false, compiledOne = false;
+        for (const entry of [...this.cache.values()]) {
+            if (entry.status === 'queued' && !compiledOne) {
+                // Without parallel compilation, compile one program per frame so the
+                // page can show that it is busy first.
+                compiledOne = true;
+                this.startCompile(entry);
+                this.link(entry, true);
+                changed = true;
+            }
+            else if (entry.status === 'compiling' && this.parallel && gl.getProgramParameter(entry.program, this.parallel.COMPLETION_STATUS_KHR)) {
+                this.link(entry, true);
+                changed = true;
+            }
+            else if (entry.status === 'warming' && gl.getSyncParameter(entry.fence, gl.SYNC_STATUS) === gl.SIGNALED) {
+                gl.deleteSync(entry.fence);
+                entry.fence = null;
+                entry.status = 'ready';
+                entry.finished = now();
+                this.settle(entry);
+                changed = true;
+            }
+        }
+        this.pollReadbacks();
+        this.pollTimers();
+        return changed;
+    }
+    /** Entries still compiling or warming up, oldest first. */
+    pending() {
+        return [...this.cache.values()].filter(e => e.status === 'queued' || e.status === 'compiling' || e.status === 'warming');
+    }
+    /** A promise for a ready program entry (rejects with the compile error).
+     * Resolution happens in poll(), so the page keeps running while it waits.
+     */
+    whenReady(project, options = {}) {
+        const entry = this.programFor(project, options);
+        if (entry.status === 'ready') {
+            return Promise.resolve(entry);
+        }
+        if (entry.status === 'failed') {
+            return Promise.reject(entry.error);
+        }
+        return new Promise((resolve, reject) => entry.waiters.push({ resolve, reject }));
+    }
+    // ---- Drawing ----------------------------------------------------------------
     checkArguments(project, time, width, height) {
         validateProject(project);
         if (this.lost) {
@@ -1787,60 +3588,249 @@ class Renderer {
             throw new Error('Time must be finite.');
         }
     }
+    checkOptions(project, options) {
+        const { target = project.output, contribution = null, contributionStyle = 'highlight' } = options;
+        if (!project.nodes.some(n => n.id === target)) {
+            throw new Error(`Unknown component ${target}.`);
+        }
+        if (contribution && !project.nodes.some(n => n.id === contribution)) {
+            throw new Error(`Unknown contribution node ${contribution}.`);
+        }
+        if (!CONTRIBUTION_STYLES.includes(contributionStyle)) {
+            throw new Error(`Unknown contribution style ${contributionStyle}.`);
+        }
+        return target;
+    }
+    subsetFor(project, options) {
+        return options.subgraph ? subgraph(project, options.target ?? project.output) : null;
+    }
+    /** Parameter values at `time`, packed as the program's u_params array. */
+    packParams(compiled, project, time) {
+        const data = new Float32Array(compiled.vectors * 4), values = new Map();
+        for (const slot of compiled.params) {
+            if (!values.has(slot.node)) {
+                values.set(slot.node, animatedParameters(project, project.nodes.find(n => n.id === slot.node), time));
+            }
+            const value = values.get(slot.node)[slot.param], base = slot.vector * 4;
+            if (slot.kind === 'color') {
+                [1, 3, 5].forEach((k, c) => data[base + c] = parseInt(value.slice(k, k + 2), 16) / 255);
+            }
+            else {
+                data[base + slot.component] = value;
+            }
+        }
+        return data;
+    }
     /** Upload uniforms and issue the draw call into the currently bound framebuffer
      * and viewport. `offset` is the tile origin inside that framebuffer.
      */
-    execute(entry, project, time, width, height, { debug = 0, previewIndex = 0 } = {}, offset = [0, 0]) {
-        const gl = this.gl, loc = entry.locations;
+    execute(entry, project, time, width, height, frame = {}, offset = [0, 0], params = null) {
+        const gl = this.gl, loc = entry.locations, compiled = entry.compiled;
+        const target = frame.target ?? project.output, state = viewState(compiled, project, target, frame.contribution);
+        const look = lookUniforms(compiled.types[target], frame.look);
         gl.useProgram(entry.program);
         gl.bindVertexArray(this.vao);
         gl.uniform2f(loc.u_resolution, width, height);
         gl.uniform2f(loc.u_offset, offset[0], offset[1]);
         gl.uniform3f(loc.u_view, project.view.x, project.view.y, project.view.zoom);
+        gl.uniform1i(loc.u_sampling, frame.line ? 1 : 0);
+        gl.uniform4fv(loc.u_line, frame.line || [0, 0, 0, 0]);
         gl.uniform1f(loc.u_time, time);
         gl.uniform1f(loc.u_exposure, project.exposure);
         gl.uniform1i(loc.u_tone, toneIndex[project.tone]);
-        gl.uniform1i(loc.u_debug, debug);
-        gl.uniform1i(loc.u_previewIndex, previewIndex);
-        const values = new Map(project.nodes.map(n => [n.id, animatedParameters(project, n, time)]));
-        for (const u of entry.compiled.uniforms) {
-            const value = values.get(u.node)[u.param];
-            if (u.type === 'vec3') {
-                gl.uniform3fv(loc[u.name], [1, 3, 5].map(k => parseInt(value.slice(k, k + 2), 16) / 255));
-            }
-            else {
-                gl.uniform1f(loc[u.name], value);
-            }
-        }
+        gl.uniform1i(loc.u_debug, frame.debug || 0);
+        gl.uniform1i(loc.u_mode, frame.raw ? MODES.raw : MODES.display);
+        gl.uniform1i(loc.u_target, compiled.index[target]);
+        gl.uniform4uiv(loc.u_active, state.active);
+        gl.uniform4uiv(loc.u_enabled, state.enabled);
+        gl.uniform1i(loc.u_type, look.type);
+        gl.uniform1i(loc.u_look, look.look);
+        gl.uniform1f(loc.u_gain, look.gain);
+        gl.uniform4fv(loc.u_params, params || this.packParams(compiled, project, time));
         gl.drawArrays(gl.TRIANGLES, 0, 3);
+        return state;
     }
-    /** Render to the visible canvas, resizing it when needed.
-     * Options: target (node id, default project.output), debug (0 normal,
-     * 1 finite→black nonfinite→magenta, 2 alpha), raw, contribution,
-     * contributionStyle. Returns the compiled description.
+    describe(entry, project, target, frame, state) {
+        return {
+            fragment: entry.compiled.fragment,
+            key: entry.key,
+            target,
+            type: entry.compiled.types[target],
+            order: state.order,
+            raw: !!frame.raw && !frame.contribution,
+            contribution: frame.contribution || null,
+            contributionStyle: frame.contribution ? (frame.contributionStyle || 'highlight') : null,
+            reachable: state.reachable
+        };
+    }
+    /** Render to the visible canvas, resizing it when needed, and wait for the
+     * program if it is still compiling. Returns a description of the frame
+     * {fragment, target, type, order, raw, contribution, contributionStyle, reachable}.
      */
     draw(project, time, width = this.canvas.width, height = this.canvas.height, options = {}) {
         this.checkArguments(project, time, width, height);
-        const { target = project.output, debug = 0 } = options;
+        const target = this.checkOptions(project, options);
         // Compile before resizing: invalid custom equations preserve the last good canvas.
-        const entry = this.getProgram(project, target, options), gl = this.gl;
+        const entry = this.programFor(project, { subset: this.subsetFor(project, options), wait: true });
+        return this.present(entry, project, time, width, height, { ...options, target });
+    }
+    /** Like draw(), but only when the program is ready; otherwise start or continue
+     * compiling it in the background and return null, leaving the canvas as it is.
+     * Throws the compile error of a failed program.
+     */
+    drawIfReady(project, time, width = this.canvas.width, height = this.canvas.height, options = {}) {
+        this.checkArguments(project, time, width, height);
+        const target = this.checkOptions(project, options);
+        const entry = this.programFor(project, { subset: this.subsetFor(project, options) });
+        if (entry.status === 'failed') {
+            throw entry.error;
+        }
+        if (entry.status !== 'ready') {
+            return null;
+        }
+        return this.present(entry, project, time, width, height, { ...options, target });
+    }
+    present(entry, project, time, width, height, frame) {
+        const gl = this.gl;
         if (this.canvas.width !== width) {
             this.canvas.width = width;
         }
         if (this.canvas.height !== height) {
             this.canvas.height = height;
         }
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.viewport(0, 0, width, height);
-        this.execute(entry, project, time, width, height, { debug });
+        const timer = frame.timed ? this.beginTimer(width * height) : null;
+        const state = this.renderView(entry, project, time, width, height, frame, null);
+        if (timer) {
+            this.endTimer(timer);
+        }
         this.current = entry;
-        return entry.compiled;
+        return this.describe(entry, project, frame.target, frame, state);
     }
-    /** Run `body` with a temporary color attachment bound, then read it back.
-     * Float attachments need EXT_color_buffer_float. The visible canvas is untouched.
+    // ---- Views: one draw, or several draws and a small pass ------------------------
+    /** A texture and framebuffer of the given size and format ('rgba8', 'rgba16f'
+     * or 'rgba32f'), reused across frames.
      */
-    offscreen(width, height, float, body) {
-        const gl = this.gl, texture = gl.createTexture(), framebuffer = gl.createFramebuffer();
+    renderTarget(name, width, height, format) {
+        const gl = this.gl, formats = { rgba8: [gl.RGBA8, gl.UNSIGNED_BYTE], rgba16f: [gl.RGBA16F, gl.HALF_FLOAT], rgba32f: [gl.RGBA32F, gl.FLOAT] };
+        let t = this.targets.get(name);
+        if (t && (t.width !== width || t.height !== height || t.format !== format)) {
+            gl.deleteFramebuffer(t.framebuffer);
+            gl.deleteTexture(t.texture);
+            t = null;
+        }
+        if (!t) {
+            const texture = gl.createTexture(), framebuffer = gl.createFramebuffer();
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texImage2D(gl.TEXTURE_2D, 0, formats[format][0], width, height, 0, gl.RGBA, formats[format][1], null);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+            t = { texture, framebuffer, width, height, format };
+            this.targets.set(name, t);
+        }
+        return t;
+    }
+    /** One of the fixed helper shaders ('look' or 'compare'), linked on first use. */
+    passProgram(kind) {
+        if (this.passes[kind]) {
+            return this.passes[kind];
+        }
+        const gl = this.gl, shader = (type, source) => {
+            const s = gl.createShader(type);
+            gl.shaderSource(s, source);
+            gl.compileShader(s);
+            return s;
+        };
+        const vs = shader(gl.VERTEX_SHADER, vertexSource), fs = shader(gl.FRAGMENT_SHADER, kind === 'look' ? lookPassSource : comparePassSource), program = gl.createProgram();
+        gl.attachShader(program, vs);
+        gl.attachShader(program, fs);
+        gl.linkProgram(program);
+        const ok = gl.getProgramParameter(program, gl.LINK_STATUS), log = ok ? '' : gl.getShaderInfoLog(fs) || gl.getProgramInfoLog(program);
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
+        if (!ok) {
+            gl.deleteProgram(program);
+            throw new Error(`The ${kind} shader failed to compile:\n${log}`);
+        }
+        this.passes[kind] = { program, locations: Object.fromEntries(PASS_UNIFORMS[kind].map(n => [n, gl.getUniformLocation(program, n)])) };
+        return this.passes[kind];
+    }
+    /** Bind texture `t` to unit `unit` for sampler uniform `location`. */
+    bindTexture(unit, t, location) {
+        const gl = this.gl;
+        gl.activeTexture(gl.TEXTURE0 + unit);
+        gl.bindTexture(gl.TEXTURE_2D, t.texture);
+        gl.uniform1i(location, unit);
+    }
+    /** Draw one view of `project` into `output` ({framebuffer, x, y}, or null for the
+     * canvas) at the given size. Returns the view state of the target.
+     */
+    renderView(entry, project, time, width, height, frame, output) {
+        const gl = this.gl, out = output || { framebuffer: null, x: 0, y: 0 };
+        const target = frame.target ?? project.output, type = entry.compiled.types[target];
+        const into = t => {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, t.framebuffer);
+            gl.viewport(0, 0, width, height);
+        };
+        const finish = () => {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, out.framebuffer);
+            gl.viewport(out.x, out.y, width, height);
+        };
+        if (frame.contribution && !frame.raw) {
+            // Float images keep the comparison unquantized (small differences near the
+            // highlight threshold survive); bytes where float targets are unavailable.
+            const format = this.info.rawFields ? 'rgba32f' : 'rgba8';
+            const a = this.renderTarget('with', width, height, format), b = this.renderTarget('without', width, height, format);
+            const plain = { target, debug: frame.debug };
+            into(a);
+            const state = this.execute(entry, project, time, width, height, plain);
+            into(b);
+            this.execute(entry, withBypassed(project, frame.contribution), time, width, height, plain);
+            finish();
+            const pass = this.passProgram('compare');
+            gl.useProgram(pass.program);
+            this.bindTexture(0, a, pass.locations.u_with);
+            this.bindTexture(1, b, pass.locations.u_without);
+            gl.uniform2f(pass.locations.u_origin, out.x, out.y);
+            gl.uniform1i(pass.locations.u_style, frame.contributionStyle === 'signed' ? 1 : 0);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+            gl.activeTexture(gl.TEXTURE0);
+            return { ...state, reachable: state.order.includes(frame.contribution) };
+        }
+        if (frame.look?.mode === 'auto' && type !== 'layer' && !frame.raw && !frame.debug && this.info.rawFields) {
+            const field = this.renderTarget('field', width, height, 'rgba32f');
+            into(field);
+            const state = this.execute(entry, project, time, width, height, { ...frame, raw: true });
+            finish();
+            const pass = this.passProgram('look'), look = lookUniforms(type, frame.look), loc = pass.locations;
+            gl.useProgram(pass.program);
+            this.bindTexture(0, field, loc.u_field);
+            gl.uniform2f(loc.u_origin, out.x, out.y);
+            gl.uniform1i(loc.u_type, look.type);
+            gl.uniform1i(loc.u_channel, look.channel);
+            gl.uniform4fv(loc.u_range, look.range);
+            gl.uniform1f(loc.u_grid, look.grid);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+            return state;
+        }
+        finish();
+        return this.execute(entry, project, time, width, height, frame, [out.x, out.y]);
+    }
+    /** Run `body` with a temporary color attachment bound, then read it back
+     * (bottom row first). Float attachments need EXT_color_buffer_float. With
+     * `async` the read goes through a pixel-pack buffer and a Promise is returned.
+     */
+    offscreen(width, height, float, body, async = false) {
+        const gl = this.gl;
+        if (float && !this.info.rawFields) {
+            throw new Error('Raw field readback needs EXT_color_buffer_float, unavailable on this browser/GPU.');
+        }
+        const texture = gl.createTexture(), framebuffer = gl.createFramebuffer();
+        let buffer = null;
         try {
             gl.bindTexture(gl.TEXTURE_2D, texture);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -1851,10 +3841,24 @@ class Renderer {
             if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
                 throw new Error(float ? 'The GPU rejected a floating-point probe framebuffer.' : 'The GPU rejected an offscreen framebuffer.');
             }
-            body();
-            const out = float ? new Float32Array(width * height * 4) : new Uint8Array(width * height * 4);
-            gl.readPixels(0, 0, width, height, gl.RGBA, float ? gl.FLOAT : gl.UNSIGNED_BYTE, out);
-            return out;
+            body(framebuffer);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+            const type = float ? gl.FLOAT : gl.UNSIGNED_BYTE, length = width * height * 4;
+            if (!async) {
+                const out = float ? new Float32Array(length) : new Uint8Array(length);
+                gl.readPixels(0, 0, width, height, gl.RGBA, type, out);
+                return out;
+            }
+            buffer = gl.createBuffer();
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
+            gl.bufferData(gl.PIXEL_PACK_BUFFER, length * (float ? 4 : 1), gl.STREAM_READ);
+            gl.readPixels(0, 0, width, height, gl.RGBA, type, 0);
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+            const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+            gl.flush();
+            const pending = buffer;
+            buffer = null;
+            return new Promise((resolve, reject) => this.readbacks.push({ fence, buffer: pending, length, float, resolve, reject }));
         }
         finally {
             gl.disable(gl.SCISSOR_TEST);
@@ -1862,74 +3866,184 @@ class Renderer {
             gl.bindTexture(gl.TEXTURE_2D, null);
             gl.deleteFramebuffer(framebuffer);
             gl.deleteTexture(texture);
+            if (buffer) {
+                gl.deleteBuffer(buffer);
+            }
         }
     }
-    /** Render offscreen and return top-down RGBA bytes (ImageData layout). */
+    pollReadbacks() {
+        const gl = this.gl;
+        this.readbacks = this.readbacks.filter(r => {
+            if (gl.getSyncParameter(r.fence, gl.SYNC_STATUS) !== gl.SIGNALED) {
+                return true;
+            }
+            const out = r.float ? new Float32Array(r.length) : new Uint8Array(r.length);
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.buffer);
+            gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, out);
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+            gl.deleteBuffer(r.buffer);
+            gl.deleteSync(r.fence);
+            r.resolve(out);
+            return false;
+        });
+    }
+    /** Render offscreen and return top-down RGBA bytes (ImageData layout), or raw
+     * floats with `options.raw` (needs EXT_color_buffer_float).
+     */
     snapshot(project, time, width, height, options = {}) {
         this.checkArguments(project, time, width, height);
-        const { target = project.output, debug = 0 } = options, entry = this.getProgram(project, target, options), gl = this.gl;
-        const pixels = this.offscreen(width, height, false, () => {
-            gl.viewport(0, 0, width, height);
-            this.execute(entry, project, time, width, height, { debug });
+        const target = this.checkOptions(project, options), gl = this.gl, float = !!options.raw && !options.contribution;
+        const entry = this.programFor(project, { subset: this.subsetFor(project, options), wait: true });
+        const pixels = this.offscreen(width, height, float, framebuffer => {
+            this.renderView(entry, project, time, width, height, { ...options, target, raw: float }, { framebuffer, x: 0, y: 0 });
         });
-        return { width, height, data: flipRows(pixels, width, height) };
+        return { width, height, data: float ? flipRows(pixels, width, height) : new Uint8ClampedArray(flipRows(pixels, width, height).buffer) };
     }
-    /** Thumbnails of several nodes from one shared program and one readback.
-     * Returns a Map of node id → {width, height, data} in ImageData layout.
+    /** Thumbnails of several nodes from one program and one readback. Returns a Map
+     * of node id → {width, height, data} in ImageData layout: display bytes, or raw
+     * floats (Float32Array) with `options.raw`. `options.look(id)` may return a look
+     * per tile. With `options.async` the result is a Promise and nothing blocks.
      */
-    previewAtlas(project, time, ids, tileWidth, tileHeight) {
+    previewAtlas(project, time, ids, tileWidth, tileHeight, options = {}) {
         this.checkArguments(project, time, tileWidth, tileHeight);
         if (!ids.length) {
-            return new Map();
+            return options.async ? Promise.resolve(new Map()) : new Map();
         }
-        const entry = this.getProgram(project, null, { preview: true }), index = entry.compiled.previewIndex, gl = this.gl;
+        const float = !!options.raw, gl = this.gl;
+        const entry = this.programFor(project, { wait: true });
         const columns = Math.max(1, Math.min(ids.length, Math.floor(this.info.maxSize / tileWidth)));
         const rows = Math.ceil(ids.length / columns), width = columns * tileWidth, height = rows * tileHeight;
         if (height > this.info.maxSize) {
             throw new Error('Too many previews for one atlas.');
         }
-        const pixels = this.offscreen(width, height, false, () => {
+        const params = this.packParams(entry.compiled, project, time);
+        const result = this.offscreen(width, height, float, () => {
             gl.enable(gl.SCISSOR_TEST);
             ids.forEach((id, i) => {
                 const x = (i % columns) * tileWidth, y = Math.floor(i / columns) * tileHeight;
                 gl.viewport(x, y, tileWidth, tileHeight);
                 gl.scissor(x, y, tileWidth, tileHeight);
-                this.execute(entry, project, time, tileWidth, tileHeight, { previewIndex: index[id] ?? -1 }, [x, y]);
+                this.execute(entry, project, time, tileWidth, tileHeight, { target: id, raw: float, look: options.look?.(id) }, [x, y], params);
             });
             gl.disable(gl.SCISSOR_TEST);
-        });
-        const tiles = new Map(), stride = width * 4;
-        ids.forEach((id, i) => {
-            const x0 = (i % columns) * tileWidth, y0 = Math.floor(i / columns) * tileHeight, data = new Uint8ClampedArray(tileWidth * tileHeight * 4);
-            for (let y = 0; y < tileHeight; y++) {
-                const source = (y0 + y) * stride + x0 * 4;
-                data.set(pixels.subarray(source, source + tileWidth * 4), (tileHeight - 1 - y) * tileWidth * 4);
-            }
-            tiles.set(id, { width: tileWidth, height: tileHeight, data });
-        });
-        return tiles;
+        }, !!options.async);
+        const split = pixels => {
+            const tiles = new Map(), stride = width * 4;
+            ids.forEach((id, i) => {
+                const x0 = (i % columns) * tileWidth, y0 = Math.floor(i / columns) * tileHeight;
+                const data = float ? new Float32Array(tileWidth * tileHeight * 4) : new Uint8ClampedArray(tileWidth * tileHeight * 4);
+                for (let y = 0; y < tileHeight; y++) {
+                    const source = (y0 + y) * stride + x0 * 4;
+                    data.set(pixels.subarray(source, source + tileWidth * 4), (tileHeight - 1 - y) * tileWidth * 4);
+                }
+                tiles.set(id, { width: tileWidth, height: tileHeight, data, type: entry.compiled.types[id] });
+            });
+            return tiles;
+        };
+        return options.async ? result.then(split) : split(result);
     }
-    /** Read actual field values at one world coordinate, before diagnostic mapping,
-     * exposure, tone mapping and quantization. Requires EXT_color_buffer_float.
-     * A one-pixel floating-point framebuffer avoids downloading a full float image.
+    /** Raw values of `target` at `count` points evenly spaced along the segment from
+     * `a` to `b` (world coordinates; sample i sits at (i + ½)/count). Returns a
+     * Float32Array of count × RGBA, or a Promise of one with `async`. The values are
+     * those before diagnostic mapping, exposure, tone mapping and quantization.
      */
-    samplePoint(project, time, target, x, y) {
+    sampleLine(project, time, target, a, b, count, { async = false } = {}) {
         if (!this.info.rawFields) {
             throw new Error('Raw field probes need EXT_color_buffer_float, unavailable on this browser/GPU.');
         }
-        if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > 19 || Math.abs(y) > 19) {
-            throw new Error('Probe point must be finite and within world coordinates ±19.');
+        const points = [...a, ...b];
+        if (!points.every(v => Number.isFinite(v) && Math.abs(v) <= 1e6)) {
+            throw new Error('Probe points must be finite world coordinates.');
         }
-        // Center a unit-zoom, one-pixel view on the point; the shader's half-pixel offset cancels.
-        const probe = { ...project, view: { x: x - 1 / 840, y: y - 1 / 840, zoom: 1 } };
-        this.checkArguments(probe, time, 1, 1);
-        const entry = this.getProgram(probe, target, { raw: true }), gl = this.gl;
-        const out = this.offscreen(1, 1, true, () => {
-            gl.viewport(0, 0, 1, 1);
-            this.execute(entry, probe, time, 1, 1);
-        });
-        return [...out];
+        if (!Number.isInteger(count) || count < 1 || count > MAX_LINE_SAMPLES) {
+            throw new Error(`A line probe takes 1–${MAX_LINE_SAMPLES} samples.`);
+        }
+        this.checkArguments(project, time, count, 1);
+        this.checkOptions(project, { target });
+        const entry = this.programFor(project, { wait: true }), gl = this.gl;
+        return this.offscreen(count, 1, true, () => {
+            gl.viewport(0, 0, count, 1);
+            this.execute(entry, project, time, count, 1, { target, raw: true, line: points });
+        }, async);
     }
+    /** Actual field values at one world coordinate: [4 numbers]. */
+    samplePoint(project, time, target, x, y) {
+        return [...this.sampleLine(project, time, target, [x, y], [x, y], 1)];
+    }
+    /** Raw values of `target` over the camera view at a small size (top row first),
+     * for statistics. Returns a Float32Array, or a Promise of one with `async`.
+     */
+    rawImage(project, time, target, width, height, { async = false } = {}) {
+        this.checkArguments(project, time, width, height);
+        this.checkOptions(project, { target });
+        const entry = this.programFor(project, { wait: true }), gl = this.gl;
+        const result = this.offscreen(width, height, true, () => {
+            gl.viewport(0, 0, width, height);
+            this.execute(entry, project, time, width, height, { target, raw: true });
+        }, async);
+        return async ? result.then(p => flipRows(p, width, height)) : flipRows(result, width, height);
+    }
+    // ---- GPU timing ---------------------------------------------------------------
+    /** Measure the next draw: an exact timer query when EXT_disjoint_timer_query_webgl2
+     * is available, else the time until a fence signals (an upper bound).
+     */
+    beginTimer(pixels = 0) {
+        const gl = this.gl;
+        if (this.timerExt) {
+            if (this.timers.length >= 4 || this.timers.some(t => !t.ended)) {
+                return null;
+            }
+            const query = gl.createQuery();
+            gl.beginQuery(this.timerExt.TIME_ELAPSED_EXT, query);
+            const timer = { query, ended: false, pixels };
+            this.timers.push(timer);
+            return timer;
+        }
+        if (this.timers.length) {
+            return null;
+        }
+        const timer = { start: now(), fence: null, pixels };
+        this.timers.push(timer);
+        return timer;
+    }
+    endTimer(timer) {
+        const gl = this.gl;
+        if (timer.query) {
+            gl.endQuery(this.timerExt.TIME_ELAPSED_EXT);
+            timer.ended = true;
+        }
+        else {
+            timer.fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+            gl.flush();
+        }
+    }
+    pollTimers() {
+        const gl = this.gl;
+        this.timers = this.timers.filter(t => {
+            if (t.query) {
+                if (!t.ended || !gl.getQueryParameter(t.query, gl.QUERY_RESULT_AVAILABLE)) {
+                    return true;
+                }
+                const disjoint = gl.getParameter(this.timerExt.GPU_DISJOINT_EXT);
+                if (!disjoint) {
+                    this.gpuTime = gl.getQueryParameter(t.query, gl.QUERY_RESULT) / 1e6;
+                    this.gpuTimeExact = true;
+                    this.gpuPixels = t.pixels;
+                }
+                gl.deleteQuery(t.query);
+                return false;
+            }
+            if (!t.fence || gl.getSyncParameter(t.fence, gl.SYNC_STATUS) !== gl.SIGNALED) {
+                return true;
+            }
+            this.gpuTime = now() - t.start;
+            this.gpuTimeExact = false;
+            this.gpuPixels = t.pixels;
+            gl.deleteSync(t.fence);
+            return false;
+        });
+    }
+    // ---- Visible canvas -----------------------------------------------------------
     /** Bottom-up RGBA bytes of the visible canvas. */
     pixels() {
         const gl = this.gl, a = new Uint8Array(this.canvas.width * this.canvas.height * 4);
@@ -1946,19 +4060,68 @@ class Renderer {
         return new Promise((resolve, reject) => this.canvas.toBlob(b => b ? resolve(b) : reject(new Error('PNG encoding failed.')), 'image/png'));
     }
     dispose() {
+        const gl = this.gl;
         for (const e of this.cache.values()) {
-            this.gl.deleteProgram(e.program);
+            this.release(e);
+            this.settle(e, new Error('Renderer disposed.'));
         }
         this.cache.clear();
-        this.gl.deleteVertexArray(this.vao);
+        for (const r of this.readbacks) {
+            gl.deleteBuffer(r.buffer);
+            gl.deleteSync(r.fence);
+            r.reject(new Error('Renderer disposed.'));
+        }
+        this.readbacks = [];
+        for (const t of this.timers) {
+            if (t.query) {
+                gl.deleteQuery(t.query);
+            }
+            if (t.fence) {
+                gl.deleteSync(t.fence);
+            }
+        }
+        this.timers = [];
+        if (this.warmTarget) {
+            gl.deleteFramebuffer(this.warmTarget.framebuffer);
+            gl.deleteTexture(this.warmTarget.texture);
+        }
+        for (const t of this.targets.values()) {
+            gl.deleteFramebuffer(t.framebuffer);
+            gl.deleteTexture(t.texture);
+        }
+        for (const pass of Object.values(this.passes)) {
+            gl.deleteProgram(pass.program);
+        }
+        gl.deleteVertexArray(this.vao);
     }
 }
 
-return {Renderer};
+return {MAX_LINE_SAMPLES,Renderer};
 })();
 __modules['presets.js'] = (() => {
 const { makeNode, clone, validateProject } = __modules['graph.js'];
 const N = makeNode;
+/** A node with its own label (custom equations otherwise show their component name). */
+const named = (label, node) => ({ ...node, label });
+/** Kaleidoscope garden's two equations, written with parameters, definitions and
+ * captions to show the equation language (same image as the 1.x one-liners).
+ */
+const PETALS = [
+    '// Interference petals: bands whose phase is bent by a second wave',
+    'param bands = 14 [1, 40] step 0.1       // frequency of the bands across x: more, thinner petals',
+    'param bend = 9 [0, 30] step 0.1         // frequency of the wave that bends the bands, along y',
+    'param sharpness = 4 [1, 12] step 0.1    // exponent: higher values keep only the crests',
+    'wave = 0.5 + 0.5*cos(bands*x + sin(bend*y - t))   // bands from 0 to 1, bent by a sine that drifts with time',
+    'wave^sharpness   // a power sharpens each band into a thin petal'
+].join('\n');
+const RAINBOW = [
+    '// Rainbow petals that fade away from the center',
+    'param hueScale = 0.3 [0, 2] step 0.01   // how quickly the hue cycles with distance from the center',
+    'param drift = 0.05 [-1, 1] step 0.01    // how quickly the colors flow outward over time',
+    'param falloff = 0.22 [0, 2] step 0.01   // how quickly the image fades with distance',
+    'hue = spectrum(hueScale*r - drift*t, 0.25)   // a rainbow color for each distance r',
+    'hue * a * exp(-falloff*r^2)   // the petals a, colored, under a Gaussian fade'
+].join('\n');
 const base = (id, title, description, status, nodes, output, options = {}) => ({ id, title, description, status, schemaVersion: 1, nodes, output, duration: 8, exposure: 1, tone: 'filmic', view: { x: 0, y: 0, zoom: 1 }, tracks: [], ...options });
 function sourceNodes(geometry = 'nebulaGeometry') {
     return [N('coordinates', 'space'), N(geometry, 'shell', { p: 'space' }), N('nebulaTurbulence', 'turbulence', { p: 'space', geometry: 'shell' }), N('nebulaCloud', 'cloud', { p: 'space', geometry: 'shell', turbulence: 'turbulence' }), N('nebulaGas', 'gas', { p: 'space', geometry: 'shell', turbulence: 'turbulence', cloud: 'cloud' }), N('nebulaCore', 'core', { p: 'space', turbulence: 'turbulence' }), N('nebulaStars', 'stars', { p: 'space' }), N('add', 'gascore', { a: 'gas', b: 'core' }), N('add', 'final', { a: 'gascore', b: 'stars' })];
@@ -1975,7 +4138,7 @@ const presets = [
         N('coordinates', 'space'), N('scatterStars', 'stars', { p: 'space' }, { gain: 0.35 }), N('aurora', 'curtain', { p: 'space' }), N('add', 'final', { a: 'stars', b: 'curtain' })
     ], 'final', { exposure: 1.4 }),
     base('tidal', 'Tidal disruption', 'A tapered stellar stream, a projected accretion disk and an illustrative central shadow. Not a physical simulation.', 'Interpretive study', [
-        N('coordinates', 'space'), N('scatterStars', 'stars', { p: 'space' }, { gain: 0.40 }), N('disk', 'disk', { p: 'space' }), N('tidal', 'stream', { p: 'space' }), N('add', 'emission', { a: 'disk', b: 'stream' }), N('disc', 'shadowMask', { p: 'space' }, { radius: 0.285, edge: 0.007 }), N('expression', 'outsideShadow', { p: 'space', a: 'shadowMask' }, { expression: '1.0-a' }), N('mask', 'maskedStars', { layer: 'stars', mask: 'outsideShadow' }), N('solid', 'black', {}, { color: '#000000' }), N('over', 'background', { front: 'maskedStars', back: 'black' }), N('add', 'final', { a: 'background', b: 'emission' })
+        N('coordinates', 'space'), N('scatterStars', 'stars', { p: 'space' }, { gain: 0.40 }), N('disk', 'disk', { p: 'space' }), N('tidal', 'stream', { p: 'space' }), N('add', 'emission', { a: 'disk', b: 'stream' }), N('disc', 'shadowMask', { p: 'space' }, { radius: 0.285, edge: 0.007 }), named('Outside the shadow', N('expression', 'outsideShadow', { p: 'space', a: 'shadowMask' }, { expression: '1 - a   // 1 outside the black hole’s shadow disc, 0 inside' })), N('mask', 'maskedStars', { layer: 'stars', mask: 'outsideShadow' }), N('solid', 'black', {}, { color: '#000000' }), N('over', 'background', { front: 'maskedStars', back: 'black' }), N('add', 'final', { a: 'background', b: 'emission' })
     ], 'final', { exposure: 1.4 }),
     base('peacock', 'Peacock in full display', 'One eyespot-feather kernel instanced across four fan rows, with an independent body, crest and background.', 'Interpretive study', [
         N('coordinates', 'space'), N('solid', 'background', {}, { color: '#010305' }), N('fan', 'fan', { p: 'space' }), N('over', 'tail', { front: 'fan', back: 'background' }), N('peacockBody', 'body', { p: 'space' }), N('over', 'final', { front: 'body', back: 'tail' })
@@ -1991,7 +4154,7 @@ const presets = [
         N('coordinates', 'space'), N('domainwarp', 'warp', { p: 'space' }, { amplitude: 0.8, frequency: 2.1, speed: 0.12 }), N('waves', 'veins', { p: 'warp' }, { frequency: 10, bend: 2.8, speed: 0.8 }), N('palette', 'final', { field: 'veins' }, { low: '#081927', high: '#d09c55', power: 3, gain: 1.2 })
     ], 'final'),
     base('kaleidoscope', 'Kaleidoscope garden', 'Angular mirror → domain warp → interference field → custom color expression. Fully editable typed equations.', 'Component remix', [
-        N('coordinates', 'space'), N('kaleidoscope', 'fold', { p: 'space' }, { sectors: 8 }), N('domainwarp', 'warp', { p: 'fold' }, { amplitude: 0.28 }), N('expression', 'petals', { p: 'warp' }, { expression: 'pow(0.5+0.5*cos(x*14.0+sin(y*9.0-t)),4.0)' }), N('colorExpression', 'final', { p: 'space', a: 'petals' }, { expression: 'spectrum(r*0.3-t*0.05,0.25)*a*exp(-r*r*0.22)' })
+        N('coordinates', 'space'), N('kaleidoscope', 'fold', { p: 'space' }, { sectors: 8 }), N('domainwarp', 'warp', { p: 'fold' }, { amplitude: 0.28 }), named('Interference petals', N('expression', 'petals', { p: 'warp' }, { expression: PETALS })), named('Rainbow color', N('colorExpression', 'final', { p: 'space', a: 'petals' }, { expression: RAINBOW }))
     ], 'final', { exposure: 1.6 }),
     base('feather', 'One feather, many possibilities', 'Inspect the reusable stamp that makes the fan. Rotate, scale, mask, tint or repeat it in your own construction.', 'Component study', [
         N('coordinates', 'space'), N('solid', 'background', {}, { color: '#010305' }), N('transform', 'local', { p: 'space' }, { x: 0, y: -1.08, scale: 2.1 }), N('feather', 'feather', { p: 'local' }, { width: 0.19 }), N('over', 'final', { front: 'feather', back: 'background' })
@@ -2013,7 +4176,7 @@ function getPreset(id) {
 return {presets,getPreset};
 })();
 __modules['explore.js'] = (() => {
-const { catalog } = __modules['catalog.js'];
+const { catalog, paramSpecs } = __modules['catalog.js'];
 const { clone, validateProject } = __modules['graph.js'];
 /** Pure helpers behind the editor's exploration tools: parameter sweeps, random
  * variations, and the "original value" each control resets to. No DOM here.
@@ -2051,6 +4214,7 @@ function seededRandom(seed) {
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
 }
+const isContent = node => catalog[node.type].role === 'content';
 function perturbColor(hex, amount, random) {
     const channels = [1, 3, 5].map(k => parseInt(hex.slice(k, k + 2), 16));
     const shifted = channels.map(c => Math.round(Math.min(255, Math.max(0, c + (random() * 2 - 1) * amount * 255))));
@@ -2061,7 +4225,7 @@ function perturbColor(hex, amount, random) {
  */
 function variableParams(project, node, includeColors) {
     const keyed = new Set(project.tracks.filter(t => t.node === node.id && t.keys.length).map(t => t.param));
-    return Object.entries(catalog[node.type].params).filter(([key, spec]) => !keyed.has(key) && (spec.kind === 'number' || (includeColors && spec.kind === 'color')));
+    return Object.entries(paramSpecs(node)).filter(([key, spec]) => !keyed.has(key) && (spec.kind === 'number' || (includeColors && spec.kind === 'color')));
 }
 /** Random variations of one component (`nodeId`) or, with `nodeId` null, of every
  * enabled content component. Each numeric parameter moves by up to `amount` of its
@@ -2069,7 +4233,7 @@ function variableParams(project, node, includeColors) {
  */
 function makeVariations(project, { nodeId = null, count = 8, amount = 0.25, seed = 1, includeColors = true } = {}) {
     const random = seededRandom(seed), results = [];
-    const targets = project.nodes.filter(n => nodeId ? n.id === nodeId : n.enabled && catalog[n.type].role === 'content');
+    const targets = project.nodes.filter(n => nodeId ? n.id === nodeId : n.enabled && isContent(n));
     if (!targets.length) {
         throw new Error(nodeId ? `Unknown component ${nodeId}.` : 'No enabled components to vary.');
     }
@@ -2093,25 +4257,210 @@ function makeVariations(project, { nodeId = null, count = 8, amount = 0.25, seed
     return results;
 }
 /** The value a parameter resets to: its value in the baseline project (the scene
- * as it was opened) when that node exists there, otherwise the catalog default.
+ * as it was opened) when that node exists there with that parameter, otherwise
+ * the default of its spec (the catalog, or the equation's param line).
  */
 function originalValue(baseline, node, key) {
     const original = baseline?.nodes.find(n => n.id === node.id && n.type === node.type);
-    return original && Object.hasOwn(original.params, key) ? original.params[key] : catalog[node.type].params[key].value;
+    if (original && Object.hasOwn(original.params, key) && (key === 'expression' || original.params.expression === node.params.expression || !catalog[node.type].custom)) {
+        return original.params[key];
+    }
+    return paramSpecs(node)[key]?.value;
 }
-/** True when any parameter of `node` differs from its original value. */
-function isModified(baseline, node) {
-    return Object.keys(catalog[node.type].params).some(key => node.params[key] !== originalValue(baseline, node, key));
+/** True when a parameter of `node` in `project` differs from its original value,
+ * or gained or lost its animation since the scene was opened: what ↺ undoes.
+ */
+function isParamModified(baseline, project, node, key) {
+    const animated = p => p.tracks.some(t => t.node === node.id && t.param === key && t.keys.length);
+    return node.params[key] !== originalValue(baseline, node, key) || animated(project) !== animated(baseline);
+}
+/** True when any parameter of `node` is modified (see isParamModified). */
+function isModified(baseline, project, node) {
+    return Object.keys(paramSpecs(node)).some(key => isParamModified(baseline, project, node, key));
 }
 
-return {snapToStep,sweepValues,seededRandom,makeVariations,originalValue,isModified};
+return {snapToStep,sweepValues,seededRandom,makeVariations,originalValue,isParamModified,isModified};
+})();
+__modules['fork.js'] = (() => {
+const { catalog } = __modules['catalog.js'];
+const { parseExpression, formatExpression, checkProgram, equationParams, LIBRARY } = __modules['expression.js'];
+/** Components as equations you can edit.
+ *
+ * Every component whose inputs a custom equation can read (coordinates p and up to
+ * two scalar fields a and b) can be written as an equation of the language in
+ * expression.js. `forkProgram()` writes it: its parameters become `param` lines
+ * named after their symbols in the typeset math (κ → kappa, c_x → c_x) with their
+ * current values, ranges and help, and the computation comes from the catalog's
+ * `source` (the steps as equation lines) or, for kernels with loops, is a call of
+ * the component's shader function. The equation renders exactly the same image.
+ *
+ * `withEquation()` is the one operation behind the editor's Edit/Apply and its
+ * live draft preview: the project with one component running a given equation.
+ * Pure: no DOM, no WebGL, no editor state.
+ */
+const CUSTOM_FOR = { scalar: 'expression', coord: 'vectorExpression', layer: 'colorExpression' };
+const TAKEN = new Set(['p', 'x', 'y', 'r', 'theta', 'a', 'b', 't', 'PI', 'TAU', 'param', 'expression', 'step', ...Object.keys(LIBRARY)]);
+const MAX_LABEL = 160;
+/** Why a component cannot be written as an equation, or null when it can. */
+function forkBlocker(type) {
+    const d = catalog[type];
+    if (!d) {
+        return 'Unknown component.';
+    }
+    if (d.custom) {
+        return null;
+    }
+    if (d.role === 'source') {
+        return 'It produces the pixel coordinates themselves; every equation starts from them as p.';
+    }
+    const kinds = Object.values(d.inputs);
+    if (!CUSTOM_FOR[d.output] || kinds.some(k => k !== 'coord' && k !== 'scalar')) {
+        return `It ${d.output === 'geometry' ? 'produces a geometry bundle' : 'reads a color layer or a geometry bundle'}, and equations work with numbers, coordinates and colors only. Change its parameters, or replace it (More ▸ Replace with…).`;
+    }
+    if (kinds.filter(k => k === 'coord').length > 1 || kinds.filter(k => k === 'scalar').length > 2) {
+        return 'It has more inputs than an equation can read (coordinates p and two fields a and b).';
+    }
+    return null;
+}
+/** Whether a built-in component can become an equation. */
+function forkable(type) {
+    return !catalog[type]?.custom && forkBlocker(type) === null;
+}
+/** A usable name from a TeX symbol: '\\kappa' → 'kappa', 'k_\\theta' → 'k_theta'. */
+const GREEK = /\\(alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|vartheta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|varphi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Phi|Psi|Omega|ell)(?![A-Za-z])/g;
+function symbolName(tex) {
+    const text = String(tex || '').replace(GREEK, '$1');
+    if (text.includes('\\')) {
+        return null; // \text, \mathrm and the like do not make names
+    }
+    const name = text.replace(/[{}\s]/g, '');
+    return /^[A-Za-z][A-Za-z0-9]*(_[A-Za-z0-9]+)?$/.test(name) ? name : null;
+}
+const fmt = v => String(Number(Number(v).toPrecision(6)));
+const firstSentence = text => text.match(/^.*?\.(?=\s|$)/)?.[0] ?? text;
+/** Names a catalog source defines (`name = …` lines). */
+const definedNames = lines => lines.map(l => /^\s*([A-Za-z_]\w*)\s*=(?!=)/.exec(l)?.[1]).filter(Boolean);
+/** The custom equation equivalent to `node`. Returns {type, expression, params,
+ * inputs, renames} where `renames` maps old parameter keys to their new names
+ * (for animation tracks). Throws when the component cannot be forked.
+ */
+function forkProgram(node) {
+    const d = catalog[node.type];
+    if (!forkable(node.type)) {
+        throw new Error(`${d?.name || node.type} cannot become an equation: ${forkBlocker(node.type) || 'it already is one.'}`);
+    }
+    const taken = new Set([...TAKEN, ...definedNames(d.source || [])]), renames = {};
+    for (const [key, spec] of Object.entries(d.params)) {
+        const name = [symbolName(spec.symbol), key, `${key}1`].find(c => c && !taken.has(c) && c.length <= 24);
+        renames[key] = name;
+        taken.add(name);
+    }
+    const scalars = ['a', 'b'], sockets = {}, inputs = {};
+    for (const [socket, kind] of Object.entries(d.inputs)) {
+        sockets[socket] = kind === 'coord' ? 'p' : scalars.shift();
+        if (node.inputs[socket]) {
+            inputs[sockets[socket]] = node.inputs[socket];
+        }
+    }
+    const lines = [`// ${d.name}, written as an equation you can change`];
+    for (const [key, spec] of Object.entries(d.params)) {
+        const help = `${spec.label}: ${firstSentence(spec.help)}`.replace(/\s+/g, ' ');
+        lines.push(spec.kind === 'color'
+            ? `param ${renames[key]} = ${node.params[key]}  // ${help}`
+            : `param ${renames[key]} = ${fmt(node.params[key])} [${fmt(spec.min)}, ${fmt(spec.max)}] step ${fmt(spec.step)}  // ${help}`);
+    }
+    if (d.source) {
+        lines.push(...d.source.map(line => line.replace(/\$(\w+)/g, (_, key) => {
+            if (!renames[key]) {
+                throw new Error(`${node.type}: the source uses $${key}, which is not a parameter.`);
+            }
+            return renames[key];
+        })));
+    }
+    else {
+        const call = formatExpression(parseExpression(d.emit(sockets, renames).replaceAll('u_time', 't')));
+        const kernel = /^(\w+)\(/.exec(call)?.[1];
+        if (kernel && LIBRARY[kernel]) {
+            lines.push(`// ${kernel}() is a function of the shader library (its code: More ▸ Code). Change what goes in, or what comes out.`);
+        }
+        lines.push(`${call}  // ${firstSentence(d.description)}`);
+    }
+    const expression = lines.join('\n'), type = CUSTOM_FOR[d.output];
+    checkProgram(expression, type); // the generated equation must be valid
+    const params = { expression };
+    for (const key of Object.keys(d.params)) {
+        params[renames[key]] = node.params[key];
+    }
+    return { type, expression, params, inputs, renames };
+}
+/** The text to start editing `node` from: its equation, or the equivalent one. */
+function equationSource(node) {
+    return catalog[node.type].custom ? node.params.expression : forkProgram(node).expression;
+}
+/** Parameters for a new version of an equation. A parameter keeps its current
+ * value when its `param` line still exists with the same default (clamped to a
+ * changed range); a new parameter, or one whose default was edited, takes the
+ * declared default. Returns {params, keep(name)}: `keep` tells whether a track of
+ * that parameter survives (numbers only).
+ */
+function syncedParams(kind, previousSource, previousParams, source) {
+    let before = {};
+    try {
+        before = equationParams(previousSource, kind);
+    }
+    catch (e) { /* an invalid previous text keeps nothing */
+    }
+    const specs = equationParams(source, kind), params = { expression: source };
+    for (const [name, spec] of Object.entries(specs)) {
+        const old = previousParams[name], sameDefault = before[name] && before[name].kind === spec.kind && before[name].value === spec.value;
+        if (spec.kind === 'number') {
+            params[name] = sameDefault && typeof old === 'number' ? Math.min(spec.max, Math.max(spec.min, old)) : spec.value;
+        }
+        else {
+            params[name] = sameDefault && typeof old === 'string' && /^#[0-9a-f]{6}$/i.test(old) ? old : spec.value;
+        }
+    }
+    return { params, specs };
+}
+/** The project with component `nodeId` running equation `source` (see the module
+ * comment). A built-in component first becomes its equivalent equation: same id
+ * and wiring, label "… · equation", parameter values and animation kept under
+ * their new names. Tracks of removed parameters are dropped and keys are clamped
+ * to changed ranges. Throws an EquationError when `source` does not check.
+ */
+function withEquation(project, nodeId, source) {
+    const next = JSON.parse(JSON.stringify(project)), node = next.nodes.find(n => n.id === nodeId);
+    if (!node) {
+        throw new Error(`Unknown component ${nodeId}.`);
+    }
+    if (!catalog[node.type].custom) {
+        const fork = forkProgram(node);
+        for (const t of next.tracks.filter(t => t.node === nodeId)) {
+            t.param = fork.renames[t.param];
+        }
+        Object.assign(node, { type: fork.type, inputs: fork.inputs, params: fork.params, label: `${node.label} · equation`.slice(0, MAX_LABEL) });
+    }
+    checkProgram(source, node.type);
+    const { params, specs } = syncedParams(node.type, node.params.expression, node.params, source);
+    node.params = params;
+    next.tracks = next.tracks.filter(t => t.node !== nodeId || specs[t.param]?.kind === 'number');
+    for (const t of next.tracks.filter(t => t.node === nodeId)) {
+        const s = specs[t.param];
+        t.keys = t.keys.map(k => ({ ...k, value: Math.min(s.max, Math.max(s.min, k.value)) }));
+    }
+    return next;
+}
+
+return {forkBlocker,forkable,symbolName,forkProgram,equationSource,withEquation};
 })();
 __modules['editor.js'] = (() => {
-const { catalog, bypassSocket } = __modules['catalog.js'];
+const { catalog, bypassSocket, paramSpecs } = __modules['catalog.js'];
 const { clone, makeNode, validateProject, uniqueId, removeNode, upstream, evaluationOrder, History, MAX_LABEL } = __modules['graph.js'];
 const { presets, getPreset } = __modules['presets.js'];
 const { CONTRIBUTION_STYLES } = __modules['compiler.js'];
 const { originalValue } = __modules['explore.js'];
+const { insertKey } = __modules['timeline.js'];
+const { withEquation, equationSource } = __modules['fork.js'];
 /** Shared editor core: transient state, the event bus and every model operation.
  *
  * UI state never enters shader source; numeric values remain uniforms. The
@@ -2126,6 +4475,8 @@ const { originalValue } = __modules['explore.js'];
  *   time       the playhead moved
  *   history    undo/redo availability changed
  *   prefs      a persisted preference changed
+ *   values     a parameter changed during a continuous edit (nodeId, key, value);
+ *              views update numbers without rebuilding
  *
  * The canvas shows one of three views of the project:
  *   final   the scene's final output (what exports and saves)
@@ -2140,8 +4491,22 @@ const STORAGE = { project: 'equation-studio.project.v1', baseline: 'equation-stu
 const CUSTOM_STATUS = 'Custom construction';
 const VIEW_MODES = ['final', 'stage', 'effect'];
 /** Bump when defaults change in a way returning users should receive. */
-const PREFS_VERSION = 2;
-const defaultPrefs = { version: PREFS_VERSION, previews: true, rulers: true, grid: true, quality: 800, graphHeight: 260, bottomTab: 'pipeline' };
+const PREFS_VERSION = 3;
+/** Persisted preferences. `quality` is the canvas width in pixels, 0 for Auto
+ * (match the display). Stage looks (looks.js): `stageColors` 'auto' or 'classic',
+ * `contours` on scalar colormaps, `geometryChannel` 'S', 'A', 'coverage' or 'all',
+ * `layerView` 'color' or 'alpha', `autoExposure` for clipped or black layer stages.
+ */
+const defaultPrefs = {
+    version: PREFS_VERSION, previews: true, rulers: true, grid: true, quality: 0, graphHeight: 0, bottomTab: 'pipeline',
+    stageColors: 'auto', contours: true, geometryChannel: 'A', layerView: 'color', autoExposure: true, scope: false,
+    /** Layout: the Equation Playground (a wide component panel) on or off, the
+     * panel's normal and wide widths in pixels (0: automatic, about a quarter and
+     * half of the window), and the library docked or a drawer. */
+    playground: false, panelWidth: 0, wideWidth: 0, libraryDocked: false
+};
+/** Preference keys kept when upgrading from an older version. */
+const KEPT_PREFS = ['graphHeight', 'bottomTab', 'previews', 'rulers', 'grid'];
 const state = {
     project: getPreset('bipolar'),
     /** The project as it was opened (preset, file or snapshot): what "Original" and resets return to. */
@@ -2164,7 +4529,6 @@ const state = {
     /** Output node awaiting an input click (click-to-wire), or null. */
     connection: null,
     renderer: null,
-    compiled: null,
     prefs: { ...defaultPrefs },
     /** Framebuffer position of a pinned readout marker, or null. */
     probePin: null,
@@ -2172,7 +4536,18 @@ const state = {
     previewsDirty: true,
     fps: 0,
     frameStamp: 0,
-    frameCount: 0
+    frameCount: 0,
+    /** A continuous gesture (drag, slider, scrub, playback) is under way: frames may
+     * render at a reduced resolution (adaptiveScale) and refine when it ends. */
+    interacting: false,
+    adaptiveScale: 1,
+    /** Colormap range pinned by the legend's lock: {target, look} or null. */
+    lookLock: null,
+    /** Unapplied equation edits: component id → equation text (see setDraft). */
+    drafts: new Map(),
+    /** What the canvas previews for the selected component's draft: {node, project}
+     * with the last draft text that checked, or null. */
+    draftPreview: null
 };
 const history = new History();
 const listeners = new Map();
@@ -2212,8 +4587,8 @@ function loadPrefs(text) {
     }
     catch (e) { /* Ignore unreadable preferences. */
     }
-    if (stored.version !== PREFS_VERSION) { // new defaults: previews, rulers and grid on
-        stored = { quality: stored.quality, graphHeight: stored.graphHeight };
+    if (stored.version !== PREFS_VERSION) { // new defaults (1.3: Auto quality); keep layout choices
+        stored = Object.fromEntries(KEPT_PREFS.filter(k => stored.version >= 2 || k === 'graphHeight').map(k => [k, stored[k]]));
     }
     const prefs = { ...defaultPrefs };
     for (const [key, value] of Object.entries(stored)) {
@@ -2265,6 +4640,16 @@ function markDirty() {
     state.overlayDirty = true;
     state.previewsDirty = true;
 }
+let interactionTimer;
+/** Note a continuous gesture; the canvas refines to full resolution shortly after the last one. */
+function noteInteraction() {
+    state.interacting = true;
+    clearTimeout(interactionTimer);
+    interactionTimer = setTimeout(() => {
+        state.interacting = false;
+        state.dirty = true;
+    }, 220);
+}
 function changed() {
     markDirty();
     persist();
@@ -2281,6 +4666,12 @@ function refreshUI() {
     if (state.connection && !ids.has(state.connection)) {
         state.connection = null;
     }
+    for (const id of state.drafts.keys()) {
+        if (!ids.has(id)) {
+            state.drafts.delete(id); // the component was deleted, or undone away
+        }
+    }
+    updateDraftPreview();
     state.time = clamp(state.time, 0, state.project.duration);
     emit('refresh');
 }
@@ -2334,6 +4725,7 @@ function loadProject(next, { fromHistory = false, keepBaseline = false, keepCont
         state.baseline = getPreset(next.id); // undo/redo across a scene change: the original follows the scene
     }
     if (!fromHistory && !keepContext) {
+        state.drafts.clear(); // another scene: its components are not the ones being edited
         state.time = 0;
         state.viewMode = 'final';
         state.viewLock = null;
@@ -2376,6 +4768,7 @@ function setSelected(id) {
     if (state.viewMode !== 'final' && !state.viewLock) {
         markDirty(); // the stage/effect view follows the selection
     }
+    updateDraftPreview();
     emit('selection');
 }
 // ---- Canvas view -------------------------------------------------------------
@@ -2391,6 +4784,7 @@ function setView(mode, { node = null, lock } = {}) {
     if (node) {
         state.selected = node;
         state.connection = null;
+        updateDraftPreview();
     }
     state.viewMode = mode;
     if (lock !== undefined) {
@@ -2424,15 +4818,22 @@ function viewOptions() {
     }
     return { target: project.output };
 }
-/** Node the canvas currently displays (for readouts and legends). */
-function viewTarget() {
-    return state.viewMode === 'stage' ? viewedNode().id : state.project.output;
+/** Position of the selected component in evaluation order: {index, count}. */
+function selectionPosition() {
+    const order = evaluationOrder(state.project);
+    return { index: order.findIndex(n => n.id === state.selected), count: order.length };
 }
-/** Move the stage view to the previous/next component in evaluation order. */
-function stepStage(delta) {
-    const order = evaluationOrder(state.project), index = order.findIndex(n => n.id === viewedNode().id);
+/** Select the previous (-1) or next (+1) component in evaluation order. The canvas
+ * keeps its view; in the step and effect views it follows the selection.
+ */
+function selectStep(delta) {
+    const order = evaluationOrder(state.project), index = order.findIndex(n => n.id === state.selected);
     const next = order[clamp((index < 0 ? 0 : index) + delta, 0, order.length - 1)];
-    setView('stage', { node: next.id, lock: false });
+    if (state.viewLock) {
+        state.viewLock = null;
+        emit('view');
+    }
+    setSelected(next.id);
 }
 function seek(t) {
     if (!Number.isFinite(t)) {
@@ -2496,6 +4897,125 @@ function bypassDescription(node) {
     return 'contributes nothing (zero)';
 }
 // ---- Parameters ---------------------------------------------------------------
+/** Project as it was when the current continuous edit began (see liveParam). */
+let liveBefore = null;
+/** One step of a continuous parameter edit (slider drag, number typing, dragging
+ * a symbol in an equation): the live project changes at once for smooth
+ * feedback, an animated parameter gets a key at the playhead, and every view is
+ * told through the `values` event. endLiveEdit() records one undo step.
+ * Returns the value actually set (clamped to the parameter's range).
+ */
+function liveParam(nodeId, key, raw) {
+    if (state.busy) {
+        return null;
+    }
+    const node = nodeById(nodeId), spec = node && paramSpecs(node)[key];
+    if (!spec || (spec.kind === 'number' && !Number.isFinite(raw))) {
+        return null;
+    }
+    pause();
+    if (!liveBefore) {
+        liveBefore = clone(state.project);
+    }
+    const value = spec.kind === 'number' ? clamp(raw, spec.min, spec.max) : raw;
+    node.params[key] = value;
+    if (state.project.tracks.some(t => t.node === nodeId && t.param === key && t.keys.length)) {
+        insertKey(state.project, nodeId, key, state.time, value);
+    }
+    noteInteraction();
+    markDirty();
+    emit('values', nodeId, key, value);
+    return value;
+}
+/** Finish a continuous edit: one history entry, autosave and a full refresh. */
+function endLiveEdit() {
+    if (!liveBefore) {
+        return false;
+    }
+    history.push(liveBefore);
+    liveBefore = null;
+    changed();
+    refreshUI();
+    return true;
+}
+// ---- Equations ------------------------------------------------------------------
+/** Put equation `source` into component `nodeId`, as one undo step: a custom
+ * equation gets the new text; a built-in component becomes that equation (same
+ * wiring, values and animation; see withEquation in fork.js). The shader
+ * compiles in the background. Throws the checker's EquationError, changing
+ * nothing, when the equation is invalid. Discards the component's draft.
+ */
+function applyEquation(nodeId, source) {
+    const next = withEquation(state.project, nodeId, source);
+    const ok = transact(p => Object.assign(p, { nodes: next.nodes, tracks: next.tracks }), { structural: true });
+    if (ok) {
+        discardDraft(nodeId);
+    }
+    return ok;
+}
+/** Turn a built-in component into its equivalent equation (the image is unchanged). */
+function forkComponent(nodeId) {
+    return applyEquation(nodeId, equationSource(nodeById(nodeId)));
+}
+let draftTimer = null;
+/** The canvas preview of the selected component's draft: the project with the
+ * draft applied, or, while the text has an error, the last version that checked.
+ */
+function updateDraftPreview() {
+    clearTimeout(draftTimer);
+    const id = state.selected, source = state.drafts.get(id);
+    const previous = state.draftPreview?.node === id ? state.draftPreview : null;
+    let next = null;
+    if (source !== undefined) {
+        try {
+            const project = withEquation(state.project, id, source);
+            validateProject(project);
+            next = { node: id, project };
+        }
+        catch (e) {
+            next = previous;
+        }
+    }
+    if (next !== state.draftPreview) {
+        state.draftPreview = next;
+        markDirty();
+    }
+}
+/** Start or change an unapplied edit of a component's equation. The typeset
+ * lines follow at once (views listen to `draft`); the canvas preview, which
+ * compiles a new shader, follows a moment after typing pauses.
+ */
+function setDraft(nodeId, source) {
+    const started = !state.drafts.has(nodeId);
+    state.drafts.set(nodeId, source);
+    emit('draft', nodeId);
+    clearTimeout(draftTimer);
+    if (started) {
+        updateDraftPreview();
+    }
+    else {
+        draftTimer = setTimeout(updateDraftPreview, 350);
+    }
+}
+/** Start editing: the draft begins as the component's equation, or the
+ * equivalent equation of a built-in component. */
+function startEdit(nodeId) {
+    if (!state.drafts.has(nodeId)) {
+        setDraft(nodeId, equationSource(nodeById(nodeId)));
+    }
+}
+/** Drop an unapplied edit (Cancel). */
+function discardDraft(nodeId) {
+    if (state.drafts.delete(nodeId)) {
+        emit('draft', nodeId);
+        updateDraftPreview();
+    }
+}
+/** True when the draft differs from what the component computes now. */
+function draftChanged(nodeId) {
+    const node = nodeById(nodeId), source = state.drafts.get(nodeId);
+    return source !== undefined && !!node && source !== equationSource(node);
+}
 function resetParam(nodeId, key) {
     return transact(p => {
         const n = p.nodes.find(v => v.id === nodeId);
@@ -2506,7 +5026,7 @@ function resetParam(nodeId, key) {
 function resetNode(nodeId) {
     return transact(p => {
         const n = p.nodes.find(v => v.id === nodeId);
-        for (const key of Object.keys(catalog[n.type].params)) {
+        for (const key of Object.keys(paramSpecs(n))) {
             n.params[key] = originalValue(state.baseline, n, key);
         }
         p.tracks = p.tracks.filter(t => t.node !== nodeId);
@@ -2671,7 +5191,7 @@ function setOutput(id) {
     return ok;
 }
 
-return {$,esc,clamp,STORAGE,CUSTOM_STATUS,VIEW_MODES,state,history,on,emit,readStorage,writeStorage,loadPrefs,savePrefs,setPref,toast,showError,persist,pause,markDirty,changed,refreshUI,markCustom,transact,loadProject,undo,redo,revertScene,currentNode,nodeById,setSelected,viewedNode,setView,setContributionStyle,viewOptions,viewTarget,stepStage,seek,setEnabled,toggleEnabled,enableAll,onlyStructure,restoreEnabled,bypassDescription,resetParam,resetNode,applyParams,addComponent,insertComponent,replaceComponent,connect,duplicateNode,deleteNode,setOutput};
+return {$,esc,clamp,STORAGE,CUSTOM_STATUS,VIEW_MODES,state,history,on,emit,readStorage,writeStorage,loadPrefs,savePrefs,setPref,toast,showError,persist,pause,markDirty,noteInteraction,changed,refreshUI,markCustom,transact,loadProject,undo,redo,revertScene,currentNode,nodeById,setSelected,viewedNode,setView,setContributionStyle,viewOptions,selectionPosition,selectStep,seek,setEnabled,toggleEnabled,enableAll,onlyStructure,restoreEnabled,bypassDescription,liveParam,endLiveEdit,applyEquation,forkComponent,setDraft,startEdit,discardDraft,draftChanged,resetParam,resetNode,applyParams,addComponent,insertComponent,replaceComponent,connect,duplicateNode,deleteNode,setOutput};
 })();
 __modules['view-math.js'] = (() => {
 const { VIEW_LIMITS } = __modules['graph.js'];
@@ -2748,15 +5268,17 @@ const { esc } = __modules['editor.js'];
  *
  * or register a provider for richer content (see registerTipProvider). Tips
  * appear after a short delay, instantly when moving between controls, and hide on
- * any press, key or scroll. aria-label attributes stay as the accessible names.
+ * any press, key or scroll. On touch screens a long press shows the tip (and the
+ * press does not also activate the control). Symbols in equations with a
+ * data-sym-title explain themselves the same way. aria-label attributes stay the
+ * accessible names.
+ *
+ * attachTooltips(document) is called for this page; the pop-out window calls it
+ * for its own document.
  */
 const providers = [];
-let timer = null, current = null, lastHidden = 0;
-const tip = document.createElement('div');
-tip.id = 'tooltip';
-tip.setAttribute('role', 'tooltip');
-tip.hidden = true;
-document.body.append(tip);
+const instances = [];
+const LONG_PRESS_MS = 480;
 /** `provider(element)` returns HTML for elements matching `selector`, or null. */
 function registerTipProvider(selector, provider) {
     providers.push({ selector, provider });
@@ -2771,6 +5293,9 @@ function contentFor(el) {
             }
         }
     }
+    if (el.dataset.symTitle) {
+        return `<b>${esc(el.textContent.trim())}</b><p>${esc(el.dataset.symTitle)}</p>`;
+    }
     const text = el.dataset.tip;
     if (!text) {
         return null;
@@ -2781,91 +5306,330 @@ function contentFor(el) {
     const key = el.dataset.key ? `<kbd>${esc(el.dataset.key)}</kbd>` : '';
     return `<b>${esc(heading)}</b>${key}${state}${body ? `<p>${esc(body).replace(/\n/g, '<br>')}</p>` : ''}`;
 }
-function place(el) {
-    const r = el.getBoundingClientRect(), t = tip.getBoundingClientRect(), margin = 8;
-    let top = r.bottom + margin;
-    if (top + t.height > innerHeight - 4) {
-        top = Math.max(4, r.top - t.height - margin);
-    }
-    const left = Math.min(Math.max(4, r.left + r.width / 2 - t.width / 2), innerWidth - t.width - 4);
-    tip.style.left = `${left}px`;
-    tip.style.top = `${top}px`;
+function target(el) {
+    return el?.closest?.('[data-tip], [data-rich-tip], [data-sym-title]');
 }
-function show(el) {
-    const html = contentFor(el);
-    if (!html) {
+/** Install tooltips in `doc`. Returns {hide, refresh}. */
+function attachTooltips(doc) {
+    const view = doc.defaultView;
+    const tip = doc.createElement('div');
+    tip.id = 'tooltip';
+    tip.setAttribute('role', 'tooltip');
+    tip.hidden = true;
+    doc.body.append(tip);
+    /** `current` shows its tip; `pending` waits for its delay to show one. */
+    let timer = null, current = null, pending = null, lastHidden = 0, press = null, suppressClick = false;
+    const place = el => {
+        const r = el.getBoundingClientRect(), t = tip.getBoundingClientRect(), margin = 8;
+        let top = r.bottom + margin;
+        if (top + t.height > view.innerHeight - 4) {
+            top = Math.max(4, r.top - t.height - margin);
+        }
+        const left = Math.min(Math.max(4, r.left + r.width / 2 - t.width / 2), view.innerWidth - t.width - 4);
+        tip.style.left = `${left}px`;
+        tip.style.top = `${top}px`;
+    };
+    const show = el => {
+        const html = el.isConnected ? contentFor(el) : null; // a re-render may have replaced the target
+        if (!html) {
+            return;
+        }
+        current = el;
+        tip.innerHTML = html;
+        tip.hidden = false;
+        place(el);
+    };
+    const hide = () => {
+        clearTimeout(timer);
+        pending = null;
+        if (!tip.hidden) {
+            lastHidden = performance.now();
+        }
+        tip.hidden = true;
+        current = null;
+    };
+    doc.addEventListener('pointerover', e => {
+        if (e.pointerType === 'touch') {
+            return; // touch shows tips on a long press instead
+        }
+        const el = target(e.target);
+        if (el && (el === current || el === pending)) {
+            return; // still over the same control
+        }
+        // Moving between controls while a tip is (or was just) visible is quick.
+        const quick = !tip.hidden || performance.now() - lastHidden < 400;
+        hide(); // also cancels a tip still waiting for its delay
+        if (!el) {
+            return;
+        }
+        pending = el;
+        timer = setTimeout(() => {
+            pending = null;
+            show(el);
+        }, quick ? 60 : 420);
+    });
+    doc.addEventListener('pointerout', e => {
+        const el = current || pending;
+        if (el && !el.contains(e.relatedTarget) && e.pointerType !== 'touch') {
+            hide();
+        }
+    });
+    doc.addEventListener('pointerdown', e => {
+        hide();
+        clearTimeout(press?.timer);
+        press = null;
+        const el = e.pointerType === 'touch' ? target(e.target) : null;
+        if (el) {
+            press = { x: e.clientX, y: e.clientY, timer: setTimeout(() => {
+                show(el);
+                suppressClick = true;
+            }, LONG_PRESS_MS) };
+        }
+    }, { capture: true, passive: true });
+    doc.addEventListener('pointermove', e => {
+        if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) {
+            clearTimeout(press.timer);
+            press = null;
+        }
+    }, { capture: true, passive: true });
+    for (const type of ['pointerup', 'pointercancel']) {
+        doc.addEventListener(type, () => {
+            clearTimeout(press?.timer);
+            press = null;
+            if (suppressClick) { // only the click that ends this press is swallowed
+                setTimeout(() => suppressClick = false, 400);
+            }
+        }, { capture: true, passive: true });
+    }
+    // A long press shows the tip; the click it would end in is swallowed.
+    doc.addEventListener('click', e => {
+        if (suppressClick) {
+            suppressClick = false;
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    }, { capture: true });
+    for (const type of ['keydown', 'wheel']) {
+        doc.addEventListener(type, hide, { capture: true, passive: true });
+    }
+    doc.addEventListener('scroll', hide, { capture: true, passive: true });
+    const instance = { hide, refresh: () => current && !tip.hidden && show(current), doc };
+    instances.push(instance);
+    view.addEventListener('pagehide', () => instances.splice(instances.indexOf(instance), 1));
+    return instance;
+}
+/** Refresh visible tips, e.g. after a toggle changed state. */
+function refreshTip() {
+    instances.forEach(i => i.refresh());
+}
+attachTooltips(document);
+
+return {registerTipProvider,attachTooltips,refreshTip};
+})();
+__modules['ui-look.js'] = (() => {
+const { $, esc, state, on, setPref, viewedNode } = __modules['editor.js'];
+const { catalog } = __modules['catalog.js'];
+const { lookForStats, colormapCSS, COLORMAPS, GEOMETRY_CHANNELS } = __modules['looks.js'];
+const { refreshTip } = __modules['ui-tooltip.js'];
+/** How the canvas colors the stage it shows, and the legend that explains it.
+ *
+ * A stage without colors of its own (scalar, coordinates, geometry), or a layer
+ * that is clipped at the scene exposure, is shown with an automatic look whose
+ * range comes from the values actually in view: a small raw render (STATS size)
+ * read back as floats. The first frame of a new stage computes it synchronously
+ * so it never flashes in the wrong colors; later updates (parameters, time,
+ * camera) arrive asynchronously, at most a few times per second. The legend's
+ * lock pins the current range, e.g. to compare two parameter values fairly.
+ */
+const STATS_WIDTH = 120, STATS_HEIGHT = 72, REFRESH_MS = 220;
+const CHANNEL_INDEX = Object.fromEntries(GEOMETRY_CHANNELS.map((name, i) => [name, i])); // S 0, A 1, coverage 2
+/** The look in use: {target, type, optionsKey, sourceKey, look}. */
+let current = null, inFlight = false, lastRequest = 0, retry = null;
+/** Look preferences for a component of `type`; `natural` for the scene's output. */
+function lookOptions(type, { natural = false } = {}) {
+    const p = state.prefs, classic = p.stageColors === 'classic';
+    let mode = 'auto';
+    if (type === 'layer') {
+        mode = p.layerView === 'alpha' ? 'alpha' : (classic || !p.autoExposure) ? 'classic' : 'auto';
+    }
+    else if (classic || (type === 'geometry' && p.geometryChannel === 'all')) {
+        mode = 'classic';
+    }
+    return { mode, channel: CHANNEL_INDEX[p.geometryChannel] ?? 0, exposure: state.project.exposure, natural, contours: p.contours };
+}
+function needsStats(options, type) {
+    return options.mode === 'auto' && !(type === 'layer' && options.natural);
+}
+/** Signature of everything a stage's value range depends on. */
+function sourceKey(project, target) {
+    return `${target}|${state.time.toFixed(4)}|${JSON.stringify(project.view)}|${JSON.stringify(project.nodes)}|${JSON.stringify(project.tracks)}|${project.exposure}`;
+}
+function build(values, type, options) {
+    const look = lookForStats(values, type, options);
+    if (look.range && !options.contours) {
+        look.range = { ...look.range, contour: 0 };
+    }
+    return look;
+}
+/** The look to draw `target` of `project` with in the current view, computing it
+ * synchronously when none is known for this target yet. Returns {mode: 'classic'}
+ * for the final image and "what it changes" views.
+ */
+function frameLook(project, target) {
+    if (state.viewMode !== 'stage' || state.compareOriginal) {
+        return { mode: 'classic' };
+    }
+    const node = project.nodes.find(n => n.id === target);
+    if (!node) {
+        return { mode: 'classic' };
+    }
+    const type = catalog[node.type].output, options = lookOptions(type, { natural: target === project.output });
+    const optionsKey = JSON.stringify(options);
+    if (!needsStats(options, type)) {
+        current = { target, type, optionsKey, sourceKey: null, look: { mode: options.mode, channel: options.channel, gain: 1 } };
+        return current.look;
+    }
+    if (state.lookLock?.target === target && state.lookLock.optionsKey === optionsKey) {
+        return state.lookLock.look;
+    }
+    if (current?.target === target && current.optionsKey === optionsKey && current.look) {
+        return current.look;
+    }
+    const renderer = state.renderer;
+    if (!renderer?.info.rawFields) {
+        return { mode: 'classic' };
+    }
+    try {
+        const values = renderer.rawImage(project, state.time, target, STATS_WIDTH, STATS_HEIGHT);
+        current = { target, type, optionsKey, sourceKey: sourceKey(project, target), look: build(values, type, options) };
+        refreshLegend();
+        return current.look;
+    }
+    catch (e) {
+        return { mode: 'classic' };
+    }
+}
+function changedEnough(a, b) {
+    if (!a || !b || a.mode !== b.mode) {
+        return true;
+    }
+    if (a.range && b.range) {
+        const span = Math.max(a.range.hi - a.range.lo, 1e-30);
+        return a.range.signed !== b.range.signed || Math.abs(a.range.lo - b.range.lo) > 0.03 * span || Math.abs(a.range.hi - b.range.hi) > 0.03 * span || a.range.contour !== b.range.contour;
+    }
+    if (a.gain !== undefined && b.gain !== undefined && Math.abs(Math.log((a.gain || 1) / (b.gain || 1))) > 0.1) {
+        return true;
+    }
+    return a.step !== b.step;
+}
+/** After a stage frame: refresh the range in the background when what is shown
+ * changed. Redraws only when the new range differs noticeably.
+ */
+function afterStageFrame(project, target) {
+    if (!current || current.target !== target || !current.sourceKey || state.lookLock?.target === target || inFlight) {
         return;
     }
-    current = el;
-    tip.innerHTML = html;
-    tip.hidden = false;
-    place(el);
-}
-function hideTip() {
-    clearTimeout(timer);
-    if (!tip.hidden) {
-        lastHidden = performance.now();
+    const renderer = state.renderer, key = sourceKey(project, target);
+    if (key === current.sourceKey) {
+        return;
     }
-    tip.hidden = true;
+    const wait = REFRESH_MS - (performance.now() - lastRequest);
+    if (wait > 0) {
+        // Too soon after the last refresh: redraw once the interval has passed.
+        retry ??= setTimeout(() => {
+            retry = null;
+            state.dirty = true;
+        }, wait);
+        return;
+    }
+    const type = current.type, options = JSON.parse(current.optionsKey), snapshot = JSON.parse(JSON.stringify(project)), time = state.time;
+    inFlight = true;
+    lastRequest = performance.now();
+    renderer.rawImage(snapshot, time, target, STATS_WIDTH, STATS_HEIGHT, { async: true }).then(values => {
+        inFlight = false;
+        if (current?.target !== target) {
+            return;
+        }
+        const look = build(values, type, options);
+        const redraw = changedEnough(current.look, look);
+        current = { ...current, sourceKey: key, look: redraw ? look : { ...current.look, stats: look.stats } };
+        refreshLegend();
+        if (redraw) {
+            state.dirty = true;
+        }
+    }, () => {
+        inFlight = false;
+    });
+}
+/** Forget the computed look (e.g. after the stage or the preferences changed). */
+function resetLook() {
     current = null;
 }
-function target(el) {
-    return el?.closest?.('[data-tip], [data-rich-tip]');
+// ---- Legend -------------------------------------------------------------------
+const fmt = v => {
+    if (!Number.isFinite(v)) {
+        return String(v);
+    }
+    const a = Math.abs(v);
+    return a !== 0 && (a < 1e-3 || a >= 1e5) ? v.toExponential(2) : String(Number(v.toPrecision(3)));
+};
+/** A range end: values negligible next to the range's span read as 0, not 6.39e-29. */
+const fmtEnd = (v, span) => Math.abs(v) < span * 1e-6 ? '0' : fmt(v);
+function histogramSVG(histogram) {
+    const max = Math.max(...histogram, 1), n = histogram.length;
+    const path = histogram.map((h, i) => `${i ? 'L' : 'M'}${(i / (n - 1) * 100).toFixed(1)},${(22 - 20 * Math.sqrt(h / max)).toFixed(1)}`).join(' ');
+    return `<svg class="legend-hist" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true"><path d="${path} L100,22 L0,22 Z"/></svg>`;
 }
-document.addEventListener('pointerover', e => {
-    const el = target(e.target);
-    if (el === current) {
-        return;
-    }
-    clearTimeout(timer);
-    if (!el) {
-        hideTip();
-        return;
-    }
-    const quick = !tip.hidden || performance.now() - lastHidden < 400;
-    if (!tip.hidden) {
-        tip.hidden = true;
-    }
-    timer = setTimeout(() => show(el), quick ? 60 : 420);
-});
-document.addEventListener('pointerout', e => {
-    if (current && !current.contains(e.relatedTarget)) {
-        hideTip();
-    }
-});
-for (const type of ['pointerdown', 'keydown', 'wheel']) {
-    document.addEventListener(type, hideTip, { capture: true, passive: true });
+function select(id, value, options, tip) {
+    return `<select id="${id}" data-tip="${esc(tip)}">${options.map(([v, label]) => `<option value="${v}" ${v === value ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select>`;
 }
-document.addEventListener('scroll', hideTip, { capture: true, passive: true });
-/** Refresh the visible tip, e.g. after a toggle changed state. */
-function refreshTip() {
-    if (current && !tip.hidden) {
-        show(current);
-    }
+function lockButton(target) {
+    const locked = state.lookLock?.target === target;
+    return `<button id="lookLock" class="icon-toggle ${locked ? 'active' : ''}" aria-pressed="${locked}" data-toggle data-tip="Lock the color range|Keep the current range while you change parameters, so colors compare fairly. Unlock to follow the values again.">${locked ? '🔒' : '🔓'}</button>`;
 }
-
-return {registerTipProvider,hideTip,refreshTip};
-})();
-__modules['ui-canvas.js'] = (() => {
-const { $, esc, state, on, toast, showError, transact, history, changed, markDirty, pause, currentNode, viewedNode, viewOptions, setView, setContributionStyle, setPref, clamp } = __modules['editor.js'];
-const { catalog } = __modules['catalog.js'];
-const { clone } = __modules['graph.js'];
-const { pixelToWorld, worldToPixel, clientToPixel, zoomAbout, panBy, unitsPerPixel, tickSpacing, formatTick } = __modules['view-math.js'];
-const { refreshTip } = __modules['ui-tooltip.js'];
-/** Center panel: the live canvas and its view switch, camera gestures, rulers and
- * readouts, the diagnostic legend, reference comparison and the canvas toolbar.
+function colorbar(look, stats) {
+    const r = look.range;
+    const stops = r.signed ? COLORMAPS.diverging : COLORMAPS.sequential;
+    const span = Math.abs(r.hi - r.lo), labels = r.signed ? `<span>${fmtEnd(r.lo, span)}</span><span>0</span><span>${fmtEnd(r.hi, span)}</span>` : `<span>${fmtEnd(r.lo, span)}</span><span>${fmtEnd(r.hi, span)}</span>`;
+    // Where the histogram's bins sit on the colorbar: stats span min…max, the bar lo…hi.
+    const hist = stats?.count && stats.max > stats.min ? histogramSVG(stats.histogram) : '';
+    const left = stats?.count ? ((stats.min - r.lo) / (r.hi - r.lo) * 100) : 0, width = stats?.count ? ((stats.max - stats.min) / (r.hi - r.lo) * 100) : 100;
+    return `<div class="legend-bar" style="background:${colormapCSS(stops)}" data-tip="Colormap|${r.signed ? 'The field takes both signs: cool colors are negative, near-black is zero, warm colors positive. The range is symmetric about zero.' : 'Dark is low, bright is high, over the values in view.'} The white curve is the histogram of values in view${look.range.contour ? `; contour lines every ${fmt(look.range.contour)}` : ''}.">${hist ? `<div class="legend-hist-wrap" style="left:${left.toFixed(1)}%;width:${width.toFixed(1)}%">${hist}</div>` : ''}</div><div class="legend-labels ${r.signed ? 'three' : ''}">${labels}</div>`;
+}
+/** Info (what the colors mean) and controls (how to show it) share the legend;
+ * on a narrow image the controls fold behind a ⚙ button.
  */
-const app = $('app'), canvas = $('artCanvas'), overlay = $('overlay'), probeNames = { scalar: ['value'], coord: ['x', 'y'], geometry: ['S / warp', 'A / rim', 'coverage'], layer: ['R', 'G', 'B', 'alpha'] };
-let lastProgram = null, rawProbeArmed = false, referenceURL = null, hover = null, pinReadout = null, hoverStamp = 0;
-let gesture = null, pinch = null, wheelBefore = null, wheelTimer;
-/** What the last frame drew: needed so readouts query the same project. */
-let drawn = { project: null, target: null };
-const pointers = new Map();
-function armProbe() {
-    rawProbeArmed = true;
-    toast('Click a point on the artwork to read the shown component’s raw field value. Alt-click also probes; Rulers show it continuously.');
+const withControls = (info, controls) => `${info}<span class="legend-controls">${controls}</span><button class="legend-more" data-legend-more aria-label="Stage color options" data-tip="Options|How this stage is colored: colormap, channel, contours, exposure.">⚙</button>`;
+const CHANNEL_OPTIONS = [['S', 'S · warp'], ['A', 'A · rim'], ['coverage', 'Coverage'], ['all', 'All three (classic)']];
+const CHANNEL_TIP = 'Geometry channel|Which of the three geometry fields to show: the shell-following texture coordinate S, the emission rim A, or the coverage. All three uses the classic red/green/blue diagnostic.';
+function stageLegend(node) {
+    const type = catalog[node.type].output, look = current?.target === node.id ? current.look : null, locked = state.lookLock?.target === node.id;
+    const shown = locked ? state.lookLock.look : look, stats = shown?.stats;
+    const colors = select('lookColors', state.prefs.stageColors, [['auto', 'Auto colors'], ['classic', 'Classic']], 'Stage colors|Auto colors use the values in view: a colormap with contour lines for numbers, a warped grid for coordinates, adjusted exposure for clipped layers. Classic is the fixed 1.x diagnostic.');
+    const channel = type === 'geometry' ? select('lookChannel', state.prefs.geometryChannel, CHANNEL_OPTIONS, CHANNEL_TIP) : '';
+    if (type === 'layer') {
+        const gain = shown?.gain ?? 1, adjusted = shown?.mode === 'auto' && Math.abs(gain - 1) > 1e-6;
+        const view = select('lookLayer', state.prefs.layerView, [['color', 'Color'], ['alpha', 'Coverage (alpha)']], 'Layer view|Its color as displayed, or its coverage (alpha) as gray: white is opaque, black transparent.');
+        const auto = node.id === state.project.output ? '' : `<label class="legend-check" data-tip="Auto exposure|A layer stage that is almost entirely clipped or black at the scene exposure is shown brighter or darker so its structure is visible. The number is the extra exposure applied. Final image and exports are never adjusted."><input type="checkbox" id="lookExposure" ${state.prefs.autoExposure ? 'checked' : ''}> Auto exposure</label>`;
+        const note = adjusted ? `<b class="legend-note">×${fmt(gain)} exposure</b><span class="muted">so it is not ${gain < 1 ? 'clipped white' : 'black'}</span>` : '<span class="muted">color layer · as displayed</span>';
+        return withControls(note, `${auto}${view}`);
+    }
+    if (shown?.mode !== 'auto') {
+        const classic = type === 'scalar' ? '<span class="ramp gray"></span><span class="mono">−2 0 +2</span><span class="muted">gray = ½ + ½·tanh(value)</span>'
+            : type === 'coord' ? '<span class="swatch red"></span>½+½ sin x <span class="swatch green"></span>½+½ sin y <span class="muted">repeats every 2π</span>'
+                : '<span class="swatch red"></span>4 × rim A <span class="swatch green"></span>coverage <span class="swatch blue"></span>warp S';
+        return withControls(classic, `${channel}${colors}`);
+    }
+    if (type === 'coord') {
+        return withControls(`<span class="legend-grid"></span><span>grid of the output coordinates, cell ${fmt(shown.step)}</span><span class="swatch red"></span><span>q<sub>x</sub> = 0</span><span class="swatch green"></span><span>q<sub>y</sub> = 0</span>`, colors);
+    }
+    if (shown.range?.constant) {
+        return withControls(`<span>constant value <b class="mono">${fmt(shown.range.value)}</b></span>`, `${channel}${colors}`);
+    }
+    const contours = `<label class="legend-check" data-tip="Contour lines|Lines of equal value at round intervals${shown.range?.contour ? ` (every ${fmt(shown.range.contour)})` : ''}; the zero line of a signed field is brighter."><input type="checkbox" id="lookContours" ${state.prefs.contours ? 'checked' : ''}> Contours</label>`;
+    return withControls(colorbar(shown, stats), `${channel}${contours}${lockButton(node.id)}${colors}`);
 }
-/** Legend explaining the false colors of a non-layer stage, or the effect view. */
+/** Legend HTML for the current canvas view, or '' when there is nothing to explain. */
 function legendHTML() {
     if (state.compareOriginal) {
         return '<b>ORIGINAL</b> the scene as it was opened · release to return';
@@ -2878,17 +5642,352 @@ function legendHTML() {
     if (state.viewMode !== 'stage') {
         return '';
     }
-    const type = catalog[viewedNode().type].output;
-    if (type === 'scalar') {
-        return '<span class="ramp gray"></span><span>−2</span><span>0</span><span>+2</span> gray = ½ + ½·tanh(value) · Rulers show exact values';
+    return stageLegend(viewedNode());
+}
+function refreshLegend() {
+    const legend = $('legend'), html = legendHTML();
+    legend.innerHTML = html;
+    legend.hidden = !html;
+    legend.classList.toggle('interactive', state.viewMode === 'stage' && !state.compareOriginal);
+    refreshTip();
+}
+$('legend').addEventListener('change', e => {
+    const id = e.target.id;
+    if (id === 'lookColors') {
+        setPref('stageColors', e.target.value);
     }
-    if (type === 'coord') {
-        return '<span class="swatch red"></span>red = ½+½ sin x <span class="swatch green"></span>green = ½+½ sin y · repeats every 2π';
+    else if (id === 'lookChannel') {
+        setPref('geometryChannel', e.target.value);
     }
-    if (type === 'geometry') {
-        return '<span class="swatch red"></span>red = 4 × rim A <span class="swatch green"></span>green = coverage <span class="swatch blue"></span>blue = warp S';
+    else if (id === 'lookLayer') {
+        setPref('layerView', e.target.value);
     }
-    return '';
+    else if (id === 'lookExposure') {
+        setPref('autoExposure', e.target.checked);
+    }
+    else if (id === 'lookContours') {
+        setPref('contours', e.target.checked);
+    }
+    else {
+        return;
+    }
+    state.lookLock = null;
+    resetLook();
+});
+$('legend').addEventListener('click', e => {
+    if (e.target.closest('[data-legend-more]')) {
+        $('legend').classList.toggle('expanded');
+        return;
+    }
+    if (!e.target.closest('#lookLock')) {
+        return;
+    }
+    const node = viewedNode();
+    if (state.lookLock?.target === node.id) {
+        state.lookLock = null;
+    }
+    else if (current?.target === node.id && current.look) {
+        state.lookLock = { target: node.id, optionsKey: current.optionsKey, look: current.look };
+    }
+    state.dirty = true;
+    refreshLegend();
+});
+on('view', () => {
+    if (state.lookLock && (state.viewMode !== 'stage' || state.lookLock.target !== viewedNode().id)) {
+        state.lookLock = null;
+    }
+    refreshLegend();
+});
+on('selection', refreshLegend);
+on('prefs', refreshLegend);
+on('refresh', refreshLegend);
+
+return {lookOptions,frameLook,afterStageFrame,resetLook,refreshLegend};
+})();
+__modules['plot.js'] = (() => {
+/** Small, dependency-free SVG line plots for the equation explanations: a
+ * component's key function with its live parameters (catalog `curve`), or the
+ * idea behind a concept (concepts.js). Pure: returns markup, no DOM access.
+ */
+const escapeXML = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+/** Round, readable tick values covering [lo, hi]. */
+function ticks(lo, hi, count = 4) {
+    if (!(hi > lo)) {
+        return [lo];
+    }
+    const raw = (hi - lo) / count, magnitude = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 2.5, 5, 10].map(m => m * magnitude).find(s => s >= raw) || 10 * magnitude;
+    const out = [];
+    for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9 * step; v += step) {
+        out.push(Math.abs(v) < step * 1e-9 ? 0 : Number(v.toPrecision(12)));
+    }
+    return out;
+}
+const label = v => {
+    const a = Math.abs(v);
+    return a !== 0 && (a < 1e-3 || a >= 1e4) ? v.toExponential(0) : String(Number(v.toPrecision(3)));
+};
+/** Sample `f` at `count` points across `domain`, dropping nonfinite values. */
+function sample(f, [a, b], count = 160) {
+    const points = [];
+    for (let i = 0; i < count; i++) {
+        const x = a + (b - a) * i / (count - 1), y = f(x);
+        if (Number.isFinite(y)) {
+            points.push([x, y]);
+        }
+    }
+    return points;
+}
+/** An SVG plot. `series` = [{f, label, color, bars, points}]: a function
+ * evaluated over `domain`, bars [[x, y]], or given points [[x, y]] joined by a line;
+ * `range` is fitted to the data unless given. `marks` = [{x, label}] vertical
+ * guides (e.g. a parameter's position). Returns markup with a viewBox, so it
+ * scales with its container.
+ */
+function plotSVG({ series, domain, range = null, xLabel = '', yLabel = '', marks = [], width = 320, height = 150, samples = 160 }) {
+    const labelled = series.some(s => s.label);
+    // The y label and the legend sit in a band above the plot area, never over the curves.
+    const left = 34, right = 8, top = yLabel || labelled ? 20 : 8, bottom = 26, w = width - left - right, h = height - top - bottom;
+    const data = series.map(s => ({ ...s, points: s.points || (s.bars ? s.bars.map(([x, y]) => [x, y]) : sample(s.f, domain, samples)) }));
+    let [y0, y1] = range || [Math.min(0, ...data.flatMap(s => s.points.map(p => p[1]))), Math.max(...data.flatMap(s => s.points.map(p => p[1])))];
+    if (!Number.isFinite(y0) || !Number.isFinite(y1)) {
+        [y0, y1] = [0, 1];
+    }
+    if (y1 - y0 < 1e-12) {
+        y0 -= 0.5;
+        y1 += 0.5;
+    }
+    if (!range) {
+        const pad = (y1 - y0) * 0.06;
+        y1 += pad;
+        if (y0 < 0) {
+            y0 -= pad;
+        }
+    }
+    const [x0, x1] = domain, X = x => left + (x - x0) / (x1 - x0) * w, Y = y => top + (1 - (y - y0) / (y1 - y0)) * h;
+    let svg = `<svg class="plot" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeXML(`${yLabel} against ${xLabel}`)}">`;
+    for (const t of ticks(y0, y1, 3)) {
+        svg += `<line class="grid" x1="${left}" x2="${left + w}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}"/><text class="tick" x="${left - 4}" y="${(Y(t) + 3).toFixed(1)}" text-anchor="end">${label(t)}</text>`;
+    }
+    for (const t of ticks(x0, x1, 4)) {
+        svg += `<line class="grid" y1="${top}" y2="${top + h}" x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}"/><text class="tick" y="${top + h + 12}" x="${X(t).toFixed(1)}" text-anchor="middle">${label(t)}</text>`;
+    }
+    if (y0 < 0 && y1 > 0) {
+        svg += `<line class="axis" x1="${left}" x2="${left + w}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}"/>`;
+    }
+    for (const m of marks) {
+        if (m.x >= x0 && m.x <= x1) {
+            svg += `<line class="mark" y1="${top}" y2="${top + h}" x1="${X(m.x).toFixed(1)}" x2="${X(m.x).toFixed(1)}"/>${m.label ? `<text class="mark-label" x="${(X(m.x) + 3).toFixed(1)}" y="${top + 9}">${escapeXML(m.label)}</text>` : ''}`;
+        }
+    }
+    data.forEach((s, k) => {
+        const color = s.color || ['#a5f2cf', '#e6b37f', '#91bce3', '#c6a0e7'][k % 4];
+        if (s.bars) {
+            const bw = Math.max(2, w / Math.max(s.points.length, 1) * 0.6);
+            for (const [x, y] of s.points) {
+                svg += `<rect x="${(X(x) - bw / 2).toFixed(1)}" y="${Math.min(Y(y), Y(0)).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.abs(Y(y) - Y(0)).toFixed(1)}" fill="${color}" opacity="0.85"/>`;
+            }
+        }
+        else if (s.points.length) {
+            const d = s.points.map(([x, y], i) => `${i ? 'L' : 'M'}${X(x).toFixed(1)},${Y(Math.max(y0, Math.min(y1, y))).toFixed(1)}`).join('');
+            svg += `<path class="curve" d="${d}" stroke="${color}"/>`;
+        }
+    });
+    svg += `<text class="axis-label" x="${left + w}" y="${height - 2}" text-anchor="end">${escapeXML(xLabel)}</text><text class="axis-label" x="${left - 30}" y="12">${escapeXML(yLabel)}</text>`;
+    const legend = data.map((s, k) => s.label ? `<tspan fill="${s.color || ['#a5f2cf', '#e6b37f', '#91bce3', '#c6a0e7'][k % 4]}">■ ${escapeXML(s.label)}</tspan>` : '').filter(Boolean).join(' ');
+    if (legend) {
+        svg += `<text class="legend" x="${left + w}" y="12" text-anchor="end">${legend}</text>`;
+    }
+    return `${svg}</svg>`;
+}
+
+return {ticks,sample,plotSVG};
+})();
+__modules['ui-scope.js'] = (() => {
+const { $, esc, state, on, setPref, viewedNode, currentNode } = __modules['editor.js'];
+const { catalog } = __modules['catalog.js'];
+const { pixelToWorld } = __modules['view-math.js'];
+const { plotSVG } = __modules['plot.js'];
+const { fieldStats } = __modules['looks.js'];
+/** The profile under the canvas: the actual values of the component shown, along
+ * the horizontal (or vertical) line through the cursor, the pinned reading, or
+ * the center of the view. Seeing f(x) as a curve explains a field far better
+ * than its colors: a Gaussian's bump, a threshold's step, a fold's zigzag.
+ *
+ * Values come from the renderer's line probe (raw floats, read back without
+ * blocking) and are resampled only when the frame or the line changed.
+ */
+const SAMPLES = 256;
+const CHANNELS = {
+    scalar: [['value', '#e6b37f']],
+    coord: [['q_x', '#f07f76'], ['q_y', '#74dc8f']],
+    geometry: [['S (warp)', '#c6a0e7'], ['A (rim)', '#e6b37f'], ['coverage', '#91bce3']],
+    layer: [['R', '#ff7070'], ['G', '#6bdc8a'], ['B', '#6ba8ff'], ['alpha', '#b9c2c7']]
+};
+let point = null, pending = false, lastKey = '', result = null;
+function scopeVisible() {
+    return !$('scope').hidden;
+}
+function setScopeVisible(visible, { remember = true } = {}) {
+    $('scope').hidden = !visible;
+    $('scopeButton').classList.toggle('active', visible);
+    $('scopeButton').setAttribute('aria-pressed', String(visible));
+    lastKey = '';
+    if (remember) {
+        setPref('scope', visible);
+    }
+    state.overlayDirty = true;
+}
+/** Move the profile line through a world point (from the cursor or a pin). */
+function setScopePoint(world) {
+    point = world ? { x: world.x, y: world.y } : null;
+    state.overlayDirty = true;
+}
+/** The component the profile samples: the stage shown, else the selection. */
+function scopeNode() {
+    return state.viewMode === 'stage' ? viewedNode() : currentNode();
+}
+/** The sampled segment in world coordinates: {a: [x, y], b: [x, y], axis, cross}. */
+function scopeLine() {
+    if (!scopeVisible()) {
+        return null;
+    }
+    const canvas = $('artCanvas'), view = state.project.view, w = canvas.width, h = canvas.height;
+    const low = pixelToWorld(0, 0, w, h, view), high = pixelToWorld(w, h, w, h, view);
+    const center = { x: (low.x + high.x) / 2, y: (low.y + high.y) / 2 }, at = (state.probePin && pixelToWorld(state.probePin.px, state.probePin.py, w, h, view)) || point || center;
+    const axis = $('scopeAxis').value;
+    return axis === 'v'
+        ? { a: [at.x, low.y], b: [at.x, high.y], axis, cross: at.y, fixed: at.x }
+        : { a: [low.x, at.y], b: [high.x, at.y], axis, cross: at.x, fixed: at.y };
+}
+const fmt = v => {
+    const a = Math.abs(v);
+    return !Number.isFinite(v) ? String(v) : a !== 0 && (a < 1e-3 || a >= 1e5) ? v.toExponential(2) : String(Number(v.toPrecision(4)));
+};
+function draw() {
+    if (!result) {
+        return;
+    }
+    const { values, line, node, type } = result, channels = CHANNELS[type];
+    const along = i => line.axis === 'h' ? line.a[0] + (line.b[0] - line.a[0]) * (i + 0.5) / SAMPLES : line.a[1] + (line.b[1] - line.a[1]) * (i + 0.5) / SAMPLES;
+    const domain = [along(0), along(SAMPLES - 1)];
+    const plotted = channels.map(([label, color], c) => {
+        const points = [];
+        for (let i = 0; i < SAMPLES; i++) {
+            const v = values[i * 4 + c];
+            if (Number.isFinite(v)) {
+                points.push([along(i), v]);
+            }
+        }
+        return { label, color, points };
+    });
+    const marks = [{ x: line.cross, label: line.axis === 'h' ? `x = ${fmt(line.cross)}` : `y = ${fmt(line.cross)}` }];
+    const width = Math.max(320, Math.round($('scopePlot').clientWidth || 640));
+    $('scopePlot').innerHTML = plotSVG({ series: plotted, domain, xLabel: line.axis === 'h' ? `x (along y = ${fmt(line.fixed)})` : `y (along x = ${fmt(line.fixed)})`, yLabel: type === 'layer' ? 'radiance' : 'value', marks, width, height: 150, samples: SAMPLES });
+    $('scopeTitle').innerHTML = `${esc(node.label)} <span class="muted">· ${esc(type === 'layer' ? 'radiance before exposure and tone mapping' : type === 'coord' ? 'output coordinates' : type === 'geometry' ? 'the three geometry fields' : 'raw values')}</span>`;
+    $('scopeStats').innerHTML = channels.map(([label, color], c) => {
+        const s = fieldStats(values, { channel: c });
+        return s.count ? `<span><i style="background:${color}"></i>${esc(label)} ${fmt(s.min)} … ${fmt(s.max)} <span class="muted">mean ${fmt(s.mean)}</span></span>` : `<span><i style="background:${color}"></i>${esc(label)} not finite</span>`;
+    }).join('');
+}
+/** Called by the frame loop: resample when the frame or the line changed. */
+function updateScope() {
+    const renderer = state.renderer;
+    if (!scopeVisible() || !renderer || pending || state.busy) {
+        return;
+    }
+    if (!renderer.info.rawFields) {
+        $('scopePlot').innerHTML = '<p class="muted">Profiles need float framebuffers (EXT_color_buffer_float), which this browser or GPU does not offer.</p>';
+        return;
+    }
+    const node = scopeNode(), line = scopeLine(), project = state.preview || state.project;
+    if (!node || !line || !project.nodes.some(n => n.id === node.id) || renderer.programFor(project).status !== 'ready') {
+        return;
+    }
+    const key = `${node.id}|${state.time}|${JSON.stringify(line)}|${JSON.stringify(project.nodes)}|${JSON.stringify(project.tracks)}`;
+    if (key === lastKey) {
+        return;
+    }
+    lastKey = key;
+    pending = true;
+    const type = catalog[node.type].output;
+    try {
+        renderer.sampleLine(project, state.time, node.id, line.a, line.b, SAMPLES, { async: true }).then(values => {
+            pending = false;
+            result = { values, line, node, type };
+            draw();
+        }, () => {
+            pending = false;
+        });
+    }
+    catch (e) {
+        pending = false;
+        $('scopePlot').innerHTML = `<p class="muted">${esc(e.message)}</p>`;
+    }
+}
+$('scopeButton').onclick = () => setScopeVisible(!scopeVisible());
+$('scopeClose').onclick = () => setScopeVisible(false);
+$('scopeAxis').onchange = () => {
+    lastKey = '';
+    state.overlayDirty = true;
+};
+setScopeVisible(!!state.prefs.scope, { remember: false });
+new ResizeObserver(() => draw()).observe($('scopePlot'));
+on('refresh', () => lastKey = '');
+
+return {scopeVisible,setScopeVisible,setScopePoint,scopeLine,updateScope};
+})();
+__modules['ui-canvas.js'] = (() => {
+const { $, esc, state, on, toast, showError, transact, history, changed, markDirty, pause, currentNode, viewedNode, viewOptions, setView, setContributionStyle, setPref, clamp, noteInteraction } = __modules['editor.js'];
+const { evaluationOrder } = __modules['graph.js'];
+const { catalog } = __modules['catalog.js'];
+const { clone } = __modules['graph.js'];
+const { pixelToWorld, worldToPixel, clientToPixel, zoomAbout, panBy, unitsPerPixel, tickSpacing, formatTick } = __modules['view-math.js'];
+const { refreshTip } = __modules['ui-tooltip.js'];
+const { frameLook, afterStageFrame, refreshLegend, resetLook } = __modules['ui-look.js'];
+const { setScopePoint, scopeLine } = __modules['ui-scope.js'];
+/** Center panel: the live canvas and its view switch, frame scheduling (adaptive
+ * resolution, background shader compilation), camera gestures, rulers and
+ * readouts, reference comparison and the canvas toolbar.
+ */
+const app = $('app'), canvas = $('artCanvas'), overlay = $('overlay'), probeNames = { scalar: ['value'], coord: ['x', 'y'], geometry: ['S / warp', 'A / rim', 'coverage'], layer: ['R', 'G', 'B', 'alpha'] };
+/** Widest canvas the Auto quality chooses, and the GPU time an interactive frame may take. */
+const AUTO_MAX_WIDTH = 2000, FRAME_BUDGET_MS = 24;
+let referenceURL = null, hover = null, pinReadout = null, hoverStamp = 0, waitingSince = 0;
+/** CSS width of the image, measured on resize (reading layout every frame would force reflows). */
+let displayWidth = 0;
+let gesture = null, pinch = null, wheelBefore = null, wheelTimer;
+/** What the last frame drew: needed so readouts query the same project. */
+let drawn = { project: null, target: null };
+const pointers = new Map();
+/** "Step 7 · Folded star lattices": a component's place in the construction. */
+function stepName(node) {
+    const index = evaluationOrder(state.project).findIndex(n => n.id === node.id);
+    return `Step ${index + 1} · ${node.label}`;
+}
+/** The label on the canvas saying what it shows, for the frame source `mode`. */
+function canvasModeHTML(mode) {
+    const node = viewedNode(), dot = n => `<span class="type-dot ${catalog[n.type].output}"></span>`;
+    switch (mode) {
+        case 'original': return '<b>ORIGINAL</b> the scene as it was opened';
+        case 'preview': return '<b>PREVIEW</b> not applied · click the thumbnail to use it';
+        case 'draft': {
+            const edited = currentNode();
+            return `<b>DRAFT</b> your edit of ${esc(edited.label)} · not applied`;
+        }
+        case 'stage': return `<b>THIS STEP</b> ${dot(node)}${esc(stepName(node))}`;
+        case 'effect': return `<b>WHAT IT CHANGES</b> ${dot(node)}${esc(stepName(node))}`;
+        default: return '<b>FINAL IMAGE</b>';
+    }
+}
+let shownMode = null;
+function showCanvasMode(mode) {
+    const html = canvasModeHTML(mode);
+    if (html !== shownMode) {
+        shownMode = html;
+        $('canvasMode').innerHTML = html;
+        $('canvasMode').className = `canvas-mode mode-${mode}`;
+    }
 }
 function refreshView() {
     const project = state.project, node = viewedNode(), mode = state.viewMode;
@@ -2897,8 +5996,10 @@ function refreshView() {
         b.classList.toggle('active', active);
         b.setAttribute('aria-checked', String(active));
     });
-    $('viewSubject').hidden = mode === 'final';
-    $('viewSubject').innerHTML = mode === 'final' ? '' : `<span class="type-dot ${catalog[node.type].output}"></span>${esc(node.label)}`;
+    const step = document.querySelector('[data-view="stage"]');
+    step.innerHTML = `<span class="view-step">${esc(stepName(node))}</span>`;
+    step.setAttribute('aria-label', `This step: ${stepName(node)}`);
+    showCanvasMode(frameSource().mode);
     $('viewLock').hidden = mode === 'final';
     $('viewLock').classList.toggle('active', !!state.viewLock);
     $('viewLock').setAttribute('aria-pressed', String(!!state.viewLock));
@@ -2907,9 +6008,7 @@ function refreshView() {
     $('effectStyle').value = state.contributionStyle;
     $('sceneStatus').textContent = project.status || 'Custom construction';
     $('sceneStatus').classList.toggle('study', project.status === 'Interpretive study');
-    const legend = legendHTML();
-    $('legend').innerHTML = legend;
-    $('legend').hidden = !legend;
+    refreshLegend();
     $('holdOriginal').classList.toggle('active', state.compareOriginal);
     $('clearPin').hidden = !state.probePin;
     for (const [id, key] of [['rulersButton', 'rulers'], ['gridButton', 'grid']]) {
@@ -2922,48 +6021,118 @@ function resizeImage() {
     const stage = $('stage'), pad = innerWidth < 650 ? 24 : innerWidth < 1200 ? 36 : 56;
     const width = Math.max(10, Math.min(stage.clientWidth - pad, (stage.clientHeight - 42) * 5 / 3));
     $('imageWrap').style.width = `${width}px`;
+    displayWidth = width;
     state.overlayDirty = true;
+    if (!state.prefs.quality) {
+        state.dirty = true; // Auto quality follows the displayed size
+    }
 }
 /** Project and renderer options for the next frame: the held original, an
  * exploration candidate under the pointer, or the real project in the chosen view.
  */
 function frameSource() {
     if (state.compareOriginal) {
-        return { project: state.baseline, options: { target: state.baseline.output } };
+        return { project: state.baseline, options: { target: state.baseline.output }, mode: 'original' };
     }
-    return { project: state.preview || state.project, options: viewOptions() };
+    if (state.preview) {
+        return { project: state.preview, options: viewOptions(), mode: 'preview' };
+    }
+    const draft = state.draftPreview?.node === state.selected ? state.draftPreview.project : null;
+    return { project: draft || state.project, options: viewOptions(), mode: draft ? 'draft' : state.viewMode };
 }
-/** Draw the current view to the canvas; called by the frame loop when dirty. */
+/** Canvas width for the next frame: the quality setting, where Auto (0) matches
+ * the displayed size in device pixels. During a gesture or playback, when frames
+ * are slower than FRAME_BUDGET_MS, it is scaled down by adaptiveScale; the next
+ * still frame is rendered at full size again.
+ */
+function frameWidth({ settled = false } = {}) {
+    let width = state.prefs.quality;
+    if (!width) {
+        const css = displayWidth || 800;
+        width = clamp(Math.round(css * Math.min(devicePixelRatio || 1, 3)), 320, AUTO_MAX_WIDTH);
+    }
+    width = Math.min(width, state.renderer.info.maxSize);
+    if (!settled && (state.interacting || state.playing) && state.adaptiveScale < 1) {
+        width = Math.max(240, Math.round(width * state.adaptiveScale));
+    }
+    return width;
+}
+/** Update adaptiveScale from the latest GPU time so an interactive frame fits the budget. */
+function adaptResolution(fullPixels) {
+    const renderer = state.renderer;
+    if (renderer.gpuTime === null || !renderer.gpuPixels) {
+        return;
+    }
+    const perPixel = renderer.gpuTime / renderer.gpuPixels;
+    const ideal = clamp(Math.sqrt(FRAME_BUDGET_MS / Math.max(perPixel * fullPixels, 1e-6)), 0.25, 1);
+    state.adaptiveScale = ideal >= 0.95 ? 1 : 0.6 * state.adaptiveScale + 0.4 * ideal;
+}
+/** Show or hide the "compiling" indicator; `waiting` means this frame could not be drawn yet. */
+function showCompiling(waiting) {
+    if (waiting && !waitingSince) {
+        waitingSince = performance.now();
+    }
+    if (!waiting) {
+        waitingSince = 0;
+    }
+    app.classList.toggle('compiling', waiting);
+    $('compileStatus').hidden = !waiting;
+    if (waiting) {
+        const seconds = (performance.now() - waitingSince) / 1000;
+        $('compileText').textContent = seconds < 0.4 ? 'Compiling shader…' : `Compiling shader… ${seconds.toFixed(1)} s`;
+    }
+}
+/** Draw the current view to the canvas; called by the frame loop when dirty. While
+ * the program for a new graph structure compiles in the background, the previous
+ * image stays up with an indicator and the frame is retried.
+ */
 function renderFrame() {
     const renderer = state.renderer;
     if (!renderer) {
         return;
     }
-    const width = state.prefs.quality, height = Math.round(width * .6);
     try {
-        const start = performance.now(), { project, options } = frameSource();
-        state.compiled = renderer.draw(project, state.time, width, height, options);
-        drawn = { project, target: options.contribution ? null : options.target };
-        if (renderer.current !== lastProgram) {
-            lastProgram = renderer.current;
-            $('shaderView').textContent = state.compiled.fragment;
+        const { project, options, mode } = frameSource();
+        showCanvasMode(mode);
+        const target = options.contribution ? project.output : options.target;
+        const program = renderer.programFor(project);
+        if (program.status === 'failed') {
+            throw program.error;
         }
-        const ms = performance.now() - start;
+        if (program.status !== 'ready') {
+            showCompiling(true);
+            state.dirty = true;
+            return;
+        }
+        const look = frameLook(project, target);
+        const full = frameWidth({ settled: true }), width = frameWidth(), height = Math.round(width * .6);
+        renderer.drawIfReady(project, state.time, width, height, { ...options, look, timed: true });
+        showCompiling(false);
+        drawn = { project, target: options.contribution ? null : options.target };
         state.frameCount++;
-        $('renderStats').textContent = `${width} × ${height}${state.playing ? ` · ${state.fps.toFixed(0)} fps` : ''}`;
-        $('liveStats').textContent = `${width}×${height} · ${ms < 1 ? '<1' : ms.toFixed(0)} ms · frame ${state.frameCount}`;
-        $('liveBadge').classList.remove('pulse');
-        void $('liveBadge').offsetWidth; // restart the pulse animation
-        $('liveBadge').classList.add('pulse');
+        adaptResolution(full * Math.round(full * .6));
+        updateBadge(width, height, full);
+        $('liveBadge').dataset.pulse = $('liveBadge').dataset.pulse === 'a' ? 'b' : 'a'; // restart the pulse
         if (state.probePin) {
             pinReadout = readout(state.probePin.px, state.probePin.py, true);
+        }
+        if (state.viewMode === 'stage' && !state.compareOriginal) {
+            afterStageFrame(project, target);
         }
     }
     catch (e) {
         pause();
+        showCompiling(false);
         showError(e);
         $('renderStats').textContent = 'Render error · last good image retained';
     }
+}
+/** The LIVE badge and status line: resolution, GPU time and frame count. */
+function updateBadge(width, height, full) {
+    const renderer = state.renderer, ms = renderer.gpuTime;
+    const timing = ms === null ? '' : ` · GPU ${renderer.gpuTimeExact ? '' : '≤'}${ms < 1 ? '<1' : ms.toFixed(ms < 10 ? 1 : 0)} ms`;
+    $('liveStats').textContent = `${width}×${height}${timing} · frame ${state.frameCount}`;
+    $('renderStats').textContent = `${width} × ${height}${state.playing ? ` · ${state.fps.toFixed(0)} fps` : ''}${width < full ? ` · interactive (full ${full} px when still)` : ''}`;
 }
 // ---- Readouts ----------------------------------------------------------------
 /** Component whose raw values the readouts report: the shown stage, else the selection. */
@@ -3040,7 +6209,9 @@ function drawLabel(ctx, lines, x, y, width, height) {
     lines.forEach((line, i) => ctx.fillText(line, left + 7, top + 14 + i * 14));
 }
 function drawOverlay() {
-    const rect = canvas.getBoundingClientRect(), W = Math.round(rect.width), H = Math.round(rect.height);
+    // The displayed size is known from resizeImage(); reading it back from the
+    // layout here would force a synchronous layout on every frame of playback.
+    const W = Math.round(displayWidth || canvas.getBoundingClientRect().width), H = Math.round(W * 0.6);
     if (!W || !H) {
         return;
     }
@@ -3126,6 +6297,18 @@ function drawOverlay() {
             ctx.textBaseline = 'alphabetic';
         }
     }
+    const profile = scopeLine();
+    if (profile) { // where the profile under the canvas is sampled
+        const [ax, ay] = toCss(...profile.a), [bx, by] = toCss(...profile.b);
+        ctx.strokeStyle = 'rgba(255,201,143,0.75)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
     if (state.probePin && pinReadout) {
         const [cx, cy] = toCss(pinReadout.x, pinReadout.y);
         ctx.strokeStyle = '#ddad87';
@@ -3183,8 +6366,7 @@ canvas.addEventListener('pointerdown', e => {
         gesture = null;
         return;
     }
-    if (rawProbeArmed || e.altKey) {
-        rawProbeArmed = false;
+    if (e.altKey) { // a one-off reading of the raw value, as a message
         const { px, py } = framebufferPoint(e), r = readout(px, py, true);
         if (r.rawError) {
             showError(r.rawError);
@@ -3211,6 +6393,7 @@ canvas.addEventListener('pointermove', e => {
         const scale = canvas.width / rect.width;
         view = panBy(view, (mid.x - pinch.mid.x) * scale, -(mid.y - pinch.mid.y) * scale, canvas.width);
         state.project.view = view;
+        noteInteraction();
         markDirty();
         return;
     }
@@ -3220,6 +6403,7 @@ canvas.addEventListener('pointermove', e => {
             gesture.moved = true;
         }
         state.project.view = panBy(gesture.view, (e.clientX - gesture.x) * scale, -(e.clientY - gesture.y) * scale, canvas.width);
+        noteInteraction();
         markDirty();
         return;
     }
@@ -3229,6 +6413,7 @@ canvas.addEventListener('pointermove', e => {
     hoverStamp = performance.now();
     const { px, py } = framebufferPoint(e);
     hover = readout(px, py, state.prefs.rulers);
+    setScopePoint({ x: hover.x, y: hover.y });
     updateProbeText(hover);
     state.overlayDirty = true;
 });
@@ -3274,6 +6459,7 @@ canvas.addEventListener('wheel', e => {
     }
     const { px, py } = framebufferPoint(e), world = pixelToWorld(px, py, canvas.width, canvas.height, state.project.view);
     state.project.view = zoomAbout(state.project.view, state.project.view.zoom * Math.exp(-e.deltaY * .001), world.x, world.y);
+    noteInteraction();
     markDirty();
     clearTimeout(wheelTimer);
     wheelTimer = setTimeout(() => {
@@ -3316,10 +6502,14 @@ $('clearPin').onclick = clearPin;
 $('rulersButton').onclick = () => setPref('rulers', !state.prefs.rulers);
 $('gridButton').onclick = () => setPref('grid', !state.prefs.grid);
 $('quality').value = String(state.prefs.quality);
-if ($('quality').value !== String(state.prefs.quality)) { // unknown stored value
-    state.prefs.quality = Number($('quality').value);
+if ($('quality').value !== String(state.prefs.quality)) { // unknown stored value: Auto
+    state.prefs.quality = 0;
+    $('quality').value = '0';
 }
-$('quality').onchange = () => setPref('quality', Number($('quality').value));
+$('quality').onchange = () => {
+    state.adaptiveScale = 1;
+    setPref('quality', Number($('quality').value));
+};
 $('focusButton').onclick = () => {
     app.classList.toggle('focus-canvas');
     $('focusButton').setAttribute('aria-pressed', String(app.classList.contains('focus-canvas')));
@@ -3410,11 +6600,618 @@ on('refresh', () => {
 on('view', refreshView);
 on('selection', refreshView);
 on('prefs', () => {
+    resetLook();
     refreshView();
     state.overlayDirty = true;
 });
 
-return {armProbe,refreshView,resizeImage,renderFrame,drawOverlay,clearPin,hasPin,setCompareOriginal};
+return {refreshView,resizeImage,renderFrame,drawOverlay,clearPin,hasPin,setCompareOriginal};
+})();
+__modules['math-render.js'] = (() => {
+const { parseExpression, parseProgram, PRECEDENCE } = __modules['expression.js'];
+/** Typeset equations as native MathML, with no fonts, scripts or network access.
+ *
+ * texToMathML() converts the small TeX subset used by the component catalog:
+ * letters, numbers, operators, groups, ^ and _, \frac, \sqrt, \text, \mathrm,
+ * \operatorname, \mathbf, accents, \left/\right, big operators (\sum, \prod),
+ * Greek letters, common functions, relations and spacing commands. Unknown
+ * commands throw, so the unit tests catch catalog typos. Operator names get the
+ * thin spaces TeX would give them ("arccos cos x", not "arccoscosx").
+ *
+ * Symbols can be annotated: `symbols` maps a symbol's TeX (whitespace and braces
+ * ignored, e.g. 'c_x' or '\\kappa') to {role, type, param, socket, value, title}.
+ * A matching symbol is wrapped in <mrow class="sym sym-ROLE TYPE" data-…> so the
+ * page can color inputs, parameters, outputs and time, and link a parameter's
+ * symbol to its control. With `values: true` a parameter symbol that has a
+ * `value` is replaced by that number. texSegments() splits a long line at its
+ * top-level \quad separators so the pieces can wrap on narrow screens.
+ *
+ * expressionToMathML() parses a custom GLSL expression (the same grammar the
+ * editor accepts) and renders it as mathematics: a/b becomes a fraction,
+ * pow(a,b) a power, sqrt a radical, abs and length bars, vecN a tuple, theta θ.
+ */
+const escapeXML = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const GREEK = {
+    alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', varepsilon: 'ε', zeta: 'ζ', eta: 'η', theta: 'θ', vartheta: 'ϑ',
+    iota: 'ι', kappa: 'κ', lambda: 'λ', mu: 'μ', nu: 'ν', xi: 'ξ', pi: 'π', rho: 'ρ', sigma: 'σ', tau: 'τ', upsilon: 'υ',
+    phi: 'ϕ', varphi: 'φ', chi: 'χ', psi: 'ψ', omega: 'ω', Gamma: 'Γ', Delta: 'Δ', Theta: 'Θ', Lambda: 'Λ', Xi: 'Ξ', Pi: 'Π',
+    Sigma: 'Σ', Phi: 'Φ', Psi: 'Ψ', Omega: 'Ω', ell: 'ℓ'
+};
+const FUNCTIONS = new Set(['sin', 'cos', 'tan', 'exp', 'log', 'ln', 'max', 'min', 'arccos', 'arcsin', 'arctan', 'tanh', 'sinh', 'cosh', 'det']);
+const OPERATORS = {
+    cdot: '·', times: '×', odot: '⊙', le: '≤', leq: '≤', ge: '≥', geq: '≥', ne: '≠', neq: '≠', approx: '≈', propto: '∝',
+    to: '→', mapsto: '↦', rightarrow: '→', leftarrow: '←', pm: '±', in: '∈', infty: '∞', partial: '∂', nabla: '∇', circ: '∘',
+    ldots: '…', cdots: '⋯', lvert: '|', rvert: '|', vert: '|', lVert: '‖', rVert: '‖', Vert: '‖', langle: '⟨', rangle: '⟩',
+    star: '⋆', prime: '′', lfloor: '⌊', rfloor: '⌋', lceil: '⌈', rceil: '⌉', bmod: 'mod', '{': '{', '}': '}', '|': '‖'
+};
+/** Spacing class of operator commands that are not binary operators. */
+const OPERATOR_KINDS = { ldots: 'ord', cdots: 'ord', infty: 'ord', partial: 'ord', nabla: 'ord', prime: 'ord', star: 'ord', lfloor: 'open', lceil: 'open', langle: 'open', lvert: 'open', lVert: 'open', rfloor: 'close', rceil: 'close', rangle: 'close', rvert: 'close', rVert: 'close', '{': 'open', '}': 'close' };
+const LARGE = { sum: '∑', prod: '∏' };
+const SPACES = { quad: '1em', qquad: '2em', ',': '0.167em', ';': '0.278em', ':': '0.222em', ' ': '0.25em', '!': '0em' };
+const ACCENTS = { hat: '^', bar: '¯', tilde: '~', vec: '→', dot: '˙' };
+const IGNORED = new Set(['left', 'right', 'big', 'bigl', 'bigr', 'Big', 'Bigl', 'Bigr', 'displaystyle']);
+const OPERATOR_CHARS = { '-': '−', '*': '∗', "'": '′' };
+const THIN = '<mspace width="0.167em"></mspace>';
+/** How a symbol's TeX is compared: without whitespace and braces. */
+const symbolKey = tex => String(tex).replace(/[\s{}]/g, '');
+/** A number as MathML, parenthesized when negative so it can replace a symbol anywhere. */
+function numberMathML(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) {
+        return `<mi>${escapeXML(value)}</mi>`;
+    }
+    const text = String(Number(n.toPrecision(4)));
+    return n < 0 ? `<mrow><mo>(</mo><mo>−</mo><mn>${text.slice(1)}</mn><mo>)</mo></mrow>` : `<mn>${text}</mn>`;
+}
+class TexParser {
+    constructor(source, { symbols = null, values = false } = {}) {
+        this.s = source;
+        this.i = 0;
+        this.symbols = symbols ? new Map(Object.entries(symbols).map(([k, v]) => [symbolKey(k), v])) : null;
+        this.values = values;
+    }
+    error(message) {
+        return new Error(`${message} at position ${this.i} in “${this.s}”`);
+    }
+    skipSpace() {
+        while (this.i < this.s.length && /\s/.test(this.s[this.i])) {
+            this.i++;
+        }
+    }
+    peek() {
+        this.skipSpace();
+        return this.s[this.i];
+    }
+    /** Read a command name after a backslash: letters, or one symbol character. */
+    command() {
+        this.i++;
+        const letters = /^[A-Za-z]+/.exec(this.s.slice(this.i));
+        if (letters) {
+            this.i += letters[0].length;
+            return letters[0];
+        }
+        if (this.i >= this.s.length) {
+            throw this.error('Dangling backslash');
+        }
+        return this.s[this.i++];
+    }
+    /** Raw text of a braced argument, for \text and \mathrm. */
+    rawGroup() {
+        if (this.peek() !== '{') {
+            throw this.error('Expected {');
+        }
+        let depth = 0, start = ++this.i;
+        for (; this.i < this.s.length; this.i++) {
+            if (this.s[this.i] === '{') {
+                depth++;
+            }
+            else if (this.s[this.i] === '}') {
+                if (depth === 0) {
+                    return this.s.slice(start, this.i++);
+                }
+                depth--;
+            }
+        }
+        throw this.error('Unclosed {');
+    }
+    /** A sequence of scripted atoms, with TeX's thin spaces around operator names. */
+    list() {
+        const items = [];
+        while (this.peek() !== undefined && this.peek() !== '}') {
+            items.push(this.scripted());
+        }
+        let xml = '';
+        items.forEach((item, k) => {
+            const previous = items[k - 1]?.kind;
+            if (k && ((item.kind === 'func' && (previous === 'ord' || previous === 'close')) || (previous === 'func' && (item.kind === 'ord' || item.kind === 'func' || item.kind === 'large')))) {
+                xml += THIN;
+            }
+            xml += item.xml;
+        });
+        return xml;
+    }
+    group() {
+        this.i++; // {
+        const body = this.list();
+        if (this.peek() !== '}') {
+            throw this.error('Unclosed {');
+        }
+        this.i++;
+        return `<mrow>${body}</mrow>`;
+    }
+    argument() {
+        const c = this.peek();
+        if (c === undefined) {
+            throw this.error('Missing argument');
+        }
+        return c === '{' ? this.group() : this.atom().xml;
+    }
+    /** The annotation for the source text between two positions, if any. */
+    lookup(from, to) {
+        return this.symbols?.get(symbolKey(this.s.slice(from, to))) || null;
+    }
+    /** Wrap `xml` for an annotated symbol, or replace it by its value. */
+    annotate(xml, sym) {
+        const classes = ['sym', `sym-${sym.role}`, sym.type].filter(Boolean).join(' ');
+        const data = [sym.param && `data-param="${escapeXML(sym.param)}"`, sym.socket && `data-socket="${escapeXML(sym.socket)}"`, sym.title && `data-sym-title="${escapeXML(sym.title)}"`].filter(Boolean).join(' ');
+        const body = this.values && sym.value !== undefined && sym.value !== null ? numberMathML(sym.value) : xml;
+        return `<mrow class="${classes}"${data ? ` ${data}` : ''}>${body}</mrow>`;
+    }
+    scripted() {
+        this.skipSpace();
+        const start = this.i, base = this.atom(), baseEnd = this.i;
+        let sub = null, sup = null;
+        for (;;) {
+            const c = this.peek();
+            if (c === '^' && sup === null) {
+                this.i++;
+                sup = this.argument();
+            }
+            else if (c === '_' && sub === null) {
+                this.i++;
+                sub = this.argument();
+            }
+            else {
+                break;
+            }
+        }
+        const whole = sub !== null || sup !== null ? this.lookup(start, this.i) : null;
+        const baseSymbol = whole ? null : this.lookup(start, baseEnd);
+        const baseXML = baseSymbol ? this.annotate(base.xml, baseSymbol) : base.xml;
+        let xml = baseXML;
+        if (sub !== null || sup !== null) {
+            const [both, under, over] = base.large ? ['munderover', 'munder', 'mover'] : ['msubsup', 'msub', 'msup'];
+            xml = sub !== null && sup !== null ? `<${both}>${baseXML}${sub}${sup}</${both}>` : sub !== null ? `<${under}>${baseXML}${sub}</${under}>` : `<${over}>${baseXML}${sup}</${over}>`;
+        }
+        if (whole) {
+            xml = this.annotate(xml, whole);
+        }
+        return { xml, kind: base.kind === 'large' ? 'large' : base.kind };
+    }
+    atom() {
+        const c = this.peek();
+        if (c === undefined) {
+            throw this.error('Unexpected end');
+        }
+        if (c === '{') {
+            return { xml: this.group(), kind: 'ord' };
+        }
+        if (c === '\\') {
+            return this.commandAtom(this.command());
+        }
+        if (c === '^' || c === '_' || c === '}') {
+            throw this.error(`Unexpected ${c}`);
+        }
+        const number = /^(\d+(\.\d+)?|\.\d+)/.exec(this.s.slice(this.i));
+        if (number) {
+            this.i += number[0].length;
+            return { xml: `<mn>${number[0]}</mn>`, kind: 'ord' };
+        }
+        this.i++;
+        if (/[A-Za-z]/.test(c)) {
+            return { xml: `<mi>${c}</mi>`, kind: 'ord' };
+        }
+        const kind = '(['.includes(c) ? 'open' : ')]'.includes(c) ? 'close' : c === '|' ? 'ord' : 'op';
+        return { xml: `<mo>${escapeXML(OPERATOR_CHARS[c] || c)}</mo>`, kind };
+    }
+    commandAtom(name) {
+        if (IGNORED.has(name)) {
+            return this.peek() === '.' ? (this.i++, { xml: '', kind: 'space' }) : this.atom();
+        }
+        if (name === 'frac' || name === 'tfrac' || name === 'dfrac') {
+            const top = this.argument(), bottom = this.argument();
+            return { xml: `<mfrac>${top}${bottom}</mfrac>`, kind: 'ord' };
+        }
+        if (name === 'sqrt') {
+            return { xml: `<msqrt>${this.argument()}</msqrt>`, kind: 'ord' };
+        }
+        if (name === 'text') {
+            // Token elements trim their ends: keep deliberate spaces as no-break spaces.
+            const text = this.rawGroup().replace(/^ +| +$/g, m => '\u00a0'.repeat(m.length));
+            return { xml: `<mtext>${escapeXML(text)}</mtext>`, kind: 'ord' };
+        }
+        if (name === 'mathrm' || name === 'operatorname') {
+            return { xml: `<mi mathvariant="normal">${escapeXML(this.rawGroup())}</mi>`, kind: name === 'operatorname' ? 'func' : 'ord' };
+        }
+        if (name === 'mathbf' || name === 'boldsymbol') {
+            return { xml: `<mrow class="bold">${this.argument()}</mrow>`, kind: 'ord' };
+        }
+        if (Object.hasOwn(ACCENTS, name)) {
+            return { xml: `<mover accent="true">${this.argument()}<mo>${ACCENTS[name]}</mo></mover>`, kind: 'ord' };
+        }
+        if (Object.hasOwn(GREEK, name)) {
+            return { xml: `<mi>${GREEK[name]}</mi>`, kind: 'ord' };
+        }
+        if (FUNCTIONS.has(name)) {
+            return { xml: `<mi mathvariant="normal">${name}</mi>`, kind: 'func' };
+        }
+        if (Object.hasOwn(LARGE, name)) {
+            return { xml: `<mo largeop="true" movablelimits="false">${LARGE[name]}</mo>`, large: true, kind: 'large' };
+        }
+        if (Object.hasOwn(OPERATORS, name)) {
+            return { xml: `<mo>${escapeXML(OPERATORS[name])}</mo>`, kind: OPERATOR_KINDS[name] || 'op' };
+        }
+        if (Object.hasOwn(SPACES, name)) {
+            return { xml: `<mspace width="${SPACES[name]}"></mspace>`, kind: 'space' };
+        }
+        throw this.error(`Unsupported TeX command \\${name}`);
+    }
+}
+/** Convert one line of TeX to a MathML string. Throws on unsupported input.
+ * Options: display (block layout), symbols and values (see the module comment).
+ */
+function texToMathML(tex, { display = true, symbols = null, values = false } = {}) {
+    const parser = new TexParser(String(tex), { symbols, values });
+    const body = parser.list();
+    if (parser.peek() !== undefined) {
+        throw parser.error('Unbalanced }');
+    }
+    return `<math${display ? ' display="block"' : ''}>${body}</math>`;
+}
+/** Split a TeX line at top-level \quad / \qquad separators (outside braces and
+ * \left…\right pairs), so the pieces can wrap as separate equations.
+ */
+function texSegments(tex) {
+    const s = String(tex), parts = [];
+    let depth = 0, delimiters = 0, start = 0;
+    for (let i = 0; i < s.length; i++) {
+        const c = s[i];
+        if (c === '{') {
+            depth++;
+        }
+        else if (c === '}') {
+            depth--;
+        }
+        else if (c === '\\') {
+            const name = /^[A-Za-z]+/.exec(s.slice(i + 1))?.[0];
+            if (name === 'left') {
+                delimiters++;
+            }
+            else if (name === 'right') {
+                delimiters--;
+            }
+            else if ((name === 'quad' || name === 'qquad') && depth === 0 && delimiters === 0) {
+                parts.push(s.slice(start, i));
+                start = i + 1 + name.length;
+            }
+            i += name ? name.length : 1;
+        }
+    }
+    parts.push(s.slice(start));
+    return parts.map(p => p.trim().replace(/^,\s*|,\s*$/g, '').trim()).filter(Boolean);
+}
+/** One MathML element per segment of a TeX line, laid out in display style. */
+function texToMathMLSegments(tex, options = {}) {
+    return texSegments(tex).map(segment => texToMathML(segment, { ...options, display: false }).replace('<math>', '<math displaystyle="true">'));
+}
+// ---- Custom equations ------------------------------------------------------------
+const BINARY = { ...PRECEDENCE, '^': 8 };
+const IDENTIFIERS = { theta: 'θ', PI: 'π', TAU: 'τ' };
+const PREFIX_FUNCTIONS = new Set(['sin', 'cos', 'tan', 'tanh', 'log', 'atan', 'asin', 'acos']);
+const mo = s => `<mo>${escapeXML(s)}</mo>`;
+const fenced = (open, body, close) => `<mrow>${mo(open)}${body}${mo(close)}</mrow>`;
+/** A user name typeset like a symbol: Greek names become letters, `w_0` a
+ * subscript, longer names upright text.
+ */
+function nameMathML(name) {
+    const piece = text => {
+        if (Object.hasOwn(IDENTIFIERS, text)) {
+            return `<mi>${IDENTIFIERS[text]}</mi>`;
+        }
+        if (Object.hasOwn(GREEK, text)) {
+            return `<mi>${GREEK[text]}</mi>`;
+        }
+        if (/^\d+$/.test(text)) {
+            return `<mn>${text}</mn>`;
+        }
+        return text.length === 1 ? `<mi>${escapeXML(text)}</mi>` : `<mi mathvariant="normal">${escapeXML(text)}</mi>`;
+    };
+    const cut = name.indexOf('_');
+    if (cut > 0 && cut < name.length - 1) {
+        return `<msub>${piece(name.slice(0, cut))}${piece(name.slice(cut + 1))}</msub>`;
+    }
+    return piece(name);
+}
+/** Precedence of a rendered node, used to decide where parentheses are needed. */
+function precedence(node) {
+    if (node.type === 'group') { // parentheses are re-added only where the context needs them
+        return precedence(node.body);
+    }
+    if (node.type === 'binary') {
+        return BINARY[node.op];
+    }
+    if (node.type === 'ternary') {
+        return 0;
+    }
+    if (node.type === 'unary') {
+        return 7;
+    }
+    return 9;
+}
+function renderNode(node, ctx) {
+    switch (node.type) {
+        case 'num': {
+            const n = Number(node.value);
+            return `<mn>${Number.isFinite(n) && Math.abs(n) < 1e7 && !/[eE]/.test(node.value) ? String(n) : escapeXML(node.value)}</mn>`;
+        }
+        case 'id': {
+            const sym = ctx.symbols?.get(node.name), xml = nameMathML(node.name);
+            if (!sym) {
+                return xml;
+            }
+            const classes = ['sym', `sym-${sym.role}`, sym.type].filter(Boolean).join(' ');
+            const data = [sym.param && `data-param="${escapeXML(sym.param)}"`, sym.socket && `data-socket="${escapeXML(sym.socket)}"`, sym.title && `data-sym-title="${escapeXML(sym.title)}"`].filter(Boolean).join(' ');
+            const body = ctx.values && sym.value !== undefined && sym.value !== null ? numberMathML(sym.value) : xml;
+            return `<mrow class="${classes}"${data ? ` ${data}` : ''}>${body}</mrow>`;
+        }
+        case 'group':
+            return renderNode(node.body, ctx);
+        case 'member':
+            return `<msub>${wrap(node.object, 9, ctx)}<mi>${escapeXML(node.field)}</mi></msub>`;
+        case 'unary':
+            return `<mrow>${mo(node.op === '-' ? '−' : node.op === '!' ? '¬' : '+')}${wrap(node.arg, 7, ctx)}</mrow>`;
+        case 'ternary':
+            return `<mrow>${mo('{')}<mtable><mtr><mtd>${renderNode(node.a, ctx)}</mtd><mtd><mtext>if </mtext>${renderNode(node.cond, ctx)}</mtd></mtr><mtr><mtd>${renderNode(node.b, ctx)}</mtd><mtd><mtext>otherwise</mtext></mtd></mtr></mtable></mrow>`;
+        case 'binary':
+            return renderBinary(node, ctx);
+        case 'call':
+            return renderCall(node, ctx);
+    }
+    throw new Error(`Cannot render ${node.type}`);
+}
+/** Render a child, adding parentheses when it binds more loosely than its context. */
+function wrap(node, level, ctx, strict = false) {
+    const p = precedence(node), xml = renderNode(node, ctx);
+    return p < level || (strict && p === level) ? fenced('(', xml, ')') : xml;
+}
+function renderBinary(node, ctx) {
+    const level = BINARY[node.op];
+    if (node.op === '/') {
+        return `<mfrac>${renderNode(node.left, ctx)}${renderNode(node.right, ctx)}</mfrac>`;
+    }
+    if (node.op === '^') {
+        return `<msup>${wrap(node.left, 9, ctx)}${renderNode(node.right, ctx)}</msup>`;
+    }
+    const symbols = { '*': '·', '-': '−', '==': '=', '!=': '≠', '<=': '≤', '>=': '≥', '&&': '∧', '||': '∨', '%': 'mod' };
+    const left = wrap(node.left, level, ctx), right = wrap(node.right, level, ctx, node.op === '-' || node.op === '%');
+    if (node.op === '*' && node.left.type === 'num' && node.right.type !== 'num') {
+        return `<mrow>${left}<mo>&#x2062;</mo>${right}</mrow>`; // 3θ, not 3·θ
+    }
+    return `<mrow>${left}${mo(symbols[node.op] || node.op)}${right}</mrow>`;
+}
+function renderCall(node, ctx) {
+    const args = node.args.map(a => renderNode(a, ctx)), list = args.join(mo(','));
+    switch (node.name) {
+        case 'pow':
+            if (args.length === 2) {
+                return `<msup>${wrap(node.args[0], 9, ctx)}${args[1]}</msup>`;
+            }
+            break;
+        case 'exp':
+            if (args.length === 1) {
+                return `<msup><mi mathvariant="normal">e</mi>${args[0]}</msup>`;
+            }
+            break;
+        case 'sqrt':
+            if (args.length === 1) {
+                return `<msqrt>${args[0]}</msqrt>`;
+            }
+            break;
+        case 'abs':
+        case 'length':
+            if (args.length === 1) {
+                return fenced('|', args[0], '|');
+            }
+            break;
+        case 'floor':
+            if (args.length === 1) {
+                return fenced('⌊', args[0], '⌋');
+            }
+            break;
+        case 'mod':
+            if (args.length === 2) {
+                return `<mrow>${wrap(node.args[0], 6, ctx)}${mo('mod')}${wrap(node.args[1], 6, ctx, true)}</mrow>`;
+            }
+            break;
+        case 'vec2':
+        case 'vec3':
+        case 'vec4':
+            return fenced('(', list, ')');
+    }
+    const name = `<mi mathvariant="normal">${escapeXML(node.name)}</mi>`;
+    if (PREFIX_FUNCTIONS.has(node.name) && node.args.length === 1 && precedence(node.args[0]) >= 9) {
+        return `<mrow>${name}<mo>&#x2061;</mo>${args[0]}</mrow>`; // sin θ
+    }
+    return `<mrow>${name}<mo>&#x2061;</mo>${fenced('(', list, ')')}</mrow>`;
+}
+const context = ({ symbols = null, values = false } = {}) => ({ symbols: symbols ? new Map(Object.entries(symbols)) : null, values });
+/** Render a custom GLSL expression as MathML, optionally with a left-hand side.
+ * A multi-line equation renders its result line; see programToMathML.
+ */
+function expressionToMathML(source, lhs = '', options = {}) {
+    const text = String(source);
+    const tree = /[\n;]|^\s*param\b/.test(text) ? parseProgram(text).result.expr : parseExpression(text);
+    const body = renderNode(tree, context(options));
+    return `<math display="block">${lhs ? `<mrow>${lhs}<mo>=</mo>${body}</mrow>` : body}</math>`;
+}
+/** Every line of a custom equation as typeset steps: definitions as `name = …`
+ * and the result as `lhs = …`, each with its `//` caption. Parameters are listed
+ * by the editor instead. Returns [{kind: 'define'|'result', name, mathml, text}].
+ * Options: symbols (annotations by name) and values, as for texToMathML.
+ */
+function programToMathML(source, lhs = '<mi>f</mi>', options = {}) {
+    const program = parseProgram(source), ctx = context(options);
+    const line = (left, expr) => `<math displaystyle="true"><mrow>${left}<mo>=</mo>${renderNode(expr, ctx)}</mrow></math>`;
+    return [
+        ...program.definitions.map(d => ({ kind: 'define', name: d.name, mathml: line(nameMathML(d.name), d.expr), text: d.comment })),
+        { kind: 'result', name: null, mathml: line(lhs, program.result.expr), text: program.result.comment }
+    ];
+}
+
+return {symbolKey,numberMathML,texToMathML,texSegments,texToMathMLSegments,nameMathML,expressionToMathML,programToMathML};
+})();
+__modules['formula.js'] = (() => {
+const { catalog, bypassSocket } = __modules['catalog.js'];
+const { evaluationOrder, consumers } = __modules['graph.js'];
+/** The construction as a formula sheet (pure; ui-formula.js renders it).
+ *
+ * compositionTeX() summarizes how the final image is assembled: the combiners
+ * (Add light, Front over back, Tint, Mask, Combine scalar fields) are written
+ * out as operations and every other component is named, e.g.
+ *   Add light = (Gas emission + Central glow) + Folded star lattices.
+ * formulaSheet() lists every component in evaluation order with where each input
+ * comes from and where the output goes.
+ */
+const texText = s => String(s).replace(/[\\{}^_$&%#~]/g, ' ').replace(/\s+/g, ' ').trim();
+/** A component's name without the " · symbol" suffix some labels carry. */
+function shortLabel(node) {
+    return node.label.split(' · ')[0].trim() || node.id;
+}
+const fmt = v => String(Number(Number(v).toPrecision(3)));
+/** TeX for the output of `project` as an expression over its components.
+ * Bypassed components are skipped the way the renderer skips them.
+ */
+function compositionTeX(project, { maxDepth = 8 } = {}) {
+    const byId = new Map(project.nodes.map(n => [n.id, n]));
+    const name = n => `\\text{${texText(shortLabel(n))}}`;
+    const wrap = (tex, level, parent) => level < parent ? `\\left(${tex}\\right)` : tex;
+    function expr(id, depth, parent) {
+        const n = byId.get(id);
+        if (!n) {
+            return '0';
+        }
+        if (!n.enabled) {
+            const socket = bypassSocket(n.type);
+            return socket && n.inputs[socket] ? expr(n.inputs[socket], depth, parent) : '0';
+        }
+        if (depth > maxDepth) {
+            return name(n);
+        }
+        const input = (socket, level) => n.inputs[socket] ? expr(n.inputs[socket], depth + 1, level) : '0';
+        switch (n.type) {
+            case 'add': {
+                const g = n.params.gain;
+                const b = input('b', g !== 1 ? 3 : 1);
+                return wrap(`${input('a', 1)} + ${g !== 1 ? `${fmt(g)}\\,` : ''}${b}`, 1, parent);
+            }
+            case 'over': // always parenthesized next to a sum, so "A + B over C" never needs precedence rules
+                return wrap(`${input('front', 3)}\\ \\text{over}\\ ${input('back', 3)}`, 0.5, parent);
+            case 'tint':
+                return `${n.params.gain !== 1 ? `${fmt(n.params.gain)}\\,` : ''}\\text{tint}\\left(${input('layer', 0)}\\right)`;
+            case 'mask':
+                return `\\text{mask}\\left(${input('layer', 0)},\\ ${input('mask', 0)}\\right)`;
+            case 'fieldmath': {
+                const { weightA: wa, weightB: wb, product: wp, bias: c } = n.params, terms = [];
+                if (wa) {
+                    terms.push(`${wa !== 1 ? `${fmt(wa)}\\,` : ''}${input('a', 3)}`);
+                }
+                if (wb) {
+                    terms.push(`${wb !== 1 ? `${fmt(wb)}\\,` : ''}${input('b', 3)}`);
+                }
+                if (wp) {
+                    terms.push(`${wp !== 1 ? `${fmt(wp)}\\,` : ''}${input('a', 3)}\\,${input('b', 3)}`);
+                }
+                if (c) {
+                    terms.push(fmt(c));
+                }
+                return wrap(terms.join(' + ').replace(/\+ -/g, '- ') || '0', 1, parent);
+            }
+            default:
+                return name(n);
+        }
+    }
+    return `\\text{image} = ${expr(project.output, 0, 0)}`;
+}
+/** Every component in evaluation order with its inputs and uses:
+ * [{node, index, def, inputs: [{socket, kind, symbol, source}], uses: [{node, socket, symbol}], isOutput}].
+ */
+function formulaSheet(project) {
+    return evaluationOrder(project).map((node, index) => {
+        const def = catalog[node.type];
+        const inputs = Object.entries(def.inputs).map(([socket, kind]) => ({ socket, kind, symbol: def.inputSymbols[socket] || socket, source: project.nodes.find(n => n.id === node.inputs[socket]) || null }));
+        const uses = consumers(project, node.id).map(u => ({ node: u.node, socket: u.socket, symbol: catalog[u.node.type].inputSymbols[u.socket] || u.socket }));
+        return { node, index, def, inputs, uses, isOutput: project.output === node.id };
+    });
+}
+
+return {shortLabel,compositionTeX,formulaSheet};
+})();
+__modules['ui-formula.js'] = (() => {
+const { $, esc, state, on, setSelected } = __modules['editor.js'];
+const { texToMathML, texToMathMLSegments, programToMathML } = __modules['math-render.js'];
+const { compositionTeX, formulaSheet, shortLabel } = __modules['formula.js'];
+const { typeLabels } = __modules['catalog.js'];
+/** The Formulas tab: the construction written out as a formula sheet, in the
+ * spirit of the artist's own sheets: how the image is composed, then every
+ * component's equation with its inputs bound to the components that feed them.
+ * Click a block to select that component; hover a line for its explanation.
+ */
+const CUSTOM_LHS = { expression: '<mi>f</mi>', vectorExpression: '<mi>q</mi>', colorExpression: '<mi mathvariant="normal">RGB</mi>' };
+function safe(render, fallback) {
+    try {
+        return render();
+    }
+    catch (e) {
+        return `<code>${esc(fallback)}</code>`;
+    }
+}
+function block(entry) {
+    const { node, index, def, inputs, uses, isOutput } = entry;
+    const outSymbols = Object.fromEntries(def.outputSymbols.map(s => [s, { role: 'output', type: def.output }]));
+    const inSymbols = Object.fromEntries(inputs.flatMap(i => i.symbol.split(',').map(s => [s.trim(), { role: 'input', type: i.kind, socket: i.socket }])));
+    const symbols = { ...inSymbols, ...outSymbols };
+    const lines = def.custom
+        ? safe(() => programToMathML(node.params.expression, CUSTOM_LHS[node.type], { symbols: { p: { role: 'input', type: 'coord' }, a: { role: 'input', type: 'scalar' }, b: { role: 'input', type: 'scalar' } } }).map(l => `<div class="formula-line" data-tip="${esc(l.text || 'Custom equation line')}">${l.mathml}</div>`).join(''), node.params.expression)
+        : def.steps.map(s => `<div class="formula-line" data-tip="${esc(s.text)}">${safe(() => texToMathMLSegments(s.tex, { symbols }).map(m => `<span class="eq-seg">${m}</span>`).join(''), s.tex)}</div>`).join('');
+    const from = inputs.length ? `<p class="formula-bind">${inputs.map(i => `${safe(() => texToMathML(i.symbol, { display: false, symbols: inSymbols }), i.symbol)} ← ${i.source ? `<b>${esc(shortLabel(i.source))}</b>` : '<span class="muted">zero (unconnected)</span>'}`).join(' · ')}</p>` : '';
+    const to = uses.length ? `<p class="formula-bind">→ ${uses.map(u => `<b>${esc(shortLabel(u.node))}</b> as ${safe(() => texToMathML(u.symbol, { display: false }), u.symbol)}`).join(' · ')}</p>` : isOutput ? '<p class="formula-bind final">→ the final image</p>' : '<p class="formula-bind muted">→ unused</p>';
+    return `<article class="formula-block ${def.output} ${node.enabled ? '' : 'disabled'} ${node.id === state.selected ? 'selected' : ''}" data-formula="${node.id}" tabindex="0" role="button" aria-label="Open ${esc(node.label)}"><header><span class="formula-index">${index + 1}</span><b>${esc(node.label)}</b><span class="type-chip ${def.output}">${esc(typeLabels[def.output])}</span>${node.enabled ? '' : '<span class="muted">bypassed</span>'}</header>${from}<div class="formula-lines">${lines}</div>${to}</article>`;
+}
+function renderFormulas() {
+    if ($('formulaView').hidden) {
+        return;
+    }
+    const project = state.project;
+    const summary = safe(() => texToMathMLSegments(compositionTeX(project)).map(m => `<span class="eq-seg">${m}</span>`).join(''), compositionTeX(project));
+    $('formulaView').innerHTML = `<section class="formula-summary"><small>THE IMAGE, COMPOSED</small><div class="formula-line">${summary}</div><p class="muted">Light is added (+), opaque layers are stacked (over); everything else is one component, defined below in evaluation order. Colored symbols: <span class="sym-in coord">inputs</span> · <span class="sym-out">outputs</span>. Hover a line for what it does; click a block to select it.</p></section><div class="formula-grid">${formulaSheet(project).map(block).join('')}</div>`;
+}
+$('formulaView').addEventListener('click', e => {
+    const card = e.target.closest('[data-formula]');
+    if (card) {
+        setSelected(card.dataset.formula);
+    }
+});
+$('formulaView').addEventListener('keydown', e => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-formula]')) {
+        e.preventDefault();
+        e.target.click();
+    }
+});
+for (const event of ['refresh', 'selection']) {
+    on(event, renderFormulas);
+}
+
+return {renderFormulas};
 })();
 __modules['graph-layout.js'] = (() => {
 const { catalog } = __modules['catalog.js'];
@@ -3486,428 +7283,6 @@ function wirePath(from, to) {
 }
 
 return {NODE_WIDTH,COLUMN_PITCH,ROW_GAP,SOCKET_PITCH,SOCKET_TOP,PREVIEW_WIDTH,PREVIEW_HEIGHT,CARD_PREVIEW_HEIGHT,nodeHeight,layoutGraph,outputSocketPoint,inputSocketPoint,wirePath};
-})();
-__modules['math-render.js'] = (() => {
-/** Typeset equations as native MathML, with no fonts, scripts or network access.
- *
- * texToMathML() converts the small TeX subset used by the component catalog:
- * letters, numbers, operators, groups, ^ and _, \frac, \sqrt, \text, \mathrm,
- * \operatorname, \mathbf, accents, \left/\right, big operators (\sum, \prod),
- * Greek letters, common functions, relations and spacing commands. Unknown
- * commands throw, so the unit tests catch catalog typos.
- *
- * expressionToMathML() parses a custom GLSL expression (the same grammar the
- * editor accepts) and renders it as mathematics: a/b becomes a fraction,
- * pow(a,b) a power, sqrt a radical, abs and length bars, vecN a tuple, theta θ.
- */
-const escapeXML = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const GREEK = {
-    alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', varepsilon: 'ε', zeta: 'ζ', eta: 'η', theta: 'θ', vartheta: 'ϑ',
-    iota: 'ι', kappa: 'κ', lambda: 'λ', mu: 'μ', nu: 'ν', xi: 'ξ', pi: 'π', rho: 'ρ', sigma: 'σ', tau: 'τ', upsilon: 'υ',
-    phi: 'ϕ', varphi: 'φ', chi: 'χ', psi: 'ψ', omega: 'ω', Gamma: 'Γ', Delta: 'Δ', Theta: 'Θ', Lambda: 'Λ', Xi: 'Ξ', Pi: 'Π',
-    Sigma: 'Σ', Phi: 'Φ', Psi: 'Ψ', Omega: 'Ω', ell: 'ℓ'
-};
-const FUNCTIONS = new Set(['sin', 'cos', 'tan', 'exp', 'log', 'ln', 'max', 'min', 'arccos', 'arcsin', 'arctan', 'tanh', 'sinh', 'cosh', 'det']);
-const OPERATORS = {
-    cdot: '·', times: '×', odot: '⊙', le: '≤', leq: '≤', ge: '≥', geq: '≥', ne: '≠', neq: '≠', approx: '≈', propto: '∝',
-    to: '→', mapsto: '↦', rightarrow: '→', leftarrow: '←', pm: '±', in: '∈', infty: '∞', partial: '∂', nabla: '∇', circ: '∘',
-    ldots: '…', cdots: '⋯', lvert: '|', rvert: '|', vert: '|', lVert: '‖', rVert: '‖', Vert: '‖', langle: '⟨', rangle: '⟩',
-    star: '⋆', prime: '′', lfloor: '⌊', rfloor: '⌋', lceil: '⌈', rceil: '⌉', bmod: 'mod', '{': '{', '}': '}', '|': '‖'
-};
-const LARGE = { sum: '∑', prod: '∏' };
-const SPACES = { quad: '1em', qquad: '2em', ',': '0.167em', ';': '0.278em', ':': '0.222em', ' ': '0.25em', '!': '0em' };
-const ACCENTS = { hat: '^', bar: '¯', tilde: '~', vec: '→', dot: '˙' };
-const IGNORED = new Set(['left', 'right', 'big', 'bigl', 'bigr', 'Big', 'Bigl', 'Bigr', 'displaystyle']);
-const OPERATOR_CHARS = { '-': '−', '*': '∗', "'": '′' };
-class TexParser {
-    constructor(source) {
-        this.s = source;
-        this.i = 0;
-    }
-    error(message) {
-        return new Error(`${message} at position ${this.i} in “${this.s}”`);
-    }
-    skipSpace() {
-        while (this.i < this.s.length && /\s/.test(this.s[this.i])) {
-            this.i++;
-        }
-    }
-    peek() {
-        this.skipSpace();
-        return this.s[this.i];
-    }
-    /** Read a command name after a backslash: letters, or one symbol character. */
-    command() {
-        this.i++;
-        const letters = /^[A-Za-z]+/.exec(this.s.slice(this.i));
-        if (letters) {
-            this.i += letters[0].length;
-            return letters[0];
-        }
-        if (this.i >= this.s.length) {
-            throw this.error('Dangling backslash');
-        }
-        return this.s[this.i++];
-    }
-    /** Raw text of a braced argument, for \text and \mathrm. */
-    rawGroup() {
-        if (this.peek() !== '{') {
-            throw this.error('Expected {');
-        }
-        let depth = 0, start = ++this.i;
-        for (; this.i < this.s.length; this.i++) {
-            if (this.s[this.i] === '{') {
-                depth++;
-            }
-            else if (this.s[this.i] === '}') {
-                if (depth === 0) {
-                    return this.s.slice(start, this.i++);
-                }
-                depth--;
-            }
-        }
-        throw this.error('Unclosed {');
-    }
-    list() {
-        const items = [];
-        while (this.peek() !== undefined && this.peek() !== '}') {
-            items.push(this.scripted());
-        }
-        return items.join('');
-    }
-    group() {
-        this.i++; // {
-        const body = this.list();
-        if (this.peek() !== '}') {
-            throw this.error('Unclosed {');
-        }
-        this.i++;
-        return `<mrow>${body}</mrow>`;
-    }
-    argument() {
-        const c = this.peek();
-        if (c === undefined) {
-            throw this.error('Missing argument');
-        }
-        return c === '{' ? this.group() : this.atom().xml;
-    }
-    scripted() {
-        const base = this.atom();
-        let sub = null, sup = null;
-        for (;;) {
-            const c = this.peek();
-            if (c === '^' && sup === null) {
-                this.i++;
-                sup = this.argument();
-            }
-            else if (c === '_' && sub === null) {
-                this.i++;
-                sub = this.argument();
-            }
-            else {
-                break;
-            }
-        }
-        if (sub === null && sup === null) {
-            return base.xml;
-        }
-        const [both, under, over] = base.large ? ['munderover', 'munder', 'mover'] : ['msubsup', 'msub', 'msup'];
-        if (sub !== null && sup !== null) {
-            return `<${both}>${base.xml}${sub}${sup}</${both}>`;
-        }
-        return sub !== null ? `<${under}>${base.xml}${sub}</${under}>` : `<${over}>${base.xml}${sup}</${over}>`;
-    }
-    atom() {
-        const c = this.peek();
-        if (c === undefined) {
-            throw this.error('Unexpected end');
-        }
-        if (c === '{') {
-            return { xml: this.group() };
-        }
-        if (c === '\\') {
-            return this.commandAtom(this.command());
-        }
-        if (c === '^' || c === '_' || c === '}') {
-            throw this.error(`Unexpected ${c}`);
-        }
-        const number = /^(\d+(\.\d+)?|\.\d+)/.exec(this.s.slice(this.i));
-        if (number) {
-            this.i += number[0].length;
-            return { xml: `<mn>${number[0]}</mn>` };
-        }
-        this.i++;
-        if (/[A-Za-z]/.test(c)) {
-            return { xml: `<mi>${c}</mi>` };
-        }
-        return { xml: `<mo>${escapeXML(OPERATOR_CHARS[c] || c)}</mo>` };
-    }
-    commandAtom(name) {
-        if (IGNORED.has(name)) {
-            return this.peek() === '.' ? (this.i++, { xml: '' }) : this.atom();
-        }
-        if (name === 'frac' || name === 'tfrac' || name === 'dfrac') {
-            const top = this.argument(), bottom = this.argument();
-            return { xml: `<mfrac>${top}${bottom}</mfrac>` };
-        }
-        if (name === 'sqrt') {
-            return { xml: `<msqrt>${this.argument()}</msqrt>` };
-        }
-        if (name === 'text') {
-            return { xml: `<mtext>${escapeXML(this.rawGroup())}</mtext>` };
-        }
-        if (name === 'mathrm' || name === 'operatorname') {
-            return { xml: `<mi mathvariant="normal">${escapeXML(this.rawGroup())}</mi>` };
-        }
-        if (name === 'mathbf' || name === 'boldsymbol') {
-            return { xml: `<mrow class="bold">${this.argument()}</mrow>` };
-        }
-        if (Object.hasOwn(ACCENTS, name)) {
-            return { xml: `<mover accent="true">${this.argument()}<mo>${ACCENTS[name]}</mo></mover>` };
-        }
-        if (Object.hasOwn(GREEK, name)) {
-            return { xml: `<mi>${GREEK[name]}</mi>` };
-        }
-        if (FUNCTIONS.has(name)) {
-            return { xml: `<mi mathvariant="normal">${name}</mi>` };
-        }
-        if (Object.hasOwn(LARGE, name)) {
-            return { xml: `<mo largeop="true" movablelimits="false">${LARGE[name]}</mo>`, large: true };
-        }
-        if (Object.hasOwn(OPERATORS, name)) {
-            return { xml: `<mo>${escapeXML(OPERATORS[name])}</mo>` };
-        }
-        if (Object.hasOwn(SPACES, name)) {
-            return { xml: `<mspace width="${SPACES[name]}"></mspace>` };
-        }
-        throw this.error(`Unsupported TeX command \\${name}`);
-    }
-}
-/** Convert one line of TeX to a MathML string. Throws on unsupported input. */
-function texToMathML(tex, { display = true } = {}) {
-    const parser = new TexParser(String(tex));
-    const body = parser.list();
-    if (parser.peek() !== undefined) {
-        throw parser.error('Unbalanced }');
-    }
-    return `<math${display ? ' display="block"' : ''}>${body}</math>`;
-}
-// ---- GLSL expressions -----------------------------------------------------------
-const TOKEN = /\s*(?:(\d+\.?\d*(?:[eE][-+]?\d+)?|\.\d+(?:[eE][-+]?\d+)?)|([A-Za-z_]\w*)|(<=|>=|==|!=|&&|\|\||[-+*/%(),?:.<>!]))/y;
-function tokenize(source) {
-    const tokens = [];
-    TOKEN.lastIndex = 0;
-    while (TOKEN.lastIndex < source.length) {
-        if (/^\s*$/.test(source.slice(TOKEN.lastIndex))) {
-            break;
-        }
-        const at = TOKEN.lastIndex, m = TOKEN.exec(source);
-        if (!m) {
-            throw new Error(`Unexpected character “${source[at]}” at position ${at}`);
-        }
-        tokens.push(m[1] !== undefined ? { kind: 'num', value: m[1] } : m[2] !== undefined ? { kind: 'id', value: m[2] } : { kind: 'op', value: m[3] });
-    }
-    return tokens;
-}
-const BINARY = { '||': 1, '&&': 2, '==': 3, '!=': 3, '<': 4, '>': 4, '<=': 4, '>=': 4, '+': 5, '-': 5, '*': 6, '/': 6, '%': 6 };
-/** Parse a custom expression into a small AST. Throws on syntax errors. */
-function parseExpression(source) {
-    const tokens = tokenize(String(source));
-    let k = 0;
-    const peek = () => tokens[k], take = () => tokens[k++];
-    const expect = value => {
-        const t = take();
-        if (!t || t.value !== value) {
-            throw new Error(`Expected “${value}”${t ? ` but found “${t.value}”` : ' at the end'}`);
-        }
-    };
-    function primary() {
-        const t = take();
-        if (!t) {
-            throw new Error('Unexpected end of expression');
-        }
-        let node;
-        if (t.kind === 'num') {
-            node = { type: 'num', value: t.value };
-        }
-        else if (t.kind === 'id') {
-            if (peek()?.value === '(') {
-                take();
-                const args = [];
-                if (peek()?.value !== ')') {
-                    do {
-                        args.push(ternary());
-                    } while (peek()?.value === ',' && take());
-                }
-                expect(')');
-                node = { type: 'call', name: t.value, args };
-            }
-            else {
-                node = { type: 'id', name: t.value };
-            }
-        }
-        else if (t.value === '(') {
-            node = { type: 'group', body: ternary() };
-            expect(')');
-        }
-        else if (t.value === '-' || t.value === '+' || t.value === '!') {
-            return { type: 'unary', op: t.value, arg: unaryOperand() };
-        }
-        else {
-            throw new Error(`Unexpected “${t.value}”`);
-        }
-        while (peek()?.value === '.') {
-            take();
-            const field = take();
-            if (!field || field.kind !== 'id') {
-                throw new Error('Expected a component name after “.”');
-            }
-            node = { type: 'member', object: node, field: field.value };
-        }
-        return node;
-    }
-    function unaryOperand() {
-        return primary();
-    }
-    function binary(level) {
-        let left = primary();
-        for (;;) {
-            const t = peek();
-            if (!t || t.kind !== 'op' || !Object.hasOwn(BINARY, t.value) || BINARY[t.value] < level) {
-                return left;
-            }
-            take();
-            left = { type: 'binary', op: t.value, left, right: binary(BINARY[t.value] + 1) };
-        }
-    }
-    function ternary() {
-        const cond = binary(1);
-        if (peek()?.value !== '?') {
-            return cond;
-        }
-        take();
-        const a = ternary();
-        expect(':');
-        return { type: 'ternary', cond, a, b: ternary() };
-    }
-    const tree = ternary();
-    if (k < tokens.length) {
-        throw new Error(`Unexpected “${tokens[k].value}”`);
-    }
-    return tree;
-}
-const IDENTIFIERS = { theta: 'θ', PI: 'π', TAU: 'τ' };
-const PREFIX_FUNCTIONS = new Set(['sin', 'cos', 'tan', 'tanh', 'log', 'atan', 'asin', 'acos']);
-const mo = s => `<mo>${escapeXML(s)}</mo>`;
-const fenced = (open, body, close) => `<mrow>${mo(open)}${body}${mo(close)}</mrow>`;
-/** Precedence of a rendered node, used to decide where parentheses are needed. */
-function precedence(node) {
-    if (node.type === 'group') { // parentheses are re-added only where the context needs them
-        return precedence(node.body);
-    }
-    if (node.type === 'binary') {
-        return BINARY[node.op];
-    }
-    if (node.type === 'ternary') {
-        return 0;
-    }
-    if (node.type === 'unary') {
-        return 7;
-    }
-    return 9;
-}
-function renderNode(node) {
-    switch (node.type) {
-        case 'num': {
-            const n = Number(node.value);
-            return `<mn>${Number.isFinite(n) && Math.abs(n) < 1e7 && !/[eE]/.test(node.value) ? String(n) : escapeXML(node.value)}</mn>`;
-        }
-        case 'id':
-            return Object.hasOwn(IDENTIFIERS, node.name) ? `<mi>${IDENTIFIERS[node.name]}</mi>` : node.name.length === 1 ? `<mi>${node.name}</mi>` : `<mi mathvariant="normal">${escapeXML(node.name)}</mi>`;
-        case 'group':
-            return renderNode(node.body);
-        case 'member':
-            return `<msub>${wrap(node.object, 9)}<mi>${escapeXML(node.field)}</mi></msub>`;
-        case 'unary':
-            return `<mrow>${mo(node.op === '-' ? '−' : node.op === '!' ? '¬' : '+')}${wrap(node.arg, 7)}</mrow>`;
-        case 'ternary':
-            return `<mrow>${mo('{')}<mtable><mtr><mtd>${renderNode(node.a)}</mtd><mtd><mtext>if </mtext>${renderNode(node.cond)}</mtd></mtr><mtr><mtd>${renderNode(node.b)}</mtd><mtd><mtext>otherwise</mtext></mtd></mtr></mtable></mrow>`;
-        case 'binary':
-            return renderBinary(node);
-        case 'call':
-            return renderCall(node);
-    }
-    throw new Error(`Cannot render ${node.type}`);
-}
-/** Render a child, adding parentheses when it binds more loosely than its context. */
-function wrap(node, level, strict = false) {
-    const p = precedence(node), xml = renderNode(node);
-    return p < level || (strict && p === level) ? fenced('(', xml, ')') : xml;
-}
-function renderBinary(node) {
-    const level = BINARY[node.op];
-    if (node.op === '/') {
-        return `<mfrac>${renderNode(node.left)}${renderNode(node.right)}</mfrac>`;
-    }
-    const symbols = { '*': '·', '-': '−', '==': '=', '!=': '≠', '<=': '≤', '>=': '≥', '&&': '∧', '||': '∨', '%': 'mod' };
-    const left = wrap(node.left, level), right = wrap(node.right, level, node.op === '-' || node.op === '%');
-    if (node.op === '*' && node.left.type === 'num' && node.right.type !== 'num') {
-        return `<mrow>${left}<mo>&#x2062;</mo>${right}</mrow>`; // 3θ, not 3·θ
-    }
-    return `<mrow>${left}${mo(symbols[node.op] || node.op)}${right}</mrow>`;
-}
-function renderCall(node) {
-    const args = node.args.map(renderNode), list = args.join(mo(','));
-    switch (node.name) {
-        case 'pow':
-            if (args.length === 2) {
-                return `<msup>${wrap(node.args[0], 9)}${args[1]}</msup>`;
-            }
-            break;
-        case 'exp':
-            if (args.length === 1) {
-                return `<msup><mi mathvariant="normal">e</mi>${args[0]}</msup>`;
-            }
-            break;
-        case 'sqrt':
-            if (args.length === 1) {
-                return `<msqrt>${args[0]}</msqrt>`;
-            }
-            break;
-        case 'abs':
-        case 'length':
-            if (args.length === 1) {
-                return fenced('|', args[0], '|');
-            }
-            break;
-        case 'floor':
-            if (args.length === 1) {
-                return fenced('⌊', args[0], '⌋');
-            }
-            break;
-        case 'mod':
-            if (args.length === 2) {
-                return `<mrow>${wrap(node.args[0], 6)}${mo('mod')}${wrap(node.args[1], 6, true)}</mrow>`;
-            }
-            break;
-        case 'vec2':
-        case 'vec3':
-        case 'vec4':
-            return fenced('(', list, ')');
-    }
-    const name = `<mi mathvariant="normal">${escapeXML(node.name)}</mi>`;
-    if (PREFIX_FUNCTIONS.has(node.name) && node.args.length === 1 && precedence(node.args[0]) >= 9) {
-        return `<mrow>${name}<mo>&#x2061;</mo>${args[0]}</mrow>`; // sin θ
-    }
-    return `<mrow>${name}<mo>&#x2061;</mo>${fenced('(', list, ')')}</mrow>`;
-}
-/** Render a custom GLSL expression as MathML, optionally with a left-hand side. */
-function expressionToMathML(source, lhs = '') {
-    const body = renderNode(parseExpression(source));
-    return `<math display="block">${lhs ? `<mrow>${lhs}<mo>=</mo>${body}</mrow>` : body}</math>`;
-}
-
-return {texToMathML,parseExpression,expressionToMathML};
 })();
 __modules['thumbnails.js'] = (() => {
 /** Navigation previews only; the GPU artwork renderer never samples these. */
@@ -3981,15 +7356,17 @@ function relativeTime(savedAt, now = Date.now()) {
 return {SNAPSHOT_LIMIT,THUMB_WIDTH,parseSnapshots,addSnapshot,removeSnapshot,thumbnailFrom,relativeTime};
 })();
 __modules['ui-library.js'] = (() => {
-const { $, esc, state, on, toast, showError, loadProject, addComponent, seek, readStorage, writeStorage, STORAGE } = __modules['editor.js'];
+const { $, esc, state, on, toast, showError, loadProject, addComponent, seek, readStorage, writeStorage, STORAGE, setPref } = __modules['editor.js'];
 const { catalog, typeNames, typeLabels } = __modules['catalog.js'];
 const { texToMathML } = __modules['math-render.js'];
 const { registerTipProvider } = __modules['ui-tooltip.js'];
 const { presets, getPreset } = __modules['presets.js'];
 const { thumbnails } = __modules['thumbnails.js'];
 const { parseSnapshots, addSnapshot, removeSnapshot, thumbnailFrom, relativeTime } = __modules['snapshots.js'];
-/** Left panel: scene presets, the component palette (click or drag to add) and
- * session snapshots.
+/** The library: scene presets, the component palette (click or drag to add) and
+ * session snapshots. It is a drawer over the left of the window, opened with
+ * ☰ Scenes (or ＋ Component) and closed after a choice; Dock keeps it open as a
+ * column of the layout instead (remembered).
  */
 const DRAG_TYPE = 'application/x-equation-studio-component';
 let tab = 'scenes', dragged = null;
@@ -4002,6 +7379,36 @@ function showLibraryTab(next) {
     tab = next;
     $('librarySearch').value = '';
     renderLibrary();
+}
+function libraryOpen() {
+    return $('library').classList.contains('open');
+}
+/** Open the drawer (a no-op when docked), optionally on a tab. */
+function openLibrary(next = null) {
+    if (next) {
+        showLibraryTab(next);
+    }
+    $('library').classList.add('open');
+    $('libraryButton').setAttribute('aria-expanded', 'true');
+    if (!state.prefs.libraryDocked) {
+        $('librarySearch').focus({ preventScroll: true });
+    }
+}
+function closeLibrary() {
+    if (state.prefs.libraryDocked) {
+        return;
+    }
+    $('library').classList.remove('open');
+    $('libraryButton').setAttribute('aria-expanded', 'false');
+}
+function applyDock() {
+    const docked = state.prefs.libraryDocked;
+    $('app').classList.toggle('library-docked', docked);
+    $('library').classList.toggle('open', docked); // undocking puts it away as a closed drawer
+    $('libraryButton').setAttribute('aria-expanded', String(docked));
+    $('libraryDock').textContent = docked ? '⇤ Undock' : '⇥ Dock';
+    $('libraryDock').setAttribute('aria-pressed', String(docked));
+    $('libraryClose').hidden = docked;
 }
 function renderScenes(query) {
     const cards = presets.filter(p => `${p.title} ${p.status}`.toLowerCase().includes(query)).map(p => `<button class="scene-card ${state.project.id === p.id ? 'active' : ''}" data-preset="${p.id}" data-tip="${esc(p.title)} · ${esc(p.status)}|${esc(p.description)}
@@ -4067,7 +7474,7 @@ function restoreSnapshot(id) {
         // A snapshot of the scene being edited keeps that scene's original for Revert and reset.
         loadProject(s.project, { keepBaseline: s.project.id === state.baseline.id });
         seek(s.time);
-        $('library').classList.remove('open');
+        closeLibrary();
         toast('Snapshot restored. Undo returns to the previous state.');
     }
     catch (e) {
@@ -4078,11 +7485,12 @@ $('libraryContent').addEventListener('click', e => {
     const preset = e.target.closest('[data-preset]'), part = e.target.closest('[data-add]'), remove = e.target.closest('[data-remove-snapshot]'), snapshot = e.target.closest('[data-snapshot]');
     if (preset) {
         loadProject(getPreset(preset.dataset.preset));
-        $('library').classList.remove('open');
+        closeLibrary();
     }
     else if (part) {
         try {
             addComponent(part.dataset.add);
+            closeLibrary();
         }
         catch (err) {
             showError(err);
@@ -4120,9 +7528,12 @@ $('libraryContent').addEventListener('dragstart', e => {
     e.dataTransfer.effectAllowed = 'copy';
     document.body.classList.add('dragging-component');
 });
-$('libraryContent').addEventListener('dragend', () => {
+$('libraryContent').addEventListener('dragend', e => {
     dragged = null;
     document.body.classList.remove('dragging-component');
+    if (e.dataTransfer.dropEffect !== 'none') {
+        closeLibrary(); // dropped onto the graph, a card or the canvas
+    }
 });
 /** Palette tips: description, the typeset equation and how to add the component. */
 registerTipProvider('[data-add]', el => {
@@ -4136,41 +7547,97 @@ registerTipProvider('[data-add]', el => {
     return `<b>${esc(def.name)}</b><span class="tip-state">${esc(typeNames[def.output])}</span><p>${esc(def.description)}</p><div class="tip-math">${equation || esc(def.equation)}</div><p class="muted">Click to add it, or drag it onto the graph, a card or a matching input dot.</p>`;
 });
 $('librarySearch').oninput = renderLibrary;
+/** The library only changes with the scene (active preset highlight). */
+let libraryScene = null;
+function refreshLibrary() {
+    const key = `${state.project.id}|${state.project.status}`;
+    if (key !== libraryScene) {
+        libraryScene = key;
+        renderLibrary();
+    }
+}
 document.querySelectorAll('[data-library]').forEach(b => b.onclick = () => showLibraryTab(b.dataset.library));
-$('mobileLibrary').onclick = () => $('library').classList.toggle('open');
+$('libraryButton').onclick = () => libraryOpen() && !state.prefs.libraryDocked ? closeLibrary() : openLibrary(state.prefs.libraryDocked ? 'scenes' : null);
+$('libraryClose').onclick = closeLibrary;
+$('libraryDock').onclick = () => {
+    setPref('libraryDocked', !state.prefs.libraryDocked);
+    applyDock();
+};
+// A click outside the open drawer closes it.
+document.addEventListener('pointerdown', e => {
+    if (libraryOpen() && !state.prefs.libraryDocked && !e.target.closest('#library, #libraryButton, #addComponent')) {
+        closeLibrary();
+    }
+}, true);
 $('snapshotButton').onclick = () => takeSnapshot();
-on('refresh', renderLibrary);
+on('refresh', refreshLibrary);
+applyDock();
 
-return {DRAG_TYPE,draggedType,showLibraryTab,renderLibrary,takeSnapshot,getSnapshots};
+return {DRAG_TYPE,draggedType,showLibraryTab,libraryOpen,openLibrary,closeLibrary,renderLibrary,takeSnapshot,getSnapshots};
 })();
 __modules['ui-previews.js'] = (() => {
-const { state, on, showError } = __modules['editor.js'];
+const { state, on, emit, showError } = __modules['editor.js'];
 const { PREVIEW_WIDTH, PREVIEW_HEIGHT } = __modules['graph-layout.js'];
+const { lookForStats, paintTile } = __modules['looks.js'];
+const { lookOptions } = __modules['ui-look.js'];
 /** Live thumbnails of every component's output, shared by the Pipeline panel and
- * the graph cards. One preview program renders all tiles into one offscreen atlas
- * with a single readback; any <canvas data-preview="id"> is painted from it.
+ * the graph cards. The graph's one program renders all tiles into one offscreen
+ * atlas; the atlas is read back without blocking (pixel-pack buffer + fence).
+ *
+ * With float framebuffers (EXT_color_buffer_float) the tiles are read as raw
+ * values and colored here with the same looks as the canvas (looks.js), each over
+ * its own range, so an intermediate field is legible at a glance. A layer shown
+ * with adjusted exposure is labelled with the factor. Without float support the
+ * shader's classic diagnostic colors are used.
  */
-let tiles = new Map(), failed = false, frame = 0;
-/** Paint every preview canvas currently in the document. */
+let tiles = new Map(), failed = false, inFlight = false, frame = 0;
+const fmtGain = g => `×${Number(g.toPrecision(2))}`;
+/** Paint every preview canvas currently in `root`. */
 function paintPreviews(root = document) {
     root.querySelectorAll('canvas[data-preview]').forEach(canvas => {
         const tile = tiles.get(canvas.dataset.preview);
-        if (tile) {
-            if (canvas.width !== tile.width || canvas.height !== tile.height) {
-                canvas.width = tile.width;
-                canvas.height = tile.height;
-            }
-            canvas.getContext('2d').putImageData(new ImageData(tile.data, tile.width, tile.height), 0, 0);
-            canvas.classList.add('painted');
+        if (!tile) {
+            return;
         }
+        if (canvas.width !== tile.width || canvas.height !== tile.height) {
+            canvas.width = tile.width;
+            canvas.height = tile.height;
+        }
+        const ctx = canvas.getContext('2d');
+        ctx.putImageData(new ImageData(tile.data, tile.width, tile.height), 0, 0);
+        if (tile.note) {
+            ctx.font = '600 10px ui-sans-serif, system-ui, sans-serif';
+            const w = ctx.measureText(tile.note).width + 8;
+            ctx.fillStyle = 'rgba(8,12,14,0.78)';
+            ctx.fillRect(tile.width - w - 3, tile.height - 16, w, 13);
+            ctx.fillStyle = '#ffd9b0';
+            ctx.fillText(tile.note, tile.width - w + 1, tile.height - 6);
+        }
+        canvas.classList.add('painted');
+        canvas.dataset.note = tile.note || '';
     });
 }
 function previewsFailed() {
     return failed;
 }
-/** Called by the frame loop: re-render tiles when the model or time changed. */
+/** Color raw float tiles with the canvas looks. */
+function colorTiles(result, project) {
+    const out = new Map();
+    for (const [id, tile] of result) {
+        const look = lookForStats(tile.data, tile.type, lookOptions(tile.type, { natural: id === project.output }));
+        const data = paintTile(tile.data, tile.width, tile.height, { type: tile.type, ...look, exposure: project.exposure, tone: project.tone });
+        const adjusted = tile.type === 'layer' && look.mode === 'auto' && Math.abs((look.gain ?? 1) - 1) > 1e-6;
+        out.set(id, { width: tile.width, height: tile.height, data, note: adjusted ? fmtGain(look.gain) : '' });
+    }
+    return out;
+}
+/** Called by the frame loop: re-render tiles when the model or time changed. One
+ * atlas is in flight at a time; while a slow gesture is under way (the canvas is
+ * rendering at reduced resolution) thumbnails wait until it ends.
+ */
 function updatePreviews() {
-    if (!state.prefs.previews || !state.renderer || state.busy || failed || !state.previewsDirty) {
+    const renderer = state.renderer;
+    if (!state.prefs.previews || !renderer || state.busy || failed || !state.previewsDirty || inFlight) {
         return;
     }
     if (!document.querySelector('canvas[data-preview]')) {
@@ -4179,15 +7646,41 @@ function updatePreviews() {
     if (state.playing && (frame++ % 3)) {
         return; // one third of the frame rate during playback
     }
+    if (state.interacting && state.adaptiveScale < 1) {
+        return;
+    }
+    const project = state.project;
+    if (renderer.programFor(project).status !== 'ready') {
+        return; // the canvas shows that the shared program is compiling
+    }
+    state.previewsDirty = false;
+    const raw = renderer.info.rawFields, ids = project.nodes.map(n => n.id);
+    inFlight = true;
+    let request;
     try {
-        tiles = state.renderer.previewAtlas(state.project, state.time, state.project.nodes.map(n => n.id), PREVIEW_WIDTH, PREVIEW_HEIGHT);
-        state.previewsDirty = false;
-        paintPreviews();
+        request = renderer.previewAtlas(project, state.time, ids, PREVIEW_WIDTH, PREVIEW_HEIGHT, { raw, async: true });
     }
     catch (e) {
+        inFlight = false;
         failed = true;
         showError(`Live previews stopped: ${e.message}`);
+        return;
     }
+    request.then(result => {
+        inFlight = false;
+        tiles = raw ? colorTiles(result, project) : new Map([...result].map(([id, t]) => [id, { width: t.width, height: t.height, data: t.data, note: '' }]));
+        paintPreviews();
+        emit('previews');
+    }, e => {
+        inFlight = false;
+        if (!renderer.lost) {
+            failed = true;
+            showError(`Live previews stopped: ${e.message}`);
+        }
+        else {
+            state.previewsDirty = true;
+        }
+    });
 }
 /** Forget the cached tiles (e.g. after previews are switched back on). */
 function resetPreviews() {
@@ -4195,9 +7688,14 @@ function resetPreviews() {
     failed = false;
     state.previewsDirty = true;
 }
+/** The painted thumbnail of a node, {width, height, data}, or undefined. */
+function previewTile(id) {
+    return tiles.get(id);
+}
 on('refresh', () => state.previewsDirty = true);
+on('prefs', () => state.previewsDirty = true);
 
-return {paintPreviews,previewsFailed,updatePreviews,resetPreviews};
+return {paintPreviews,previewsFailed,updatePreviews,resetPreviews,previewTile};
 })();
 __modules['export.js'] = (() => {
 /** Dependency-free, uncompressed ZIP writer. PNG is already compressed.
@@ -4317,14 +7815,43 @@ async function embedPNGMetadata(blob, metadata) {
 
 return {crc32,makeZip,fileStem,download,frameTimes,embedPNGMetadata};
 })();
+__modules['ui-study-link.js'] = (() => {
+/** Lets panels open the Equation Playground without importing it (which would
+ * create an import cycle: the playground imports the inspector, which imports
+ * the panels' shared modules). ui-playground.js registers the handler.
+ */
+let handler = null;
+function setStudyHandler(fn) {
+    handler = fn;
+}
+/** Study a component in the playground. */
+function studyComponent(id) {
+    handler?.(id);
+}
+let last = { id: null, time: 0 };
+/** True when this click on component `id` is the second of a double click. Panels
+ * re-render after the first click, so the browser's dblclick (which needs both
+ * clicks on one element) is unreliable; this compares component ids instead.
+ */
+function isDoubleClick(id) {
+    const now = performance.now(), double = last.id === id && now - last.time < 450;
+    last = double ? { id: null, time: 0 } : { id, time: now };
+    return double;
+}
+
+return {setStudyHandler,studyComponent,isDoubleClick};
+})();
 __modules['ui-graph.js'] = (() => {
-const { $, esc, state, on, toast, showError, setSelected, setView, setEnabled, viewedNode, connect, transact, addComponent, nodeById, setPref, clamp, bypassDescription } = __modules['editor.js'];
+const { $, esc, state, on, toast, showError, setSelected, setView, setEnabled, viewedNode, viewOptions, connect, transact, addComponent, nodeById, setPref, clamp, bypassDescription } = __modules['editor.js'];
 const { catalog, typeLabels } = __modules['catalog.js'];
 const { upstream, downstream } = __modules['graph.js'];
+const { compileGraph } = __modules['compiler.js'];
+const { renderFormulas } = __modules['ui-formula.js'];
 const { layoutGraph, SOCKET_TOP, SOCKET_PITCH, outputSocketPoint, inputSocketPoint, wirePath } = __modules['graph-layout.js'];
-const { DRAG_TYPE, draggedType, showLibraryTab } = __modules['ui-library.js'];
+const { DRAG_TYPE, draggedType, openLibrary } = __modules['ui-library.js'];
 const { paintPreviews, resetPreviews, previewsFailed } = __modules['ui-previews.js'];
 const { download } = __modules['export.js'];
+const { studyComponent, isDoubleClick } = __modules['ui-study-link.js'];
 /** Bottom panel: the Pipeline tab (see ui-pipeline.js), the typed function graph
  * (automatic layered layout) with live per-node previews, wiring by click or drag,
  * drag-and-drop from the palette, and the generated GLSL view.
@@ -4364,7 +7891,7 @@ function renderGraph() {
         });
         const preview = previews ? `<canvas class="node-preview" width="160" height="96" data-preview="${n.id}" aria-hidden="true"></canvas>` : '';
         const checkTip = `${n.enabled ? 'Included' : 'Bypassed'}|Untick to bypass: it then ${esc(bypassDescription(n))}.`;
-        nodes += `<div class="graph-node ${def.output} ${state.selected === n.id ? 'selected' : ''} ${n.enabled ? '' : 'disabled'}" data-node="${n.id}" style="left:${pos.x}px;top:${pos.y}px;height:${pos.height}px" tabindex="0" role="button" aria-label="Inspect ${esc(n.label)}"><div class="node-head"><input type="checkbox" class="node-enable" data-enable="${n.id}" ${n.enabled ? 'checked' : ''} aria-label="Include ${esc(n.label)}" data-tip="${checkTip}"><b>${esc(n.label)}</b><button class="node-eye" data-show="${n.id}" aria-label="Show ${esc(n.label)} on the canvas" data-tip="Show this stage|Show this component’s output on the canvas.">👁</button></div><small>${esc(def.category)} · ${esc(typeLabels[def.output])}</small><div class="node-sockets">${inputs.map(([socket]) => `<span class="in-label">${esc(socket)}</span>`).join('')}</div>${preview}${socketMarkup(n, def)}${marks(n)}</div>`;
+        nodes += `<div class="graph-node ${def.output} ${state.selected === n.id ? 'selected' : ''} ${n.enabled ? '' : 'disabled'}" data-node="${n.id}" style="left:${pos.x}px;top:${pos.y}px;height:${pos.height}px" tabindex="0" role="button" aria-label="Inspect ${esc(n.label)}"><div class="node-head"><input type="checkbox" class="node-enable" data-enable="${n.id}" ${n.enabled ? 'checked' : ''} aria-label="Include ${esc(n.label)}" data-tip="${checkTip}"><b>${esc(n.label)}</b><button class="node-eye" data-show="${n.id}" aria-label="Show ${esc(n.label)} on the canvas" data-tip="Show this step|Select it and show its output on the canvas (This step).">👁</button></div><small>${esc(def.category)} · ${esc(typeLabels[def.output])}</small><div class="node-sockets">${inputs.map(([socket]) => `<span class="in-label">${esc(socket)}</span>`).join('')}</div>${preview}${socketMarkup(n, def)}${marks(n)}</div>`;
     }
     const hadFocus = $('graphNodes').contains(document.activeElement);
     $('graphEdges').innerHTML = edges + '<path id="dragWire" fill="none" stroke="#a5f2cf" stroke-width="1.5" stroke-dasharray="4 3" style="display:none"/>';
@@ -4504,6 +8031,10 @@ $('graphNodes').addEventListener('click', e => {
     }
     const card = e.target.closest('[data-node]');
     if (card) {
+        if (isDoubleClick(card.dataset.node)) {
+            studyComponent(card.dataset.node);
+            return;
+        }
         setSelected(card.dataset.node);
     }
 });
@@ -4569,22 +8100,46 @@ for (const zone of [$('graphViewport'), $('stage')]) {
     });
 }
 // ---- Toolbar, tabs, GLSL view and the resizable splitter ----------------------
+/** The readable program for the current view: only the components it depends on. */
+function refreshShaderView() {
+    if ($('shaderView').hidden) {
+        return;
+    }
+    const project = state.project, options = viewOptions(), target = options.contribution ? project.output : options.target;
+    try {
+        const c = compileGraph(project, target, options), node = nodeById(target);
+        const view = options.contribution ? `what ${nodeById(options.contribution).label} changes in the final image` : state.viewMode === 'stage' ? `the stage ${node.label}` : 'the final image';
+        $('shaderView').textContent = `// Program for ${view}: the ${c.order.length} components it depends on.
+// The canvas draws every view with one program for the whole graph (the same code with
+// all components); modes, bypass flags and colors are uniforms. See docs/ARCHITECTURE.md.
+
+${c.fragment}`;
+    }
+    catch (e) {
+        $('shaderView').textContent = e.message;
+    }
+}
 /** Show one bottom-panel tab: pipeline, graph or shader. Remembered across sessions. */
 function showBottomTab(tab) {
-    const known = ['pipeline', 'graph', 'shader'], active = known.includes(tab) ? tab : 'pipeline';
+    const known = ['pipeline', 'graph', 'formulas', 'shader'], active = known.includes(tab) ? tab : 'pipeline';
     document.querySelectorAll('[data-bottom]').forEach(v => v.classList.toggle('active', v.dataset.bottom === active));
     $('pipelineView').hidden = active !== 'pipeline';
     $('graphViewport').hidden = active !== 'graph';
+    $('formulaView').hidden = active !== 'formulas';
     $('shaderView').hidden = active !== 'shader';
     $('copyShader').hidden = active !== 'shader';
     $('graphFit').hidden = active !== 'graph';
+    $('pipelineTools').hidden = active !== 'pipeline';
+    $('graphSummary').hidden = active !== 'graph';
     $('connectionHint').hidden = active !== 'graph';
-    $('previewsButton').hidden = active === 'shader';
+    $('previewsButton').hidden = active !== 'pipeline' && active !== 'graph';
+    renderFormulas();
     if (state.prefs.bottomTab !== active) {
         state.prefs.bottomTab = active;
         setPref('bottomTab', active);
     }
     state.previewsDirty = true;
+    refreshShaderView();
 }
 document.querySelectorAll('[data-bottom]').forEach(b => b.onclick = () => showBottomTab(b.dataset.bottom));
 $('copyShader').onclick = async () => {
@@ -4599,16 +8154,14 @@ $('copyShader').onclick = async () => {
 };
 $('previewsButton').onclick = () => setPreviews(!state.prefs.previews);
 $('graphFit').onclick = locateSelected;
-$('addComponent').onclick = () => {
-    showLibraryTab('parts');
-    $('library').classList.add('open');
-    $('librarySearch').focus();
-};
+$('addComponent').onclick = () => openLibrary('parts');
 const splitter = $('graphSplitter');
 let splitDrag = null;
+/** Height of the bottom panel in pixels; 0 is automatic: room for one row of
+ * pipeline cards, a little more on tall windows. */
 function applyGraphHeight(height) {
-    const limit = Math.max(160, Math.floor($('layout').clientHeight * 0.7));
-    const h = clamp(Math.round(height), 140, limit);
+    const layout = $('layout').clientHeight, limit = Math.max(160, Math.floor(layout * 0.7));
+    const h = clamp(Math.round(height || (layout < 700 ? 232 : layout < 950 ? 250 : 290)), 140, limit);
     $('layout').style.setProperty('--graph-height', `${h}px`);
     return h;
 }
@@ -4628,22 +8181,33 @@ splitter.addEventListener('pointerup', e => {
         splitDrag = null;
     }
 });
-splitter.addEventListener('dblclick', () => setPref('graphHeight', applyGraphHeight(260)));
+splitter.addEventListener('dblclick', () => {
+    setPref('graphHeight', 0);
+    applyGraphHeight(0);
+});
+addEventListener('resize', () => applyGraphHeight(state.prefs.graphHeight));
 on('refresh', renderGraph);
 on('selection', renderGraph);
 on('view', renderGraph);
+for (const event of ['refresh', 'selection', 'view']) {
+    on(event, refreshShaderView);
+}
 on('prefs', updateSummary);
 
 return {renderGraph,setPreviews,locateSelected,showBottomTab,applyGraphHeight};
 })();
 __modules['ui-pipeline.js'] = (() => {
-const { $, esc, state, on, setView, setEnabled, enableAll, onlyStructure, restoreEnabled, bypassDescription, viewedNode } = __modules['editor.js'];
+const { $, esc, state, on, setSelected, setEnabled, enableAll, onlyStructure, restoreEnabled, bypassDescription, viewedNode } = __modules['editor.js'];
 const { catalog, typeLabels } = __modules['catalog.js'];
 const { evaluationOrder, consumers, topologicalOrder } = __modules['graph.js'];
 const { paintPreviews } = __modules['ui-previews.js'];
+const { studyComponent, isDoubleClick } = __modules['ui-study-link.js'];
 /** Pipeline panel: every component in evaluation order with a live thumbnail of
- * its output, a checkbox to include or bypass it, and what it feeds. Clicking a
- * card shows that stage on the canvas, so the image can be read step by step.
+ * its output, a checkbox to include or bypass it, and what it feeds. It is the
+ * map of the construction: click a card to select it (the component panel
+ * explains it; the canvas keeps the view you chose, and in the step views follows
+ * the selection), double-click to study it in the Playground. Badges mark the
+ * final output, the step on the canvas and components with an unapplied edit.
  */
 function roleLine(node) {
     const users = consumers(state.project, node.id);
@@ -4657,15 +8221,16 @@ function roleLine(node) {
 }
 function renderPipeline() {
     const project = state.project, order = evaluationOrder(project), reachable = new Set(topologicalOrder(project).map(n => n.id));
-    const viewed = state.viewMode === 'stage' ? viewedNode().id : null, previews = state.prefs.previews;
+    const viewed = state.viewMode !== 'final' ? viewedNode().id : null, previews = state.prefs.previews;
     const cards = order.map((n, i) => {
         const def = catalog[n.type], isOutput = project.output === n.id;
         const classes = ['stage-card', def.output, state.selected === n.id ? 'selected' : '', viewed === n.id ? 'viewed' : '', n.enabled ? '' : 'disabled', reachable.has(n.id) ? '' : 'unused'].filter(Boolean).join(' ');
         const checkTip = `${n.enabled ? 'Included' : 'Bypassed'}: ${esc(n.label)}|Untick to bypass it: it then ${esc(bypassDescription(n))}. Tick to include it again (anything it needs is included too).`;
         const thumb = previews ? `<canvas class="stage-thumb" width="160" height="96" data-preview="${n.id}" aria-hidden="true"></canvas>` : `<div class="stage-thumb placeholder"><span class="type-dot ${def.output}"></span></div>`;
-        return `${i ? '<span class="stage-arrow" aria-hidden="true">→</span>' : ''}<div class="${classes}" data-stage="${n.id}" role="button" tabindex="0" aria-label="Show the output of ${esc(n.label)}" data-tip="Step ${i + 1}: ${esc(n.label)}|${esc(def.description)}\nClick to show this stage’s output on the canvas.">
-<label class="stage-check" data-tip="${checkTip}"><input type="checkbox" data-enable="${n.id}" ${n.enabled ? 'checked' : ''} aria-label="Include ${esc(n.label)}"><span class="stage-step">${i + 1}</span><b>${esc(n.label)}</b></label>
-${thumb}${isOutput ? '<span class="stage-badge">FINAL</span>' : ''}${reachable.has(n.id) ? '' : '<span class="stage-badge muted">UNUSED</span>'}
+        const marks = `${viewed === n.id ? `<span class="stage-mark on-canvas" data-tip="On the canvas|The canvas shows ${state.viewMode === 'effect' ? 'what this step changes' : 'this step’s output'}.">👁</span>` : ''}${state.drafts.has(n.id) ? '<span class="stage-mark draft" data-tip="Unapplied edit|Its equation has an edit that is not applied yet.">✎</span>' : ''}`;
+        return `${i ? '<span class="stage-arrow" aria-hidden="true">→</span>' : ''}<div class="${classes}" data-stage="${n.id}" role="button" tabindex="0" aria-pressed="${state.selected === n.id}" aria-label="Select step ${i + 1}: ${esc(n.label)}" data-tip="Step ${i + 1}: ${esc(n.label)}|${esc(def.description)}\nClick to select it; double-click to study it in the Playground.">
+<div class="stage-check"><input type="checkbox" data-enable="${n.id}" ${n.enabled ? 'checked' : ''} aria-label="Include ${esc(n.label)}" data-tip="${checkTip}"><span class="stage-step">${i + 1}</span><b>${esc(n.label)}</b></div>
+${marks}${thumb}${isOutput ? '<span class="stage-badge">FINAL</span>' : ''}${reachable.has(n.id) ? '' : '<span class="stage-badge muted">UNUSED</span>'}
 <small><span class="type-chip ${def.output}">${esc(typeLabels[def.output])}</span> ${roleLine(n)}</small></div>`;
     }).join('');
     $('pipelineCards').innerHTML = cards;
@@ -4674,13 +8239,17 @@ ${thumb}${isOutput ? '<span class="stage-badge">FINAL</span>' : ''}${reachable.h
     paintPreviews($('pipelineCards'));
 }
 $('pipelineCards').addEventListener('click', e => {
-    if (e.target.closest('.stage-check')) {
-        return; // the checkbox handles itself
+    if (e.target.closest('[data-enable]')) {
+        return; // the checkbox handles itself; the rest of the card selects
     }
     const card = e.target.closest('[data-stage]');
     if (card) {
         const id = card.dataset.stage;
-        setView(id === state.project.output ? 'final' : 'stage', { node: id, lock: false });
+        if (isDoubleClick(id)) {
+            studyComponent(id);
+            return;
+        }
+        setSelected(id);
     }
 });
 $('pipelineCards').addEventListener('change', e => {
@@ -4722,6 +8291,7 @@ on('selection', () => {
 });
 on('view', renderPipeline);
 on('prefs', renderPipeline);
+on('draft', renderPipeline);
 
 return {renderPipeline};
 })();
@@ -4748,10 +8318,10 @@ function refreshTransport() {
 function renderTracks() {
     const { project, time } = state;
     if (!project.tracks.length) {
-        $('tracks').innerHTML = '<div class="empty-tracks">No keyframes yet. Click ◆ next to any numeric parameter. Procedural flow-speed controls also animate directly with time.</div>';
+        $('tracks').innerHTML = ''; // no lanes, no row (◆ next to a parameter adds the first key)
         return;
     }
-    $('tracks').innerHTML = project.tracks.map(t => `<div class="track-row"><span class="track-label" data-select-track="${t.node}" data-tip="Select ${esc(t.node)}|Shows this component in the inspector.">${esc(t.node)} / ${esc(t.param)}</span><div class="track-lane" data-lane="${t.node}" data-param="${t.param}"><span class="track-playhead" style="left:${time / project.duration * 100}%"></span>${t.keys.map(k => `<button class="track-key" data-track-time="${k.time}" style="left:${k.time / project.duration * 100}%" data-tip="Key at ${k.time} s = ${k.value}|Drag along the lane to retime it; click to move the playhead here." aria-label="Key for ${t.param} at ${k.time} seconds">◆</button>`).join('')}</div></div>`).join('');
+    $('tracks').innerHTML = project.tracks.map(t => `<div class="track-row"><span class="track-label" data-select-track="${t.node}" data-tip="Select ${esc(t.node)}|Shows this component in the component panel.">${esc(t.node)} / ${esc(t.param)}</span><div class="track-lane" data-lane="${t.node}" data-param="${t.param}"><span class="track-playhead" style="left:${time / project.duration * 100}%"></span>${t.keys.map(k => `<button class="track-key" data-track-time="${k.time}" style="left:${k.time / project.duration * 100}%" data-tip="Key at ${k.time} s = ${k.value}|Drag along the lane to retime it; click to move the playhead here." aria-label="Key for ${t.param} at ${k.time} seconds">◆</button>`).join('')}</div></div>`).join('');
 }
 function togglePlay() {
     if (!state.renderer || state.busy) {
@@ -4862,6 +8432,220 @@ on('selection', renderTracks);
 on('time', updateClock);
 
 return {updateClock,renderTracks,togglePlay,stepFrames};
+})();
+__modules['concepts.js'] = (() => {
+/** Why the equations look the way they do: the recurring ideas behind the
+ * components, each with a formula, a plain explanation and (often) a small plot
+ * with one knob to play with. Components list the ideas they use in their
+ * catalog `concepts`; the inspector and the playground show them as cards.
+ *
+ * A concept: {title, tex?, text, knob?: {label, min, max, step, value},
+ * plot?: k => plotSVG options (k is the knob value)}. Pure data and math.
+ */
+const hash1 = i => {
+    const s = Math.sin(i * 127.1 + 311.7) * 43758.5453;
+    return s - Math.floor(s);
+};
+/** Smooth 1-D value noise in 0–1, the one-dimensional twin of noise2 in the shader. */
+function valueNoise1(x) {
+    const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f);
+    return hash1(i) * (1 - u) + hash1(i + 1) * u;
+}
+/** 1-D fractal noise with `octaves` layers, normalized to 0–1. */
+function fbm1(x, octaves) {
+    let sum = 0, amplitude = 0.5, norm = 0, p = x;
+    for (let k = 0; k < octaves; k++) {
+        sum += amplitude * valueNoise1(p);
+        norm += amplitude;
+        p = p * 2.03 + 11.3;
+        amplitude *= 0.5;
+    }
+    return sum / norm;
+}
+const gate = x => Math.exp(-Math.exp(Math.max(-80, Math.min(6, x))));
+const smooth = (a, b, x) => {
+    const u = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return u * u * (3 - 2 * u);
+};
+const concepts = {
+    'pixel-to-world': {
+        title: 'Pixels become points of a plane',
+        tex: 'p = \\frac{W}{w\\, z}\\left(\\mathbf{x} - \\frac{\\mathbf{s}}{2}\\right) + \\mathbf{o}',
+        text: 'The canvas is a window onto an endless plane. Each pixel is turned into a point p of that plane, in world units, before any equation runs, so the picture does not depend on the resolution: more pixels sample the same functions more densely.'
+    },
+    'backward-map': {
+        title: 'Backward mapping',
+        tex: 'I_{\\text{moved}}(p) = I\\left(M^{-1}(p)\\right)',
+        text: 'To move, turn or bend a picture, change where each pixel looks instead of moving the picture. A pixel at p asks for the pattern at q = M⁻¹(p). This is why transforms contain inverses and minus signs: to move a shape right, subtract from x. Any pattern downstream of the map is moved the same way.'
+    },
+    rotation: {
+        title: 'Rotation',
+        tex: 'R(\\theta)\\,(x, y) = (x\\cos\\theta - y\\sin\\theta,\\ x\\sin\\theta + y\\cos\\theta)',
+        text: 'Turns a point counter-clockwise by θ radians about the origin and keeps its distance. 2π (about 6.28) is a full turn. Rotating by an angle that depends on the distance from the center gives a twist.'
+    },
+    gaussian: {
+        title: 'Gaussian bump',
+        tex: 'e^{-(d/w)^2}',
+        text: 'Exactly 1 at d = 0, 0.37 at d = ±w and practically 0 beyond 3w. With d the distance to a point it draws a soft dot, with the distance to a curve a glowing line, with the distance to a shell a rim.',
+        knob: { label: 'width w', min: 0.1, max: 2, step: 0.05, value: 0.5 },
+        plot: w => ({ series: [{ f: d => Math.exp(-((d / w) ** 2)) }], domain: [-2.5, 2.5], range: [0, 1.05], xLabel: 'd', yLabel: 'e^−(d/w)²', marks: [{ x: w, label: 'w' }, { x: -w }] })
+    },
+    gate: {
+        title: 'The double-exponential gate',
+        tex: 'e^{-e^{k(x - \\ell)}}',
+        text: 'About 1 when x is well below ℓ and about 0 well above it, switching over roughly 1/k around x = ℓ (where it equals 1/e ≈ 0.37). It is a soft “if x < ℓ”: a larger k makes the switch sharper, a negative k flips it. The source nebula uses it everywhere, and a product of gates is a soft AND. Unlike a hard step it has no jagged edges.',
+        knob: { label: 'steepness k', min: 0.5, max: 30, step: 0.5, value: 4 },
+        plot: k => ({ series: [{ f: x => gate(k * x), label: 'e^−e^(kx)' }, { f: x => gate(-k * x), label: 'e^−e^(−kx)' }], domain: [-2, 2], range: [0, 1.05], xLabel: 'x − ℓ', yLabel: 'gate', marks: [{ x: 0, label: 'ℓ' }] })
+    },
+    smoothstep: {
+        title: 'Smoothstep',
+        tex: '\\operatorname{smoothstep}(a, b, x) = 3u^2 - 2u^3, \\quad u = \\operatorname{clamp}\\left(\\frac{x - a}{b - a}, 0, 1\\right)',
+        text: '0 below a, 1 above b and an S-shaped ramp in between: a soft edge whose width is b − a. 1 − smoothstep(−ε, ε, d) of a signed distance d is a filled shape with an edge 2ε wide.',
+        knob: { label: 'edge width', min: 0.05, max: 2, step: 0.05, value: 0.5 },
+        plot: e => ({ series: [{ f: x => smooth(-e, e, x) }], domain: [-2, 2], range: [0, 1.05], xLabel: 'x', yLabel: 'smoothstep(−ε, ε, x)', marks: [{ x: -e, label: '−ε' }, { x: e, label: 'ε' }] })
+    },
+    sdf: {
+        title: 'Signed distance',
+        tex: 'd(p) = |p| - r',
+        text: 'A shape can be described by how far a point is from its edge: negative inside, zero on the edge, positive outside (here a circle of radius r). Feed d to a smoothstep for a filled shape, to a Gaussian for a glowing outline, or to a gate for a sharp one. Distances also combine: min/max give unions and intersections.'
+    },
+    'implicit-curve': {
+        title: 'Curves as zero sets',
+        tex: 'L(p) = 0',
+        text: 'A curve can be given as the points where a function is zero. The sign of L tells which side a point is on and its size roughly how far it is. The nebula’s shell residual L_s is such a function; it is not an exact distance, but its zero set is the shell and its sign is inside/outside.'
+    },
+    polar: {
+        title: 'Polar coordinates',
+        tex: 'r = |p|, \\quad \\theta = \\operatorname{atan2}(p_y, p_x)',
+        text: 'The distance from the origin and the angle around it (−π to π). A pattern that depends on θ repeats around the circle; one that depends on r makes rings; one that depends on θ − k log r makes spirals. The angle jumps from π to −π on the negative x axis, which whole-number repetitions hide.'
+    },
+    fold: {
+        title: 'Folding with arccos(cos t)',
+        tex: 'O(t) = \\arccos(\\cos t)',
+        text: 'A triangle wave between 0 and π: it rises, then mirrors back down, forever. Folding both coordinates this way turns the whole plane into identical mirrored cells, so one shape drawn at the origin appears at every cell center. The folded star lattices draw one star this way and get a whole lattice of them; mod and abs fold the angle of the kaleidoscope the same way.',
+        knob: { label: 'frequency', min: 0.5, max: 4, step: 0.1, value: 1 },
+        plot: f => ({ series: [{ f: t => Math.acos(Math.cos(f * t)) }], domain: [-10, 10], range: [0, 3.3], xLabel: 't', yLabel: 'arccos(cos ft)' })
+    },
+    'value-noise': {
+        title: 'Value noise',
+        text: 'Pseudo-random values at the corners of a unit grid, blended smoothly in between: a bumpy field in 0–1 with features about one unit wide. The random values come from a hash of the corner coordinates, so the noise is the same every time and needs no stored texture.',
+        knob: { label: 'frequency', min: 0.5, max: 8, step: 0.5, value: 2 },
+        plot: f => ({ series: [{ f: x => valueNoise1(x * f) }], domain: [0, 5], range: [0, 1], xLabel: 'x', yLabel: 'n(fx)', samples: 240 })
+    },
+    fbm: {
+        title: 'Fractal noise (fBm)',
+        tex: 'f = \\frac{1}{Z}\\sum_{k} 2^{-k}\\, n(2^k p)',
+        text: 'Layers (octaves) of noise, each twice as fine and half as strong: large shapes with ever smaller detail on top, like clouds, terrain or smoke. More octaves add finer detail; the first few decide the overall shapes.',
+        knob: { label: 'octaves', min: 1, max: 8, step: 1, value: 4 },
+        plot: n => ({ series: [{ f: x => fbm1(x * 2, n) }], domain: [0, 5], range: [0, 1], xLabel: 'x', yLabel: 'fbm', samples: 320 })
+    },
+    'domain-warp': {
+        title: 'Domain warping',
+        tex: 'f(p + A\\,\\mathbf{d}(p))',
+        text: 'Push the coordinates around with a smooth field before a pattern reads them. The pattern itself is unchanged; only where it is sampled moves. Straight stripes become marble, a teardrop becomes a flame, a sphere’s surface coordinates become swirling storms.'
+    },
+    'phase-modulation': {
+        title: 'Phase modulation',
+        tex: '\\cos\\left(\\nu x + \\beta \\sin(\\mu y)\\right)',
+        text: 'A wave inside another wave’s phase bends its stripes: with β = 0 the bands are straight; the larger β, the more they meander. A cosine inside a cosine is the simplest way to get complex yet smooth structure, and the source nebula nests them in every turbulence band.',
+        knob: { label: 'bend β', min: 0, max: 8, step: 0.25, value: 2 },
+        plot: b => ({ series: [{ f: x => Math.cos(6 * x + b * Math.sin(2 * x)) }], domain: [0, 4], range: [-1.1, 1.1], xLabel: 'x', yLabel: 'cos(6x + β sin 2x)', samples: 320 })
+    },
+    'sum-of-bands': {
+        title: 'Sums of bands',
+        tex: '\\sum_{s=1}^{N} 0.95^{s} \\cos(1.25^{s} x + \\phi_s)',
+        text: 'Many waves, each finer (frequency × 1.25) and a little weaker (× 0.95) than the last. Because the weights shrink slowly, fine bands still matter, which gives a rough, turbulent texture rather than a smooth one. Fewer bands give blobbier results.',
+        knob: { label: 'bands N', min: 1, max: 20, step: 1, value: 8 },
+        plot: n => ({ series: [{ f: x => { let s = 0; for (let k = 1; k <= n; k++) { s += 0.95 ** k * Math.cos(1.25 ** k * x + 2 * Math.cos(17 * k)); } return s; } }], domain: [0, 6], xLabel: 'x', yLabel: 'sum', samples: 400 })
+    },
+    'first-hit': {
+        title: 'Front-to-back selection',
+        tex: 'w_s = J_s \\prod_{u < s} (1 - J_u)',
+        text: 'Imagine stacked translucent sheets: sheet s receives whatever the sheets before it let through. With gates J that are nearly 0 or 1, each point is claimed by the first shell that contains it, and overlapping shells do not add up twice. The weights always sum to at most 1.'
+    },
+    mix: {
+        title: 'Linear interpolation (mix)',
+        tex: '\\operatorname{mix}(a, b, t) = a + (b - a)\\, t',
+        text: 't = 0 gives a, t = 1 gives b and values between blend them. With two colors it is a gradient; with t taken from a field it paints the field.',
+        knob: { label: 'power γ', min: 0.2, max: 4, step: 0.1, value: 1 },
+        plot: g => ({ series: [{ f: t => t ** g }], domain: [0, 1], range: [0, 1], xLabel: 't', yLabel: 'tᵞ (how far toward b)' })
+    },
+    over: {
+        title: 'Front over back',
+        tex: '\\alpha = \\alpha_F + \\alpha_B (1 - \\alpha_F)',
+        text: 'Straight-alpha compositing, like paper cutouts: the front covers a fraction α_F of the pixel and the back shows through the rest. Use it whenever something must hide what is behind it.'
+    },
+    'additive-light': {
+        title: 'Adding light',
+        tex: 'L = L_1 + L_2',
+        text: 'Light from independent sources adds up, so stars, gas and glows are summed, not painted over each other. Sums can exceed 1; only the final output conversion maps light to screen colors, so nothing clips in between.'
+    },
+    radiance: {
+        title: 'Radiance, not pixels',
+        text: 'Layers carry unbounded floating-point light. Only the output conversion (Source F, Filmic or Linear, in the timeline bar) turns it into screen colors, after all composition. Multiplying or adding light therefore never loses highlight detail on the way.'
+    },
+    alpha: {
+        title: 'Coverage (alpha)',
+        text: 'How much of the pixel a layer covers, from 0 to 1, stored next to its color. Coverage matters only where layers are stacked with Over; adding light ignores it.'
+    },
+    masking: {
+        title: 'Masking by multiplication',
+        tex: 'L \\cdot m, \\quad m \\in [0, 1]',
+        text: 'Multiplying light by a 0–1 mask keeps it where the mask is 1 and removes it where the mask is 0. (1 − W) removes the gas where the core glow W is on.'
+    },
+    'log-spiral': {
+        title: 'Logarithmic spirals',
+        tex: '\\theta - k \\log r = \\text{const}',
+        text: 'Curves that wind outward at a constant angle, as in galaxies, hurricanes and shells. A pattern of the phase m θ − k log r has m arms; k sets how tightly they wind.',
+        knob: { label: 'winding k', min: 0.5, max: 12, step: 0.5, value: 4 },
+        plot: k => ({ series: [{ f: r => k * Math.log(r) }], domain: [0.05, 2], xLabel: 'r', yLabel: 'arm angle θ = k log r' })
+    },
+    hash: {
+        title: 'Deterministic randomness',
+        text: 'A hash turns cell coordinates (plus a seed) into pseudo-random numbers in 0–1. The same inputs always give the same numbers, so random-looking stars and quills are exactly reproducible, a different seed gives a new arrangement, and animation never depends on earlier frames.'
+    },
+    lensing: {
+        title: 'Lensing, illustrated',
+        tex: 'q = p - \\sum_i m_i \\frac{p - c_i}{|p - c_i|^2 + \\epsilon^2}',
+        text: 'Mass bends light, so a background source seen near a mass appears pushed away from it and stretched into arcs. As a backward map: each pixel samples the background at a point displaced toward the masses. ε softens the singularity at each mass.',
+        knob: { label: 'softening ε', min: 0.01, max: 0.5, step: 0.01, value: 0.1 },
+        plot: e => ({ series: [{ f: d => d / (d * d + e * e) }], domain: [0, 2], xLabel: 'distance |p − c|', yLabel: 'deflection / m', marks: [{ x: e, label: 'ε' }] })
+    },
+    shear: {
+        title: 'Shear',
+        tex: '(x + a y,\\ y - b x)',
+        text: 'Slants the plane: lines through the origin tilt while their spacing changes little. Giving each nebula shell its own shear makes the shells lean different ways instead of lining up.'
+    },
+    'sphere-normal': {
+        title: 'A sphere from a disc',
+        tex: '\\mathbf{n} = \\left(x,\\ y,\\ \\sqrt{1 - x^2 - y^2}\\right)',
+        text: 'Inside the unit disc, adding z = √(1 − x² − y²) gives the point on the visible half of a unit sphere, which is also its surface normal. Lighting then depends on the angle between the normal and the light.'
+    },
+    lambert: {
+        title: 'Diffuse lighting',
+        tex: '\\max(\\mathbf{n} \\cdot \\mathbf{l},\\ 0)',
+        text: 'A matte surface is brightest where it faces the light and dark where it faces away; the dot product of the normal n and the light direction l measures exactly that (the cosine of the angle between them).',
+        plot: () => ({ series: [{ f: a => Math.max(Math.cos(a), 0) }], domain: [-Math.PI, Math.PI], range: [0, 1.05], xLabel: 'angle to the light (rad)', yLabel: 'brightness' })
+    },
+    stamp: {
+        title: 'Stamps and instancing',
+        text: 'Draw one object once, in its own local coordinates (a feather from base 0 to tip 1). To place copies, transform the coordinates before sampling it: rotate, scale and translate p, then combine the copies with Over. The same kernel yields a whole fan.'
+    },
+    union: {
+        title: 'Combining shapes',
+        tex: '\\max(a, b), \\quad \\min(a, b), \\quad 1 - a',
+        text: 'For 0–1 coverage masks, max is the union, min the intersection and 1 − a the complement. Silhouettes are built from simple pieces this way.'
+    }
+};
+/** The concept with this id, or throw (catalog typos fail the unit tests). */
+function concept(id) {
+    if (!Object.hasOwn(concepts, id)) {
+        throw new Error(`Unknown concept ${id}`);
+    }
+    return concepts[id];
+}
+
+return {valueNoise1,fbm1,concepts,concept};
 })();
 __modules['ui-explore.js'] = (() => {
 const { $, esc, state, on, showError, transact, markDirty, applyParams, viewOptions, nodeById } = __modules['editor.js'];
@@ -5028,365 +8812,937 @@ on('refresh', () => {
 
 return {openSweep,openVariations,closeExplore,exploreOpen};
 })();
-__modules['ui-inspector.js'] = (() => {
-const { $, esc, clamp, state, on, history, toast, showError, transact, changed, markDirty, markCustom, pause, seek, currentNode, nodeById, setView, viewedNode, setOutput, toggleEnabled, duplicateNode, deleteNode, connect, refreshUI, resetParam, resetNode, insertComponent, replaceComponent, bypassDescription } = __modules['editor.js'];
-const { catalog, typeNames, typeLabels, insertableTypes, replacementTypes, emitPreview } = __modules['catalog.js'];
-const { clone, validateProject, topologicalOrder } = __modules['graph.js'];
+__modules['ui-component-view.js'] = (() => {
+const { esc, clamp, state, on, toast, showError, transact, seek, pause, nodeById, currentNode, setOutput, setSelected, selectStep, selectionPosition, toggleEnabled, duplicateNode, deleteNode, connect, resetParam, resetNode, insertComponent, replaceComponent, bypassDescription, liveParam, endLiveEdit, applyEquation, setDraft, startEdit, discardDraft, draftChanged } = __modules['editor.js'];
+const { catalog, typeNames, typeLabels, insertableTypes, replacementTypes, emitPreview, paramSpecs } = __modules['catalog.js'];
+const { topologicalOrder, consumers, evaluationOrder } = __modules['graph.js'];
 const { animatedParameters, insertKey } = __modules['timeline.js'];
-const { compileGraph } = __modules['compiler.js'];
-const { texToMathML, expressionToMathML } = __modules['math-render.js'];
-const { originalValue } = __modules['explore.js'];
+const { texToMathML, texToMathMLSegments, programToMathML, symbolKey, nameMathML, numberMathML } = __modules['math-render.js'];
+const { concept } = __modules['concepts.js'];
+const { plotSVG } = __modules['plot.js'];
+const { originalValue, isParamModified, isModified } = __modules['explore.js'];
+const { forkBlocker, equationSource } = __modules['fork.js'];
+const { compileEquation, programGLSL, LIBRARY } = __modules['expression.js'];
+const { mathGLSL } = __modules['math-glsl.js'];
+const { nebulaGLSL } = __modules['nebula-glsl.js'];
+const { motifsGLSL } = __modules['motifs-glsl.js'];
+const { previewTile } = __modules['ui-previews.js'];
 const { openSweep, openVariations } = __modules['ui-explore.js'];
-/** Right panel: the selected component explained and edited. Its intent, typeset
- * equation with a live "where" legend, inputs (with insert), parameters (with
- * help, original-value markers, reset and sweep), animation tracks, and actions.
+/** One component, explained and editable. The same view renders in the
+ * component panel (normal or wide: the Equation Playground) and in a pop-out
+ * window, so it never looks elements up through `document`: everything is scoped
+ * to its root and events are delegated to the root once.
+ *
+ * Layout. A header that stays in view names the component and its place in the
+ * construction (◀ 7 of 9 ▶), holds its include switch, and offers four tabs:
+ *
+ *   Equation  what it computes: the equation as numbered steps with captions
+ *             (symbols colored by role; drag a parameter symbol to change it),
+ *             ✎ Edit, the parameters and the key function
+ *   In & out  where each input comes from, and where the output goes and what
+ *             it is called there
+ *   Ideas     the recurring mathematical ideas behind it, and its other symbols
+ *   More      its shader code, animation tracks, replace / duplicate / delete
+ *
+ * Editing. ✎ Edit replaces the steps by an editor holding the equation (for a
+ * built-in component, the equivalent equation from fork.js). The text is a draft
+ * (state.drafts) shared by every view; the canvas previews it until Apply or
+ * Cancel. Width decides the layout: two columns when the view is wide enough.
  */
-const helpers = [
+const views = new Set();
+const TABS = [['equation', 'Equation'], ['flow', 'In & out'], ['ideas', 'Ideas'], ['more', 'More']];
+const LIBRARY_SOURCE = `${mathGLSL}\n${nebulaGLSL}\n${motifsGLSL}`;
+const CUSTOM_LHS = { expression: '<mi>f</mi>', vectorExpression: '<mi>q</mi>', colorExpression: '<mi mathvariant="normal">RGB</mi>' };
+const formatNumber = value => String(Number(Number(value).toFixed(5)));
+const HELPERS = [
+    ['param k = 1 [0, 2]', 'a parameter with a slider'], ['param tint = #ffd080', 'a color parameter'], ['d = length(p) - 1', 'a definition'],
     ['rotate2(p, angle)', 'rotate a coordinate'], ['angleOf(p)', 'atan2 of a coordinate'], ['noise2(p)', 'smooth value noise 0–1'], ['fbm(p, octaves)', 'fractal noise 0–1'],
     ['gaussian(d, width)', 'exp(−(d/width)²)'], ['cutoff(x)', 'exp(−exp(x)) source gate'], ['softInside(d, edge)', 'soft inside mask 0–1'], ['sat(x)', 'clamp to 0–1'],
     ['segmentDistance(p, a, b)', 'distance to a segment'], ['spectrum(x, shift)', 'vec3 rainbow palette'], ['vortex(p, strength, radius, phase)', 'local twist map'],
     ['domainWarp(p, amplitude, frequency, time)', 'noise displacement map'], ['angularMirror(p, sectors, phase)', 'kaleidoscopic fold'], ['hash21(p)', 'deterministic pseudo-random 0–1']
 ];
-const expressionLHS = { expression: '<mi>f</mi>', vectorExpression: '<mi>q</mi>', colorExpression: '<mi mathvariant="normal">RGB</mi>' };
-const formatNumber = value => String(Number(Number(value).toFixed(5)));
-/** Whether the equation section is expanded; kept while moving between components. */
-let equationOpen = true;
+const RESULTS = { expression: 'a number', vectorExpression: 'a point vec2(x, y)', colorExpression: 'a color vec3(r, g, b), or vec4 with coverage' };
 /** Typeset TeX, falling back to the source text so a typo never hides content. */
-function math(tex, display = false) {
+function math(tex, options = {}) {
     try {
-        return texToMathML(tex, { display });
+        return texToMathML(tex, { display: false, ...options });
     }
     catch (e) {
         return `<code>${esc(tex)}</code>`;
     }
 }
+function segments(tex, options = {}) {
+    try {
+        return texToMathMLSegments(tex, options).map(m => `<span class="eq-seg">${m}</span>`).join('');
+    }
+    catch (e) {
+        return `<code>${esc(tex)}</code>`;
+    }
+}
+/** Caption text with TeX-style sub- and superscripts set as such: a one-letter
+ * symbol with a short index (L_s, α_F, |U|^η, 1.25^s), not snake_case names.
+ */
+function richText(text) {
+    return esc(text)
+        .replace(/(^|[^\p{L}\p{N}_])([\p{L}|)])_([\p{L}\p{N}]{1,3})(?![\p{L}\p{N}_])/gu, '$1$2<sub>$3</sub>') // no lookbehind: Safari < 16.4
+        .replace(/\^([\p{L}\p{N}]{1,3})(?![\p{L}\p{N}_])/gu, '<sup>$1</sup>');
+}
+/** GLSL source of a library function, for "how does the kernel work". */
+function kernelSource(name) {
+    const at = LIBRARY_SOURCE.search(new RegExp(`^(?:float|vec2|vec3|vec4|Geometry)\\s+${name}\\s*\\(`, 'm'));
+    if (at < 0) {
+        return '';
+    }
+    let depth = 0, end = LIBRARY_SOURCE.indexOf('{', at);
+    for (; end < LIBRARY_SOURCE.length; end++) {
+        if (LIBRARY_SOURCE[end] === '{') {
+            depth++;
+        }
+        else if (LIBRARY_SOURCE[end] === '}' && --depth === 0) {
+            break;
+        }
+    }
+    const comment = LIBRARY_SOURCE.slice(Math.max(0, LIBRARY_SOURCE.lastIndexOf('\n', LIBRARY_SOURCE.lastIndexOf('\n', at - 1) - 1)), at).split('\n').filter(l => l.startsWith('//')).join('\n');
+    return `${comment ? `${comment}\n` : ''}${LIBRARY_SOURCE.slice(at, end + 1)}`;
+}
 function reachesOutput(node) {
     return topologicalOrder(state.project).some(n => n.id === node.id);
 }
-function isParamModified(node, key) {
-    const tracked = state.project.tracks.some(t => t.node === node.id && t.param === key && t.keys.length);
-    const trackedOriginally = state.baseline.tracks.some(t => t.node === node.id && t.param === key && t.keys.length);
-    return node.params[key] !== originalValue(state.baseline, node, key) || tracked !== trackedOriginally;
-}
-function renderHeader(n, def) {
-    const bypass = bypassDescription(n);
-    return `<div class="inspector-head"><label class="switch" data-tip="${n.enabled ? 'Included' : 'Bypassed'}|Untick to bypass this component: it then ${esc(bypass)}. Tick to include it again." data-toggle aria-pressed="${n.enabled}"><input type="checkbox" id="nodeEnabled" ${n.enabled ? 'checked' : ''} aria-label="Include this component"><span></span></label><input class="node-title" id="nodeLabel" value="${esc(n.label)}" aria-label="Component label" maxlength="160" data-tip="Rename|The label is only for you; the id stays ${esc(n.id)}."></div>
-<div class="node-kind"><span class="type-chip ${def.output}">${esc(typeLabels[def.output])}</span><span>${esc(def.category)}</span><code>${esc(n.id)}</code></div>
-<p class="node-caption">${esc(def.description)}</p>`;
-}
-function renderViewButtons(n) {
-    const viewing = viewedNode().id === n.id, stage = viewing && state.viewMode === 'stage', effect = viewing && state.viewMode === 'effect', output = state.project.output === n.id;
-    let html = `<div class="view-buttons"><button id="showStage" class="${stage ? 'active' : ''}" data-key="I" data-tip="Show this stage|The canvas shows only this component’s output: what it produces before anything downstream uses it. Scalar, coordinate and geometry fields appear in false color (see the legend on the canvas).">👁 Show this stage</button><button id="showEffect" class="${effect ? 'active' : ''}" data-key="C" data-tip="Show what it changes|Renders the final image with and without this component (bypassed) and highlights the pixels it changes.">Δ What it changes</button><button id="makeOutput" ${output ? 'disabled' : ''} data-tip="${output ? 'This is the final output|The canvas’s Final image, saves and exports use this component.' : 'Make final output|Use this component as the scene’s final image, for the canvas, saves and exports. To just look at it, use Show this stage instead.'}">${output ? '★ Final output' : '☆ Make final output'}</button></div>`;
-    if (!n.enabled) {
-        html += `<div class="selection-note warning">Bypassed: this component ${esc(bypassDescription(n))}. Tick the switch above to include it.</div>`;
-    }
-    else if (!reachesOutput(n)) {
-        html += '<div class="selection-note warning">Not connected to the final output, so it does not change the image. Show this stage to see it, wire it into something downstream, or make it the final output.</div>';
-    }
-    return html;
-}
-function renderEquation(n, def, evaluated) {
-    const custom = Object.hasOwn(expressionLHS, n.type);
-    let equation;
-    if (custom) {
-        let rendered;
-        try {
-            rendered = expressionToMathML(n.params.expression, expressionLHS[n.type]);
-        }
-        catch (e) {
-            rendered = `<code>${esc(n.params.expression)}</code>`;
-        }
-        const options = helpers.map(([signature, hint]) => `<option value="${esc(signature)}">${esc(signature)} — ${esc(hint)}</option>`).join('');
-        const modified = isParamModified(n, 'expression');
-        equation = `<div class="equation-card" id="expressionPreview" data-tip="Live preview|Your GLSL expression typeset as mathematics while you type. Apply compiles it into the shader.">${rendered}</div>
-<textarea id="equationEditor" class="expression-input" spellcheck="false" aria-label="Custom GLSL expression">${esc(n.params.expression)}</textarea><div class="expression-tools"><select id="insertHelper" aria-label="Insert a helper function" data-tip="Insert a helper|Adds a built-in GLSL function at the cursor."><option value="">Insert helper…</option>${options}</select><button id="resetExpression" class="reset" ${modified ? '' : 'disabled'} data-tip="Reset the expression|Back to the expression the scene was opened with.">↺</button><button id="applyEquation" class="primary" data-key="Ctrl/⌘ Enter" data-tip="Apply equation|Compiles the expression. A failed compile leaves the image unchanged.">Apply</button></div><p class="node-caption">${esc(def.params.expression.help)} Use decimal literals: <code>2.0</code>, not <code>2</code>.</p><pre id="equationError" class="code-error"></pre>`;
-    }
-    else {
-        equation = `<div class="equation-card">${def.tex.map(line => math(line, true)).join('')}</div>`;
-    }
-    const rows = [];
-    for (const [key, s] of Object.entries(def.params)) {
-        if (s.symbol) {
-            const value = s.kind === 'number' ? formatNumber(evaluated[key]) : evaluated[key];
-            rows.push(`<button class="sym-row" data-focus-param="${key}" data-tip="${esc(s.label)}|${esc(s.help)}"><span class="sym">${math(s.symbol)}</span><span>${esc(s.label)}</span><span class="val" data-sym-value="${key}">${s.kind === 'color' ? `<i class="chip" style="background:${esc(value)}"></i>` : ''}${esc(value)}</span></button>`);
+/** Symbol annotations for a node's equations (see math-render.js). */
+function symbolTable(n, def, evaluated) {
+    const symbols = {};
+    for (const [key, spec] of Object.entries(paramSpecs(n))) {
+        if (spec.kind !== 'expression') {
+            symbols[spec.custom ? key : spec.symbol] = { role: 'param', param: key, value: spec.kind === 'number' ? evaluated[key] : undefined, title: `${spec.label} · drag to change` };
         }
     }
     for (const [socket, kind] of Object.entries(def.inputs)) {
-        const symbol = def.inputSymbols[socket] || socket, source = nodeById(n.inputs[socket]);
-        rows.push(`<div class="sym-row input"><span class="sym">${math(symbol)}</span><span>${esc(typeLabels[kind])} input</span><span class="val">${source ? `from ${esc(source.label)}` : 'unconnected · zero'}</span></div>`);
-    }
-    for (const [symbol, meaning] of def.notes) {
-        rows.push(`<div class="sym-row sym-note"><span class="sym">${math(symbol)}</span><span class="wide">${esc(meaning)}</span></div>`);
-    }
-    return `<details class="equation-details" id="equationDetails" ${equationOpen ? 'open' : ''}><summary class="inspector-section" data-tip="Equation|What this component computes, typeset, with every symbol explained below it. Click to collapse or expand.">EQUATION <button id="toggleCode" class="link" data-tip="Show the GLSL|The shader code this component contributes, with parameter names in place of uniforms.">GLSL</button></summary>${equation}<pre id="nodeCode" class="node-code" hidden>${esc(emitPreview(n.type, n.params))}</pre>${rows.length ? `<div class="sym-list"><small class="where">where</small>${rows.join('')}</div>` : ''}</details>`;
-}
-function renderInputs(n, def) {
-    const entries = Object.entries(def.inputs);
-    if (!entries.length) {
-        return '';
-    }
-    let html = '<div class="inspector-section">INPUTS</div>';
-    for (const [socket, kind] of entries) {
-        const options = state.project.nodes.filter(other => other.id !== n.id && catalog[other.type].output === kind).map(other => `<option value="${other.id}" ${n.inputs[socket] === other.id ? 'selected' : ''}>${esc(other.label)}</option>`).join('');
-        const inserts = !n.inputs[socket] ? '' : insertableTypes(kind).map(type => `<option value="${type}">${esc(catalog[type].name)}</option>`).join('');
-        html += `<div class="input-row"><label for="in-${socket}" data-tip="${esc(socket)}: ${esc(typeLabels[kind])}|Choose which component feeds this input. Unconnected inputs are zero, not the image coordinates."><span class="type-dot ${kind}"></span>${esc(socket)}</label><select id="in-${socket}" data-input="${socket}" aria-label="${esc(socket)} input"><option value="">Unconnected · zero</option>${options}</select>${inserts ? `<select class="insert" data-insert="${socket}" aria-label="Insert a component on ${esc(socket)}" data-tip="Insert on this input|Put a modifier between this input and what feeds it, e.g. a warp before a field or a tint before a layer. The old connection passes through it."><option value="">＋</option>${inserts}</select>` : ''}</div>`;
-    }
-    return html;
-}
-function renderNumber(n, key, s, value, modified) {
-    const original = originalValue(state.baseline, n, key), track = state.project.tracks.find(t => t.node === n.id && t.param === key);
-    const pct = clamp((original - s.min) / (s.max - s.min), 0, 1);
-    return `<div class="param ${modified ? 'modified' : ''}" data-param-row="${key}"><div class="param-head"><label for="param-${key}" data-tip="${esc(s.label)}|${esc(s.help)}\nDouble-click to reset.">${esc(s.label)} <span class="sym">${math(s.symbol)}</span></label><input type="number" data-param="${key}" id="number-${key}" value="${formatNumber(value)}" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${esc(s.label)} numerical value"><button class="key ${track?.keys.length ? 'keyed' : ''}" data-keyframe="${key}" aria-label="Keyframe ${esc(s.label)}" data-tip="Add a key|Records this value at ${state.time.toFixed(2)} s. Move the playhead and change the value to animate it.">◆</button><button class="reset" data-reset="${key}" ${modified ? '' : 'disabled'} aria-label="Reset ${esc(s.label)}" data-tip="Reset to ${formatNumber(original)}|Returns this parameter to its value when the scene was opened${track ? ' and removes its animation' : ''}.">↺</button><button class="sweep" data-sweep="${key}" aria-label="Explore ${esc(s.label)}" data-tip="Explore this parameter|Renders the image across the parameter’s whole range. Hover a thumbnail to preview it, click to use it.">▦</button></div><div class="slider-wrap"><input type="range" id="param-${key}" data-param="${key}" value="${value}" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${esc(s.label)}"><span class="default-mark" style="left:calc(${(pct * 100).toFixed(2)}% + ${((0.5 - pct) * 14).toFixed(1)}px)" data-tip="Original value ${formatNumber(original)}|Where this parameter started. ↺ returns here."></span></div><small>${esc(s.help)} <span class="range">Range ${s.min} to ${s.max}${formatNumber(original) !== formatNumber(value) ? ` · original ${formatNumber(original)}` : ''}</span></small></div>`;
-}
-function renderParameters(n, def, evaluated) {
-    const params = Object.entries(def.params).filter(([, s]) => s.kind !== 'expression'); // expressions are edited with their equation
-    if (!params.length) {
-        return '';
-    }
-    const anyModified = params.some(([key]) => isParamModified(n, key));
-    let html = `<div class="inspector-section">PARAMETERS <button id="resetNode" class="link" ${anyModified ? '' : 'disabled'} data-tip="Reset all parameters|Returns every parameter of this component to its value when the scene was opened (undoable).">↺ Reset all</button></div>`;
-    if (state.project.tracks.some(t => t.node === n.id && t.keys.length)) {
-        html += '<div class="selection-note">Animated controls (◆ lit) show the value at the playhead. Changing one adds or updates a key there.</div>';
-    }
-    for (const [key, s] of params) {
-        const value = evaluated[key], modified = isParamModified(n, key);
-        if (s.kind === 'number') {
-            html += renderNumber(n, key, s, value, modified);
+        const source = nodeById(n.inputs[socket]);
+        for (const s of (def.inputSymbols[socket] || socket).split(',').map(x => x.trim())) {
+            symbols[s] ??= { role: 'input', type: kind, socket, title: source ? `from ${source.label}` : 'unconnected: zero' };
         }
-        else if (s.kind === 'color') {
-            const original = originalValue(state.baseline, n, key);
-            html += `<div class="param ${modified ? 'modified' : ''}" data-param-row="${key}"><div class="param-head"><label data-tip="${esc(s.label)}|${esc(s.help)}">${esc(s.label)} <span class="sym">${math(s.symbol)}</span></label><input type="color" value="${value}" data-param="${key}" aria-label="${esc(s.label)}"><span class="muted mono" data-color-text="${key}">${esc(value)}</span><button class="reset" data-reset="${key}" ${modified ? '' : 'disabled'} aria-label="Reset ${esc(s.label)}" data-tip="Reset to ${esc(original)}|Returns this color to its value when the scene was opened.">↺</button></div><small>${esc(s.help)}</small></div>`;
+    }
+    if (def.custom) {
+        for (const local of ['x', 'y', 'r', 'theta']) {
+            symbols[local] ??= { role: 'input', type: 'coord', socket: 'p', title: 'from the coordinates p' };
         }
-
     }
-    return html;
-}
-function renderTracks(n) {
-    const tracks = state.project.tracks.filter(t => t.node === n.id);
-    if (!tracks.length) {
-        return '';
+    for (const s of def.outputSymbols) {
+        symbols[s] = { role: 'output', type: def.output, title: 'the result of this component' };
     }
-    return '<div class="inspector-section">ANIMATION</div>' + tracks.map(t => `<div class="track-edit"><header><b>${esc(catalog[n.type].params[t.param]?.label || t.param)}</b><select data-interpolation="${t.param}" aria-label="Interpolation for ${t.param}" data-tip="Interpolation|smooth eases in and out of each key, linear moves at constant speed, hold jumps at each key.">${['smooth', 'linear', 'hold'].map(v => `<option ${v === t.interpolation ? 'selected' : ''}>${v}</option>`).join('')}</select><button data-remove-track="${t.param}" aria-label="Remove ${t.param} animation track" data-tip="Remove animation|Deletes every key; the parameter keeps its current base value.">×</button></header><div class="key-list">${t.keys.map(k => `<button class="key-chip" data-seek="${k.time}" data-tip="Key at ${k.time} s|Click to move the playhead here.">${k.time}s: ${Number(k.value.toFixed(3))}<span data-remove-key="${t.param}" data-time="${k.time}" data-tip="Delete this key">×</span></button>`).join('')}</div></div>`).join('');
+    symbols.t ??= { role: 'time', title: 'time in seconds' };
+    return symbols;
 }
-function renderActions(n) {
-    const replacements = replacementTypes(n.type).map(type => `<option value="${type}">${esc(catalog[type].name)}</option>`).join('');
-    const numeric = Object.values(catalog[n.type].params).some(s => s.kind === 'number');
-    return `<div class="inspector-section">EXPLORE & EDIT</div><div class="node-bottom">${numeric ? '<button id="variations" data-tip="Variations|Renders eight random variations of this component’s parameters. Hover to preview, click to use one; Undo returns.">✦ Variations</button>' : ''}<select id="replaceWith" aria-label="Replace with another component" data-tip="Replace with…|Swap this component for another of the same output type, keeping its connections where the sockets match. The Ring Nebula scene is the Bipolar Nebula with its geometry replaced this way."><option value="">Replace with…</option>${replacements}</select><button id="duplicateNode" data-key="Ctrl/⌘ D" data-tip="Duplicate|Adds a copy with the same parameters and inputs.">Duplicate</button><button id="deleteNode" class="danger" data-key="Delete" data-tip="Delete component|Removes it and disconnects anything it fed (undoable).">Delete</button></div><p class="node-caption">Type <code>${n.type}</code> · output ${esc(typeNames[catalog[n.type].output])}. Unconnected inputs evaluate to zero; they are not inferred.</p>`;
+/** The first equation step of `def` that uses one of `symbols` (TeX), or null. */
+function stepUsing(def, symbols) {
+    const keys = symbols.map(symbolKey);
+    return def.steps.find(s => keys.some(k => symbolKey(s.tex).includes(k)))?.tex ?? def.steps.at(-1)?.tex ?? null;
 }
-function renderInspector() {
-    const n = currentNode(), def = catalog[n.type], evaluated = animatedParameters(state.project, n, state.time);
-    $('nodeTypeBadge').textContent = typeNames[def.output];
-    const code = $('nodeCode') && !$('nodeCode').hidden;
-    $('inspectorContent').innerHTML = renderHeader(n, def) + renderViewButtons(n) + renderEquation(n, def, evaluated) + renderInputs(n, def) + renderParameters(n, def, evaluated) + renderTracks(n) + renderActions(n);
-    $('nodeCode').hidden = !code;
-    bindInspector(n, def);
+/** A custom equation as typeset step items {math, text, result}. */
+function programItems(source, type, symbols, values) {
+    return programToMathML(source, CUSTOM_LHS[type], { symbols, values }).map(line => ({ math: `<span class="eq-seg">${line.mathml}</span>`, text: line.text || (line.kind === 'result' ? 'The result. Add “// …” after any line to explain it here.' : ''), result: line.kind === 'result' }));
 }
-function bindInspector(n, def) {
-    $('nodeEnabled').onchange = () => toggleEnabled(n.id);
-    $('nodeLabel').onchange = e => transact(p => p.nodes.find(v => v.id === n.id).label = e.target.value);
-    $('showStage').onclick = () => setView(state.viewMode === 'stage' && viewedNode().id === n.id ? 'final' : 'stage', { node: n.id, lock: false });
-    $('showEffect').onclick = () => setView(state.viewMode === 'effect' && viewedNode().id === n.id ? 'final' : 'effect', { node: n.id, lock: false });
-    $('makeOutput').onclick = () => setOutput(n.id);
-    $('toggleCode').onclick = e => {
-        e.preventDefault(); // do not also toggle the <details>
-        $('nodeCode').hidden = !$('nodeCode').hidden;
-        $('equationDetails').open = true;
-    };
-    $('equationDetails').ontoggle = () => equationOpen = $('equationDetails').open;
-    $('duplicateNode').onclick = () => duplicateNode(n.id);
-    $('deleteNode').onclick = () => deleteNode(n.id);
-    $('replaceWith').onchange = e => e.target.value && replaceComponent(n.id, e.target.value);
-    if ($('variations')) {
-        $('variations').onclick = () => openVariations(n.id);
+function stepList(items, id = '') {
+    return `<ol class="steps"${id ? ` id="${id}"` : ''}>${items.map((item, i) => `<li class="step ${item.result ? 'result' : ''} ${item.invalid ? 'invalid' : ''}"><span class="step-number" aria-hidden="true">${item.result ? '⇒' : i + 1}</span><div class="step-body"><div class="step-math">${item.math}</div>${item.text ? `<p class="step-text">${richText(item.text)}</p>` : ''}</div></li>`).join('')}</ol>`;
+}
+/** The nearest scrolling ancestor of `el` (the panel, or the pop-out's page). */
+function scroller(el) {
+    for (let e = el; e; e = e.parentElement) {
+        const style = getComputedStyle(e);
+        if (/(auto|scroll)/.test(style.overflowY) && e.scrollHeight > e.clientHeight) {
+            return e;
+        }
     }
-    if ($('resetNode')) {
-        $('resetNode').onclick = () => resetNode(n.id);
+    return el.ownerDocument.scrollingElement;
+}
+class ComponentView {
+    /** `layout`: 'panel' (the component panel) or 'popout'.
+     * `pinned`: a node id to show instead of following the selection.
+     */
+    constructor(root, { layout = 'panel', pinned = null } = {}) {
+        this.root = root;
+        this.layout = layout;
+        this.pinned = pinned;
+        this.ui = { values: false, tab: 'equation', knobs: {}, collapsed: new Set(), blockedNote: false };
+        this.curveFrame = 0;
+        views.add(this);
+        this.bindEvents();
     }
-    document.querySelectorAll('[data-focus-param]').forEach(row => row.onclick = () => {
-        const target = $(`number-${row.dataset.focusParam}`) || document.querySelector(`[data-param="${row.dataset.focusParam}"]`);
-        const block = document.querySelector(`[data-param-row="${row.dataset.focusParam}"]`);
-        block?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        block?.classList.add('flash');
-        setTimeout(() => block?.classList.remove('flash'), 900);
-        target?.focus({ preventScroll: true });
-    });
-    document.querySelectorAll('[data-input]').forEach(input => input.onchange = e => connect(e.target.value, n.id, input.dataset.input));
-    document.querySelectorAll('[data-insert]').forEach(select => select.onchange = e => {
-        if (e.target.value) {
+    q(selector) {
+        return this.root.querySelector(selector);
+    }
+    qa(selector) {
+        return [...this.root.querySelectorAll(selector)];
+    }
+    node() {
+        return (this.pinned && nodeById(this.pinned)) || currentNode();
+    }
+    dispose() {
+        views.delete(this);
+        this.root.innerHTML = '';
+    }
+    editing(n = this.node()) {
+        return !!n && state.drafts.has(n.id);
+    }
+    // ---- Rendering -----------------------------------------------------------
+    render() {
+        const n = this.node();
+        if (!n) {
+            this.root.innerHTML = '';
+            return;
+        }
+        const def = catalog[n.type], evaluated = animatedParameters(state.project, n, state.time), fresh = this.root.dataset.node !== n.id;
+        if (fresh) {
+            this.ui.blockedNote = false;
+        }
+        const focus = this.captureFocus();
+        const bodies = { equation: () => this.equationTab(n, def, evaluated), flow: () => this.flowTab(n, def), ideas: () => this.ideasTab(def), more: () => this.moreTab(n, def) };
+        this.root.innerHTML = `<div class="cview">${this.head(n, def)}<div class="cv-body" role="tabpanel" aria-label="${esc(TABS.find(t => t[0] === this.ui.tab)[1])}">${bodies[this.ui.tab]()}</div></div>`;
+        this.root.dataset.node = n.id;
+        this.paintThumbs();
+        if (fresh) {
+            const box = scroller(this.root);
+            if (box && box.scrollTop > 0 && box !== this.root.ownerDocument.scrollingElement) {
+                box.scrollTop = 0; // a new component starts at its top
+            }
+        }
+        this.restoreFocus(focus);
+    }
+    captureFocus() {
+        const el = this.root.ownerDocument.activeElement;
+        if (!el || !this.root.contains(el) || !el.id) {
+            return null;
+        }
+        return { id: el.id, start: el.selectionStart, end: el.selectionEnd, scroll: el.scrollTop };
+    }
+    restoreFocus(focus) {
+        const el = focus && this.q(`#${CSS.escape(focus.id)}`);
+        if (!el) {
+            return;
+        }
+        el.focus({ preventScroll: true });
+        if (typeof focus.start === 'number' && el.setSelectionRange) {
             try {
-                insertComponent(e.target.value, n.id, select.dataset.insert);
+                el.setSelectionRange(focus.start, focus.end);
             }
-            catch (err) {
-                showError(err);
+            catch (e) { /* not a text control */
             }
         }
-    });
-    bindParameters(n, def);
-    document.querySelectorAll('[data-keyframe]').forEach(button => button.onclick = () => {
-        pause();
-        const key = button.dataset.keyframe;
-        transact(p => {
-            const value = animatedParameters(p, p.nodes.find(v => v.id === n.id), state.time)[key];
-            insertKey(p, n.id, key, state.time, value);
-        });
-        toast(`Key added at ${state.time.toFixed(3)} s. Move the playhead, then change the control to add another.`);
-    });
-    document.querySelectorAll('[data-reset]').forEach(button => button.onclick = () => resetParam(n.id, button.dataset.reset));
-    document.querySelectorAll('[data-param-row] label').forEach(label => label.ondblclick = () => resetParam(n.id, label.closest('[data-param-row]').dataset.paramRow));
-    document.querySelectorAll('[data-sweep]').forEach(button => button.onclick = () => openSweep(n.id, button.dataset.sweep));
-    document.querySelectorAll('[data-interpolation]').forEach(el => el.onchange = () => transact(p => p.tracks.find(t => t.node === n.id && t.param === el.dataset.interpolation).interpolation = el.value));
-    document.querySelectorAll('[data-remove-track]').forEach(el => el.onclick = () => transact(p => p.tracks = p.tracks.filter(t => !(t.node === n.id && t.param === el.dataset.removeTrack))));
-    document.querySelectorAll('[data-remove-key]').forEach(el => el.onclick = e => {
-        e.stopPropagation();
-        transact(p => {
-            const t = p.tracks.find(t => t.node === n.id && t.param === el.dataset.removeKey);
-            t.keys = t.keys.filter(k => k.time !== Number(el.dataset.time));
-        });
-    });
-    document.querySelectorAll('[data-seek]').forEach(el => el.onclick = () => seek(Number(el.dataset.seek)));
-    bindExpression(n);
-}
-/** Live parameter edits mutate the model directly for smooth dragging; history
- * receives one entry per completed gesture (the `change` event).
- */
-function bindParameters(n, def) {
-    document.querySelectorAll('[data-param]').forEach(input => {
-        input.oninput = () => {
-            if (state.busy) {
-                return;
+        el.scrollTop = focus.scroll || 0;
+    }
+    section(id, title, body, { tools = '', tip = '', cls = '' } = {}) {
+        const collapsed = this.ui.collapsed.has(id);
+        return `<section class="cv-section ${cls} ${collapsed ? 'collapsed' : ''}" data-section="${id}"><header class="inspector-section"><button class="cv-fold" data-fold="${id}" aria-expanded="${!collapsed}" ${tip ? `data-tip="${esc(tip)}"` : ''}>${title}</button><span class="cv-tools">${tools}</span></header><div class="cv-section-body">${body}</div></section>`;
+    }
+    /** The header that stays in view: position in the construction, the include
+     * switch and title, and the tabs.
+     */
+    head(n, def) {
+        const bypass = bypassDescription(n), { index, count } = selectionPosition(), pinnedHere = this.pinned && this.pinned !== state.selected;
+        const order = evaluationOrder(state.project), position = order.findIndex(v => v.id === n.id);
+        const tools = this.layout === 'panel'
+            ? `<button class="cv-tool ${state.prefs.playground ? 'active' : ''}" data-action="playground" aria-pressed="${!!state.prefs.playground}" data-toggle data-key="E" data-tip="Equation Playground|A wide panel for studying this component: its equation and its controls side by side, with the profile of its values under the canvas. Choose again for the normal width.">⤢ Playground</button><button class="cv-tool" data-action="popout" aria-label="Pop out" data-tip="Pop out|Open this panel in a separate window, e.g. on a second screen. It follows your selection and its controls change the scene.">↗</button>`
+            : '';
+        const nav = pinnedHere
+            ? `<span class="cv-pos">Pinned: step ${position + 1} of ${order.length}</span>`
+            : `<button class="cv-step" data-action="prev" ${index <= 0 ? 'disabled' : ''} aria-label="Previous component" data-key="[" data-tip="Previous component|The one before this in evaluation order. The canvas keeps its view.">◀</button><span class="cv-pos" data-tip="Where you are|Components are numbered in evaluation order, the order of the Pipeline.">Step ${index + 1} of ${count}</span><button class="cv-step" data-action="next" ${index >= count - 1 ? 'disabled' : ''} aria-label="Next component" data-key="]" data-tip="Next component|The one after this in evaluation order. The canvas keeps its view.">▶</button>`;
+        const draft = this.editing(n) ? '<span class="cv-draft" data-tip="Unapplied edit|This component’s equation has an edit that is not applied yet. Apply or Cancel it in the Equation tab.">✎ editing</span>' : '';
+        const tabs = TABS.map(([id, label]) => {
+            const extra = id === 'ideas' && def.concepts.length ? ` <span class="cv-count">${def.concepts.length}</span>` : id === 'more' && state.project.tracks.some(t => t.node === n.id && t.keys.length) ? ' <span class="cv-count">◆</span>' : id === 'equation' && this.editing(n) ? ' <span class="cv-count">✎</span>' : '';
+            return `<button role="tab" class="cv-tab ${this.ui.tab === id ? 'active' : ''}" data-tab="${id}" aria-selected="${this.ui.tab === id}">${label}${extra}</button>`;
+        }).join('');
+        return `<header class="cv-head"><div class="cv-nav">${nav}${draft}<span class="spacer"></span>${tools}</div>
+<div class="inspector-head"><label class="switch" data-tip="${n.enabled ? 'Included' : 'Bypassed'}|Untick to bypass this component: it then ${esc(bypass)}. Tick to include it again." data-toggle aria-pressed="${n.enabled}"><input type="checkbox" id="nodeEnabled" ${n.enabled ? 'checked' : ''} aria-label="Include this component"><span></span></label><input class="node-title" id="nodeLabel" value="${esc(n.label)}" aria-label="Component label" maxlength="160" data-tip="Rename|The label is only for you; the id stays ${esc(n.id)}."><span class="type-chip ${def.output}" data-tip="Output type|${esc(typeNames[def.output])}">${esc(typeLabels[def.output])}</span></div>
+<nav class="cv-tabs" role="tablist" aria-label="About this component">${tabs}</nav></header>`;
+    }
+    warnings(n) {
+        if (!n.enabled) {
+            return `<div class="selection-note warning">Bypassed: this component ${esc(bypassDescription(n))}. Tick the switch above to include it.</div>`;
+        }
+        if (!reachesOutput(n)) {
+            return '<div class="selection-note warning">Not connected to the final output, so it does not change the image. Show it with <b>This step</b> above the canvas, or wire it into something downstream (In &amp; out).</div>';
+        }
+        return '';
+    }
+    // ---- Equation tab ---------------------------------------------------------
+    equationTab(n, def, evaluated) {
+        const intro = `<p class="node-caption">${esc(def.description)}</p>${this.warnings(n)}`;
+        if (this.editing(n)) {
+            return `${intro}<div class="cv-cols editing"><div class="cv-col">${this.editor(n, def)}</div><div class="cv-col">${this.draftMath(n, def)}${this.syntaxHelp(n)}</div></div>`;
+        }
+        return `${intro}<div class="cv-cols"><div class="cv-col">${this.steps(n, def, evaluated)}</div><div class="cv-col">${this.parameters(n, def, evaluated)}${this.curve(def, evaluated)}</div></div>`;
+    }
+    editButton(n) {
+        const blocker = forkBlocker(n.type);
+        if (blocker) {
+            return `<button class="edit-button" id="editEquation" aria-disabled="true" data-action="edit-blocked" data-tip="This equation cannot be edited as text|${esc(blocker)}">✎ Edit</button>`;
+        }
+        const tip = catalog[n.type].custom
+            ? 'Edit the equation|Change its text line by line. The canvas previews your edit until you Apply it.'
+            : 'Edit the equation|Opens this component written as an equation of its own, line for line, with its parameters as sliders. Change anything; the canvas previews it, and Apply puts it into the scene (Undo restores the original).';
+        return `<button class="edit-button" id="editEquation" data-action="edit" data-tip="${esc(tip)}">✎ Edit</button>`;
+    }
+    steps(n, def, evaluated) {
+        const symbols = symbolTable(n, def, evaluated), values = this.ui.values;
+        let items;
+        if (def.custom) {
+            try {
+                items = programItems(n.params.expression, n.type, symbols, values);
             }
-            pause();
-            const key = input.dataset.param, s = def.params[key], raw = s.kind === 'color' ? input.value : Number(input.value);
-            if (s.kind === 'number' && (input.value === '' || !Number.isFinite(raw))) {
-                return;
+            catch (e) {
+                items = [{ math: `<code>${esc(n.params.expression)}</code>`, text: e.message, result: true, invalid: true }];
             }
-            if (!input._before) {
-                input._before = clone(state.project);
+        }
+        else {
+            items = def.steps.map((s, i) => ({ math: segments(s.tex, { symbols, values }), text: s.text, result: i === def.steps.length - 1 }));
+        }
+        const legend = `<p class="sym-legend"><span class="sym-in ${def.inputs.p ? 'coord' : Object.values(def.inputs)[0] || ''}">input</span><span class="sym-par">parameter · drag it</span><span class="sym-out ${def.output}">output</span><span class="sym-tm">time</span></p>`;
+        const blocked = this.ui.blockedNote ? `<div class="selection-note">${esc(forkBlocker(n.type))}</div>` : '';
+        const tools = `<button class="link ${values ? 'active' : ''}" data-action="values" aria-pressed="${values}" data-tip="Show values|Replace each parameter symbol with its current value, updated live as you change it.">${values ? 'Symbols' : 'Values'}</button>${this.editButton(n)}`;
+        return this.section('equation', 'HOW IT IS COMPUTED', `${blocked}${stepList(items, 'expressionPreview')}${legend}`, { tools, tip: 'How it is computed|The component’s equation, one step per line: what each line computes and why. The ⇒ line is its result. Hover a symbol to find it everywhere; drag a parameter symbol to change it; ✎ Edit to change the equation itself.' });
+    }
+    editor(n, def) {
+        const source = state.drafts.get(n.id) ?? '', custom = def.custom;
+        const note = custom
+            ? 'Change any line. The canvas previews your edit; <b>Apply</b> puts it into the scene.'
+            : `This is <b>${esc(def.name)}</b> written as an equation of its own, line for line. Change anything: the canvas previews your edit, and <b>Apply</b> turns the component into your equation (it keeps its wiring, values and animation; Undo restores it).`;
+        const options = HELPERS.map(([code, hint]) => `<option value="${esc(code)}">${esc(code)} — ${esc(hint)}</option>`).join('');
+        const kernels = Object.entries(LIBRARY).filter(([name]) => !HELPERS.some(([code]) => code.startsWith(`${name}(`))).map(([name, f]) => `<option value="${esc(`${name}(${f.params.map(p => p.name).join(', ')})`)}">${esc(name)}(${esc(f.params.map(p => p.name).join(', '))}) → ${f.returns}</option>`).join('');
+        const tools = `<button data-action="cancel-edit" id="cancelEquation" data-tip="Cancel|Discard this edit; the component stays as it is.">Cancel</button><button id="applyEquation" class="primary" data-action="apply-equation" data-key="Ctrl/⌘ Enter" data-tip="Apply|Puts the equation into the scene (one undo step). An equation with an error is not applied.">Apply</button>`;
+        const body = `<p class="edit-note">${note}</p><textarea id="equationEditor" class="expression-input" spellcheck="false" aria-label="Equation text" rows="${Math.min(16, Math.max(5, source.split('\n').length + 1))}">${esc(source)}</textarea>
+<div class="expression-tools"><select id="insertHelper" aria-label="Insert a line or a function" data-tip="Insert|Adds a parameter line, a definition or a function at the cursor."><option value="">Insert…</option><optgroup label="Lines and helpers">${options}</optgroup><optgroup label="Scene kernels">${kernels}</optgroup></select></div>
+<p id="equationError" class="code-error" aria-live="polite">${esc(this.draftStatus(n).text)}</p>`;
+        return this.section('editor', '✎ EDITING THE EQUATION', body, { tools, cls: 'editing', tip: 'Editing|Your text is a draft until you apply it. Ctrl/⌘ Enter applies; Cancel discards it.' });
+    }
+    /** The draft's check result: {ok, text}. */
+    draftStatus(n) {
+        const source = state.drafts.get(n.id);
+        try {
+            compileEquation(source, catalog[n.type].custom ? n.type : { scalar: 'expression', coord: 'vectorExpression', layer: 'colorExpression' }[catalog[n.type].output]);
+            if (!draftChanged(n.id)) {
+                return { ok: true, text: 'No changes yet. Edit the text; the canvas previews your edit.' };
             }
-            const value = s.kind === 'number' ? clamp(raw, s.min, s.max) : raw, node = state.project.nodes.find(v => v.id === n.id);
-            node.params[key] = value;
-            if (state.project.tracks.some(t => t.node === n.id && t.param === key && t.keys.length)) {
-                insertKey(state.project, n.id, key, state.time, value);
+            return { ok: true, text: n.id === state.selected ? '✓ The equation checks. The canvas shows your edit, not applied yet.' : '✓ The equation checks. Select this component in the main window to preview it.' };
+        }
+        catch (e) {
+            return { ok: false, text: e.message };
+        }
+    }
+    /** The draft typeset line by line, as it will read in the steps. */
+    draftMath(n, def) {
+        const kind = def.custom ? n.type : { scalar: 'expression', coord: 'vectorExpression', layer: 'colorExpression' }[def.output];
+        let list;
+        try {
+            list = stepList(programItems(state.drafts.get(n.id), kind, symbolTable(n, def, {}), false));
+        }
+        catch (e) {
+            list = `<p class="muted small-note">The typeset form appears when the text checks.</p>`;
+        }
+        return this.section('draftmath', 'AS MATH', `<div class="draft-math">${list}</div>`, { tip: 'As math|Your text typeset line by line with its captions, exactly as the steps will read after Apply.' });
+    }
+    syntaxHelp(n) {
+        const kind = catalog[n.type].custom ? n.type : { scalar: 'expression', coord: 'vectorExpression', layer: 'colorExpression' }[catalog[n.type].output];
+        const body = `<ul class="syntax-list">
+<li><code>param width = 0.1 [0.01, 1]</code> a parameter: a slider with this default and range (add <code>step 0.01</code>); <code>param tint = #ffd080</code> a color</li>
+<li><code>d = length(p) - 1</code> a definition, usable on the lines below</li>
+<li><code>… // why</code> a caption, shown next to the typeset line</li>
+<li>The <b>last line is the result</b>: ${esc(RESULTS[kind])}.</li>
+<li>Names: <code>p</code> = (<code>x</code>, <code>y</code>), <code>r</code> and <code>theta</code> (polar), inputs <code>a</code> and <code>b</code>, time <code>t</code>, <code>PI</code>, <code>TAU</code>.</li>
+<li><code>x^2</code> is a power, <code>%</code> is mod; whole numbers need no decimal point; <code>cond ? a : b</code> chooses.</li>
+<li>Functions: the GLSL ones (<code>sin</code>, <code>mix</code>, <code>smoothstep</code>, <code>length</code>, …) and the shader library’s (<code>fbm</code>, <code>rotate2</code>, <code>gaussian</code>, <code>spectrum</code>, whole scenes such as <code>waterPlanet</code>): see Insert….</li></ul>`;
+        return this.section('syntax', 'HOW TO WRITE EQUATIONS', body);
+    }
+    parameter(n, key, s, value) {
+        const modified = isParamModified(state.baseline, state.project, n, key), label = s.custom ? `<math>${nameMathML(key)}</math>` : math(s.symbol);
+        const symbol = `<span class="sym" data-param-symbol="${key}">${label}</span>`;
+        if (s.kind === 'color') {
+            const original = originalValue(state.baseline, n, key);
+            return `<div class="param ${modified ? 'modified' : ''}" data-param-row="${key}"><div class="param-head"><label data-reset-label="${key}" data-tip="${esc(s.label)}|${esc(s.help)}">${esc(s.custom ? '' : s.label)} ${symbol}</label><input type="color" value="${value}" data-param="${key}" aria-label="${esc(s.label)}"><span class="muted mono" data-color-text="${key}">${esc(value)}</span><button class="reset" data-reset="${key}" ${modified ? '' : 'disabled'} aria-label="Reset ${esc(s.label)}" data-tip="Reset to ${esc(original)}|Returns this color to its value when the scene was opened.">↺</button></div><small>${esc(s.help)}</small></div>`;
+        }
+        const original = originalValue(state.baseline, n, key), track = state.project.tracks.find(t => t.node === n.id && t.param === key);
+        const pct = clamp((original - s.min) / (s.max - s.min), 0, 1);
+        return `<div class="param ${modified ? 'modified' : ''}" data-param-row="${key}"><div class="param-head"><label for="param-${key}" data-reset-label="${key}" data-tip="${esc(s.label)}|${esc(s.help)}\nDouble-click to reset.">${esc(s.custom ? '' : s.label)} ${symbol}</label><input type="number" data-param="${key}" id="number-${key}" value="${formatNumber(value)}" data-shown="${formatNumber(value)}" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${esc(s.label)} numerical value"><button class="key ${track?.keys.length ? 'keyed' : ''}" data-keyframe="${key}" aria-label="Keyframe ${esc(s.label)}" data-tip="Add a key|Records this value at ${state.time.toFixed(2)} s. Move the playhead and change the value to animate it.">◆</button><button class="reset" data-reset="${key}" ${modified ? '' : 'disabled'} aria-label="Reset ${esc(s.label)}" data-tip="Reset to ${formatNumber(original)}|Returns this parameter to its value when the scene was opened${track ? ' and removes its animation' : ''}.">↺</button><button class="sweep" data-sweep="${key}" aria-label="Explore ${esc(s.label)}" data-tip="Explore this parameter|Renders the image across the parameter’s whole range. Hover a thumbnail to preview it, click to use it.">▦</button></div><div class="slider-wrap"><input type="range" id="param-${key}" data-param="${key}" value="${value}" data-shown="${value}" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${esc(s.label)}"><span class="default-mark" style="left:calc(${(pct * 100).toFixed(2)}% + ${((0.5 - pct) * 14).toFixed(1)}px)" data-tip="Original value ${formatNumber(original)}|Where this parameter started. ↺ returns here."></span></div><small>${esc(s.help)} <span class="range">Range ${s.min} to ${s.max}${formatNumber(original) !== formatNumber(value) ? ` · original ${formatNumber(original)}` : ''}</span></small></div>`;
+    }
+    parameters(n, def, evaluated) {
+        const params = Object.entries(paramSpecs(n)).filter(([, s]) => s.kind !== 'expression');
+        if (!params.length) {
+            return this.section('params', 'PARAMETERS', `<p class="muted small-note">${def.custom ? 'No parameters yet. Choose ✎ Edit and add a line such as <code>param k = 1 [0, 2]</code> to get a slider.' : 'This component has no parameters.'}</p>`);
+        }
+        const numeric = params.some(([, s]) => s.kind === 'number');
+        let html = '';
+        if (state.project.tracks.some(t => t.node === n.id && t.keys.length)) {
+            html += '<div class="selection-note">Animated controls (◆ lit) show the value at the playhead. Changing one adds or updates a key there; More ▸ Animation edits the keys.</div>';
+        }
+        html += params.map(([key, s]) => this.parameter(n, key, s, evaluated[key])).join('');
+        const tools = `${numeric ? '<button id="variations" class="link" data-action="variations" data-tip="Variations|Renders eight random variations of these parameters. Hover to preview, click to use one; Undo returns.">✦ Variations</button>' : ''}<button id="resetNode" class="link" data-action="reset-node" ${isModified(state.baseline, state.project, n) ? '' : 'disabled'} data-tip="Reset all parameters|Returns every parameter of this component to its value when the scene was opened (undoable).">↺ Reset all</button>`;
+        return this.section('params', 'PARAMETERS', html, { tools });
+    }
+    curveSVG(def, evaluated) {
+        const c = def.curve, P = evaluated;
+        const series = c.bars ? [{ bars: c.bars(P) }] : c.series.map(s => ({ ...s, f: x => s.f(x, P) }));
+        const gradient = c.gradient ? `<div class="curve-gradient" style="background:linear-gradient(90deg, ${c.gradient(P).map(esc).join(', ')})" aria-hidden="true"></div>` : '';
+        return plotSVG({ series, domain: c.domain(P), range: c.range?.(P) || null, xLabel: c.x, yLabel: c.y, marks: c.marks?.(P) || [] }) + gradient;
+    }
+    curve(def, evaluated) {
+        if (!def.curve) {
+            return '';
+        }
+        return this.section('curve', 'KEY FUNCTION', `<div class="curve" data-curve>${this.curveSVG(def, evaluated)}</div><p class="curve-title">${esc(def.curve.title)}, with the current parameters.</p>`, { tip: 'Key function|The one-dimensional function at the heart of this component, drawn with the current parameter values. It updates as you change them.' });
+    }
+    // ---- In & out tab ----------------------------------------------------------
+    flowTab(n, def) {
+        const inputs = Object.entries(def.inputs);
+        let html = '';
+        if (inputs.length) {
+            html += '<div class="flow-heading">Where the values come from</div>';
+            for (const [socket, kind] of inputs) {
+                const source = nodeById(n.inputs[socket]), symbol = def.inputSymbols[socket] || socket;
+                const options = state.project.nodes.filter(other => other.id !== n.id && catalog[other.type].output === kind).map(other => `<option value="${other.id}" ${n.inputs[socket] === other.id ? 'selected' : ''}>${esc(other.label)}</option>`).join('');
+                const inserts = !n.inputs[socket] ? '' : insertableTypes(kind).map(type => `<option value="${type}">${esc(catalog[type].name)}</option>`).join('');
+                html += `<div class="input-row" data-input-row="${socket}"><label for="in-${socket}" class="flow-socket" data-tip="${esc(socket)}: ${esc(typeLabels[kind])}|Choose which component feeds this input. Unconnected inputs are zero, not the image coordinates."><span class="type-dot ${kind}"></span><span class="flow-sym">${math(symbol, { symbols: Object.fromEntries(symbol.split(',').map(s => [s.trim(), { role: 'input', type: kind, socket }])) })}</span></label><select id="in-${socket}" data-input="${socket}" aria-label="${esc(socket)} input"><option value="">Unconnected · zero</option>${options}</select>${inserts ? `<select class="insert" data-insert="${socket}" aria-label="Insert a component on ${esc(socket)}" data-tip="Insert on this input|Put a modifier between this input and what feeds it, e.g. a warp before a field or a tint before a layer. The old connection passes through it."><option value="">＋</option>${inserts}</select>` : ''}${source ? `<button class="flow-thumb-button" data-go="${source.id}" data-tip="${esc(source.label)}|Select the component that feeds ${esc(socket)}."><canvas class="flow-thumb" data-thumb="${source.id}" width="160" height="96"></canvas></button>` : ''}</div>`;
             }
-            document.querySelectorAll(`[data-param="${key}"]`).forEach(el => {
-                if (el !== input) {
-                    el.value = value;
+        }
+        else {
+            html += '<p class="muted small-note">It has no inputs: its value depends only on its parameters (and the pixel position or time, where the equation uses them).</p>';
+        }
+        const users = consumers(state.project, n.id), output = def.outputSymbols.length ? math(def.outputSymbols.join(',\\ '), { symbols: Object.fromEntries(def.outputSymbols.map(s => [s, { role: 'output', type: def.output }])) }) : '';
+        html += `<div class="flow-heading">Where its output ${output} goes</div>`;
+        if (state.project.output === n.id) {
+            html += '<div class="flow-final">★ The scene’s final output: the image on the canvas, in saves and in exports.</div>';
+        }
+        if (!users.length && state.project.output !== n.id) {
+            html += '<p class="muted small-note">Nothing reads this output yet. Wire it into another component’s input (drag between the dots in the Function graph), or make it the final output.</p>';
+        }
+        for (const u of users) {
+            const ud = catalog[u.node.type], symbolTex = ud.inputSymbols[u.socket] || u.socket, symbols = symbolTex.split(',').map(s => s.trim());
+            let used = '';
+            if (ud.custom) {
+                try {
+                    used = programToMathML(u.node.params.expression, CUSTOM_LHS[u.node.type], { symbols: { [u.socket]: { role: 'input', type: def.output, socket: u.socket } } }).at(-1).mathml;
                 }
-            });
-            const text = document.querySelector(`[data-color-text="${key}"]`);
+                catch (e) { /* an invalid equation shows no formula */
+                }
+            }
+            else {
+                const tex = stepUsing(ud, symbols);
+                used = tex ? segments(tex, { symbols: Object.fromEntries(symbols.map(s => [s, { role: 'input', type: def.output, socket: u.socket }])) }) : '';
+            }
+            html += `<button class="flow-out" data-go="${u.node.id}" data-tip="${esc(u.node.label)}|Select the component that reads this output through its ${esc(u.socket)} input."><span class="flow-line"><span class="flow-arrow">→</span><b>${esc(u.node.label)}</b><span class="muted">reads it as</span>${math(symbolTex, { symbols: Object.fromEntries(symbols.map(s => [s, { role: 'input', type: def.output }])) })}<canvas class="flow-thumb" data-thumb="${u.node.id}" width="160" height="96"></canvas></span>${used ? `<span class="flow-math">${used}</span>` : ''}</button>`;
+        }
+        if (state.project.output !== n.id) {
+            html += '<div class="node-bottom"><button id="makeOutput" data-action="output" data-tip="Make final output|Use this component as the scene’s final image, for the canvas, saves and exports. To just look at it, choose This step above the canvas.">☆ Make it the final output</button></div>';
+        }
+        return this.section('flow', 'DATA FLOW', html, { tip: 'In & out|Where this component’s inputs come from, and where its output goes and what it is called there. Click one to select it.' });
+    }
+    // ---- Ideas tab -------------------------------------------------------------
+    ideasTab(def) {
+        const cards = def.concepts.length ? def.concepts.map(id => this.conceptCard(id)).join('') : '<p class="muted small-note">No recurring ideas are listed for this component; its steps explain it.</p>';
+        const rows = def.notes.map(([symbol, meaning]) => `<div class="sym-row sym-note"><span class="sym">${math(symbol)}</span><span class="wide">${richText(meaning)}</span></div>`).join('');
+        return this.section('why', 'WHY IT IS WRITTEN THIS WAY', `<div class="concept-grid">${cards}</div>`, { tip: 'The ideas behind it|The recurring mathematical ideas this equation uses, each explained with a small plot you can play with.' })
+            + (rows ? this.section('symbols', 'OTHER SYMBOLS', `<div class="sym-list">${rows}</div>`) : '');
+    }
+    conceptCard(id) {
+        const c = concept(id), k = this.ui.knobs[id] ?? c.knob?.value;
+        const plot = c.plot ? `<div class="concept-plot" data-concept-plot="${id}">${plotSVG(c.plot(k))}</div>` : '';
+        const knob = c.knob ? `<label class="knob">${esc(c.knob.label)} <input type="range" data-knob="${id}" min="${c.knob.min}" max="${c.knob.max}" step="${c.knob.step}" value="${k}"><output data-knob-value="${id}">${formatNumber(k)}</output></label>` : '';
+        return `<article class="concept-card" data-concept-card="${id}"><b>${esc(c.title)}</b>${c.tex ? `<div class="concept-math">${math(c.tex, { display: true })}</div>` : ''}<p>${richText(c.text)}</p>${plot}${knob}</article>`;
+    }
+    // ---- More tab --------------------------------------------------------------
+    moreTab(n, def) {
+        return this.code(n, def) + this.tracks(n) + this.actions(n);
+    }
+    code(n, def) {
+        let body;
+        if (def.custom) {
+            try {
+                const program = compileEquation(n.params.expression, n.type);
+                body = `<pre id="nodeCode" class="node-code">${esc(programGLSL(program, 'equation', Object.fromEntries(program.params.map(p => [p.name, p.name]))).code.replace(/;/g, ';\n  ').replace('{', '{\n  '))}</pre>`;
+            }
+            catch (e) {
+                body = `<pre id="nodeCode" class="node-code">${esc(e.message)}</pre>`;
+            }
+        }
+        else {
+            const call = emitPreview(n.type, n.params), kernel = /^(\w+)\(/.exec(call)?.[1], source = kernel ? kernelSource(kernel) : '';
+            body = `<pre id="nodeCode" class="node-code">${esc(call)}</pre>${source ? `<details class="kernel"><summary>Kernel source: ${esc(kernel)}()</summary><pre class="node-code">${esc(source)}</pre></details>` : ''}`;
+        }
+        return this.section('code', 'SHADER CODE', `${body}<p class="node-caption">The GLSL this component adds to the scene’s shader. Parameter names stand for their uniforms; the whole graph compiles into one program (the Shader tab under the canvas shows it).</p>`);
+    }
+    tracks(n) {
+        const tracks = state.project.tracks.filter(t => t.node === n.id), specs = paramSpecs(n);
+        if (!tracks.length) {
+            return this.section('tracks', 'ANIMATION', '<p class="muted small-note">Not animated. Click ◆ next to a parameter (Equation tab) to add a key at the playhead.</p>');
+        }
+        return this.section('tracks', 'ANIMATION', tracks.map(t => `<div class="track-edit"><header><b>${esc(specs[t.param]?.label || t.param)}</b><select data-interpolation="${t.param}" aria-label="Interpolation for ${t.param}" data-tip="Interpolation|smooth eases in and out of each key, linear moves at constant speed, hold jumps at each key.">${['smooth', 'linear', 'hold'].map(v => `<option ${v === t.interpolation ? 'selected' : ''}>${v}</option>`).join('')}</select><button data-remove-track="${t.param}" aria-label="Remove ${t.param} animation track" data-tip="Remove animation|Deletes every key; the parameter keeps its current base value.">×</button></header><div class="key-list">${t.keys.map(k => `<button class="key-chip" data-seek="${k.time}" data-tip="Key at ${k.time} s|Click to move the playhead here.">${k.time}s: ${Number(k.value.toFixed(3))}<span data-remove-key="${t.param}" data-time="${k.time}" data-tip="Delete this key">×</span></button>`).join('')}</div></div>`).join(''));
+    }
+    actions(n) {
+        const replacements = replacementTypes(n.type).map(type => `<option value="${type}">${esc(catalog[type].name)}</option>`).join('');
+        const body = `<div class="node-bottom"><select id="replaceWith" aria-label="Replace with another component" data-tip="Replace with…|Swap this component for another of the same output type, keeping its connections where the sockets match. The Filament ring scene is the Bipolar Nebula with its geometry replaced this way."><option value="">Replace with…</option>${replacements}</select><button id="duplicateNode" data-action="duplicate" data-key="Ctrl/⌘ D" data-tip="Duplicate|Adds a copy with the same parameters and inputs.">Duplicate</button><button id="deleteNode" class="danger" data-action="delete" data-key="Delete" data-tip="Delete component|Removes it and disconnects anything it fed (undoable).">Delete</button></div><p class="node-caption">Type <code>${n.type}</code> · id <code>${esc(n.id)}</code> · ${esc(catalog[n.type].category)} · output ${esc(typeNames[catalog[n.type].output])}. Unconnected inputs evaluate to zero; they are not inferred.</p>`;
+        return this.section('actions', 'COMPONENT', body);
+    }
+    /** Thumbnails of connected components, from the shared live previews. */
+    paintThumbs() {
+        for (const canvas of this.qa('canvas[data-thumb]')) {
+            const tile = previewTile(canvas.dataset.thumb);
+            if (tile) {
+                canvas.width = tile.width;
+                canvas.height = tile.height;
+                canvas.getContext('2d').putImageData(new ImageData(tile.data, tile.width, tile.height), 0, 0);
+                canvas.classList.add('painted');
+            }
+        }
+    }
+    // ---- Live updates ----------------------------------------------------------
+    /** Refresh numbers after a live parameter change or a playhead move, without
+     * rebuilding: inputs (unless being typed in), values in the math, the curve.
+     */
+    sync(changedKey = null) {
+        const n = this.node();
+        if (!n || this.root.dataset.node !== n.id) {
+            return;
+        }
+        const def = catalog[n.type], evaluated = animatedParameters(state.project, n, state.time), active = this.root.ownerDocument.activeElement;
+        for (const input of this.qa('[data-param]')) {
+            const key = input.dataset.param, value = evaluated[key];
+            // A focused control keeps what the user is typing or dragging (its text differs from what was last shown).
+            const editing = input === active && input.value !== (input.dataset.shown ?? input.value);
+            if (editing || value === undefined || (changedKey && key !== changedKey && !state.project.tracks.some(t => t.node === n.id && t.param === key))) {
+                continue;
+            }
+            input.value = input.type === 'number' ? formatNumber(value) : value;
+            input.dataset.shown = input.value;
+            const text = this.q(`[data-color-text="${key}"]`);
             if (text) {
                 text.textContent = value;
             }
-            const legend = document.querySelector(`[data-sym-value="${key}"]`);
-            if (legend) {
-                legend.textContent = s.kind === 'number' ? formatNumber(value) : value;
-            }
-            markDirty();
-        };
-        input.onchange = () => {
-            if (input._before) {
-                history.push(input._before);
-                delete input._before;
-                changed();
-                refreshUI();
-            }
-        };
-    });
-}
-function bindExpression(n) {
-    const editor = $('equationEditor');
-    if (!editor) {
-        return;
-    }
-    const preview = () => {
-        try {
-            $('expressionPreview').innerHTML = expressionToMathML(editor.value, expressionLHS[n.type]);
-            $('expressionPreview').classList.remove('invalid');
         }
-        catch (e) {
-            $('expressionPreview').classList.add('invalid');
-            $('equationError').textContent = `Preview: ${e.message}`;
+        if (changedKey) {
+            this.q(`[data-param-row="${changedKey}"]`)?.classList.toggle('modified', isParamModified(state.baseline, state.project, n, changedKey));
+            const reset = this.q(`[data-reset="${changedKey}"]`);
+            if (reset) {
+                reset.disabled = !isParamModified(state.baseline, state.project, n, changedKey);
+            }
+        }
+        cancelAnimationFrame(this.curveFrame);
+        this.curveFrame = requestAnimationFrame(() => {
+            const curve = this.q('[data-curve]');
+            if (curve && def.curve) {
+                curve.innerHTML = this.curveSVG(def, evaluated);
+            }
+            if (this.ui.values) { // update the numbers in place: a symbol being dragged must survive
+                for (const sym of this.qa('.steps .sym-param[data-param]')) {
+                    const value = evaluated[sym.dataset.param];
+                    if (typeof value === 'number') {
+                        sym.innerHTML = numberMathML(value);
+                    }
+                }
+            }
+        });
+    }
+    /** The draft of this view's component changed (here or in another view). */
+    onDraft(nodeId) {
+        const n = this.node();
+        if (!n || n.id !== nodeId) {
             return;
         }
-        $('equationError').textContent = '';
-    };
-    const apply = () => {
-        const next = clone(state.project);
-        next.nodes.find(v => v.id === n.id).params.expression = editor.value;
-        try {
-            validateProject(next);
-            if (state.renderer) {
-                state.renderer.getProgram(next, n.id);
+        const editor = this.q('#equationEditor');
+        if (this.editing(n) !== !!editor || this.ui.tab !== 'equation') {
+            this.render(); // edit mode started or ended
+            return;
+        }
+        if (!editor) {
+            return;
+        }
+        const source = state.drafts.get(n.id);
+        if (editor.value !== source && editor !== this.root.ownerDocument.activeElement) {
+            editor.value = source;
+        }
+        this.refreshDraft(n);
+    }
+    /** Retypeset the draft and show whether it checks. */
+    refreshDraft(n) {
+        const status = this.draftStatus(n), el = this.q('#equationError');
+        if (el) {
+            el.textContent = status.text;
+            el.classList.toggle('error', !status.ok);
+        }
+        const holder = this.q('.draft-math');
+        if (holder && status.ok) {
+            const def = catalog[n.type], kind = def.custom ? n.type : { scalar: 'expression', coord: 'vectorExpression', layer: 'colorExpression' }[def.output];
+            holder.innerHTML = stepList(programItems(state.drafts.get(n.id), kind, symbolTable(n, def, {}), false));
+        }
+        holder?.classList.toggle('stale', !status.ok);
+    }
+    // ---- Events ----------------------------------------------------------------
+    bindEvents() {
+        const root = this.root;
+        root.addEventListener('click', e => this.onClick(e));
+        root.addEventListener('input', e => this.onInput(e));
+        root.addEventListener('change', e => this.onChange(e));
+        root.addEventListener('dblclick', e => {
+            const label = e.target.closest('[data-reset-label]');
+            if (label) {
+                resetParam(this.node().id, label.dataset.resetLabel);
+                return;
+            }
+            const n = this.node();
+            if (e.target.closest('#expressionPreview .step') && !e.target.closest('.sym-param') && !forkBlocker(n.type)) {
+                this.beginEdit(n); // double-click the equation to edit it
+            }
+        });
+        root.addEventListener('keydown', e => {
+            if (e.target.id === 'equationEditor' && (e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                this.applyDraft();
+            }
+        });
+        root.addEventListener('pointerover', e => this.highlight(e.target.closest('[data-param], [data-socket], [data-param-symbol], [data-input-row]'), true));
+        root.addEventListener('pointerout', e => this.highlight(e.target.closest('[data-param], [data-socket], [data-param-symbol], [data-input-row]'), false));
+        root.addEventListener('pointerdown', e => this.startScrub(e));
+    }
+    /** Light up every occurrence of the same parameter or input in this view. */
+    highlight(el, on) {
+        if (!el) {
+            return;
+        }
+        const param = el.dataset.param || el.dataset.paramSymbol, socket = el.dataset.socket || el.dataset.inputRow;
+        const selector = param ? `[data-param="${CSS.escape(param)}"], [data-param-symbol="${CSS.escape(param)}"], [data-param-row="${CSS.escape(param)}"]` : socket ? `[data-socket="${CSS.escape(socket)}"], [data-input-row="${CSS.escape(socket)}"]` : null;
+        if (selector) {
+            this.qa(selector).forEach(x => x.classList.toggle('hot', on));
+        }
+    }
+    /** Drag a parameter symbol in an equation to change its value. */
+    startScrub(e) {
+        const sym = e.target.closest('.steps .sym-param[data-param], .sym[data-param-symbol]');
+        if (!sym || e.button !== 0 || sym.closest('.draft-math')) {
+            return;
+        }
+        const n = this.node(), key = sym.dataset.param || sym.dataset.paramSymbol, spec = paramSpecs(n)[key];
+        if (!spec || spec.kind !== 'number') {
+            return;
+        }
+        e.preventDefault();
+        const start = animatedParameters(state.project, n, state.time)[key], x0 = e.clientX, range = spec.max - spec.min;
+        let moved = false;
+        sym.setPointerCapture(e.pointerId);
+        sym.classList.add('scrubbing');
+        const move = ev => {
+            const dx = ev.clientX - x0;
+            if (!moved && Math.abs(dx) < 3) {
+                return;
+            }
+            moved = true;
+            const fine = ev.shiftKey ? 0.1 : 1, raw = start + dx / 240 * range * fine, snapped = Math.round(raw / spec.step) * spec.step;
+            liveParam(n.id, key, Number(snapped.toFixed(6)));
+        };
+        const up = () => {
+            sym.removeEventListener('pointermove', move);
+            sym.removeEventListener('pointerup', up);
+            sym.removeEventListener('pointercancel', up);
+            sym.classList.remove('scrubbing');
+            if (moved) {
+                endLiveEdit();
             }
             else {
-                compileGraph(next, n.id);
+                this.focusParam(key);
             }
-            history.push(state.project);
-            markCustom(next);
-            state.project = next;
-            changed();
-            refreshUI();
-            toast('Equation compiled.');
-        }
-        catch (e) {
-            $('equationError').textContent = e.message;
-            showError('Equation not applied. The last good image is unchanged.');
-        }
-    };
-    editor.oninput = preview;
-    $('applyEquation').onclick = apply;
-    $('resetExpression').onclick = () => resetParam(n.id, 'expression');
-    editor.onkeydown = e => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            e.preventDefault();
-            apply();
-        }
-    };
-    $('insertHelper').onchange = e => {
-        const text = e.target.value;
-        e.target.value = '';
-        if (text) {
-            editor.setRangeText(text, editor.selectionStart, editor.selectionEnd, 'end');
-            editor.focus();
-            preview();
-        }
-    };
-}
-/** Update visible values for the playhead without rebuilding the panel, so
- * scrubbing and playback never steal focus or discard an unapplied expression.
- */
-function syncInspectorValues() {
-    const n = currentNode(), def = catalog[n.type];
-    if (!state.project.tracks.some(t => t.node === n.id && t.keys.length)) {
-        return;
+        };
+        sym.addEventListener('pointermove', move);
+        sym.addEventListener('pointerup', up);
+        sym.addEventListener('pointercancel', up);
     }
-    const evaluated = animatedParameters(state.project, n, state.time);
-    document.querySelectorAll('[data-param]').forEach(input => {
-        const s = def.params[input.dataset.param];
-        if (!s || s.kind !== 'number' || input === document.activeElement) {
+    focusParam(key) {
+        const block = this.q(`[data-param-row="${CSS.escape(key)}"]`);
+        block?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        block?.classList.add('flash');
+        setTimeout(() => block?.classList.remove('flash'), 900);
+        (this.q(`#number-${CSS.escape(key)}`) || this.q(`[data-param="${CSS.escape(key)}"]`))?.focus({ preventScroll: true });
+    }
+    showTab(tab) {
+        if (TABS.some(t => t[0] === tab) && tab !== this.ui.tab) {
+            this.ui.tab = tab;
+            this.render();
+        }
+    }
+    beginEdit(n) {
+        this.ui.tab = 'equation';
+        startEdit(n.id); // emits `draft`, which renders every view of it in edit mode
+        this.render();
+        const editor = this.q('#equationEditor');
+        editor?.focus({ preventScroll: true });
+        editor?.scrollIntoView({ block: 'nearest' });
+    }
+    onClick(e) {
+        const n = this.node(), t = e.target;
+        const fold = t.closest('[data-fold]');
+        if (fold) {
+            const id = fold.dataset.fold;
+            this.ui.collapsed.has(id) ? this.ui.collapsed.delete(id) : this.ui.collapsed.add(id);
+            fold.closest('.cv-section').classList.toggle('collapsed');
+            fold.setAttribute('aria-expanded', String(!this.ui.collapsed.has(id)));
             return;
         }
-        input.value = input.type === 'number' ? formatNumber(evaluated[input.dataset.param]) : evaluated[input.dataset.param];
-    });
-    document.querySelectorAll('[data-sym-value]').forEach(el => {
-        const s = def.params[el.dataset.symValue];
-        if (s?.kind === 'number') {
-            el.textContent = formatNumber(evaluated[el.dataset.symValue]);
+        const tab = t.closest('[data-tab]');
+        if (tab) {
+            this.showTab(tab.dataset.tab);
+            return;
         }
-    });
+        const go = t.closest('[data-go]');
+        if (go && !t.closest('select')) {
+            this.navigate(go.dataset.go);
+            return;
+        }
+        const action = t.closest('[data-action]')?.dataset.action;
+        const actions = {
+            prev: () => selectStep(-1),
+            next: () => selectStep(1),
+            output: () => setOutput(n.id),
+            values: () => {
+                this.ui.values = !this.ui.values;
+                this.render();
+            },
+            edit: () => this.beginEdit(n),
+            'edit-blocked': () => {
+                this.ui.blockedNote = !this.ui.blockedNote;
+                this.render();
+            },
+            'cancel-edit': () => discardDraft(n.id),
+            'apply-equation': () => this.applyDraft(),
+            'reset-node': () => resetNode(n.id),
+            variations: () => openVariations(n.id),
+            duplicate: () => duplicateNode(n.id),
+            delete: () => deleteNode(n.id),
+            playground: () => this.onPlayground?.(n.id),
+            popout: () => this.onPopout?.(n.id)
+        };
+        if (action && actions[action]) {
+            actions[action]();
+            return;
+        }
+        const keyframe = t.closest('[data-keyframe]');
+        if (keyframe) {
+            pause();
+            const key = keyframe.dataset.keyframe;
+            transact(p => {
+                const value = animatedParameters(p, p.nodes.find(v => v.id === n.id), state.time)[key];
+                insertKey(p, n.id, key, state.time, value);
+            });
+            toast(`Key added at ${state.time.toFixed(3)} s. Move the playhead, then change the control to add another.`);
+            return;
+        }
+        const reset = t.closest('[data-reset]');
+        if (reset) {
+            resetParam(n.id, reset.dataset.reset);
+            return;
+        }
+        const sweep = t.closest('[data-sweep]');
+        if (sweep) {
+            openSweep(n.id, sweep.dataset.sweep);
+            return;
+        }
+        const removeTrack = t.closest('[data-remove-track]');
+        if (removeTrack) {
+            transact(p => p.tracks = p.tracks.filter(tr => !(tr.node === n.id && tr.param === removeTrack.dataset.removeTrack)));
+            return;
+        }
+        const removeKey = t.closest('[data-remove-key]');
+        if (removeKey) {
+            e.stopPropagation();
+            transact(p => {
+                const tr = p.tracks.find(x => x.node === n.id && x.param === removeKey.dataset.removeKey);
+                tr.keys = tr.keys.filter(k => k.time !== Number(removeKey.dataset.time));
+            });
+            return;
+        }
+        const seekTo = t.closest('[data-seek]');
+        if (seekTo) {
+            seek(Number(seekTo.dataset.seek));
+            return;
+        }
+        const symbol = t.closest('#expressionPreview .sym-input[data-socket]');
+        if (symbol) {
+            const source = n.inputs[symbol.dataset.socket];
+            if (source) {
+                this.navigate(source);
+            }
+        }
+    }
+    navigate(id) {
+        if (this.pinned) {
+            this.pinned = id;
+            this.render();
+        }
+        else {
+            setSelected(id);
+        }
+    }
+    onInput(e) {
+        const t = e.target, n = this.node();
+        if (t.id === 'equationEditor') {
+            setDraft(n.id, t.value);
+            return;
+        }
+        if (t.dataset.knob) {
+            const id = t.dataset.knob, c = concept(id), k = Number(t.value);
+            this.ui.knobs[id] = k;
+            const plot = this.q(`[data-concept-plot="${CSS.escape(id)}"]`), out = this.q(`[data-knob-value="${CSS.escape(id)}"]`);
+            if (plot) {
+                plot.innerHTML = plotSVG(c.plot(k));
+            }
+            if (out) {
+                out.textContent = formatNumber(k);
+            }
+            return;
+        }
+        const key = t.dataset.param;
+        if (key) {
+            const spec = paramSpecs(n)[key];
+            if (!spec || (spec.kind === 'number' && (t.value === '' || !Number.isFinite(Number(t.value))))) {
+                return;
+            }
+            const value = liveParam(n.id, key, spec.kind === 'number' ? Number(t.value) : t.value);
+            for (const other of this.qa(`[data-param="${CSS.escape(key)}"]`)) {
+                if (other !== t && value !== null) {
+                    other.value = other.type === 'number' ? formatNumber(value) : value;
+                    other.dataset.shown = other.value;
+                }
+            }
+        }
+    }
+    onChange(e) {
+        const t = e.target, n = this.node();
+        if (t.id === 'nodeEnabled') {
+            toggleEnabled(n.id);
+        }
+        else if (t.id === 'nodeLabel') {
+            transact(p => p.nodes.find(v => v.id === n.id).label = t.value);
+        }
+        else if (t.id === 'replaceWith') {
+            if (t.value) {
+                replaceComponent(n.id, t.value);
+            }
+        }
+        else if (t.id === 'insertHelper') {
+            const text = t.value, editor = this.q('#equationEditor');
+            t.value = '';
+            if (text && editor) {
+                const lineStart = editor.value.lastIndexOf('\n', editor.selectionStart - 1) + 1;
+                const insert = /^(param|\w+ = )/.test(text) && editor.selectionStart !== lineStart ? `\n${text}` : text;
+                editor.setRangeText(/^(param|\w+ = )/.test(text) ? `${insert}\n` : insert, editor.selectionStart, editor.selectionEnd, 'end');
+                editor.focus();
+                setDraft(n.id, editor.value);
+            }
+        }
+        else if (t.dataset.input !== undefined && t.matches('select[data-input]')) {
+            connect(t.value, n.id, t.dataset.input);
+        }
+        else if (t.dataset.insert !== undefined && t.matches('select[data-insert]')) {
+            if (t.value) {
+                try {
+                    insertComponent(t.value, n.id, t.dataset.insert);
+                }
+                catch (err) {
+                    showError(err);
+                }
+            }
+        }
+        else if (t.dataset.interpolation) {
+            transact(p => p.tracks.find(tr => tr.node === n.id && tr.param === t.dataset.interpolation).interpolation = t.value);
+        }
+        else if (t.dataset.param) {
+            endLiveEdit();
+        }
+    }
+    applyDraft() {
+        const n = this.node(), source = state.drafts.get(n.id);
+        if (source === undefined) {
+            return;
+        }
+        const builtIn = !catalog[n.type].custom;
+        try {
+            if (applyEquation(n.id, source)) {
+                toast(builtIn ? 'Applied: the component is now your equation. Undo restores the original.' : 'Equation applied. Undo returns the previous one.');
+            }
+        }
+        catch (e) {
+            const el = this.q('#equationError');
+            if (el) {
+                el.textContent = e.message;
+                el.classList.add('error');
+            }
+            showError('Not applied: the equation has an error (shown under the editor). The scene is unchanged.');
+        }
+    }
+}
+/** Rebuild every view (after the project, selection or view changed). */
+function renderViews() {
+    for (const v of views) {
+        v.render();
+    }
+}
+/** Show one tab of every view ('equation', 'flow', 'ideas', 'more'). */
+function showViewTab(tab) {
+    for (const v of views) {
+        v.showTab(tab);
+    }
+}
+on('values', (nodeId, key) => {
+    for (const v of views) {
+        if (v.node()?.id === nodeId) {
+            v.sync(key);
+        }
+    }
+});
+on('time', () => {
+    for (const v of views) {
+        const n = v.node();
+        if (n && state.project.tracks.some(t => t.node === n.id && t.keys.length)) {
+            v.sync();
+        }
+    }
+});
+on('draft', nodeId => {
+    for (const v of views) {
+        v.onDraft(nodeId);
+    }
+});
+on('previews', () => {
+    for (const v of views) {
+        v.paintThumbs();
+    }
+});
+
+return {ComponentView,renderViews,showViewTab};
+})();
+__modules['ui-inspector.js'] = (() => {
+const { $, on } = __modules['editor.js'];
+const { ComponentView, renderViews } = __modules['ui-component-view.js'];
+/** The component panel on the right: the selected component, explained and
+ * edited, in a ComponentView (see ui-component-view.js). The same view class
+ * renders the pop-out window; ui-playground.js sets the panel's width.
+ */
+const inspector = new ComponentView($('inspectorContent'), { layout: 'panel' });
+function renderInspector() {
+    renderViews();
+}
+/** Update visible values for the playhead without rebuilding any view, so
+ * scrubbing and playback never steal focus or discard an unapplied equation.
+ */
+function syncInspectorValues() {
+    inspector.sync();
 }
 on('refresh', renderInspector);
 on('selection', renderInspector);
 on('view', renderInspector);
-on('time', syncInspectorValues);
 
-return {renderInspector,syncInspectorValues};
+return {inspector,renderInspector,syncInspectorValues};
 })();
 __modules['ui-export.js'] = (() => {
 const { $, state, showError, pause, viewOptions } = __modules['editor.js'];
 const { clone } = __modules['graph.js'];
 const { makeZip, download, fileStem, frameTimes, embedPNGMetadata } = __modules['export.js'];
 const { updateClock } = __modules['ui-timeline.js'];
+const { frameLook } = __modules['ui-look.js'];
 /** Export dialog: still PNG with embedded project metadata, deterministic PNG
  * sequence ZIP, or a real-time browser video recording. Exports draw on the main
  * canvas at the requested size and restore the preview afterwards.
@@ -5547,11 +9903,16 @@ async function exportVideo(scene, drawAt, fps, stem) {
     }
     const probe = canvas.captureStream(0), manual = typeof probe.getVideoTracks()[0]?.requestFrame === 'function';
     probe.getTracks().forEach(t => t.stop());
-    // Manual capture is deterministic; if a browser delivers nothing that way, one
-    // compositor-driven pass is tried before giving up.
-    let pass = await recordPass(scene, drawAt, fps, mime, manual);
-    if (!pass.chunks.length && !abortExport && manual) {
-        pass = await recordPass(scene, drawAt, fps, mime, false);
+    // Manual capture is deterministic. If a pass delivers nothing (Chromium's first
+    // capture after a pop-up window closed does, on some backends), it is retried
+    // once each way before giving up.
+    const modes = manual ? [true, false, true] : [false, false];
+    let pass = null;
+    for (const mode of modes) {
+        pass = await recordPass(scene, drawAt, fps, mime, mode);
+        if (pass.chunks.length || abortExport) {
+            break;
+        }
     }
     if (abortExport) {
         throw new Error('Recording cancelled or exceeded the memory limit. No partial video was downloaded.');
@@ -5571,6 +9932,10 @@ $('startExport').onclick = async () => {
     const width = Number($('exportWidth').value), height = Number($('exportHeight').value), fps = Number($('exportFPS').value), mode = $('exportFormat').value;
     const useView = $('exportIsolated').checked && state.viewMode !== 'final';
     const options = useView ? viewOptions() : { target: state.project.output };
+    if (useView && state.viewMode === 'stage') {
+        // In the colors the canvas shows, with its current range for every frame.
+        options.look = frameLook(state.project, options.target);
+    }
     const savedTime = state.time, scene = clone(state.project), stem = fileStem(state.project.title);
     try {
         if (!Number.isInteger(width) || !Number.isInteger(height) || Math.min(width, height) < 32 || Math.max(width, height) > renderer.info.maxSize) {
@@ -5660,19 +10025,314 @@ const methodNotes = [
 
 return {sources,methodNotes};
 })();
+__modules['ui-popout.js'] = (() => {
+const { esc, state, on, undo, redo, nodeById, currentNode } = __modules['editor.js'];
+const { ComponentView } = __modules['ui-component-view.js'];
+const { attachTooltips } = __modules['ui-tooltip.js'];
+/** Pop out: the component explanation in a separate browser window, e.g. on a
+ * second screen next to a full-size canvas.
+ *
+ * The window is an about:blank page of this origin, so this module writes its
+ * markup, copies the page's styles into it and runs a ComponentView there: its
+ * controls change the scene in this window directly. It follows the selection
+ * unless pinned, and closes with this page.
+ */
+let win = null, view = null;
+function popoutOpen() {
+    return !!win && !win.closed;
+}
+/** Open (or focus) the pop-out on `nodeId`. Returns false when the browser
+ * blocked the window.
+ */
+function popOut(nodeId = state.selected) {
+    if (popoutOpen()) {
+        view.pinned = view.pinned ? nodeId : null;
+        view.render();
+        win.focus();
+        return true;
+    }
+    let opened;
+    try {
+        opened = window.open('', 'equation-studio-equation', 'popup=yes,width=640,height=900');
+    }
+    catch (e) {
+        opened = null;
+    }
+    if (!opened) {
+        return false;
+    }
+    let doc;
+    try {
+        doc = opened.document;
+        doc.open();
+        doc.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Equation · Equation Studio</title></head><body class="popout"><header class="popout-bar"><span class="brand-symbol">∿</span><b id="popoutTitle"></b><span class="spacer"></span><label class="legend-check" data-tip="Pin|Keep showing this component while you select others in the main window."><input type="checkbox" id="popoutPin"> Pin</label><button id="popoutBack" data-tip="Main window|Bring the Equation Studio window to the front.">Main window ↙</button></header><main id="popoutContent" class="popout-content"></main></body></html>`);
+        doc.close();
+    }
+    catch (e) { // e.g. a browser that isolates about:blank from file:// pages
+        opened.close();
+        return false;
+    }
+    for (const sheet of document.querySelectorAll('style, link[rel="stylesheet"]')) {
+        const copy = doc.importNode(sheet, true);
+        if (copy.tagName === 'LINK') {
+            copy.href = sheet.href; // absolute, since about:blank has no base
+        }
+        doc.head.append(copy);
+    }
+    win = opened;
+    view = new ComponentView(doc.getElementById('popoutContent'), { layout: 'popout' });
+    view.onPlayground = null;
+    view.onPopout = null;
+    attachTooltips(doc);
+    const title = () => {
+        const n = view.node();
+        doc.getElementById('popoutTitle').textContent = n ? n.label : '';
+        doc.title = `${n ? n.label : 'Equation'} · Equation Studio`;
+    };
+    const render = () => {
+        view.render();
+        title();
+    };
+    view.pinned = null;
+    doc.getElementById('popoutPin').onchange = e => {
+        view.pinned = e.target.checked ? view.node().id : null;
+        render();
+    };
+    doc.getElementById('popoutBack').onclick = () => window.focus();
+    doc.addEventListener('keydown', e => {
+        const meta = e.ctrlKey || e.metaKey;
+        if (meta && e.key.toLowerCase() === 'z' && !e.target.matches('input, textarea')) {
+            e.preventDefault();
+            (e.shiftKey ? redo : undo)();
+        }
+    });
+    win.addEventListener('pagehide', () => {
+        view?.dispose();
+        view = null;
+        win = null;
+    });
+    if (nodeId && nodeById(nodeId) && nodeId !== currentNode()?.id) {
+        view.pinned = nodeId;
+        doc.getElementById('popoutPin').checked = true;
+    }
+    render();
+    updateTitle = title;
+    return true;
+}
+let updateTitle = null;
+// The view itself re-renders with every other ComponentView (renderViews); keep the title in step.
+for (const event of ['refresh', 'selection', 'view']) {
+    on(event, () => {
+        if (popoutOpen()) {
+            updateTitle?.();
+        }
+    });
+}
+addEventListener('pagehide', () => {
+    if (popoutOpen()) {
+        win.close();
+    }
+});
+/** Title of the pop-out for tests and tooltips. */
+function popoutTitle() {
+    return popoutOpen() ? esc(win.document.title) : '';
+}
+
+return {popoutOpen,popOut,popoutTitle};
+})();
+__modules['ui-mobile.js'] = (() => {
+const { $, state, on } = __modules['editor.js'];
+const { showBottomTab } = __modules['ui-graph.js'];
+/** Phones: one panel at a time under a sticky canvas, chosen with the tab bar
+ * (Pipeline, Inspect, Formulas, Graph). The CSS shows the panel named by
+ * #app[data-mobile-panel]; on wider screens the tab bar is hidden and every
+ * panel is visible, so this module changes nothing there.
+ */
+function showMobilePanel(panel) {
+    const known = ['pipeline', 'inspector', 'formulas', 'graph'], active = known.includes(panel) ? panel : 'pipeline';
+    $('app').dataset.mobilePanel = active;
+    document.querySelectorAll('[data-mobile]').forEach(b => {
+        b.classList.toggle('active', b.dataset.mobile === active);
+        b.setAttribute('aria-pressed', String(b.dataset.mobile === active));
+    });
+    if (active !== 'inspector') {
+        showBottomTab(active);
+    }
+}
+$('mobileTabs').addEventListener('click', e => {
+    const tab = e.target.closest('[data-mobile]');
+    if (tab) {
+        showMobilePanel(tab.dataset.mobile);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+});
+/** Phones and tablets open no second windows (a pop-out would be a hidden tab), so
+ * they study components in the playground instead; style.css hides the pop-out
+ * buttons there.
+ */
+const prefersInlineStudy = () => matchMedia('(pointer: coarse)').matches;
+/** The one-column phone layout of style.css is active: the page itself scrolls. */
+const phoneLayout = () => matchMedia('(max-width: 700px)').matches;
+showMobilePanel(['pipeline', 'graph', 'formulas'].includes(state.prefs.bottomTab) ? state.prefs.bottomTab : 'pipeline');
+on('prefs', () => {
+    const tab = state.prefs.bottomTab;
+    if ($('app').dataset.mobilePanel !== 'inspector' && tab !== $('app').dataset.mobilePanel && ['pipeline', 'graph', 'formulas'].includes(tab)) {
+        showMobilePanel(tab);
+    }
+});
+
+return {showMobilePanel,prefersInlineStudy,phoneLayout};
+})();
+__modules['ui-playground.js'] = (() => {
+const { $, state, on, setView, setSelected, nodeById, setPref, savePrefs, toast } = __modules['editor.js'];
+const { inspector } = __modules['ui-inspector.js'];
+const { popOut } = __modules['ui-popout.js'];
+const { setScopeVisible, scopeVisible } = __modules['ui-scope.js'];
+const { setStudyHandler } = __modules['ui-study-link.js'];
+const { prefersInlineStudy, phoneLayout, showMobilePanel } = __modules['ui-mobile.js'];
+/** The component panel's width, and the Equation Playground.
+ *
+ * The panel on the right can be resized by dragging its left edge. The
+ * Playground is the same panel made wide (half the window by default), so the
+ * component's equation and its controls sit side by side, with the profile of
+ * its values under the canvas; the pipeline becomes a compact strip of step
+ * names so the canvas keeps its height. Nothing else moves, and choosing ⤢ again
+ * (or E) returns to the normal width. While an equation is being edited the
+ * panel is wide too, so the text has room. Both widths are remembered.
+ */
+const MIN_WIDTH = 300, MIN_WORK = 420;
+let scopeBefore = null;
+function playgroundOpen() {
+    return !!state.prefs.playground;
+}
+/** Wide: the Playground, or an equation of the selected component being edited. */
+function wide() {
+    return playgroundOpen() || (state.drafts.has(state.selected) && !phoneLayout());
+}
+/** The panel width in pixels for the current mode, within what the window allows. */
+function panelWidth() {
+    const available = $('layout').clientWidth || innerWidth, max = Math.max(MIN_WIDTH, available - MIN_WORK);
+    const wanted = wide() ? (state.prefs.wideWidth || Math.round(available * 0.5)) : (state.prefs.panelWidth || Math.min(480, Math.round(available * 0.27)));
+    return Math.round(Math.min(max, Math.max(MIN_WIDTH, wanted)));
+}
+function applyPanelWidth() {
+    $('app').style.setProperty('--panel-width', `${panelWidth()}px`);
+    $('app').classList.toggle('playground', playgroundOpen());
+    $('app').classList.toggle('wide-panel', wide());
+}
+/** Open the Playground on a component (default: the selection): the panel widens,
+ * the canvas shows the component's own output, and the profile opens.
+ */
+function openPlayground(nodeId = state.selected) {
+    const id = nodeById(nodeId) ? nodeId : state.selected;
+    if (id !== state.selected) {
+        setSelected(id);
+    }
+    if (state.viewMode === 'final' && id !== state.project.output) {
+        setView('stage', { node: id, lock: false });
+    }
+    if (phoneLayout()) { // one column: show the component under the canvas
+        showMobilePanel('inspector');
+        window.scrollTo({ top: 0 });
+        return;
+    }
+    if (!playgroundOpen()) {
+        scopeBefore = scopeVisible();
+        state.prefs.playground = true;
+        savePrefs();
+        setScopeVisible(true, { remember: false });
+        applyPanelWidth();
+        inspector.render();
+    }
+}
+function closePlayground() {
+    if (!playgroundOpen()) {
+        return;
+    }
+    state.prefs.playground = false;
+    savePrefs();
+    if (scopeBefore !== null) {
+        setScopeVisible(scopeBefore, { remember: false });
+        scopeBefore = null;
+    }
+    applyPanelWidth();
+    inspector.render();
+}
+function togglePlayground() {
+    if (playgroundOpen()) {
+        closePlayground();
+    }
+    else {
+        openPlayground();
+    }
+}
+// ---- Resizing: drag the panel's left edge -------------------------------------
+const splitter = $('panelSplitter');
+splitter.addEventListener('pointerdown', e => {
+    if (e.button !== 0) {
+        return;
+    }
+    e.preventDefault();
+    splitter.setPointerCapture(e.pointerId);
+    splitter.classList.add('active');
+    const right = $('layout').getBoundingClientRect().right;
+    const move = ev => {
+        const width = Math.round(right - ev.clientX);
+        state.prefs[wide() ? 'wideWidth' : 'panelWidth'] = Math.max(MIN_WIDTH, width);
+        applyPanelWidth();
+    };
+    const up = () => {
+        splitter.removeEventListener('pointermove', move);
+        splitter.removeEventListener('pointerup', up);
+        splitter.removeEventListener('pointercancel', up);
+        splitter.classList.remove('active');
+        setPref(wide() ? 'wideWidth' : 'panelWidth', state.prefs[wide() ? 'wideWidth' : 'panelWidth']);
+    };
+    splitter.addEventListener('pointermove', move);
+    splitter.addEventListener('pointerup', up);
+    splitter.addEventListener('pointercancel', up);
+});
+splitter.addEventListener('dblclick', () => {
+    setPref(wide() ? 'wideWidth' : 'panelWidth', 0);
+    applyPanelWidth();
+});
+new ResizeObserver(() => applyPanelWidth()).observe($('layout'));
+setStudyHandler(id => openPlayground(id));
+inspector.onPlayground = () => togglePlayground();
+inspector.onPopout = id => {
+    if (prefersInlineStudy()) { // a phone or tablet has no room for a second window
+        openPlayground(id);
+        return;
+    }
+    if (!popOut(id)) {
+        toast('The browser blocked the pop-out window; opening the Playground instead. Allow pop-ups for this page to use a separate window.');
+        openPlayground(id);
+    }
+};
+on('prefs', applyPanelWidth);
+on('draft', applyPanelWidth);
+on('selection', applyPanelWidth);
+on('refresh', applyPanelWidth);
+applyPanelWidth();
+
+return {playgroundOpen,applyPanelWidth,openPlayground,closePlayground,togglePlayground};
+})();
 __modules['ui-toolbar.js'] = (() => {
-const { $, esc, state, on, toast, showError, transact, loadProject, undo, redo, revertScene, seek, setView, viewedNode, stepStage, setPref, duplicateNode, deleteNode, history } = __modules['editor.js'];
+const { $, esc, state, on, toast, showError, transact, loadProject, undo, redo, revertScene, seek, setView, viewedNode, selectStep, setPref, duplicateNode, deleteNode, history, discardDraft, draftChanged } = __modules['editor.js'];
 const { parseProject } = __modules['graph.js'];
 const { getPreset } = __modules['presets.js'];
 const { sources, methodNotes } = __modules['research.js'];
 const { download, fileStem } = __modules['export.js'];
-const { takeSnapshot } = __modules['ui-library.js'];
+const { takeSnapshot, libraryOpen, closeLibrary } = __modules['ui-library.js'];
 const { togglePlay, stepFrames } = __modules['ui-timeline.js'];
 const { setPreviews, renderGraph } = __modules['ui-graph.js'];
 const { hasPin, clearPin, setCompareOriginal } = __modules['ui-canvas.js'];
 const { exploreOpen, closeExplore } = __modules['ui-explore.js'];
+const { playgroundOpen, closePlayground, togglePlayground } = __modules['ui-playground.js'];
+const { scopeVisible, setScopeVisible } = __modules['ui-scope.js'];
 /** Top bar, dialogs and global keyboard shortcuts. */
 $('projectTitle').onchange = e => transact(p => p.title = e.target.value);
+$('projectTitle').oninput = e => e.target.size = Math.max(8, Math.min(34, e.target.value.length + 1));
 $('undo').onclick = () => {
     if (!state.busy) {
         undo();
@@ -5730,6 +10390,7 @@ $('researchContent').onclick = e => {
 };
 $('helpButton').onclick = () => $('helpDialog').showModal();
 $('researchButton').onclick = () => $('researchDialog').showModal();
+$('sceneStatus').onclick = () => $('researchDialog').showModal();
 document.querySelectorAll('[data-close]').forEach(b => {
     if (b.dataset.close !== 'exportDialog') {
         b.onclick = () => $(b.dataset.close).close();
@@ -5741,6 +10402,8 @@ on('history', () => {
 });
 on('refresh', () => {
     $('projectTitle').value = state.project.title;
+    document.title = `${state.project.title} · Equation Studio`;
+    $('projectTitle').size = Math.max(8, Math.min(34, state.project.title.length + 1)); // the provenance label follows the title
     $('counts').textContent = `${state.project.nodes.length} components · ${state.project.tracks.length} tracks`;
 });
 /** Show the selected component's stage or effect, or return to the final image. */
@@ -5760,16 +10423,23 @@ const shortcuts = {
     'p': () => setPreviews(!state.prefs.previews),
     'i': () => toggleView('stage'),
     'c': () => toggleView('effect'),
-    '[': () => stepStage(-1),
-    ']': () => stepStage(1),
+    '[': () => selectStep(-1),
+    ']': () => selectStep(1),
     'f': () => $('resetView').click(),
+    'e': () => togglePlayground(),
+    'v': () => setScopeVisible(!scopeVisible()),
     's': () => takeSnapshot(),
     'l': () => $('graphFit').click()
 };
 document.addEventListener('keydown', e => {
     const editing = e.target.matches('input,textarea,select,[contenteditable]'), modal = document.querySelector('dialog[open]'), meta = e.ctrlKey || e.metaKey;
     if (e.key === 'Escape') {
-        if (state.connection) {
+        // Back out one level: the drawer, a pending wire, the explorer, a pinned
+        // reading, an unchanged edit, the step view, then the Playground.
+        if (!modal && libraryOpen() && !state.prefs.libraryDocked) {
+            closeLibrary();
+        }
+        else if (state.connection) {
             state.connection = null;
             renderGraph();
         }
@@ -5779,8 +10449,19 @@ document.addEventListener('keydown', e => {
         else if (!modal && hasPin()) {
             clearPin();
         }
-        else if (!modal && state.viewMode !== 'final') {
+        else if (!modal && state.drafts.has(state.selected)) {
+            if (draftChanged(state.selected)) {
+                toast('Your edit is not applied yet: Apply puts it into the scene, Cancel discards it.');
+            }
+            else {
+                discardDraft(state.selected);
+            }
+        }
+        else if (!modal && !editing && state.viewMode !== 'final') {
             setView('final');
+        }
+        else if (!modal && !editing && playgroundOpen()) {
+            closePlayground();
         }
         return;
     }
@@ -5824,6 +10505,84 @@ addEventListener('blur', () => setCompareOriginal(false));
 
 return {shortcuts};
 })();
+__modules['ui-performance.js'] = (() => {
+const { $, esc, state, on } = __modules['editor.js'];
+const { SOFTWARE_ADVICE } = __modules['gpu-info.js'];
+/** What is doing the work: the GPU chip in the LIVE badge, the footer label and
+ * the GPU & performance dialog (renderer, capabilities, compile and frame times).
+ */
+const yes = ok => ok ? '<span class="ok">yes</span>' : '<span class="no">no</span>';
+/** Short label for the badge chip and the footer. */
+function gpuSummary(info) {
+    const gpu = info.gpu;
+    if (info.softwareFallback || gpu.kind === 'software') {
+        return { text: 'SOFTWARE', title: `Software rendering · ${gpu.name}`, software: true };
+    }
+    return { text: 'GPU', title: `${gpu.name}${gpu.api ? ` · ${gpu.api}` : ''}`, software: false };
+}
+function refreshGpuLabels() {
+    const renderer = state.renderer;
+    if (!renderer) {
+        return;
+    }
+    const summary = gpuSummary(renderer.info);
+    $('gpuChip').textContent = summary.text;
+    $('liveBadge').classList.toggle('software', summary.software);
+    $('gpuLabel').textContent = summary.software ? `⚠ SOFTWARE RENDERING · ${renderer.info.gpu.name}` : `⚡ ${summary.title} · hardware accelerated`;
+    $('liveBadge').dataset.tip = summary.software
+        ? `Rendered live, but in software|${SOFTWARE_ADVICE} Click for details.`
+        : `Rendered live on your GPU|${summary.title}. Every pixel is computed from the equations each time anything changes; there is no stored picture. The dot pulses on each new frame. Click for GPU details.`;
+}
+function programRows(renderer) {
+    return [...renderer.cache.values()].reverse().map(entry => {
+        const time = entry.finished ? `${((entry.finished - entry.started) / 1000).toFixed(2)} s` : `${((performance.now() - entry.started) / 1000).toFixed(1)} s so far`;
+        const status = entry.status === 'failed' ? '<span class="no">failed</span>' : entry.status === 'ready' ? 'ready' : entry.status;
+        return `<tr><td>${entry.compiled.order.length} components${entry === renderer.current ? ' · <b>on screen</b>' : ''}</td><td>${status}</td><td>${time}</td></tr>`;
+    }).join('');
+}
+function dialogHTML() {
+    const renderer = state.renderer;
+    if (!renderer) {
+        return '<p>WebGL 2 is unavailable, so nothing can be rendered. Enable hardware acceleration in the browser settings.</p>';
+    }
+    const info = renderer.info, summary = gpuSummary(info), ms = renderer.gpuTime;
+    const status = summary.software
+        ? `<div class="note warning"><b>Software rendering.</b> ${esc(SOFTWARE_ADVICE)}</div>`
+        : `<div class="note"><b>Hardware accelerated.</b> Every pixel runs on <b>${esc(info.gpu.name)}</b>${info.gpu.api ? ` through ${esc(info.gpu.api)}` : ''}.</div>`;
+    return `${status}
+<table class="gpu-table">
+<tr><th>Renderer</th><td class="mono">${esc(info.renderer)}</td></tr>
+<tr><th>Vendor</th><td>${esc(info.vendor || '—')}</td></tr>
+<tr><th>API</th><td>${esc(info.backend)}${info.gpu.api ? ` on ${esc(info.gpu.api)}` : ''}</td></tr>
+<tr><th>Float precision</th><td>${info.precisionBits ?? '—'} mantissa bits (highp)</td></tr>
+<tr><th>Raw value probes</th><td>${yes(info.rawFields)} <small>float framebuffers: rulers readout, auto colors, profiles</small></td></tr>
+<tr><th>Background shader compilation</th><td>${yes(info.parallelCompile)} <small>${info.parallelCompile ? 'the page keeps running while a new graph compiles' : 'the page pauses briefly while a new graph compiles'}</small></td></tr>
+<tr><th>GPU timer</th><td>${yes(info.gpuTimer)} <small>${info.gpuTimer ? 'exact GPU time per frame' : 'frame time is an upper bound'}</small></td></tr>
+<tr><th>Largest image</th><td>${info.maxSize} px per side</td></tr>
+<tr><th>Last frame</th><td>${ms === null ? '—' : `${renderer.gpuTimeExact ? '' : '≤ '}${ms.toFixed(2)} ms on the GPU for ${renderer.gpuPixels.toLocaleString()} pixels`}</td></tr>
+<tr><th>Interactive resolution</th><td>${Math.round(state.adaptiveScale * 100)}% of the still-frame width while dragging or playing</td></tr>
+</table>
+<h3>Compiled programs</h3>
+<p class="muted">One program per graph structure serves every view of it (stages, what a component changes, thumbnails, probes), so ticking components, walking the pipeline or changing parameters never recompiles. Wiring, adding components and editing equations do.</p>
+<table class="gpu-table programs"><tr><th>Program</th><th>Status</th><th>Compile time</th></tr>${programRows(renderer)}</table>
+<p class="muted">The equations run as WebGL fragment shaders on the graphics processor. Web pages cannot use a neural processing unit (NPU) for this kind of per-pixel work, so the GPU is the accelerator that matters here.</p>`;
+}
+function openPerformance() {
+    $('gpuContent').innerHTML = dialogHTML();
+    $('gpuDialog').showModal();
+}
+$('liveBadge').addEventListener('click', openPerformance);
+$('liveBadge').addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openPerformance();
+    }
+});
+$('gpuLabel').addEventListener('click', openPerformance);
+on('refresh', refreshGpuLabels);
+
+return {gpuSummary,refreshGpuLabels,openPerformance};
+})();
 __modules['app.js'] = (() => {
 const { Renderer } = __modules['renderer.js'];
 const { $, state, refreshUI, changed, pause, toast, showError, loadProject, seek, setView, setContributionStyle, readStorage, STORAGE, markDirty, emit } = __modules['editor.js'];
@@ -5839,6 +10598,15 @@ const { syncInspectorValues } = __modules['ui-inspector.js'];
 const { takeSnapshot, getSnapshots } = __modules['ui-library.js'];
 const { exportDialogOpen } = __modules['ui-export.js'];
 const { shortcuts } = __modules['ui-toolbar.js'];
+const { refreshGpuLabels } = __modules['ui-performance.js'];
+const { updateScope } = __modules['ui-scope.js'];
+const { playgroundOpen, openPlayground, closePlayground } = __modules['ui-playground.js'];
+const { popOut } = __modules['ui-popout.js'];
+// Imported only so that these panels register their listeners (tools/build.py
+// bundles named imports only, so a module is included by importing a name).
+const { renderFormulas } = __modules['ui-formula.js'];
+const { showMobilePanel } = __modules['ui-mobile.js'];
+const { probeSoftwareFallback } = __modules['gpu-info.js'];
 const { sources } = __modules['research.js'];
 /** Application entry: restore the last session, create the renderer, run the
  * frame loop and expose the documented integration hooks. Panel behavior lives in
@@ -5870,8 +10638,10 @@ try {
         toast('GPU context restored.');
     };
     state.renderer = renderer;
-    $('gpuLabel').textContent = `WEBGL 2 · highp: ${renderer.info.precisionBits} precision bits · ${renderer.info.renderer}`;
-    $('gpuLabel').title = JSON.stringify(renderer.info, null, 2);
+    if (renderer.info.gpu.kind === 'unknown') { // a masked renderer name: ask the browser directly
+        renderer.info.softwareFallback = probeSoftwareFallback() === true;
+    }
+    refreshGpuLabels();
 }
 catch (e) {
     $('gpuFailure').hidden = false;
@@ -5881,6 +10651,11 @@ catch (e) {
 let frames = 0, fpsStamp = performance.now(), syncStamp = 0;
 state.frameStamp = performance.now();
 function tick(now) {
+    // Background work: programs compiling or warming up, readbacks, GPU timers.
+    if (state.renderer?.poll()) {
+        state.dirty = true;
+        state.previewsDirty = true;
+    }
     if (state.playing && !state.busy) {
         state.time += Math.min((now - state.frameStamp) / 1000, .25);
         if (state.time >= state.project.duration) {
@@ -5906,6 +10681,7 @@ function tick(now) {
     }
     if (!state.busy) {
         updatePreviews();
+        updateScope();
     }
     if (state.overlayDirty) {
         state.overlayDirty = false;
@@ -5963,6 +10739,12 @@ window.equationStudio = {
     getBaseline: () => clone(state.baseline),
     setPreviews: enabled => setPreviews(enabled),
     snapshot: title => takeSnapshot(title),
+    /** Equation Playground: open on a component, close, or ask whether it is open. */
+    openPlayground: id => openPlayground(id),
+    closePlayground: () => closePlayground(),
+    isPlaygroundOpen: () => playgroundOpen(),
+    /** Open the explanation of a component in a separate window; false if blocked. */
+    popOut: id => popOut(id),
     getSnapshots: () => clone(getSnapshots()),
     isExporting: () => state.busy || exportDialogOpen(),
     renderNow: () => {

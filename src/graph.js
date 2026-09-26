@@ -1,4 +1,5 @@
-import { catalog, parameterDefaults, bypassSocket } from './catalog.js';
+import { catalog, parameterDefaults, bypassSocket, paramSpecs } from './catalog.js';
+import { compileEquation, EquationError } from './expression.js';
 /** JSON-only graph model; imported projects are data, never executable JavaScript. */
 export const SCHEMA_VERSION = 1;
 export const MAX_NODES = 80;
@@ -14,17 +15,25 @@ export function clone(value) {
     return JSON.parse(JSON.stringify(value));
 }
 export function makeNode(type, id, inputs = {}, params = {}) {
-    return { id, type, label: catalog[type]?.name || type, inputs: { ...inputs }, params: { ...parameterDefaults(type), ...params }, enabled: true };
+    const node = { id, type, label: catalog[type]?.name || type, inputs: { ...inputs }, params: { ...parameterDefaults(type), ...params }, enabled: true };
+    // Parameters declared by a custom equation (`param` lines) start at their declared values.
+    for (const [key, spec] of Object.entries(paramSpecs(node))) {
+        if (!Object.hasOwn(node.params, key)) {
+            node.params[key] = spec.value;
+        }
+    }
+    return node;
 }
-export function validateExpression(value) {
-    if (typeof value !== 'string' || !value.trim() || value.length > 3000) {
-        throw new Error('An expression must contain 1–3000 characters.');
+/** Check a custom equation (see expression.js): it must parse and, when `kind`
+ * (the component type) is given, have that component's result type. Equations
+ * are data: they are type-checked and re-printed as GLSL, never pasted. Returns
+ * the source unchanged.
+ */
+export function validateExpression(value, kind = null) {
+    if (typeof value !== 'string') {
+        throw new EquationError('An equation must be text.');
     }
-    // Expressions cannot declare variables, call JS, create textures, or contain loops.
-    // GLSL itself performs the remaining symbol and return-type checks.
-    if (!/^[a-zA-Z0-9_\s.+\-*/%(),?:<>=!&|]*$/.test(value) || /\b(?:while|for|do|return|discard|uniform|precision|layout|void)\b/.test(value) || /(?:\/\/|\/\*|\*\/|\+\+|--)/.test(value) || /(?<![<>=!])=(?!=)/.test(value)) {
-        throw new Error('Use a GLSL expression only. Statements, assignments, comments, loops and declarations are not allowed.');
-    }
+    compileEquation(value, kind);
     return value;
 }
 function finiteRange(x, min, max, label) {
@@ -71,12 +80,21 @@ export function validateProject(project) {
             throw new Error(`Invalid inputs or params for ${n.id}.`);
         }
         const def = catalog[n.type];
+        if (def.custom) {
+            try {
+                validateExpression(n.params.expression, n.type);
+            }
+            catch (e) {
+                throw new Error(`${n.label || n.id}: ${e.message}`);
+            }
+        }
+        const specs = paramSpecs(n);
         for (const k of Object.keys(n.params)) {
-            if (!Object.hasOwn(def.params, k)) {
+            if (!Object.hasOwn(specs, k)) {
                 throw new Error(`Unknown parameter ${n.id}.${k}.`);
             }
         }
-        for (const [k, s] of Object.entries(def.params)) {
+        for (const [k, s] of Object.entries(specs)) {
             const v = n.params[k];
             if (s.kind === 'number') {
                 finiteRange(v, s.min, s.max, `${n.id}.${k}`);
@@ -84,8 +102,8 @@ export function validateProject(project) {
             else if (s.kind === 'color' && (typeof v !== 'string' || !/^#[0-9a-f]{6}$/i.test(v))) {
                 throw new Error(`Invalid RGB color at ${n.id}.${k}.`);
             }
-            else if (s.kind === 'expression') {
-                validateExpression(v);
+            else if (s.kind === 'expression' && typeof v !== 'string') {
+                throw new Error(`Invalid equation at ${n.id}.${k}.`);
             }
         }
         for (const k of Object.keys(n.inputs)) {
@@ -137,7 +155,7 @@ export function validateProject(project) {
     }
     const trackIds = new Set();
     for (const track of project.tracks) {
-        const n = byId.get(track.node), s = n && catalog[n.type].params[track.param], key = `${track.node}.${track.param}`;
+        const n = byId.get(track.node), s = n && paramSpecs(n)[track.param], key = `${track.node}.${track.param}`;
         if (!s || s.kind !== 'number' || trackIds.has(key)) {
             throw new Error(`Invalid or duplicate track: ${key}`);
         }

@@ -121,28 +121,54 @@ portability</a></li>
 </ul>
 </nav>
 <h1 id="equation-studio">Equation Studio</h1>
-<p><strong>A local GPU equation-art laboratory: compose fields, inspect
-formulas, animate parameters, and export reproducible
-images.</strong></p>
+<p><strong>A local GPU laboratory for equation art: see what every
+equation computes, why it is written that way, and what happens when you
+change it.</strong></p>
 <figure>
 <img src="gallery/studio-desktop.png"
-alt="The editor: the final image with rulers, the live pipeline of stages, and the typeset equation of the selected component" />
-<figcaption aria-hidden="true">The editor: the final image with rulers,
-the live pipeline of stages, and the typeset equation of the selected
-component</figcaption>
+alt="The editor: the final image, the pipeline of steps under it, and the selected component explained step by step in the panel on the right" />
+<figcaption aria-hidden="true">The editor: the final image, the pipeline
+of steps under it, and the selected component explained step by step in
+the panel on the right</figcaption>
 </figure>
-<p>Every image is a typed graph of equations evaluated live, per pixel,
-on your GPU. The editor is built for understanding and
-experimenting:</p>
+<p>Every image is a typed graph of small equations evaluated live, per
+pixel, on your GPU. The editor is built for understanding, exploring,
+decomposing and composing them:</p>
 <ul>
-<li><strong>See every step.</strong> The Pipeline shows each component’s
-output, in order, as a live thumbnail. The canvas can show the final
-image, any single stage, or exactly which pixels a component
-changes.</li>
+<li><strong>Always know where you are.</strong> The pipeline under the
+canvas is the map of the construction: every step in order with a live
+picture of its output. The panel on the right explains the step you
+select (<em>Step 7 of 9</em>), and a label on the canvas says what it
+shows: the final image, the selected step’s own output, what that step
+changes, or a draft you are editing.</li>
 <li><strong>Understand the math.</strong> Each component’s equation is
-typeset, with every symbol explained and its live value shown. Every
-parameter says what it does. Rulers read coordinates, colors and raw
-field values under the cursor.</li>
+shown as numbered, typeset steps, each with a caption saying what the
+line computes and why. Symbols are colored by role (inputs, parameters,
+output, time); hover one to find it everywhere, click an input to follow
+it upstream, drag a parameter symbol to change it. <em>In &amp; out</em>
+shows where each input comes from and where the output goes, down to the
+equation that uses it. <em>Ideas</em> explains the 30 recurring ideas
+(double-exponential gates, folding with arccos cos, backward mapping,
+fractal noise, front-to-back selection…) with small interactive plots,
+and a live plot shows each component’s key function. The
+<strong>Formulas</strong> tab writes the whole construction as a formula
+sheet.</li>
+<li><strong>Edit the equation you are reading.</strong> <strong>✎
+Edit</strong> on any equation opens it as text, one line per step; a
+built-in component opens as its own math written out. Parameters are
+<code>param</code> lines that become sliders, definitions name
+intermediate values and <code>//</code> captions explain each line. The
+canvas previews your edit as a draft until you apply it, and mistakes
+are reported in words.</li>
+<li><strong>Study one equation in depth.</strong> The <strong>Equation
+Playground</strong> (double-click any component) widens the panel: the
+equation beside its controls and plots, the step on the canvas with a
+profile of its actual values. <strong>↗</strong> pops the panel into its
+own window, e.g. on a second screen.</li>
+<li><strong>See every step.</strong> The canvas shows the final image,
+any single step, or exactly which pixels a component changes. Values
+that have no color of their own (numbers, coordinates, geometry) get
+automatic colormaps with contour lines and a legend.</li>
 <li><strong>Experiment without fear.</strong> Every parameter can be
 reset, and a marker shows its original value. Sweeps render a parameter
 across its whole range. Variations suggest nearby versions. Hold
@@ -151,20 +177,34 @@ untick components to bypass them and build the image up layer by
 layer.</li>
 <li><strong>Compose.</strong> Drag components from the library onto the
 graph or an input, drag wires between sockets, insert a modifier on any
-input, or replace a component while keeping its wiring. Custom equations
-are typeset live as you type.</li>
+input, or replace a component while keeping its wiring.</li>
+<li><strong>Fast on real GPUs, honest about it.</strong> One compiled
+shader serves every view of a scene, so ticking boxes, walking steps and
+scrubbing parameters never recompile; wiring changes compile in the
+background with a visible <em>Compiling</em> indicator. The LIVE badge
+says whether a hardware GPU or software rendering does the work, and a
+performance dialog names the GPU and reports frame times.</li>
 </ul>
+<figure>
+<img src="gallery/studio-equation.png"
+alt="Editing a built-in component: its equation written out as text, changed, and previewed on the canvas as a draft" />
+<figcaption aria-hidden="true">Editing a built-in component: its
+equation written out as text, changed, and previewed on the canvas as a
+draft</figcaption>
+</figure>
 <p>It then animates parameters with keyframes and exports stills, frame
-sequences or video with the full project embedded. The <a
+sequences or video with the full project embedded. It works on wide
+screens, laptops, tablets and phones. The <a
 href="docs/EDITOR_GUIDE.html">editor guide</a> covers every control, and
-every control in the app explains itself when hovered.</p>
+every control in the app explains itself when hovered (or pressed and
+held on a touch screen).</p>
 <h2 id="open-the-app">Open the app</h2>
-<p><strong>Open <code>Equation Studio.html</code> in a desktop browser
-with WebGL 2 enabled.</strong> This single file includes the
-application, styles, and small gallery thumbnails. It needs no npm
-installation, account, API key, network connection, or Python. The
-thumbnails are navigation aids; the artwork canvas is computed live from
-equations and never samples them.</p>
+<p><strong>Open <code>Equation Studio.html</code> in a browser with
+WebGL 2 enabled.</strong> This single file includes the application,
+styles, and small gallery thumbnails. It needs no npm installation,
+account, API key, network connection, or Python. The thumbnails are
+navigation aids; the artwork canvas is computed live from equations and
+never samples them.</p>
 <p>For development, or when the browser restricts local files, use the
 included loopback-only server:</p>
 <div class="sourceCode" id="cb1"><pre
@@ -259,86 +299,102 @@ two third-party exchanges. No exact reconstruction of those inaccessible
 materials is claimed.</p>
 <h2 id="first-fifteen-minutes">First fifteen minutes</h2>
 <ol type="1">
-<li>Start with <strong>Bipolar Nebula</strong>. The
-<strong>Pipeline</strong> below the canvas shows all nine components in
+<li>The <strong>Bipolar Nebula</strong> opens first. The
+<strong>Pipeline</strong> below the canvas shows its nine components in
 evaluation order, each with a live picture of its output. Click
-<em>Pinched shell family</em>: the canvas now shows <strong>This
-stage</strong>, the geometry alone. The legend explains the false
-colors: red is the emission rim, green is coverage, blue the signed
-coordinate warp. Press <code>]</code> repeatedly to walk through the
-construction to the final image, and <code>Esc</code> to return to
-it.</li>
-<li>Select <em>Folded star lattices</em> and choose <strong>What it
-changes</strong>: the final image is rendered with and without the
-stars, and only the pixels they change stay in color. Move over the
-image: the rulers’ crosshair reads the world coordinate, pixel,
-displayed color and the component’s raw value; click to pin the reading.
-Raw values require <code>EXT_color_buffer_float</code>; ordinary
-rendering does not.</li>
-<li>In the inspector, read the typeset equation and its <em>where</em>
-list, then press <strong>▦</strong> next to <em>Neck pinch</em> to see
-the image across the parameter’s whole range. Hover a thumbnail to
-preview it, click to use it, then <strong>↺</strong> to put it back.
-Hold <strong>◐ Original</strong> to compare with the scene as
-opened.</li>
-<li>Press <strong>Only structure</strong> above the pipeline, then tick
+<em>Folded star lattices</em>: the panel on the right explains it
+(<em>Step 7 of 9</em>), while the canvas keeps showing the final image,
+as its label says. The equation takes three steps: fold the plane with
+arccos(cos ·) so that every lattice cell looks the same, measure the
+squared distance to the cell center, and put a star core and halo there.
+Hover a symbol to find it everywhere.</li>
+<li>Choose <strong>This step</strong> above the canvas: now it shows the
+stars alone. Press <code>[</code> a few times to walk back through the
+construction step by step; the canvas follows, and the legend explains
+the colors of steps that have none of their own (a colormap for numbers,
+a warped grid for coordinates). Choose <strong>What it changes</strong>,
+then select the stars again: only the pixels they change stay in color.
+<code>Esc</code> returns to the final image.</li>
+<li>In the panel, open <strong>In &amp; out</strong>: the stars’ output
+<em>T</em> is read by <em>Add light</em> as <em>B</em>, in RGB = A + gB.
+Open <strong>Ideas</strong> and turn the knob of <em>Folding with
+arccos(cos t)</em>.</li>
+<li>Double-click <em>Pinched shell family</em> to open the
+<strong>Equation Playground</strong>: the panel widens, the canvas shows
+the shell geometry, and the profile under it plots its actual values
+along the line through the cursor. Drag the peach <strong>η</strong> in
+the equation sideways and watch the lobes pinch, or press
+<strong>▦</strong> next to <em>Neck pinch</em> to see the whole range at
+once. Hover a thumbnail to preview it, click to use it, then
+<strong>↺</strong> to put it back. <code>Esc</code> twice leaves the
+Playground.</li>
+<li>Press <strong>Only structure</strong> in the pipeline bar, then tick
 <em>Folded star lattices</em>, then <em>Gas emission</em>. The image
 builds up one layer at a time, and ticking a component also includes
-what it needs.</li>
-<li>Open <strong>Ring Nebula</strong>. Its cloud machinery is unchanged;
-only its geometry is replaced (the inspector’s <strong>Replace
-with…</strong> does exactly this). This is the smallest useful example
-of composition rather than merely retinting an image.</li>
+what it needs. None of this recompiles the shader.</li>
+<li>Open <strong>☰ Scenes ▸ Living mineral</strong>, select
+<em>Turbulent coordinate warp</em> and press <strong>✎ Edit</strong>.
+The warp opens as its own equation: two fractal noises make a
+displacement <code>d</code>, and the result is <code>p + A*d</code>.
+Change the last line to <code>p + A*d*(1 + 0.8*sin(3*theta))</code>: the
+canvas previews the draft. <strong>Apply</strong> keeps it (Undo
+restores the original), <strong>Cancel</strong> discards it.</li>
+<li>Open <strong>Kaleidoscope garden</strong> and select
+<em>Interference petals</em>: an equation written with sliders, a
+definition and captions. Change <code>sharpness</code> with its slider,
+or edit a line. Open <strong>Formulas</strong> to read the whole scene
+as equations.</li>
 <li>Open <strong>Galaxy behind a star cluster</strong>. Play the
 timeline and inspect the lens-strength keys. Untick the lens: a bypassed
-coordinate map passes its input through, so the galaxy appears unlensed.
-The foreground cluster is not distorted with the background galaxy.</li>
-<li>Select a numeric control and click <strong>◆</strong> to make a
-first key. Move the playhead, then change that control: a tracked
-parameter gets a new key at the current time. Drag keys along their lane
-to retime them.</li>
-<li>Open <strong>Components</strong>, search for <strong>Custom
-scalar</strong>, and drag it onto the graph. Type
-<code>0.5 + 0.5*cos(12.0*r - t)</code> and watch it typeset above the
-text; apply it. Coordinates are explicitly connected; an unconnected
-socket supplies zero, not an inferred world coordinate.</li>
-<li>Press <strong>Snapshot</strong> before a risky change; the Snapshots
-tab brings the state back, and <strong>⟲ Revert</strong> restores the
-whole scene (undoably). Save the project JSON, then export PNG or a PNG
-sequence. PNG files from the Export dialog include the complete project
-and render settings as embedded text metadata.</li>
+coordinate map passes its input through, so the galaxy appears unlensed
+while the foreground cluster stays in place. Select a numeric control
+and click <strong>◆</strong> to make a key; move the playhead, change
+the control, and a new key appears. Drag keys along their lane to retime
+them.</li>
+<li>Press <strong>Snapshot</strong> before a risky change; the library’s
+Snapshots tab brings the state back, and <strong>⟲ Revert</strong>
+restores the whole scene (undoably). Save the project JSON, then export
+PNG or a PNG sequence. PNG files from the Export dialog include the
+complete project and render settings as embedded text metadata.</li>
 </ol>
 <h2 id="editing-and-inspection">Editing and inspection</h2>
-<p>The left library contains scenes, components and snapshots. The
-center contains the live canvas and, below it, the Pipeline, the typed
-function graph and the generated GLSL. The right inspector explains the
-selected component: its intent, typeset equation and symbols, inputs,
-parameters with plain-language help, and animation tracks. Every control
-has a hover explanation.</p>
-<p>The canvas shows the <strong>final image</strong>, one
-<strong>stage</strong> (any component’s own output), or <strong>what a
-component changes</strong>. Unticking a component bypasses it: a
-modifier such as a coordinate warp, tint or mask passes its input
-through unchanged, a combiner passes its main input, and content such as
-a field or star layer contributes nothing.</p>
+<p>The top bar names the scene; <strong>☰ Scenes</strong> opens the
+library of scenes, components and snapshots as a drawer (dock it to keep
+it open). The center holds the live canvas and, below it, the Pipeline,
+the typed function graph, the formula sheet and the generated shader.
+The panel on the right explains the selected component in four tabs:
+<strong>Equation</strong> (its steps, parameters and key function),
+<strong>In &amp; out</strong> (where its values come from and where its
+output goes), <strong>Ideas</strong> (why it is written that way) and
+<strong>More</strong> (its shader code, animation tracks, replace,
+duplicate, delete). Every control has a hover explanation.</p>
+<p>Clicking a component selects it; the canvas shows what you choose
+above it: the <strong>final image</strong>, <strong>this step</strong>
+(the selected component’s own output) or <strong>what it
+changes</strong>, and the last two follow the selection. Unticking a
+component bypasses it: a modifier such as a coordinate warp, tint or
+mask passes its input through unchanged, a combiner passes its main
+input, and content such as a field or star layer contributes
+nothing.</p>
 <p>Wire components by dragging between dots, by clicking an output dot
-and then an input dot, or by choosing the input in the inspector; drag a
+and then an input dot, or by choosing the input in the panel; drag a
 library entry onto a socket to add and connect in one step, use
 <strong>＋</strong> on an input to insert a modifier, and
 <strong>Replace with…</strong> to swap a component. Cycles and
 mismatched types are rejected. Graph layout is automatic and scrollable;
-this is not a free-position node-canvas editor. Numeric changes update
-uniforms; graph or equation changes compile a new shader. A failed
-custom equation does not replace the last valid project/image.</p>
+this is not a free-position node-canvas editor. Parameter changes,
+bypassing and switching views update uniforms of one compiled program;
+wiring and equation changes compile a new one in the background. An
+equation with an error is never applied.</p>
 <p>Drag the artwork to pan; scroll or pinch to zoom about the cursor;
 <strong>Fit</strong> resets the camera. <strong>Rulers</strong> and
 <strong>Grid</strong>, on by default, overlay world coordinates with a
 crosshair readout of position, pixel, color and raw field values; a
-click pins the readout. <strong>Compare with a picture</strong> (in the
-⋯ menu) loads a local PNG/JPEG/WebP overlay or difference view. It does
-not infer equations, fit parameters, or affect exported artwork. Crop a
-reference before loading; the overlay is stretched to the canvas
-rectangle.</p>
+click pins the readout. <strong>Profile</strong> plots raw values along
+a line. <strong>Compare with a picture</strong> (in the ⋯ menu) loads a
+local PNG/JPEG/WebP overlay or difference view. It does not infer
+equations, fit parameters, or affect exported artwork. Crop a reference
+before loading; the overlay is stretched to the canvas rectangle.</p>
 <p>Projects autosave opportunistically to browser storage. Browser
 storage can be unavailable or cleared; <strong>Save project</strong> is
 the portable backup. Reference images are session-only and are not
@@ -397,29 +453,38 @@ antialiasing or band removal.</p>
 <pre class="text"><code>Equation Studio.html       Self-contained application, ready to open
 index.html / style.css     Editable application shell and styling
 src/
-  catalog.js               43 component definitions: intent, sockets, params, GLSL emitter
+  catalog.js               43 component definitions: sockets, parameters, captioned steps, symbols, ideas,
+                           key-function curves, GLSL emitters
+  concepts.js              The 30 ideas behind the equations, with formulas and interactive plots
   graph.js                 Project schema, validation, graph traversal, history
-  compiler.js              Typed DAG → one fused fragment shader (display, raw, contribution, preview modes)
-  renderer.js              WebGL programs, uniforms, offscreen snapshots and previews, float probes
+  expression.js            The custom equation language: parser, type checker, GLSL printer
+  fork.js                  Components as equations: what ✎ Edit opens, and applying an edited equation
+  compiler.js              Typed DAG → one fragment program per graph structure; views are uniforms
+  looks.js                 Automatic colors for values without colors: colormaps, statistics, look pass
+  renderer.js              WebGL 2: background compilation, views and passes, thumbnails, probes, timing
+  gpu-info.js              Hardware / software GPU detection
+  math-render.js           TeX and custom equations → MathML with symbol roles
+  formula.js, plot.js      The formula sheet; small SVG plots
   view-math.js             Camera arithmetic shared by the canvas, rulers and tests
-  math-render.js           TeX and GLSL expressions → MathML for typeset equations
   explore.js               Parameter sweeps, variations and original values
   graph-layout.js          Deterministic graph layout
   math-glsl.js             Low-level field, noise, shape, color and composition atoms
   source-constants.js      Float64 constant folding of source&#39;s fixed band expressions
-  nebula-glsl.js            Original source nebula GPU kernels
-  motifs-glsl.js            New subject-based kernels
+  nebula-glsl.js           Original source nebula GPU kernels
+  motifs-glsl.js           New subject-based kernels
   timeline.js              Deterministic parameter interpolation and key editing
   presets.js               Editable scene graphs
   export.js                PNG metadata and dependency-free ZIP export
   snapshots.js             Session bookmarks
   editor.js                Shared editor state, event bus and model operations
-  ui-*.js                  One module per panel or tool: library, canvas, pipeline, graph, previews,
-                           inspector, explorer, tooltips, timeline, export, toolbar
+  ui-component-view.js     The component panel: header, tabs, steps, in-place equation editing (panel, pop-out)
+  ui-*.js                  One module per panel or tool: library, canvas, looks and legend, profile,
+                           pipeline, graph, formulas, previews, inspector, playground, pop-out, explorer,
+                           performance, phone layout, tooltips, timeline, export, toolbar
   app.js                   Boot, frame loop and integration hooks
   research.js              Evidence/provenance ledger displayed inside the app
 examples/                  Saved projects and an embeddable renderer example
-reference/nebula_rewrite/   Retained complete Python project and original documentation
+reference/nebula_rewrite/  Retained complete Python project and original documentation
 tools/                     Build, documentation, metadata extraction and verification
 tests/                     Node tests; small browser-produced verification artifacts
 docs/                      Guides, theory, recipes, API, research and measured validation</code></pre>
@@ -430,9 +495,10 @@ Regenerating those reading pages is optional and uses
 <p>Read the <a href="docs/EDITOR_GUIDE.html">Editor guide</a>, <a
 href="docs/ARCHITECTURE.html">Architecture and API</a>, <a
 href="docs/RECIPES.html">Construction recipes</a>, the <a
-href="docs/COMPONENTS.html">generated component catalog</a> and, for
-working on the code, the <a href="docs/DEVELOPMENT.html">Development
-guide</a>. The retained <a
+href="docs/COMPONENTS.html">generated component catalog</a> (every
+component’s steps and the ideas behind them) and, for working on the
+code, the <a href="docs/DEVELOPMENT.html">Development guide</a>. The
+retained <a
 href="reference/nebula_rewrite/docs/FORMULA_REFERENCE.md">original
 formula reference</a> maps every source symbol to its purpose. Changes
 are listed in the <a href="CHANGELOG.html">changelog</a>.</p>
@@ -458,23 +524,42 @@ The single-file distribution should be rebuilt after modifying any
 runtime source module, HTML, CSS, or thumbnail.</p>
 <h2 id="performance-and-portability">Performance and portability</h2>
 <p>This is WebGL 2, not WebGPU. All per-pixel math runs in fragment
-shaders; there are no remote services or CPU-rendered preview
-substitutes. Dense source formulas and a large peacock fan can be
-expensive. Start with 480/800-pixel previews; shader compilation on the
-first use of a graph may pause the UI. Numeric edits then reuse linked
-programs. Raw probes synchronously compile/read back a field and may
-also pause briefly.</p>
-<p>The app was exercised in Chromium using the real WebGL 2 API with the
+shaders on the GPU; there are no remote services or CPU-rendered preview
+substitutes. Web pages cannot run this kind of per-pixel work on a
+neural processing unit (NPU), so the GPU is the accelerator that
+matters; the LIVE badge, the footer and the <strong>GPU &amp;
+performance</strong> dialog say which GPU is used and warn when the
+browser has fallen back to software rendering, with advice for enabling
+hardware acceleration.</p>
+<p>A scene is compiled into <strong>one</strong> shader program that
+serves every view of it: parameters, bypass checkboxes, the stage shown,
+“what it changes”, thumbnails and probes are uniforms. Shader
+compilation, the one expensive operation, therefore happens only when
+the wiring or an equation changes, and then <strong>in the
+background</strong> where the browser supports it
+(<code>KHR_parallel_shader_compile</code>): the last image stays up with
+a <em>Compiling shader…</em> indicator and a progress cursor. On a
+Windows machine with an NVIDIA GPU (Direct3D 11 through ANGLE), the
+whole Bipolar Nebula compiles in about 0.4 s, and bypassing a component,
+which used to freeze the page for several seconds, takes a few
+milliseconds. <strong>Auto quality</strong> renders at the display’s
+pixel density and lowers the resolution during a drag or playback when
+frames are slow, refining when you let go. Dense source formulas and a
+large peacock fan remain expensive on weak GPUs; choose a fixed lower
+quality there.</p>
+<p>The published measurements in <a
+href="docs/VALIDATION.html">Validation</a> were made in Chromium with the
 <strong>ANGLE/SwiftShader software backend</strong>, including
-full-resolution source comparison. No physical-GPU frame-rate claim is
-made. Automated UI testing loads the actual bundled HTML into an
+full-resolution source comparison, so they are comparable between
+machines. The browser suites were also run on a hardware GPU (NVIDIA,
+Direct3D 11). Automated UI testing loads the actual bundled HTML into an
 in-memory page, so no browser policy is involved; file-URL and localhost
 browser navigation were not end-to-end tested by those suites. The HTTP
-launcher itself was tested separately. Safari/Firefox/iOS and
-hardware-GPU matrices remain untested. WebGL absence, missing
-float-probe support, recording codec errors, and context loss have
-explicit handling. Live previews and contribution views compile
-additional shaders on first use; turn previews off on slow machines.</p>
+launcher itself was tested separately. Phone and tablet layouts were
+checked in Chromium with touch emulation at iPhone and iPad sizes, not
+on physical devices; Safari, Firefox and iOS remain untested. WebGL
+absence, missing float support, recording codec errors, and context loss
+have explicit handling.</p>
 <p>This is a procedural-art tool, not a physical astronomical/weather
 simulator, an automatic inverse-image-fitting system, a general 3D
 modeller, or a recovery of the artist’s private design process.</p>

@@ -41,37 +41,49 @@ with sync_playwright() as pw:
     def show_tab(tab):
         page.locator(f'[data-bottom="{tab}"]').click()
         page.wait_for_timeout(150)
+    def panel_tab(tab):
+        page.locator(f'#inspectorContent [data-tab="{tab}"]').click()
+    canvas_mode = lambda: page.locator('#canvasMode').text_content()
     # First run: previews, rulers and grid are on and the Pipeline tab is shown.
     prefs = view()['prefs']
     assert prefs['previews'] and prefs['rulers'] and prefs['grid'] and prefs['bottomTab'] == 'pipeline', prefs
     page.wait_for_function('[...document.querySelectorAll("#pipelineCards canvas[data-preview]")].length===9 && [...document.querySelectorAll("#pipelineCards canvas[data-preview]")].every(c=>c.classList.contains("painted"))', timeout=300000)
     record('Defaults: live pipeline previews for all 9 source components, rulers and grid on', prefs)
-    # Pipeline: a card click shows that stage; [ and ] step through the construction.
+    # Where you are: a card click selects a component and keeps the canvas view; the
+    # canvas label, the view switch and the panel header say what is shown.
     page.locator('[data-stage="shell"]').click()
+    assert view()['mode'] == 'final' and view()['selected'] == 'shell', view()
+    assert 'FINAL IMAGE' in canvas_mode(), canvas_mode()
+    assert 'Step 2 of 9' in page.locator('#inspectorContent .cv-pos').text_content()
+    assert 'Step 2 · Pinched shell family' in page.locator('[data-view="stage"]').text_content()
+    page.locator('[data-view="stage"]').click()
     assert view()['mode'] == 'stage' and view()['node'] == 'shell'
-    assert 'coverage' in page.locator('#legend').text_content()
+    assert 'THIS STEP' in canvas_mode() and 'Pinched shell family' in canvas_mode(), canvas_mode()
+    assert 'rim' in page.locator('#legend').text_content(), 'the legend explains the geometry look'
     page.mouse.move(5, 5)
     page.keyboard.press(']')
     page.keyboard.press(']')
-    assert view()['node'] == 'cloud', view()
-    page.keyboard.press('[')
+    assert view()['selected'] == 'cloud' and view()['node'] == 'cloud', view()
+    assert page.locator('[data-stage="cloud"] .stage-mark.on-canvas').count() == 1, 'the card on the canvas is marked'
+    page.locator('#inspectorContent [data-action="prev"]').click()
     assert view()['node'] == 'turbulence'
     page.keyboard.press('Escape')
-    assert view()['mode'] == 'final'
-    record('Pipeline card shows a stage, the legend explains it, [ ] step and Escape returns')
+    assert view()['mode'] == 'final' and view()['selected'] == 'turbulence'
+    record('A click selects without changing the canvas; This step follows the selection; [ ] and ◀ ▶ step; the canvas label names the view')
     # View switch, effect view and the lock.
     page.locator('[data-stage="stars"]').click()
     page.locator('[data-view="effect"]').click()
     assert view()['mode'] == 'effect' and view()['contribution'] == 'stars'
+    assert 'WHAT IT CHANGES' in canvas_mode()
     page.locator('#effectStyle').select_option('signed')
     assert view()['contributionStyle'] == 'signed'
     page.locator('#viewLock').click()
-    page.locator('[data-stage="gas"]').click()  # a pipeline click takes an explicit stage and unlocks
+    page.locator('[data-stage="gas"]').click()
+    assert view()['selected'] == 'gas' and view()['contribution'] == 'stars' and view()['locked'], view()
     page.locator('[data-view="stage"]').click()
-    page.locator('#viewLock').click()
     show_tab('graph')
     page.locator('[data-node="core"] b').click()
-    assert view()['selected'] == 'core' and view()['node'] == 'gas' and view()['locked'], view()
+    assert view()['selected'] == 'core' and view()['node'] == 'stars' and view()['locked'], view()
     page.locator('#viewLock').click()
     assert view()['node'] == 'core'
     page.keyboard.press('Escape')
@@ -182,36 +194,191 @@ with sync_playwright() as pw:
     record('Only structure bypasses content; ticking one component includes its dependencies; Original restores', enabled)
     # Composition: insert a modifier on an input, and replace a component.
     page.locator('[data-stage="gas"]').click()
-    page.keyboard.press('Escape')
+    panel_tab('flow')
     page.locator('[data-insert="cloud"]').select_option('tint')
     assert node('gas')['inputs']['cloud'] == 'tint1' and node('tint1')['inputs']['layer'] == 'cloud'
     page.locator('[data-stage="shell"]').click()
-    page.keyboard.press('Escape')
+    panel_tab('more')
     page.locator('#replaceWith').select_option('ringGeometry')
     shell = node('shell')
     assert shell['type'] == 'ringGeometry' and shell['inputs'] == {'p': 'space'}, shell
     record('Insert a modifier on an input and replace a component while keeping its wiring')
-    # Equations are typeset; custom expressions preview live as MathML.
-    assert page.locator('#inspectorContent .equation-card math').count() >= 1
+    # Equations are typeset; ✎ Edit opens the text, typeset live, previewed on the canvas.
+    panel_tab('equation')
+    assert page.locator('#inspectorContent .steps .step-math math').count() >= 1
     show_tab('pipeline')
-    page.locator('[data-library="parts"]').click()
+    page.locator('#addComponent').click()
+    assert page.locator('#library').is_visible()
     page.locator('#librarySearch').fill('Custom scalar')
     page.locator('[data-add="expression"]').click()
+    assert page.locator('#library').is_hidden(), 'the drawer closes after adding'
+    page.locator('#editEquation').click()
+    assert 'wide-panel' in page.locator('#app').get_attribute('class'), 'the panel widens while editing'
     page.locator('#equationEditor').fill('pow(x, 2.0) / (1.0 + r)')
     page.locator('#equationEditor').dispatch_event('input')
-    preview = page.locator('#expressionPreview').inner_html()
-    assert '<mfrac>' in preview and '<msup>' in preview, preview[:200]
+    typeset = page.locator('#inspectorContent .draft-math').inner_html()
+    assert '<mfrac>' in typeset and '<msup>' in typeset, typeset[:200]
+    page.wait_for_function('document.getElementById("canvasMode").textContent.includes("DRAFT")')
     page.locator('#applyEquation').click()
     assert node('expression1')['params']['expression'] == 'pow(x, 2.0) / (1.0 + r)'
+    assert '<mfrac>' in page.locator('#expressionPreview').inner_html(), 'the steps show the applied equation'
+    assert 'DRAFT' not in canvas_mode() and page.locator('#equationEditor').count() == 0
+    page.locator('#editEquation').click()
     page.locator('#equationEditor').fill('unknown_function(p)')
+    page.locator('#equationEditor').dispatch_event('input')
+    assert 'Unknown function' in page.locator('#equationError').text_content()
     page.locator('#applyEquation').click()
     page.wait_for_timeout(150)
     assert node('expression1')['params']['expression'] == 'pow(x, 2.0) / (1.0 + r)'
-    record('Typeset equations; live MathML preview of custom expressions; failed compiles keep the image')
+    page.locator('#cancelEquation').click()
+    assert page.locator('#equationEditor').count() == 0 and 'wide-panel' not in (page.locator('#app').get_attribute('class') or '')
+    record('✎ Edit: the text typesets live and previews on the canvas as a draft; Apply puts it in; an invalid equation is not applied; Cancel discards')
+    # ---- 1.3: one program per graph structure; bypassing never recompiles ----
+    load('bipolar')
+    page.wait_for_function('equationStudio.getRenderer().programFor(equationStudio.getProject()).status==="ready"', timeout=300000)
+    before = page.evaluate('equationStudio.getRenderer().cache.size')
+    for node_id in ['stars', 'core', 'stars', 'core']:
+        page.locator(f'[data-enable="{node_id}"]').first.click()
+        page.wait_for_timeout(120)
+    page.evaluate('equationStudio.setView("stage","turbulence")')
+    page.evaluate('equationStudio.setView("effect","gas")')
+    page.evaluate('equationStudio.renderNow()')
+    after = page.evaluate('equationStudio.getRenderer().cache.size')
+    assert after == before, (before, after)
+    page.evaluate('equationStudio.setView("final")')
+    record('Ticking components, walking stages and showing what one changes reuse one compiled program', {'programs': after})
+    # GPU badge and performance dialog name the hardware and its capabilities.
+    info = page.evaluate('equationStudio.getRenderer().info')
+    assert page.locator('#gpuChip').text_content() in ('GPU', 'SOFTWARE')
+    page.locator('#liveBadge').click()
+    assert page.locator('#gpuDialog').is_visible() and 'Background shader compilation' in page.locator('#gpuContent').text_content()
+    page.locator('[data-close="gpuDialog"]').click()
+    record('GPU badge and performance dialog', {'gpu': info['gpu']['name'], 'kind': info['gpu']['kind'], 'parallelCompile': info['parallelCompile'], 'gpuTimer': info['gpuTimer']})
+    # Stage looks: auto colormap with a legend, a coordinate grid, classic on request.
+    page.locator('[data-stage="turbulence"]').click()
+    page.locator('[data-view="stage"]').click()
+    page.wait_for_function('document.querySelector("#legend .legend-bar")')
+    labels = page.locator('#legend .legend-labels').text_content()
+    assert '0' in labels, labels
+    page.locator('[data-stage="space"]').click()
+    page.wait_for_function('document.querySelector("#legend").textContent.includes("grid")')
+    page.locator('[data-stage="turbulence"]').click()
+    page.locator('#lookColors').select_option('classic')
+    page.wait_for_function('document.querySelector("#legend").textContent.includes("tanh")')
+    page.locator('#lookColors').select_option('auto')
+    record('Stage colors: signed colormap with range and histogram, coordinate grid, classic diagnostic on request', labels)
+    # Profile: the shown component's values along the line through the cursor.
+    page.mouse.move(5, 5)
+    page.keyboard.press('v')
+    page.wait_for_function('document.querySelector("#scopePlot path.curve")', timeout=60000)
+    assert 'value' in page.locator('#scopeStats').text_content()
+    page.keyboard.press('v')
+    assert page.locator('#scope').is_hidden()
+    record('Profile plot of raw values along a line (V toggles it)')
+    # Explanations: captioned steps, data flow into and out of a component, concept cards.
+    page.keyboard.press('Escape')
+    page.locator('[data-stage="stars"]').click()
+    assert page.locator('#inspectorContent .steps .step').count() == 3
+    assert page.locator('#inspectorContent .step-text').count() == 3
+    panel_tab('flow')
+    flow = page.locator('#inspectorContent .flow-out').first.text_content()
+    assert 'Add light' in flow and 'RGB' in flow, flow
+    panel_tab('ideas')
+    assert page.locator('#inspectorContent [data-concept-card="fold"] svg.plot').count() == 1
+    page.locator('#inspectorContent [data-knob="fold"]').fill('2')
+    page.locator('[data-stage="shell"]').click()
+    assert page.locator('#inspectorContent .cv-tab.active').text_content().startswith('Ideas'), 'the tab stays when the selection changes'
+    page.locator('[data-stage="stars"]').click()
+    panel_tab('equation')
+    record('Tabs: captioned steps; In & out (T is read by Add light as B); Ideas with plots; the tab stays across selections', flow.strip()[:60])
+    # Values view and dragging a parameter symbol (one undo step).
+    page.locator('#inspectorContent [data-action="values"]').click()
+    assert page.locator('#inspectorContent .steps .sym-param mn').count() >= 1
+    symbol = page.locator('#inspectorContent .steps .sym-param[data-param="gain"]').first
+    box = symbol.bounding_box()
+    gain = node('stars')['params']['gain']
+    page.mouse.move(round(box['x'] + box['width'] / 2), round(box['y'] + box['height'] / 2))
+    page.mouse.down()
+    page.mouse.move(round(box['x'] + box['width'] / 2) + 40, round(box['y'] + box['height'] / 2), steps=5)
+    page.mouse.up()
+    assert node('stars')['params']['gain'] > gain
+    page.locator('#undo').click()
+    assert node('stars')['params']['gain'] == gain
+    page.locator('#inspectorContent [data-action="values"]').click()
+    record('Values view; dragging a parameter symbol changes it and undoes in one step')
+    # Equation Playground: E widens the panel on the selection and shows its step and
+    # profile; the pipeline becomes a compact strip; Escape backs out step by step.
+    page.mouse.move(5, 5)
+    narrow = page.locator('#inspector').bounding_box()['width']
+    page.keyboard.press('e')
+    assert 'playground' in page.locator('#app').get_attribute('class')
+    wide = page.locator('#inspector').bounding_box()['width']
+    assert wide > narrow * 1.4, (narrow, wide)
+    assert view()['mode'] == 'stage' and view()['node'] == 'stars' and page.locator('#scope').is_visible()
+    assert page.locator('#pipelineCards .stage-card').count() == 9 and page.locator('#pipelineCards .stage-thumb').first.is_hidden()
+    page.locator('#inspectorContent [data-action="next"]').click()
+    assert view()['node'] == 'gascore', view()
+    page.locator('[data-stage="shell"]').click()
+    assert view()['node'] == 'shell'
+    page.keyboard.press('Escape')
+    assert view()['mode'] == 'final' and 'playground' in page.locator('#app').get_attribute('class')
+    page.keyboard.press('Escape')
+    assert 'playground' not in page.locator('#app').get_attribute('class') and page.locator('#scope').is_hidden()
+    record('Equation Playground widens the panel, shows the step and its profile, keeps the pipeline as a strip; Escape backs out', {'narrow': narrow, 'wide': wide})
+    # Formula sheet: the composition and every component bound to its inputs.
+    show_tab('formulas')
+    summary = page.locator('.formula-summary').text_content()
+    assert 'Gas emission' in summary and 'Folded star lattices' in summary, summary
+    assert page.locator('.formula-block').count() == 9
+    page.locator('.formula-block[data-formula="cloud"]').click()
+    assert view()['selected'] == 'cloud'
+    show_tab('pipeline')
+    page.keyboard.press('Escape')
+    record('Formula sheet: composition summary and per-component equations with bindings', summary.strip()[:80])
+    # ✎ Edit on a built-in component: its steps written out as an equation, which
+    # renders identically when applied unchanged; param lines become sliders.
+    load('marble')
+    page.locator('[data-stage="veins"]').click()
+    point = page.evaluate('''()=>equationStudio.getRenderer().samplePoint(equationStudio.getProject(),0.4,'veins',0.31,-0.27)''')
+    page.locator('#editEquation').click()
+    source = page.locator('#equationEditor').input_value()
+    assert 'phase = x*nu + beta*sin(y*nu*0.65 - omega*t)' in source, source
+    assert node('veins')['type'] == 'waves', 'nothing changes before Apply'
+    page.locator('#applyEquation').click()
+    forked = node('veins')
+    assert forked['type'] == 'expression' and forked['params']['nu'] == 10, forked
+    page.wait_for_function('equationStudio.getRenderer().programFor(equationStudio.getProject()).status==="ready"', timeout=300000)
+    same = page.evaluate('''()=>equationStudio.getRenderer().samplePoint(equationStudio.getProject(),0.4,'veins',0.31,-0.27)''')
+    assert abs(point[0] - same[0]) < 1e-5, (point, same)
+    page.locator('#editEquation').click()
+    lines = page.locator('#equationEditor').input_value().split('\n')
+    lines.insert(-2, 'param warp = 0.5 [0, 2]  // how much the bands twist')
+    page.locator('#equationEditor').fill('\n'.join(lines).replace('phase = x*nu', 'phase = (x + warp*sin(r*3))*nu'))
+    page.locator('#equationEditor').dispatch_event('input')
+    page.wait_for_function('document.querySelector("#equationError").textContent.includes("checks")')
+    page.keyboard.press('Escape')  # a changed draft is not discarded by Escape
+    assert page.locator('#equationEditor').count() == 1
+    page.locator('#applyEquation').click()
+    assert node('veins')['params']['warp'] == 0.5 and page.locator('#param-warp').count() == 1
+    page.locator('#number-warp').fill('1.25')
+    page.locator('#number-warp').dispatch_event('input')
+    page.locator('#number-warp').dispatch_event('change')
+    assert node('veins')['params']['warp'] == 1.25
+    record('✎ Edit on a built-in: its steps as an equation, identical when applied; edits and param lines become sliders', {'before': point[0], 'after': same[0]})
+    # Pop-out window: the explanation in a second window whose controls edit the scene.
+    with page.expect_popup() as popup_info:
+        page.locator('#inspectorContent [data-action="popout"]').click()
+    popup = popup_info.value
+    popup.wait_for_function('document.querySelectorAll(".steps .step").length >= 1')
+    popup.locator('#number-warp').fill('0.75')
+    popup.locator('#number-warp').dispatch_event('input')
+    popup.locator('#number-warp').dispatch_event('change')
+    assert node('veins')['params']['warp'] == 0.75
+    popup.close()
+    record('Pop-out window shows the component and edits the scene')
     # Canvas readouts: Alt-click raw probe, continuous rulers readout, pin and unpin.
     load('water')
     page.locator('[data-stage="planet"]').click()
-    page.keyboard.press('Escape')
     page.locator('#artCanvas').click(position={'x': 220, 'y': 140}, modifiers=['Alt'])
     page.wait_for_function('document.querySelector("#toast").textContent.includes("Raw")')
     assert 'R:' in page.locator('#toast').text_content()
@@ -238,6 +405,9 @@ with sync_playwright() as pw:
     # Graph: drag-and-drop from the palette onto a socket, drag wiring and drag-off.
     show_tab('graph')
     page.evaluate('document.getElementById("layout").style.setProperty("--graph-height","460px")')
+    page.locator('#libraryButton').click()
+    page.locator('#libraryDock').click()  # docked: a column beside the graph instead of a drawer over it
+    assert 'library-docked' in page.locator('#app').get_attribute('class')
     page.locator('[data-library="parts"]').click()
     page.locator('#librarySearch').fill('Soft disc')
     page.locator('[data-to="limb"][data-socket="p"]').scroll_into_view_if_needed()
@@ -274,6 +444,8 @@ with sync_playwright() as pw:
     page.locator('[data-show="planet"]').click()
     assert view()['mode'] == 'stage' and view()['node'] == 'planet'
     page.keyboard.press('Escape')
+    page.locator('#libraryDock').click()
+    assert page.locator('#library').is_hidden(), 'undocked, the library is a closed drawer again'
     record('Drag wiring, drag-off disconnection, card checkboxes and the card eye button')
     show_tab('pipeline')
     # Snapshots bookmark and restore a state.
@@ -282,6 +454,7 @@ with sync_playwright() as pw:
     page.mouse.move(5, 5)
     page.keyboard.press('s')
     load('fire')
+    page.locator('#libraryButton').click()
     page.locator('[data-library="snapshots"]').click()
     page.locator('[data-snapshot]').first.click()
     page.wait_for_timeout(300)
@@ -341,6 +514,24 @@ with sync_playwright() as pw:
     assert data[:4] == bytes.fromhex('1a45dfa3') and len(data) > 100
     record('Actual MediaRecorder video download', {'bytes': len(data), 'format': 'WebM EBML container'})
     page.locator('[data-close="exportDialog"]').click()
+    # Exporting "this stage" uses the colors the canvas shows (a colormap, not the gray diagnostic).
+    load('marble')
+    page.evaluate('equationStudio.setView("stage", "veins")')
+    page.wait_for_function('!document.getElementById("legend").hidden && document.querySelector("#legend .legend-bar")')
+    page.locator('#exportButton').click()
+    page.locator('#exportFormat').select_option('png')
+    page.locator('#exportWidth').fill('64')
+    page.locator('#exportHeight').fill('40')
+    page.locator('#exportIsolated').check()
+    with page.expect_download() as dl:
+        page.locator('#startExport').click()
+    stage_png = Image.open(io.BytesIO(dl.value.path().read_bytes())).convert('RGB')
+    rgb = stage_png.tobytes()
+    saturation = sum(max(rgb[i:i + 3]) - min(rgb[i:i + 3]) for i in range(0, len(rgb), 3)) / (64 * 40)
+    assert saturation > 10, saturation
+    page.locator('[data-close="exportDialog"]').click()
+    page.keyboard.press('Escape')
+    record('Exporting a stage uses the canvas colors (colormap, not the gray diagnostic)', {'mean_saturation': round(saturation, 1)})
     # Context loss and restoration use the standardized test extension.
     supported = page.evaluate('''()=>{window.loseTest=equationStudio.getRenderer().gl.getExtension('WEBGL_lose_context');return !!loseTest;}''')
     if supported:

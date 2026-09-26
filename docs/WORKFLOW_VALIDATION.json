@@ -5,17 +5,27 @@
       "name": "Defaults: live pipeline previews for all 9 source components, rulers and grid on",
       "passed": true,
       "details": {
-        "version": 2,
+        "version": 3,
         "previews": true,
         "rulers": true,
         "grid": true,
         "quality": 480,
-        "graphHeight": 260,
-        "bottomTab": "pipeline"
+        "graphHeight": 0,
+        "bottomTab": "pipeline",
+        "stageColors": "auto",
+        "contours": true,
+        "geometryChannel": "A",
+        "layerView": "color",
+        "autoExposure": true,
+        "scope": false,
+        "playground": false,
+        "panelWidth": 0,
+        "wideWidth": 0,
+        "libraryDocked": false
       }
     },
     {
-      "name": "Pipeline card shows a stage, the legend explains it, [ ] step and Escape returns",
+      "name": "A click selects without changing the canvas; This step follows the selection; [ ] and \u25c0 \u25b6 step; the canvas label names the view",
       "passed": true,
       "details": null
     },
@@ -76,7 +86,7 @@
       "passed": true,
       "details": [
         0.30000001192092896,
-        -0.19999998807907104,
+        -0.20000000298023224,
         0,
         1
       ]
@@ -100,7 +110,70 @@
       "details": null
     },
     {
-      "name": "Typeset equations; live MathML preview of custom expressions; failed compiles keep the image",
+      "name": "\u270e Edit: the text typesets live and previews on the canvas as a draft; Apply puts it in; an invalid equation is not applied; Cancel discards",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Ticking components, walking stages and showing what one changes reuse one compiled program",
+      "passed": true,
+      "details": {
+        "programs": 7
+      }
+    },
+    {
+      "name": "GPU badge and performance dialog",
+      "passed": true,
+      "details": {
+        "gpu": "SwiftShader (software)",
+        "kind": "software",
+        "parallelCompile": false,
+        "gpuTimer": true
+      }
+    },
+    {
+      "name": "Stage colors: signed colormap with range and histogram, coordinate grid, classic diagnostic on request",
+      "passed": true,
+      "details": "-4.1104.11"
+    },
+    {
+      "name": "Profile plot of raw values along a line (V toggles it)",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Tabs: captioned steps; In & out (T is read by Add light as B); Ideas with plots; the tab stays across selections",
+      "passed": true,
+      "details": "\u2192Add lightreads it asBRGB=Argb+gBrgb\u03b1=max(A\u03b1,B\u03b1)"
+    },
+    {
+      "name": "Values view; dragging a parameter symbol changes it and undoes in one step",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Equation Playground widens the panel, shows the step and its profile, keeps the pipeline as a strip; Escape backs out",
+      "passed": true,
+      "details": {
+        "narrow": 421,
+        "wide": 780
+      }
+    },
+    {
+      "name": "Formula sheet: composition summary and per-component equations with bindings",
+      "passed": true,
+      "details": "THE IMAGE, COMPOSEDimage=Gas emission+Central glow+Folded star latticesLight is "
+    },
+    {
+      "name": "\u270e Edit on a built-in: its steps as an equation, identical when applied; edits and param lines become sliders",
+      "passed": true,
+      "details": {
+        "before": 0.7219985723495483,
+        "after": 0.7219985723495483
+      }
+    },
+    {
+      "name": "Pop-out window shows the component and edits the scene",
       "passed": true,
       "details": null
     },
@@ -159,8 +232,15 @@
       "name": "Actual MediaRecorder video download",
       "passed": true,
       "details": {
-        "bytes": 2202,
+        "bytes": 1997,
         "format": "WebM EBML container"
+      }
+    },
+    {
+      "name": "Exporting a stage uses the canvas colors (colormap, not the gray diagnostic)",
+      "passed": true,
+      "details": {
+        "mean_saturation": 67.3
       }
     },
     {

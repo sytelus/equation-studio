@@ -12,6 +12,15 @@ import { syncInspectorValues } from './ui-inspector.js';
 import { takeSnapshot, getSnapshots } from './ui-library.js';
 import { exportDialogOpen } from './ui-export.js';
 import { shortcuts } from './ui-toolbar.js';
+import { refreshGpuLabels } from './ui-performance.js';
+import { updateScope } from './ui-scope.js';
+import { playgroundOpen, openPlayground, closePlayground } from './ui-playground.js';
+import { popOut } from './ui-popout.js';
+// Imported only so that these panels register their listeners (tools/build.py
+// bundles named imports only, so a module is included by importing a name).
+import { renderFormulas } from './ui-formula.js';
+import { showMobilePanel } from './ui-mobile.js';
+import { probeSoftwareFallback } from './gpu-info.js';
 import { sources } from './research.js';
 /** Application entry: restore the last session, create the renderer, run the
  * frame loop and expose the documented integration hooks. Panel behavior lives in
@@ -43,8 +52,10 @@ try {
         toast('GPU context restored.');
     };
     state.renderer = renderer;
-    $('gpuLabel').textContent = `WEBGL 2 · highp: ${renderer.info.precisionBits} precision bits · ${renderer.info.renderer}`;
-    $('gpuLabel').title = JSON.stringify(renderer.info, null, 2);
+    if (renderer.info.gpu.kind === 'unknown') { // a masked renderer name: ask the browser directly
+        renderer.info.softwareFallback = probeSoftwareFallback() === true;
+    }
+    refreshGpuLabels();
 }
 catch (e) {
     $('gpuFailure').hidden = false;
@@ -54,6 +65,11 @@ catch (e) {
 let frames = 0, fpsStamp = performance.now(), syncStamp = 0;
 state.frameStamp = performance.now();
 function tick(now) {
+    // Background work: programs compiling or warming up, readbacks, GPU timers.
+    if (state.renderer?.poll()) {
+        state.dirty = true;
+        state.previewsDirty = true;
+    }
     if (state.playing && !state.busy) {
         state.time += Math.min((now - state.frameStamp) / 1000, .25);
         if (state.time >= state.project.duration) {
@@ -79,6 +95,7 @@ function tick(now) {
     }
     if (!state.busy) {
         updatePreviews();
+        updateScope();
     }
     if (state.overlayDirty) {
         state.overlayDirty = false;
@@ -136,6 +153,12 @@ window.equationStudio = {
     getBaseline: () => clone(state.baseline),
     setPreviews: enabled => setPreviews(enabled),
     snapshot: title => takeSnapshot(title),
+    /** Equation Playground: open on a component, close, or ask whether it is open. */
+    openPlayground: id => openPlayground(id),
+    closePlayground: () => closePlayground(),
+    isPlaygroundOpen: () => playgroundOpen(),
+    /** Open the explanation of a component in a separate window; false if blocked. */
+    popOut: id => popOut(id),
     getSnapshots: () => clone(getSnapshots()),
     isExporting: () => state.busy || exportDialogOpen(),
     renderNow: () => {
