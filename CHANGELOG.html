@@ -32,15 +32,114 @@
 <ul>
 <li><a href="#changelog" id="toc-changelog">Changelog</a>
 <ul>
-<li><a href="#september-2026" id="toc-september-2026">1.1.0 — 23
+<li><a href="#september-2026" id="toc-september-2026">1.2.0 — 24
 September 2026</a></li>
-<li><a href="#september-2026-1" id="toc-september-2026-1">1.0.0 — 22
+<li><a href="#september-2026-1" id="toc-september-2026-1">1.1.0 — 23
+September 2026</a></li>
+<li><a href="#september-2026-2" id="toc-september-2026-2">1.0.0 — 22
 September 2026</a></li>
 </ul></li>
 </ul>
 </nav>
 <h1 id="changelog">Changelog</h1>
-<h2 id="september-2026">1.1.0 — 23 September 2026</h2>
+<h2 id="september-2026">1.2.0 — 24 September 2026</h2>
+<p>Usability release focused on understanding a construction and
+experimenting safely. The project format is unchanged; 1.0 and 1.1 files
+open as before. The one behaviour change: <strong>disabling a component
+now bypasses it</strong> instead of replacing its output with zero (see
+below).</p>
+<h3 id="see-what-every-step-produces">See what every step produces</h3>
+<ul>
+<li><strong>Pipeline</strong> tab, now the default bottom panel: every
+component in evaluation order with a live thumbnail of its output, what
+it feeds, and an include checkbox. Click a card to show that stage;
+<code>[</code> and <code>]</code> step through the construction.</li>
+<li><strong>View switch</strong> above the canvas: <em>Final image</em>,
+<em>This stage</em> and <em>What it changes</em>, following the
+selection, with a lock to keep watching one component while editing
+another. You no longer need <em>Set as output</em> to look at a
+component.</li>
+<li>A <strong>legend</strong> explains the false colors of scalar,
+coordinate and geometry stages and of the change view.</li>
+<li>A <strong>LIVE GPU</strong> badge with frame time and counter pulses
+on every frame, so it is always clear the image is computed live.</li>
+<li>Previews, rulers and grid are <strong>on by default</strong>
+(returning users get the new defaults once).</li>
+</ul>
+<h3 id="understand-each-component">Understand each component</h3>
+<ul>
+<li><strong>Typeset equations</strong> (native MathML, offline) for all
+43 components, with a <em>where</em> list naming every symbol, its
+parameter and its live value, plus inputs and fixed constants. A
+<strong>GLSL</strong> toggle shows the component’s shader code.</li>
+<li><strong>Every parameter explains itself</strong>: plain-language
+help text, its symbol in the equation, its range, and its original value
+as a marker on the slider.</li>
+<li><strong>Custom equations</strong> are typeset live above the
+editable text as you type.</li>
+<li><strong>Rich tooltips</strong> on every control: what it does, its
+shortcut, and whether a toggle is on. Palette tips show each component’s
+equation.</li>
+</ul>
+<h3 id="experiment-safely">Experiment safely</h3>
+<ul>
+<li><strong>↺ Reset</strong> on every parameter, always visible when the
+value differs from the original (the scene as opened, or the catalog
+default for added components); <strong>Reset all</strong> per component;
+double-click a label to reset.</li>
+<li><strong>◐ Original</strong>: hold the button or <code>O</code> to
+compare with the scene as opened. <strong>⟲ Revert</strong> restores the
+scene, keeps your selection and view, and is undoable.</li>
+<li><strong>▦ Sweep</strong> renders the image across a parameter’s
+whole range; <strong>✦ Variations</strong> renders random nearby
+versions of a component or the whole scene. Hover to preview on the
+canvas, click to apply; the explorer sits below the canvas instead of
+covering it.</li>
+<li><strong>Include / bypass checkboxes</strong> everywhere, with
+<strong>All</strong>, <strong>Only structure</strong> (bypass content,
+keep coordinates, combiners and modifiers, then build the image up) and
+<strong>Original</strong>. Including a component also includes what it
+needs.</li>
+</ul>
+<h3 id="compose">Compose</h3>
+<ul>
+<li><strong>Insert</strong> a modifier on any connected input (＋), and
+<strong>Replace with…</strong> another component of the same output type
+while keeping its wiring.</li>
+<li>Graph cards gain an include checkbox and a 👁 button that shows the
+stage.</li>
+</ul>
+<h3 id="behaviour-change-disabled-means-bypassed">Behaviour change:
+disabled means bypassed</h3>
+<p>A disabled modifier (coordinate maps, tint, mask, threshold, custom
+coordinate) now passes its input through; a disabled combiner passes its
+main input (Add → A, Over → back, Combine → a); disabled content still
+outputs zero. Previously every disabled node output zero, so disabling a
+warp collapsed all coordinates to the origin. The contribution view
+compares against the bypassed graph for the same reason. Saved projects
+with disabled modifiers render differently; nothing else changes.</p>
+<h3 id="engine-code-and-tests">Engine, code and tests</h3>
+<ul>
+<li><code>catalog.js</code> restructured into named fields with
+<code>tex</code>, <code>notes</code>, <code>symbol</code>,
+<code>help</code>, <code>role</code> and <code>bypass</code>; new
+<code>math-render.js</code>, <code>explore.js</code>,
+<code>ui-tooltip.js</code>, <code>ui-pipeline.js</code>,
+<code>ui-previews.js</code> and <code>ui-explore.js</code>;
+<code>graph.js</code> gains <code>activeInputs</code>,
+<code>evaluationOrder</code> and <code>consumers</code>.</li>
+<li>Larger, more readable type throughout; the canvas toolbar keeps
+rarely used actions in a ⋯ menu.</li>
+<li>Unit tests grow to 177 (catalog consistency, TeX and expression
+typesetting, bypass, sweeps and variations); the browser workflow suite
+drives 24 checks through real events, including every new tool; GPU
+validation adds bypass and identity-contribution checks.</li>
+<li>Docs: the editor guide is rewritten around the pipeline, views,
+bypass and exploration tools; README, architecture, development, recipes
+and the component catalog (now with typeset equations and symbol tables)
+are updated.</li>
+</ul>
+<h2 id="september-2026-1">1.1.0 — 23 September 2026</h2>
 <p>Exploration and editing release. The project format is unchanged:
 every 1.0 project file and export opens as before.</p>
 <h3 id="seeing-what-each-component-does">Seeing what each component
@@ -121,7 +220,7 @@ manifest.</li>
 href="docs/DEVELOPMENT.html">Development guide</a>; README, architecture
 and animation documents updated.</li>
 </ul>
-<h2 id="september-2026-1">1.0.0 — 22 September 2026</h2>
+<h2 id="september-2026-2">1.0.0 — 22 September 2026</h2>
 <p>Initial release: GPU port of the supplied Bipolar Nebula equations,
 eleven further editable scenes, the typed function-graph editor,
 animation, exports and the retained Python reference.</p>

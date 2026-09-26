@@ -1,30 +1,28 @@
-import { $, esc, state, on, toast, showError, setSelected, connect, transact, addComponent, nodeById, setPref, clamp } from './editor.js';
-import { catalog } from './catalog.js';
+import { $, esc, state, on, toast, showError, setSelected, setView, setEnabled, viewedNode, connect, transact, addComponent, nodeById, setPref, clamp, bypassDescription } from './editor.js';
+import { catalog, typeLabels } from './catalog.js';
 import { upstream, downstream } from './graph.js';
-import { layoutGraph, PREVIEW_WIDTH, PREVIEW_HEIGHT, SOCKET_TOP, SOCKET_PITCH, outputSocketPoint, inputSocketPoint, wirePath } from './graph-layout.js';
+import { layoutGraph, SOCKET_TOP, SOCKET_PITCH, outputSocketPoint, inputSocketPoint, wirePath } from './graph-layout.js';
 import { DRAG_TYPE, draggedType, showLibraryTab } from './ui-library.js';
+import { paintPreviews, resetPreviews, previewsFailed } from './ui-previews.js';
 import { download } from './export.js';
-/** Bottom panel: the typed function graph (automatic layered layout), live
- * per-node previews, wiring by click or drag, drag-and-drop from the palette,
- * and the generated GLSL view.
+/** Bottom panel: the Pipeline tab (see ui-pipeline.js), the typed function graph
+ * (automatic layered layout) with live per-node previews, wiring by click or drag,
+ * drag-and-drop from the palette, and the generated GLSL view.
  */
 const wireColors = { coord: '#7094b6', scalar: '#b4946d', layer: '#649b83', geometry: '#9a82b1' };
-let positions = new Map(), tiles = new Map(), previewFrames = 0, previewError = false, bottomTab = 'graph';
+let positions = new Map();
 function socketMarkup(n, def) {
-    const inputs = Object.entries(def.inputs);
-    return inputs.map(([socket, kind], i) => `<button class="socket input ${kind} ${n.inputs[socket] ? 'connected' : ''}" data-to="${n.id}" data-socket="${socket}" style="top:${SOCKET_TOP + i * SOCKET_PITCH}px" title="${esc(socket)} · ${kind} input" aria-label="Connect to ${esc(n.label)} ${socket}"></button>`).join('')
-        + `<button class="socket output ${def.output} ${state.connection === n.id ? 'chosen' : ''}" data-from="${n.id}" title="${def.output} output · click or drag to connect" aria-label="Connect output of ${esc(n.label)}"></button>`;
+    const inputs = Object.entries(def.inputs), source = id => nodeById(id)?.label;
+    return inputs.map(([socket, kind], i) => `<button class="socket input ${kind} ${n.inputs[socket] ? 'connected' : ''}" data-to="${n.id}" data-socket="${socket}" style="top:${SOCKET_TOP + i * SOCKET_PITCH}px" aria-label="Connect to ${esc(n.label)} ${socket}" data-tip="Input ${esc(socket)} · ${esc(typeLabels[kind])}|${n.inputs[socket] ? `Fed by ${esc(source(n.inputs[socket]))}. Drag away to disconnect or onto another input to move the wire.` : 'Unconnected: evaluates to zero. Drag here from a matching output dot.'}"></button>`).join('')
+        + `<button class="socket output ${def.output} ${state.connection === n.id ? 'chosen' : ''}" data-from="${n.id}" aria-label="Connect output of ${esc(n.label)}" data-tip="Output · ${esc(typeLabels[def.output])}|Drag to an input dot of the same color to connect, or click here and then an input."></button>`;
 }
 function marks(n) {
     const list = [];
     if (state.project.output === n.id) {
-        list.push('OUTPUT');
+        list.push('FINAL');
     }
-    if (state.isolated === n.id) {
-        list.push('ISOLATED');
-    }
-    if (state.contribution === n.id) {
-        list.push('CONTRIBUTION');
+    if (state.viewMode !== 'final' && viewedNode().id === n.id) {
+        list.push(state.viewMode === 'stage' ? 'ON CANVAS' : 'EFFECT ON CANVAS');
     }
     return list.length ? `<span class="output-mark">${list.join(' · ')}</span>` : '';
 }
@@ -44,8 +42,9 @@ export function renderGraph() {
                 edges += `<path d="${wirePath(outputSocketPoint(positions.get(from)), inputSocketPoint(pos, i))}" data-edge-from="${from}" data-edge-to="${n.id}" fill="none" stroke="${wireColors[kind]}" stroke-width="1.5" opacity="${n.enabled ? .75 : .25}"/>`;
             }
         });
-        const preview = previews ? `<canvas class="node-preview" width="${PREVIEW_WIDTH}" height="${PREVIEW_HEIGHT}" data-preview="${n.id}" aria-label="Preview of ${esc(n.label)}"></canvas>` : '';
-        nodes += `<div class="graph-node ${def.output} ${state.selected === n.id ? 'selected' : ''} ${n.enabled ? '' : 'disabled'}" data-node="${n.id}" style="left:${pos.x}px;top:${pos.y}px;height:${pos.height}px" tabindex="0" role="button" aria-label="Inspect ${esc(n.label)}"><b>${esc(n.label)}</b><small>${esc(def.category)} · ${esc(def.output)}</small><div class="node-sockets">${inputs.map(([socket]) => `<span class="in-label">${esc(socket)}</span>`).join('')}</div>${preview}${socketMarkup(n, def)}${marks(n)}</div>`;
+        const preview = previews ? `<canvas class="node-preview" width="160" height="96" data-preview="${n.id}" aria-hidden="true"></canvas>` : '';
+        const checkTip = `${n.enabled ? 'Included' : 'Bypassed'}|Untick to bypass: it then ${esc(bypassDescription(n))}.`;
+        nodes += `<div class="graph-node ${def.output} ${state.selected === n.id ? 'selected' : ''} ${n.enabled ? '' : 'disabled'}" data-node="${n.id}" style="left:${pos.x}px;top:${pos.y}px;height:${pos.height}px" tabindex="0" role="button" aria-label="Inspect ${esc(n.label)}"><div class="node-head"><input type="checkbox" class="node-enable" data-enable="${n.id}" ${n.enabled ? 'checked' : ''} aria-label="Include ${esc(n.label)}" data-tip="${checkTip}"><b>${esc(n.label)}</b><button class="node-eye" data-show="${n.id}" aria-label="Show ${esc(n.label)} on the canvas" data-tip="Show this stage|Show this component’s output on the canvas.">👁</button></div><small>${esc(def.category)} · ${esc(typeLabels[def.output])}</small><div class="node-sockets">${inputs.map(([socket]) => `<span class="in-label">${esc(socket)}</span>`).join('')}</div>${preview}${socketMarkup(n, def)}${marks(n)}</div>`;
     }
     const hadFocus = $('graphNodes').contains(document.activeElement);
     $('graphEdges').innerHTML = edges + '<path id="dragWire" fill="none" stroke="#a5f2cf" stroke-width="1.5" stroke-dasharray="4 3" style="display:none"/>';
@@ -53,48 +52,20 @@ export function renderGraph() {
     if (hadFocus) { // keep keyboard focus on the selected card so Delete/Enter keep working
         document.querySelector(`[data-node="${state.selected}"]`)?.focus({ preventScroll: true });
     }
-    paintTiles();
+    paintPreviews($('graphNodes'));
     updateSummary();
     $('connectionHint').textContent = state.connection
         ? `Connecting ${state.connection} (${catalog[nodeById(state.connection).type].output}). Click a compatible input dot. Escape cancels.`
-        : 'Click a component to inspect it. Drag an output dot to an input dot to wire them, or drag a palette entry onto a socket.';
+        : 'Click a card to inspect it · tick to include or bypass · 👁 shows its output · drag between dots to wire · drag palette entries onto sockets.';
 }
 function updateSummary() {
-    const status = state.prefs.previews ? (previewError ? ' · previews unavailable' : ' · live previews') : '';
-    $('graphSummary').textContent = `${state.project.nodes.length} nodes / typed DAG${status}`;
+    const status = state.prefs.previews ? (previewsFailed() ? ' · previews unavailable' : ' · live previews') : '';
+    $('graphSummary').textContent = `${state.project.nodes.length} components${status}`;
     $('previewsButton').classList.toggle('active', state.prefs.previews);
     $('previewsButton').setAttribute('aria-pressed', String(state.prefs.previews));
 }
-function paintTiles() {
-    document.querySelectorAll('[data-preview]').forEach(canvas => {
-        const tile = tiles.get(canvas.dataset.preview);
-        if (tile) {
-            canvas.getContext('2d').putImageData(new ImageData(tile.data, tile.width, tile.height), 0, 0);
-        }
-    });
-}
-/** Refresh every node thumbnail from one atlas draw; called by the frame loop. */
-export function updatePreviews() {
-    if (!state.prefs.previews || !state.renderer || state.busy || previewError || !state.previewsDirty) {
-        return;
-    }
-    if (state.playing && (previewFrames++ % 2)) {
-        return; // half rate during playback
-    }
-    try {
-        tiles = state.renderer.previewAtlas(state.project, state.time, state.project.nodes.map(n => n.id), PREVIEW_WIDTH, PREVIEW_HEIGHT);
-        paintTiles();
-        state.previewsDirty = false;
-    }
-    catch (e) {
-        previewError = true;
-        showError(e);
-        updateSummary();
-    }
-}
 export function setPreviews(enabled) {
-    previewError = false;
-    tiles = new Map();
+    resetPreviews();
     setPref('previews', !!enabled);
     renderGraph();
 }
@@ -203,12 +174,23 @@ $('graphNodes').addEventListener('pointercancel', () => {
     $('dragWire').style.display = 'none';
 });
 $('graphNodes').addEventListener('click', e => {
-    if (e.target.closest('.socket')) {
-        return; // handled by the pointer handlers above
+    if (e.target.closest('.socket') || e.target.closest('.node-enable')) {
+        return; // sockets use the pointer handlers above; checkboxes their change event
+    }
+    const eye = e.target.closest('[data-show]');
+    if (eye) {
+        setView('stage', { node: eye.dataset.show, lock: false });
+        return;
     }
     const card = e.target.closest('[data-node]');
     if (card) {
         setSelected(card.dataset.node);
+    }
+});
+$('graphNodes').addEventListener('change', e => {
+    const box = e.target.closest('[data-enable]');
+    if (box) {
+        setEnabled([box.dataset.enable], box.checked);
     }
 });
 $('graphNodes').addEventListener('keydown', e => {
@@ -267,15 +249,24 @@ for (const zone of [$('graphViewport'), $('stage')]) {
     });
 }
 // ---- Toolbar, tabs, GLSL view and the resizable splitter ----------------------
-document.querySelectorAll('[data-bottom]').forEach(b => b.onclick = () => {
-    bottomTab = b.dataset.bottom;
-    document.querySelectorAll('[data-bottom]').forEach(v => v.classList.toggle('active', v === b));
-    $('graphViewport').hidden = bottomTab !== 'graph';
-    $('shaderView').hidden = bottomTab !== 'shader';
-    $('copyShader').hidden = bottomTab !== 'shader';
-    $('graphFit').hidden = bottomTab !== 'graph';
-    $('previewsButton').hidden = bottomTab !== 'graph';
-});
+/** Show one bottom-panel tab: pipeline, graph or shader. Remembered across sessions. */
+export function showBottomTab(tab) {
+    const known = ['pipeline', 'graph', 'shader'], active = known.includes(tab) ? tab : 'pipeline';
+    document.querySelectorAll('[data-bottom]').forEach(v => v.classList.toggle('active', v.dataset.bottom === active));
+    $('pipelineView').hidden = active !== 'pipeline';
+    $('graphViewport').hidden = active !== 'graph';
+    $('shaderView').hidden = active !== 'shader';
+    $('copyShader').hidden = active !== 'shader';
+    $('graphFit').hidden = active !== 'graph';
+    $('connectionHint').hidden = active !== 'graph';
+    $('previewsButton').hidden = active === 'shader';
+    if (state.prefs.bottomTab !== active) {
+        state.prefs.bottomTab = active;
+        setPref('bottomTab', active);
+    }
+    state.previewsDirty = true;
+}
+document.querySelectorAll('[data-bottom]').forEach(b => b.onclick = () => showBottomTab(b.dataset.bottom));
 $('copyShader').onclick = async () => {
     try {
         await navigator.clipboard.writeText($('shaderView').textContent);
@@ -317,7 +308,8 @@ splitter.addEventListener('pointerup', e => {
         splitDrag = null;
     }
 });
-splitter.addEventListener('dblclick', () => setPref('graphHeight', applyGraphHeight(228)));
+splitter.addEventListener('dblclick', () => setPref('graphHeight', applyGraphHeight(260)));
 on('refresh', renderGraph);
 on('selection', renderGraph);
 on('view', renderGraph);
+on('prefs', updateSummary);

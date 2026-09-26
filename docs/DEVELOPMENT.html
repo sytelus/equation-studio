@@ -148,12 +148,16 @@ module, so edits to any module are live after a reload.
 and must be rebuilt after changes (see the checklist).</p>
 <h2 id="module-map">Module map</h2>
 <pre class="text"><code>src/
-  catalog.js          43 component definitions: sockets, parameters, equation text, GLSL emitter
-  graph.js            project schema, validation, traversal (topological order, upstream/downstream), edits, history
+  catalog.js          43 component definitions: sockets, parameters with symbols and help, TeX equations,
+                      roles and bypass sockets, GLSL emitters
+  graph.js            project schema, validation, traversal (bypass-aware topological order, evaluation
+                      order, upstream/downstream, consumers), edits, history
   compiler.js         typed DAG → one fragment shader; display, raw, contribution and preview modes
   renderer.js         WebGL 2 programs and cache, visible draw, offscreen snapshot / preview atlas / float probe
   timeline.js         keyframe interpolation, key insertion and retiming
   view-math.js        camera arithmetic: pixel ↔ world, zoom about a point, ruler ticks
+  math-render.js      TeX subset → MathML; custom GLSL expressions → MathML
+  explore.js          parameter sweeps, seeded variations, original values for reset
   graph-layout.js     deterministic layered layout and socket geometry for the graph panel
   export.js           ZIP writer, PNG metadata, frame times, downloads
   presets.js          the twelve editable scenes
@@ -165,11 +169,17 @@ and must be rebuilt after changes (see the checklist).</p>
   research.js         evidence ledger shown in the app
   thumbnails.js       generated JPEG data URLs for the scene list
 
-  editor.js           shared editor state, event bus and every model operation (transact, load, select, add, connect…)
-  ui-library.js       scenes / components / snapshots panel, drag sources
-  ui-canvas.js        frame rendering, camera gestures, rulers and readouts, compare, canvas toolbar
-  ui-graph.js         graph rendering, previews, wiring, drop target, GLSL tab, splitter
-  ui-inspector.js     inspector rendering and parameter editing
+  editor.js           shared editor state, event bus, the canvas view model and every model operation
+                      (transact, load, revert, select, view, enable/bypass, reset, add, insert, replace, connect…)
+  ui-tooltip.js       rich hover tips for every control (data-tip, data-key, data-toggle, providers)
+  ui-library.js       scenes / components / snapshots panel, drag sources, palette tips
+  ui-canvas.js        frame rendering, view switch, live badge, legend, camera gestures, rulers and
+                      readouts, hold-to-compare, compare overlay, canvas toolbar
+  ui-previews.js      the shared live-thumbnail atlas painted into pipeline and graph cards
+  ui-pipeline.js      the Pipeline tab: stages in evaluation order with include checkboxes
+  ui-graph.js         graph rendering, wiring, drop target, bottom-panel tabs, GLSL tab, splitter
+  ui-inspector.js     inspector: header, view buttons, typeset equation and symbols, inputs, parameters
+  ui-explore.js       the explorer tray: sweeps and variations with hover preview
   ui-timeline.js      transport and key lanes
   ui-export.js        export dialog
   ui-toolbar.js       top bar, dialogs, keyboard shortcuts
@@ -209,8 +219,9 @@ call each other’s render functions directly:</p>
 </tr>
 <tr>
 <td><code>view</code></td>
-<td>isolation or contribution mode changed</td>
-<td>inspector, graph, canvas labels</td>
+<td>the canvas view (final / stage / effect), its lock or style
+changed</td>
+<td>inspector, graph, pipeline, canvas</td>
 </tr>
 <tr>
 <td><code>time</code></td>
@@ -238,10 +249,22 @@ construction so the scene list stops highlighting the preset. Continuous
 gestures (sliders, panning, zooming) mutate the live project for smooth
 feedback and push one history entry when the gesture ends.</p>
 <p>The frame loop in <code>app.js</code> renders when
-<code>state.dirty</code> is set, refreshes graph previews when
+<code>state.dirty</code> is set, refreshes the preview atlas when
 <code>state.previewsDirty</code> is set, and redraws the ruler overlay
 when <code>state.overlayDirty</code> is set. <code>markDirty()</code>
-sets all three.</p>
+sets all three. The canvas draws <code>state.baseline</code> while the
+Original button is held and <code>state.preview</code> (an explorer
+candidate) while one is hovered; otherwise the project in the current
+view. <code>state.baseline</code> is the project as it was opened;
+loading a preset, file or snapshot replaces it, and undo and revert do
+not.</p>
+<p>Tooltips are declarative: give an element
+<code>data-tip="Heading|Body"</code>, optionally <code>data-key</code>
+for its shortcut and <code>data-toggle</code> for on/off controls, and
+<code>ui-tooltip.js</code> does the rest. Use
+<code>registerTipProvider(selector, fn)</code> for generated content
+such as the palette’s equations. Prefer <code>data-tip</code> over
+<code>title</code> so tips are immediate, styled and consistent.</p>
 <h2 id="conventions-for-the-bundler">Conventions for the bundler</h2>
 <p><code>tools/build.py</code> is a deliberately small bundler, not a
 JavaScript parser. Source modules must follow these rules or the
@@ -263,7 +286,7 @@ explain intent or non-obvious constraints rather than restating code.
 Keep UI strings free of claims the research ledger does not support.</p>
 <h2 id="tests">Tests</h2>
 <div class="sourceCode" id="cb3"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> <span class="at">--test</span> tests/<span class="pp">*</span>.test.js                 <span class="co"># unit tests: graph, compiler, timeline, export, view math, layout, snapshots</span></span>
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> <span class="at">--test</span> tests/<span class="pp">*</span>.test.js                 <span class="co"># unit tests: catalog, graph, compiler, math, explore, timeline, export, view</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/workflow_check.py             <span class="co"># editor workflows in Chromium: keys, wiring, drag-and-drop, previews, exports…</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/browser_check.py              <span class="co"># UI checks and the gallery screenshots</span></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_validate.py               <span class="co"># renders every preset and component, raw-field and native-image comparison</span></span>

@@ -1,11 +1,13 @@
-import { catalog, zeroByType } from './catalog.js';
+import { catalog, zeroByType, bypassSocket } from './catalog.js';
 import { validateProject, topologicalOrder } from './graph.js';
 import { mathGLSL } from './math-glsl.js';
 import { nebulaGLSL } from './nebula-glsl.js';
 import { motifsGLSL } from './motifs-glsl.js';
 /** Typed DAG → one fused GLSL ES 3.00 fragment shader.
  *
- * Every reachable node becomes one local variable inside `shade()`. Numeric and
+ * Every reachable node becomes one local variable inside `shade()`. A disabled
+ * node is bypassed: it forwards its catalog `bypass` input unchanged, or yields a
+ * typed zero when it has none (content such as a star field). Numeric and
  * color parameters become uniforms, so value edits never recompile. Only the
  * structure (types, wiring, enabled flags, custom expressions, compile mode)
  * changes the generated source.
@@ -15,8 +17,9 @@ import { motifsGLSL } from './motifs-glsl.js';
  *                 false color for non-layer types)
  *   raw           the target's numeric value without any conversion; used by
  *                 float probes
- *   contribution  the target with and without one node, presented as a
- *                 highlight or signed-difference view of the changed pixels
+ *   contribution  the target with and without one node (bypassed, exactly as if
+ *                 it were disabled), shown as a highlight or signed-difference
+ *                 view of the pixels it changes
  *   preview       every node computed once; `u_previewIndex` selects which
  *                 one is shown, so all graph thumbnails share one program
  */
@@ -45,6 +48,11 @@ function toVec4(type, name, raw) {
 function presentGLSL(type) {
     return type === 'layer' ? 'displayColor(f.rgb,u_exposure,u_tone)' : 'clamp(f.rgb,0.0,1.0)';
 }
+/** What a bypassed node evaluates to: its pass-through input, or a typed zero. */
+function bypassExpression(node, names) {
+    const socket = bypassSocket(node.type), source = socket && node.inputs[socket];
+    return source && names.has(source) ? names.get(source) : zeroByType[catalog[node.type].output];
+}
 export function compileGraph(project, target = project.output, options = {}) {
     const { raw = false, contribution = null, contributionStyle = 'highlight', preview = false } = options;
     validateProject(project);
@@ -71,7 +79,7 @@ export function compileGraph(project, target = project.output, options = {}) {
         }
         let expression;
         if (!n.enabled) {
-            expression = zeroByType[d.output];
+            expression = bypassExpression(n, names);
         }
         else if (Object.hasOwn(expressionTypes, n.type)) {
             // Custom equations become small typed functions with the documented local names.
@@ -86,9 +94,9 @@ export function compileGraph(project, target = project.output, options = {}) {
         }
         expressions.set(n.id, expression);
     }
-    const statement = (n, zeroed = false) => {
+    const statement = (n, bypassed = false) => {
         const d = catalog[n.type], name = names.get(n.id);
-        return `  // ${name}: ${d.name.replace(/\n/g, ' ')} [${n.id}]\n  ${glslTypes[d.output]} ${name} = ${zeroed ? zeroByType[d.output] : expressions.get(n.id)};`;
+        return `  // ${name}: ${d.name.replace(/\n/g, ' ')} [${n.id}]\n  ${glslTypes[d.output]} ${name} = ${bypassed ? bypassExpression(n, names) : expressions.get(n.id)};`;
     };
     const last = order.at(-1), type = preview ? 'layer' : catalog[last.type].output;
     let shaders, fieldCall, presentation;

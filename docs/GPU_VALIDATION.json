@@ -1,12 +1,12 @@
 {
-  "date": "2026-09-23",
+  "date": "2026-09-24",
   "checks": [
     {
       "name": "render + finite values: bipolar",
       "passed": true,
       "detail": {
         "energy": 46154596,
-        "ms": 229.30000001192093,
+        "ms": 226.80000000074506,
         "nonfinite": 0
       }
     },
@@ -15,7 +15,7 @@
       "passed": true,
       "detail": {
         "energy": 32974668,
-        "ms": 78.10000002384186,
+        "ms": 72.39999999850988,
         "nonfinite": 0
       }
     },
@@ -24,7 +24,7 @@
       "passed": true,
       "detail": {
         "energy": 14586200,
-        "ms": 77,
+        "ms": 73.89999999850988,
         "nonfinite": 0
       }
     },
@@ -33,7 +33,7 @@
       "passed": true,
       "detail": {
         "energy": 17042892,
-        "ms": 68.60000002384186,
+        "ms": 62.30000000074506,
         "nonfinite": 0
       }
     },
@@ -42,7 +42,7 @@
       "passed": true,
       "detail": {
         "energy": 12446071,
-        "ms": 66.39999997615814,
+        "ms": 65.10000000149012,
         "nonfinite": 0
       }
     },
@@ -51,7 +51,7 @@
       "passed": true,
       "detail": {
         "energy": 65157576,
-        "ms": 99,
+        "ms": 96.39999999850988,
         "nonfinite": 0
       }
     },
@@ -60,7 +60,7 @@
       "passed": true,
       "detail": {
         "energy": 22149873,
-        "ms": 41.60000002384186,
+        "ms": 40.29999999701977,
         "nonfinite": 0
       }
     },
@@ -69,7 +69,7 @@
       "passed": true,
       "detail": {
         "energy": 49076752,
-        "ms": 95.30000001192093,
+        "ms": 90.80000000074506,
         "nonfinite": 0
       }
     },
@@ -78,7 +78,7 @@
       "passed": true,
       "detail": {
         "energy": 31766386,
-        "ms": 205,
+        "ms": 197.19999999925494,
         "nonfinite": 0
       }
     },
@@ -87,7 +87,7 @@
       "passed": true,
       "detail": {
         "energy": 92314020,
-        "ms": 32.89999997615814,
+        "ms": 33.400000002235174,
         "nonfinite": 0
       }
     },
@@ -96,7 +96,7 @@
       "passed": true,
       "detail": {
         "energy": 45280692,
-        "ms": 34,
+        "ms": 34.30000000074506,
         "nonfinite": 0
       }
     },
@@ -105,7 +105,7 @@
       "passed": true,
       "detail": {
         "energy": 38052353,
-        "ms": 28.80000001192093,
+        "ms": 27.800000000745058,
         "nonfinite": 0
       }
     },
@@ -195,6 +195,36 @@
         0,
         1
       ]
+    },
+    {
+      "name": "bypass: modifier identity, combiner pass-through, content zero",
+      "passed": true,
+      "detail": {
+        "lens": [
+          0.6100000143051147,
+          -0.3700000047683716,
+          0,
+          1
+        ],
+        "gascore": [
+          0.7407692670822144,
+          0.4360087811946869,
+          0.6177569031715393,
+          1
+        ],
+        "bypassed": [
+          0.7407692670822144,
+          0.4360087811946869,
+          0.6177569031715393,
+          1
+        ],
+        "stars": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
     },
     {
       "name": "offscreen probe and snapshot preserve the visible canvas",
@@ -342,6 +372,11 @@
       }
     },
     {
+      "name": "contribution of an identity modifier is empty (compared with its bypass, not zero)",
+      "passed": true,
+      "detail": 0
+    },
+    {
       "name": "32 native-grid raw probes across seven field groups",
       "passed": true,
       "detail": {
@@ -404,7 +439,7 @@
         "p99_absolute_error": 4.0,
         "rgb_pearson_correlation": 0.9994216237510924,
         "psnr_db": 40.62656420376929,
-        "render_plus_readback_ms": 1183.3999999761581
+        "render_plus_readback_ms": 1147.300000000745
       }
     }
   ],
@@ -607,6 +642,6 @@
     "p99_absolute_error": 4.0,
     "rgb_pearson_correlation": 0.9994216237510924,
     "psnr_db": 40.62656420376929,
-    "render_plus_readback_ms": 1183.3999999761581
+    "render_plus_readback_ms": 1147.300000000745
   }
 }

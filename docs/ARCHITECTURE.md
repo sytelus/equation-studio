@@ -23,7 +23,20 @@ The implementation deliberately separates **atoms**, **compound kernels**, **gra
 | `geometry` | `Geometry {warp, rim, coverage}` | Source-compatible geometric texture coordinate, emission envelope and diagnostic membership |
 | `layer` | `vec4` | Straight/unpremultiplied RGB radiance plus coverage alpha |
 
-Every socket has one of these types. The editor rejects a color-to-coordinate wire rather than silently treating red/green as position. Missing sockets and disabled outputs are typed zeros. In particular an unconnected coordinate socket is `(0,0)`, **not** the world position. Disabled nodes do not forward their inputs. Those choices make graph behavior explicit; bypass a node by reconnecting its upstream field.
+Every socket has one of these types. The editor rejects a color-to-coordinate wire rather than silently treating red/green as position. Missing sockets are typed zeros. In particular an unconnected coordinate socket is `(0,0)`, **not** the world position; inputs are always explicit.
+
+### Disabled means bypassed
+
+A disabled component is **bypassed**. Each catalog entry names a `bypass` socket whose type equals its output; a disabled node forwards that input unchanged. Components without one output a typed zero:
+
+| Role | Examples | Disabled |
+|---|---|---|
+| modifier | Translate, Vortex, Domain warp, Polar, Angular mirror, Lens map, Custom coordinate, Tint, Mask layer, Soft threshold | passes its input through (a warp becomes the identity) |
+| combiner | Add light (a), Front over back (back), Combine scalar fields (a) | passes its main input through |
+| content | fields, shapes, lights, star fields, nebula layers, custom scalar/color | outputs zero |
+| source | Image coordinates | outputs zero |
+
+This matches the pass-through convention of compositing tools and keeps experiments meaningful: switching off a warp removes the warp instead of collapsing every downstream coordinate to the origin. `activeInputs()` in `graph.js` and `bypassExpression()` in `compiler.js` implement it; a disabled node's other inputs are not evaluated at all. The roles also drive the editor's *Only structure* action, which bypasses content and keeps the rest.
 
 The `geometry` bundle does not mean a mesh, physical volume, or signed-distance field. The original `warp` is an implicit shell-following coordinate, `rim` is an emission multiplier, and `coverage` is a diagnostic of shell selection. The cloud shader only needs the first two; another geometry can satisfy that interface. Ring Nebula does exactly this.
 
@@ -57,7 +70,7 @@ The renderer caches 32 linked programs. Its structural cache key includes node t
 |---|---|---|
 | display | *(default)* | the target converted for display; non-layer types use the diagnostic false colors below |
 | raw | `raw: true` | the target's numeric value, unconverted; used by float probes |
-| contribution | `contribution: id`, `contributionStyle` | `shade(p)` and `shadeWithout(p)`, the latter with the named node replaced by its typed zero, compared after display conversion: either the composite with unchanged pixels dimmed to gray (`highlight`) or a signed warm/cool difference scaled ×4 (`signed`) |
+| contribution | `contribution: id`, `contributionStyle` | `shade(p)` and `shadeWithout(p)`, the latter with the named node bypassed (exactly as if disabled), compared after display conversion: either the composite with unchanged pixels dimmed to gray (`highlight`) or a signed warm/cool difference scaled ×4 (`signed`) |
 | preview | `preview: true` | every node evaluated once; `u_previewIndex` selects which node's display-converted value is returned |
 
 Contribution answers “what does this node change in the final image?” without a second render pass; the two evaluations happen in one fragment. Preview answers “what does every node produce?” with one compilation instead of one per node: the editor draws all graph thumbnails from that program into a tiled offscreen framebuffer and reads the tiles back in a single call. Both modes share the ordinary statement generator, so a node looks the same isolated, previewed or contributed.
@@ -161,26 +174,37 @@ renderer.dispose()                   // release owned GPU resources
 
 `Renderer.draw()` expects finite time, positive integer sizes within the reported limits, and a validated-compatible project. It validates again at the API boundary. Caller code owns scheduling; the renderer does not start an animation loop. `samplePoint()` currently restricts points to world coordinates within ±19. `snapshot()` and `previewAtlas()` return `{width, height, data}` objects whose `data` is laid out like `ImageData`.
 
-The editor also exposes `window.equationStudio` for integration: `getProject()`, `loadProject(project)`, `seek(t)`, `getTime()`, `getRenderer()`, `getCatalog()`, `getView()`, `isolate(id)`, `contribution(id, style)`, `setPreviews(enabled)`, `snapshot(title)`, `getSnapshots()`, `renderNow()`, and `exportPNG()`. `getProject()` and `getSnapshots()` return clones. The low-level `exportPNG()` hook returns a plain preview-resolution PNG; use the dialog or metadata helper for an archival export. The [development guide](DEVELOPMENT.md) maps the editor's modules and events.
+The editor also exposes `window.equationStudio` for integration: `getProject()`, `getBaseline()`, `loadProject(project)`, `seek(t)`, `getTime()`, `getRenderer()`, `getCatalog()`, `getView()`, `setView(mode, node)` with mode `final`, `stage` or `effect`, `isolate(id)` and `contribution(id, style)` (1.1-compatible shorthands), `setPreviews(enabled)`, `snapshot(title)`, `getSnapshots()`, `renderNow()`, and `exportPNG()`. `getProject()`, `getBaseline()` and `getSnapshots()` return clones. The low-level `exportPNG()` hook returns a plain preview-resolution PNG; use the dialog or metadata helper for an archival export. The [development guide](DEVELOPMENT.md) maps the editor's modules and events.
 
 ## Add your own component
 
 Small formulas can be authored inside the browser with Custom scalar, Custom coordinate, or Custom color. Use GLSL float literals such as `2.0`; integer/float overload mismatches are errors, not JavaScript's permissive coercion. Available helpers include `rotate2`, `noise2`, `fbm`, `gaussian`, `cutoff`, `segmentDistance`, and `spectrum`. These expressions compile as GLSL, never as JavaScript. Statements, loops, declarations, assignments, comments and certain unsafe tokens are rejected; arbitrary JS evaluation is not used.
 
-For a reusable component with sliders, add an entry to `catalog.js`. For example, using the existing local `node` and `num` helpers:
+For a reusable component with sliders, add an entry to `catalog.js` using its local `component`, `num` and `rgb` helpers. Each parameter has a TeX `symbol` that appears in the component's `tex` equation, and a plain-language `help` string saying what changing it does:
 
 ```javascript
-petals: node(
-    'Petal field', 'Scalar fields', 'scalar', {p: 'coord'},
-    {count: num('Petals', 5, 2, 16, 1), width: num('Edge', .02, .001, .1, .001)},
-    'mask = inside(r − [0.8 + 0.2 cos(n theta)])',
-    'A radial flower silhouette. Feed it into a palette or use it as coverage.',
-    (inputs, uniforms) =>
+petals: component({
+    name: 'Petal field', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
+    params: {
+        count: num('Petals', 5, 2, 16, 1, 'n', 'Number of petals around the center.'),
+        width: num('Edge', 0.02, 0.001, 0.1, 0.001, '\\epsilon', 'Softness of the petal outline; small values give a crisp edge.')
+    },
+    equation: 'mask = inside(r − [0.8 + 0.2 cos(n theta)])',
+    tex: ['m = 1 - \\operatorname{smoothstep}\\left(-\\epsilon,\\ \\epsilon,\\ r - (0.8 + 0.2\\cos n\\theta)\\right)'],
+    notes: [['r, \\theta', 'polar coordinates of p']],
+    description: 'A radial flower silhouette. Feed it into a palette or use it as coverage.',
+    emit: (inputs, uniforms) =>
         `softInside(length(${inputs.p}) - (0.8 + 0.2*cos(${uniforms.count}*angleOf(${inputs.p}))), ${uniforms.width})`
-)
+})
 ```
 
-For a larger kernel, put a named GLSL function with comments into a shader library and have the emitter call it. The emitter receives **GLSL expression strings**, including uniform names, not runtime JS numbers. The metadata automatically drives the component browser, controls, socket validation, drag-and-drop typing, previews and code generation. Add a preset/example, a unit test, and a GPU test. Then follow the regeneration checklist in the [development guide](DEVELOPMENT.md).
+A modifier also sets `role: 'modifier'` and `bypass` to the socket it passes through when disabled. `tests/catalog.test.js` checks that every parameter has help and a symbol, that the symbol appears in the equation, that the TeX converts, and that bypass sockets have the output's type.
+
+For a larger kernel, put a named GLSL function with comments into a shader library and have the emitter call it. The emitter receives **GLSL expression strings**, including uniform names, not runtime JS numbers. The metadata automatically drives the component browser and its tips, the inspector's typeset equation, symbol list and controls, socket validation, drag-and-drop typing, insert and replace menus, previews and code generation. Add a preset/example, a unit test, and a GPU test. Then follow the regeneration checklist in the [development guide](DEVELOPMENT.md).
+
+## Typeset equations
+
+`src/math-render.js` converts the catalog's TeX subset to native MathML, which browsers typeset without fonts, scripts or network access. It supports fractions, roots, scripts, big operators with limits, Greek letters, upright names (`\operatorname`, `\mathrm`, `\text`), common functions and relations, accents, `\left`/`\right` and spacing; an unknown command throws, so a catalog typo fails the unit tests instead of rendering wrongly. The same module parses a custom GLSL expression with the editor's expression grammar and renders it as mathematics (`a/b` as a fraction, `pow` as a power, `sqrt` as a radical, `abs`/`length` as bars, `vecN` as a tuple, `theta` as θ), keeping only the parentheses the meaning needs. The inspector uses it for the live preview above the expression editor.
 
 ## Boundaries and extensions
 

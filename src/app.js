@@ -1,10 +1,12 @@
 import { Renderer } from './renderer.js';
-import { $, state, refreshUI, changed, pause, toast, showError, loadProject, seek, setIsolated, setContribution, readStorage, STORAGE, markDirty } from './editor.js';
+import { $, state, refreshUI, changed, pause, toast, showError, loadProject, seek, setView, setContributionStyle, readStorage, STORAGE, markDirty, emit } from './editor.js';
 import { parseProject, clone } from './graph.js';
 import { catalog } from './catalog.js';
 import { loopTime } from './timeline.js';
 import { renderFrame, drawOverlay } from './ui-canvas.js';
-import { updatePreviews, setPreviews, applyGraphHeight } from './ui-graph.js';
+import { setPreviews, applyGraphHeight, showBottomTab } from './ui-graph.js';
+import { updatePreviews } from './ui-previews.js';
+import { renderPipeline } from './ui-pipeline.js';
 import { updateClock } from './ui-timeline.js';
 import { syncInspectorValues } from './ui-inspector.js';
 import { takeSnapshot, getSnapshots } from './ui-library.js';
@@ -13,13 +15,19 @@ import { shortcuts } from './ui-toolbar.js';
 import { sources } from './research.js';
 /** Application entry: restore the last session, create the renderer, run the
  * frame loop and expose the documented integration hooks. Panel behavior lives in
- * the ui-*.js modules; model operations live in editor.js.
+ * the ui-*.js modules, which register their event listeners when imported; model
+ * operations live in editor.js.
  */
 const saved = readStorage(STORAGE.project);
 if (saved) {
     try {
         state.project = parseProject(saved);
         state.selected = state.project.nodes.find(n => n.id !== 'space')?.id || state.project.nodes[0].id;
+        state.baseline = clone(state.project);
+        const baseline = readStorage(STORAGE.baseline);
+        if (baseline) {
+            state.baseline = parseProject(baseline);
+        }
     }
     catch (e) { /* An incompatible autosave falls back to the default scene. */
     }
@@ -94,19 +102,38 @@ window.equationStudio = {
     getCatalog: () => catalog,
     getSources: () => sources,
     getShortcuts: () => Object.keys(shortcuts),
-    getView: () => ({ isolated: state.isolated, contribution: state.contribution, contributionStyle: state.contributionStyle, prefs: { ...state.prefs }, selected: state.selected }),
+    renderPipeline: () => renderPipeline(),
+    getView: () => ({
+        mode: state.viewMode, node: state.viewMode === 'final' ? null : (state.viewLock || state.selected), locked: !!state.viewLock,
+        isolated: state.viewMode === 'stage' ? (state.viewLock || state.selected) : null,
+        contribution: state.viewMode === 'effect' ? (state.viewLock || state.selected) : null,
+        contributionStyle: state.contributionStyle, prefs: { ...state.prefs }, selected: state.selected
+    }),
+    /** Canvas view: 'final', 'stage' or 'effect', optionally for a given node. */
+    setView: (mode, node) => {
+        if (node && !state.project.nodes.some(n => n.id === node)) {
+            throw new Error('Unknown node.');
+        }
+        setView(mode, { node, lock: false });
+    },
+    /** Compatibility with 1.1: show one node's stage, or the final image for null. */
     isolate: id => {
         if (id && !state.project.nodes.some(n => n.id === id)) {
             throw new Error('Unknown node.');
         }
-        setIsolated(id);
+        setView(id ? 'stage' : 'final', { node: id || null, lock: false });
     },
+    /** Compatibility with 1.1: show what one node changes, or the final image for null. */
     contribution: (id, style) => {
         if (id && !state.project.nodes.some(n => n.id === id)) {
             throw new Error('Unknown node.');
         }
-        setContribution(id, style);
+        if (style) {
+            setContributionStyle(style);
+        }
+        setView(id ? 'effect' : 'final', { node: id || null, lock: false });
     },
+    getBaseline: () => clone(state.baseline),
     setPreviews: enabled => setPreviews(enabled),
     snapshot: title => takeSnapshot(title),
     getSnapshots: () => clone(getSnapshots()),
@@ -125,6 +152,8 @@ window.equationStudio = {
     }
 };
 applyGraphHeight(state.prefs.graphHeight);
+showBottomTab(state.prefs.bottomTab);
 refreshUI();
+emit('view');
 changed();
 requestAnimationFrame(tick);

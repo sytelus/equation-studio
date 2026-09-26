@@ -36,10 +36,59 @@ with sync_playwright() as pw:
     page.locator('#quality').select_option('480')
     project = lambda: page.evaluate('equationStudio.getProject()')
     view = lambda: page.evaluate('equationStudio.getView()')
-    page.evaluate('equationStudio.loadProject(__modules["presets.js"].getPreset("water"))')
-    page.locator('[data-node="planet"]').click()
-    # Add first key, move playhead, then update a tracked numeric value.
-    page.locator('[data-key="radius"]').click()
+    node = lambda id: page.evaluate(f'equationStudio.getProject().nodes.find(n=>n.id==={json.dumps(id)})')
+    load = lambda preset: page.evaluate(f'equationStudio.loadProject(__modules["presets.js"].getPreset({json.dumps(preset)}))')
+    def show_tab(tab):
+        page.locator(f'[data-bottom="{tab}"]').click()
+        page.wait_for_timeout(150)
+    # First run: previews, rulers and grid are on and the Pipeline tab is shown.
+    prefs = view()['prefs']
+    assert prefs['previews'] and prefs['rulers'] and prefs['grid'] and prefs['bottomTab'] == 'pipeline', prefs
+    page.wait_for_function('[...document.querySelectorAll("#pipelineCards canvas[data-preview]")].length===9 && [...document.querySelectorAll("#pipelineCards canvas[data-preview]")].every(c=>c.classList.contains("painted"))', timeout=300000)
+    record('Defaults: live pipeline previews for all 9 source components, rulers and grid on', prefs)
+    # Pipeline: a card click shows that stage; [ and ] step through the construction.
+    page.locator('[data-stage="shell"]').click()
+    assert view()['mode'] == 'stage' and view()['node'] == 'shell'
+    assert 'coverage' in page.locator('#legend').text_content()
+    page.mouse.move(5, 5)
+    page.keyboard.press(']')
+    page.keyboard.press(']')
+    assert view()['node'] == 'cloud', view()
+    page.keyboard.press('[')
+    assert view()['node'] == 'turbulence'
+    page.keyboard.press('Escape')
+    assert view()['mode'] == 'final'
+    record('Pipeline card shows a stage, the legend explains it, [ ] step and Escape returns')
+    # View switch, effect view and the lock.
+    page.locator('[data-stage="stars"]').click()
+    page.locator('[data-view="effect"]').click()
+    assert view()['mode'] == 'effect' and view()['contribution'] == 'stars'
+    page.locator('#effectStyle').select_option('signed')
+    assert view()['contributionStyle'] == 'signed'
+    page.locator('#viewLock').click()
+    page.locator('[data-stage="gas"]').click()  # a pipeline click takes an explicit stage and unlocks
+    page.locator('[data-view="stage"]').click()
+    page.locator('#viewLock').click()
+    show_tab('graph')
+    page.locator('[data-node="core"] b').click()
+    assert view()['selected'] == 'core' and view()['node'] == 'gas' and view()['locked'], view()
+    page.locator('#viewLock').click()
+    assert view()['node'] == 'core'
+    page.keyboard.press('Escape')
+    show_tab('pipeline')
+    record('View switch: effect styles, lock keeps a stage while selecting elsewhere')
+    # Tooltips explain controls and state whether a toggle is on.
+    page.locator('#rulersButton').hover()
+    page.wait_for_function('!document.getElementById("tooltip").hidden')
+    tip = page.locator('#tooltip').text_content()
+    assert 'Rulers' in tip and 'On' in tip, tip
+    page.mouse.move(5, 5)
+    record('Rich tooltips name the control, its shortcut and its on/off state', tip[:80])
+    # Keyframes and interpolation on the water planet.
+    load('water')
+    page.locator('[data-stage="planet"]').click()
+    page.keyboard.press('Escape')
+    page.locator('[data-keyframe="radius"]').click()
     page.evaluate('equationStudio.seek(2)')
     page.locator('#number-radius').fill('1.4')
     page.locator('#number-radius').dispatch_event('change')
@@ -55,7 +104,6 @@ with sync_playwright() as pw:
     page.locator('#redo').click()
     assert len(page.evaluate('equationStudio.getProject().tracks.find(t=>t.node==="planet"&&t.param==="radius").keys')) == 2
     record('Undo/redo preserves the animation model, selection and playhead')
-    # Drag the second key along its lane; the value follows the key.
     key = page.locator('[data-track-time="2"]').bounding_box()
     lane = page.locator('[data-lane="planet"]').bounding_box()
     page.mouse.move(key['x'] + key['width'] / 2, key['y'] + key['height'] / 2)
@@ -66,27 +114,107 @@ with sync_playwright() as pw:
     times = page.evaluate('equationStudio.getProject().tracks.find(t=>t.node==="planet"&&t.param==="radius").keys.map(k=>k.time)')
     assert times[0] == 0 and 3.5 < times[1] < 4.5, times
     record('Dragging a key in its lane retimes it', times)
-    # Reset a parameter to its catalog default.
+    # Reset: modified marker, per-parameter reset, reset all, revert scene, hold original.
     page.locator('#number-twist').fill('9')
     page.locator('#number-twist').dispatch_event('change')
+    assert 'modified' in page.locator('[data-param-row="twist"]').get_attribute('class')
+    assert page.locator('[data-reset="twist"]').is_enabled()
     page.locator('[data-reset="twist"]').click()
-    assert page.evaluate('equationStudio.getProject().nodes.find(n=>n.id==="planet").params.twist') == 5
-    record('Parameter reset restores the catalog default')
-    # Same-type cycle attempt: a transform cannot depend on its descendant.
-    page.evaluate('''()=>{const p=__modules['presets.js'].getPreset('water');const N=__modules['graph.js'].makeNode;p.nodes.push(N('transform','t1',{p:'space'}),N('transform','t2',{p:'t1'}));equationStudio.loadProject(p);}''')
-    page.locator('[data-node="t1"]').click()
-    page.locator('#in-p').select_option('t2')
-    assert page.evaluate('equationStudio.getProject().nodes.find(n=>n.id==="t1").inputs.p') == 'space'
-    assert page.locator('#in-p').input_value() == 'space'
-    record('Cycle rejection restores model AND visible connection menu')
-    page.locator('#sampleField').click()
-    page.locator('#artCanvas').click(position={'x': 220, 'y': 140})
-    page.wait_for_function('document.querySelector("#toast").textContent.includes("Raw")')
-    assert 'x:' in page.locator('#toast').text_content()
-    record('Raw floating-point field probe through editor', page.locator('#toast').text_content())
-    # Rulers: continuous readout with raw values, then a pinned probe.
+    assert node('planet')['params']['twist'] == 5 and page.locator('[data-reset="twist"]').is_disabled()
+    page.locator('#number-cloud').fill('1.5')
+    page.locator('#number-cloud').dispatch_event('change')
+    page.locator('#resetNode').click()
+    assert node('planet')['params']['cloud'] == 0.65 and not project()['tracks'], project()['tracks']
+    page.locator('#number-light').fill('4')
+    page.locator('#number-light').dispatch_event('change')
+    hold = page.locator('#holdOriginal').bounding_box()
+    page.mouse.move(hold['x'] + 4, hold['y'] + 4)
+    page.mouse.down()
+    assert 'ORIGINAL' in page.locator('#legend').text_content()
+    page.mouse.up()
+    assert page.locator('#legend').is_hidden()
+    page.locator('#revertScene').click()
+    assert node('planet')['params']['light'] == 2.25
+    page.locator('#undo').click()
+    assert node('planet')['params']['light'] == 4
+    page.locator('#revertScene').click()
+    record('Reset: modified marker, parameter and component reset, hold-to-compare, undoable revert')
+    # Parameter sweep and variations: hover previews, click applies, undo returns.
+    page.locator('[data-sweep="twist"]').click()
+    page.wait_for_function('document.querySelectorAll(".explore-item").length===7')
+    tray = page.locator('#exploreTray').bounding_box()
+    image = page.locator('#imageWrap').bounding_box()
+    assert tray['y'] >= image['y'] + image['height'] - 1, 'the tray never covers the image'
+    page.locator('.explore-item').nth(6).hover()
+    page.wait_for_timeout(200)
+    page.locator('.explore-item').nth(6).click()
+    assert node('planet')['params']['twist'] == 14
+    page.locator('#undo').click()
+    assert node('planet')['params']['twist'] == 5
     page.keyboard.press('Escape')
-    page.keyboard.press('r')
+    assert page.locator('#exploreTray').is_hidden()
+    page.locator('#variations').click()
+    page.wait_for_function('document.querySelectorAll(".explore-item").length===8')
+    before = node('planet')['params']
+    page.locator('.explore-item').nth(2).click()
+    assert node('planet')['params'] != before
+    page.locator('#exploreClose').click()
+    page.locator('#undo').click()
+    assert node('planet')['params'] == before
+    record('Sweep across a range and random variations apply on click and undo cleanly')
+    # Bypass semantics: a disabled modifier passes its input through (lens → identity).
+    load('lensing')
+    page.locator('[data-enable="lens"]').first.uncheck()
+    raw = page.evaluate('''()=>{const p=equationStudio.getProject();return equationStudio.getRenderer().samplePoint(p,0,'lens',0.3,-0.2);}''')
+    assert abs(raw[0] - 0.3) < 1e-6 and abs(raw[1] + 0.2) < 1e-6, raw
+    page.locator('[data-enable="lens"]').first.check()
+    record('Unticking a coordinate modifier bypasses it (identity), not zero', raw)
+    # Only structure, then build up: enabling gas also enables what it needs.
+    load('bipolar')
+    page.locator('#pipelineNone').click()
+    enabled = [n['id'] for n in project()['nodes'] if n['enabled']]
+    assert enabled == ['space', 'gascore', 'final'], enabled
+    page.locator('[data-enable="gas"]').first.check()
+    enabled = sorted(n['id'] for n in project()['nodes'] if n['enabled'])
+    assert enabled == sorted(['space', 'shell', 'turbulence', 'cloud', 'gas', 'gascore', 'final']), enabled
+    page.locator('#pipelineOriginal').click()
+    assert all(n['enabled'] for n in project()['nodes'])
+    record('Only structure bypasses content; ticking one component includes its dependencies; Original restores', enabled)
+    # Composition: insert a modifier on an input, and replace a component.
+    page.locator('[data-stage="gas"]').click()
+    page.keyboard.press('Escape')
+    page.locator('[data-insert="cloud"]').select_option('tint')
+    assert node('gas')['inputs']['cloud'] == 'tint1' and node('tint1')['inputs']['layer'] == 'cloud'
+    page.locator('[data-stage="shell"]').click()
+    page.keyboard.press('Escape')
+    page.locator('#replaceWith').select_option('ringGeometry')
+    shell = node('shell')
+    assert shell['type'] == 'ringGeometry' and shell['inputs'] == {'p': 'space'}, shell
+    record('Insert a modifier on an input and replace a component while keeping its wiring')
+    # Equations are typeset; custom expressions preview live as MathML.
+    assert page.locator('#inspectorContent .equation-card math').count() >= 1
+    show_tab('pipeline')
+    page.locator('[data-library="parts"]').click()
+    page.locator('#librarySearch').fill('Custom scalar')
+    page.locator('[data-add="expression"]').click()
+    page.locator('#equationEditor').fill('pow(x, 2.0) / (1.0 + r)')
+    page.locator('#equationEditor').dispatch_event('input')
+    preview = page.locator('#expressionPreview').inner_html()
+    assert '<mfrac>' in preview and '<msup>' in preview, preview[:200]
+    page.locator('#applyEquation').click()
+    assert node('expression1')['params']['expression'] == 'pow(x, 2.0) / (1.0 + r)'
+    page.locator('#equationEditor').fill('unknown_function(p)')
+    page.locator('#applyEquation').click()
+    page.wait_for_timeout(150)
+    assert node('expression1')['params']['expression'] == 'pow(x, 2.0) / (1.0 + r)'
+    record('Typeset equations; live MathML preview of custom expressions; failed compiles keep the image')
+    # Canvas readouts: Alt-click raw probe, continuous rulers readout, pin and unpin.
+    load('water')
+    page.locator('[data-stage="planet"]').click()
+    page.keyboard.press('Escape')
+    page.locator('#artCanvas').click(position={'x': 220, 'y': 140}, modifiers=['Alt'])
+    page.wait_for_function('document.querySelector("#toast").textContent.includes("Raw")')
+    assert 'R:' in page.locator('#toast').text_content()
     box = page.locator('#artCanvas').bounding_box()
     page.mouse.move(box['x'] + box['width'] * 0.4, box['y'] + box['height'] * 0.5)
     page.wait_for_timeout(200)
@@ -99,45 +227,28 @@ with sync_playwright() as pw:
     assert page.locator('#clearPin').is_visible()
     page.keyboard.press('Escape')
     assert page.locator('#clearPin').is_hidden()
-    page.keyboard.press('r')
-    record('Rulers readout with raw values, pin and unpin', probe)
+    record('Alt-click raw probe; rulers readout with raw values; pin and unpin', probe)
     # Zoom about the cursor: the world point under the pointer does not move. A
     # synthetic wheel event at whole-pixel coordinates (Chromium truncates fractions).
     zoomed = page.evaluate('''()=>{const c=document.getElementById('artCanvas'),r=c.getBoundingClientRect(),vm=__modules['view-math.js'];const cx=Math.round(r.left+r.width*0.7),cy=Math.round(r.top+r.height*0.3);const fb=vm.clientToPixel(cx,cy,r,c.width,c.height);const world=v=>vm.pixelToWorld(fb.px,fb.py,c.width,c.height,v);const before=world(equationStudio.getProject().view);c.dispatchEvent(new WheelEvent('wheel',{clientX:cx,clientY:cy,deltaY:-300,bubbles:true,cancelable:true}));const view=equationStudio.getProject().view,after=world(view);return {zoom:view.zoom,dx:after.x-before.x,dy:after.y-before.y};}''')
     assert zoomed['zoom'] > 1 and abs(zoomed['dx']) < 1e-9 and abs(zoomed['dy']) < 1e-9, zoomed
     page.wait_for_timeout(400)
-    record('Wheel zoom keeps the world point under the cursor fixed', zoomed['zoom'])
     page.locator('#resetView').click()
-    # Previews: one atlas program paints every node card.
-    page.evaluate('equationStudio.setPreviews(true)')
-    page.wait_for_function('[...document.querySelectorAll("[data-preview]")].length>0 && [...document.querySelectorAll("[data-preview]")].every(c=>c.getContext("2d").getImageData(0,0,c.width,c.height).data.some(v=>v))', timeout=300000)
-    record('Live per-node previews render for every component', page.locator('[data-preview]').count())
-    page.evaluate('equationStudio.setPreviews(false)')
-    # Contribution view through the inspector.
-    page.locator('[data-node="limb"]').click()
-    page.locator('#contributionNode').click()
-    page.wait_for_timeout(300)
-    assert view()['contribution'] == 'limb' and 'CONTRIBUTION' in page.locator('#viewLabel').text_content()
-    page.locator('#contributionStyle').select_option('signed')
-    assert view()['contributionStyle'] == 'signed'
-    page.keyboard.press('Escape')
-    assert view()['contribution'] is None
-    record('Contribution view toggles and styles through the inspector')
-    # Drag-and-drop a palette component onto an input socket wires it immediately.
+    record('Wheel zoom keeps the world point under the cursor fixed', zoomed['zoom'])
+    # Graph: drag-and-drop from the palette onto a socket, drag wiring and drag-off.
+    show_tab('graph')
     page.evaluate('document.getElementById("layout").style.setProperty("--graph-height","460px")')
     page.locator('[data-library="parts"]').click()
     page.locator('#librarySearch').fill('Soft disc')
     page.locator('[data-to="limb"][data-socket="p"]').scroll_into_view_if_needed()
     page.drag_and_drop('[data-add="disc"]', '[data-to="limb"][data-socket="p"]')
     page.wait_for_timeout(300)
-    # A scalar cannot feed a coordinate socket: the drop is rejected and nothing is added.
-    assert not any(n['type'] == 'disc' for n in project()['nodes'])
+    assert not any(n['type'] == 'disc' for n in project()['nodes'])  # scalar cannot feed a coordinate socket
     page.locator('#librarySearch').fill('Localized vortex')
     page.drag_and_drop('[data-add="vortex"]', '[data-to="limb"][data-socket="p"]')
     page.wait_for_timeout(300)
-    assert page.evaluate('equationStudio.getProject().nodes.find(n=>n.id==="limb").inputs.p') == 'vortex1'
+    assert node('limb')['inputs']['p'] == 'vortex1'
     record('Drag-and-drop onto a socket adds and wires a compatible component; incompatible drops are rejected')
-    # Drag a wire between dots, then drag it off an input to disconnect.
     page.locator('[data-from="space"]').scroll_into_view_if_needed()
     src = page.locator('[data-from="space"]').bounding_box()
     dst = page.locator('[data-to="limb"][data-socket="p"]').bounding_box()
@@ -147,20 +258,30 @@ with sync_playwright() as pw:
     page.mouse.move(dst['x'] + 6, dst['y'] + 6, steps=6)
     page.mouse.up()
     page.wait_for_timeout(300)
-    assert page.evaluate('equationStudio.getProject().nodes.find(n=>n.id==="limb").inputs.p') == 'space'
+    assert node('limb')['inputs']['p'] == 'space'
+    page.locator('[data-to="limb"][data-socket="p"]').scroll_into_view_if_needed()
     dst = page.locator('[data-to="limb"][data-socket="p"]').bounding_box()
+    empty = page.locator('#graphSummary').bounding_box()  # somewhere that is not a socket
     page.mouse.move(dst['x'] + 6, dst['y'] + 6)
     page.mouse.down()
-    page.mouse.move(dst['x'] - 80, dst['y'] - 40, steps=6)
+    page.mouse.move(empty['x'] + 5, empty['y'] + 5, steps=8)
     page.mouse.up()
     page.wait_for_timeout(300)
-    assert page.evaluate('equationStudio.getProject().nodes.find(n=>n.id==="limb").inputs.p') is None
-    record('Drag wiring between dots and drag-off disconnection')
+    assert node('limb')['inputs'].get('p') is None
+    page.locator('[data-node="stars"] .node-enable').scroll_into_view_if_needed()
+    page.locator('[data-node="stars"] .node-enable').uncheck()
+    assert not node('stars')['enabled']
+    page.locator('[data-show="planet"]').click()
+    assert view()['mode'] == 'stage' and view()['node'] == 'planet'
+    page.keyboard.press('Escape')
+    record('Drag wiring, drag-off disconnection, card checkboxes and the card eye button')
+    show_tab('pipeline')
     # Snapshots bookmark and restore a state.
-    page.evaluate('equationStudio.loadProject(__modules["presets.js"].getPreset("marble"))')
+    load('marble')
     page.evaluate('equationStudio.seek(1.5)')
+    page.mouse.move(5, 5)
     page.keyboard.press('s')
-    page.evaluate('equationStudio.loadProject(__modules["presets.js"].getPreset("fire"))')
+    load('fire')
     page.locator('[data-library="snapshots"]').click()
     page.locator('[data-snapshot]').first.click()
     page.wait_for_timeout(300)

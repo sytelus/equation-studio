@@ -26,7 +26,7 @@ hold:   v = v0 until the next key, then v1
 
 Smooth is a zero-end-slope cubic easing **for each interval**, not a global cubic spline. It avoids overshooting the parameter bounds. Times are rounded to milliseconds when adding keys. Adding another key at that time replaces its value. Keys can be dragged along their timeline lane to retime them; dropping one on an existing key replaces that key. Tracks and keys can be removed in the inspector. Shrinking project duration is rejected when existing keys would lie outside it; move or remove those keys first.
 
-While the animation plays, the inspector shows the evaluated value of every tracked control without rebuilding the panel, so an expression you are typing is not discarded. `,` and `.` step the playhead by one frame at 24 fps, which matches the export dialog's default rate.
+While the animation plays, the inspector shows the evaluated value of every tracked control without rebuilding the panel, so an expression you are typing is not discarded. A parameter sweep (▦) on an animated parameter edits its key at the playhead, and ↺ reset removes a parameter's animation along with restoring its original value. `,` and `.` step the playhead by one frame at 24 fps, which matches the export dialog's default rate.
 
 ## Seamless loops require more than the Loop checkbox
 

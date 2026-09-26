@@ -102,8 +102,8 @@ Studio</a>
 <li><a href="#what-is-reconstructed-and-what-is-new"
 id="toc-what-is-reconstructed-and-what-is-new">What is reconstructed,
 and what is new?</a></li>
-<li><a href="#first-ten-minutes" id="toc-first-ten-minutes">First ten
-minutes</a></li>
+<li><a href="#first-fifteen-minutes"
+id="toc-first-fifteen-minutes">First fifteen minutes</a></li>
 <li><a href="#editing-and-inspection"
 id="toc-editing-and-inspection">Editing and inspection</a></li>
 <li><a href="#animation-and-export"
@@ -126,19 +126,38 @@ formulas, animate parameters, and export reproducible
 images.</strong></p>
 <figure>
 <img src="gallery/studio-desktop.png"
-alt="The running editor with live previews and rulers" />
-<figcaption aria-hidden="true">The running editor with live previews and
-rulers</figcaption>
+alt="The editor: the final image with rulers, the live pipeline of stages, and the typeset equation of the selected component" />
+<figcaption aria-hidden="true">The editor: the final image with rulers,
+the live pipeline of stages, and the typeset equation of the selected
+component</figcaption>
 </figure>
-<p>Every image is a typed graph of equations evaluated per pixel on your
-GPU. The editor lets you see what each component contributes (isolated
-fields, live per-node previews, and a contribution view that shows
-exactly which output pixels a component changes), read real numbers
-under the cursor with world-coordinate rulers, build graphs by dragging
-components and wires, bookmark states as snapshots, animate parameters
-with keyframes, and export stills, frame sequences or video with the
-full project embedded. The <a href="docs/EDITOR_GUIDE.html">editor
-guide</a> covers every control.</p>
+<p>Every image is a typed graph of equations evaluated live, per pixel,
+on your GPU. The editor is built for understanding and
+experimenting:</p>
+<ul>
+<li><strong>See every step.</strong> The Pipeline shows each component’s
+output, in order, as a live thumbnail. The canvas can show the final
+image, any single stage, or exactly which pixels a component
+changes.</li>
+<li><strong>Understand the math.</strong> Each component’s equation is
+typeset, with every symbol explained and its live value shown. Every
+parameter says what it does. Rulers read coordinates, colors and raw
+field values under the cursor.</li>
+<li><strong>Experiment without fear.</strong> Every parameter can be
+reset, and a marker shows its original value. Sweeps render a parameter
+across its whole range. Variations suggest nearby versions. Hold
+<em>Original</em> to compare, and <em>Revert</em> is undoable. Tick and
+untick components to bypass them and build the image up layer by
+layer.</li>
+<li><strong>Compose.</strong> Drag components from the library onto the
+graph or an input, drag wires between sockets, insert a modifier on any
+input, or replace a component while keeping its wiring. Custom equations
+are typeset live as you type.</li>
+</ul>
+<p>It then animates parameters with keyframes and exports stills, frame
+sequences or video with the full project embedded. The <a
+href="docs/EDITOR_GUIDE.html">editor guide</a> covers every control, and
+every control in the app explains itself when hovered.</p>
 <h2 id="open-the-app">Open the app</h2>
 <p><strong>Open <code>Equation Studio.html</code> in a desktop browser
 with WebGL 2 enabled.</strong> This single file includes the
@@ -238,66 +257,88 @@ between source reconstruction and interpretation. We did not recover the
 complete new formula sheets, video frames/transcripts, 2023 thread, or
 two third-party exchanges. No exact reconstruction of those inaccessible
 materials is claimed.</p>
-<h2 id="first-ten-minutes">First ten minutes</h2>
+<h2 id="first-fifteen-minutes">First fifteen minutes</h2>
 <ol type="1">
-<li>Start with <strong>Bipolar Nebula</strong>. Turn on
-<strong>Previews</strong> above the graph to see every component’s
-output on its card, then select <em>Pinched shells</em> and
-<strong>Isolate</strong> it. Red is the emission rim, green is coverage,
-and blue displays the signed coordinate warp. This is a diagnostic
-false-color view, not the nebula’s RGB color.</li>
-<li>Select <em>Stars</em> and choose <strong>Contribution</strong>: the
-composite is rendered with and without the star field and only the
-pixels the stars change stay in color. Turn on <strong>Rulers</strong>
-and move over the image to read the world coordinate, pixel, displayed
-color and the selected component’s raw field value; click to pin that
-readout. <strong>Return to composite</strong> or Escape restores the
-full image. Raw values require <code>EXT_color_buffer_float</code>;
-ordinary rendering does not.</li>
+<li>Start with <strong>Bipolar Nebula</strong>. The
+<strong>Pipeline</strong> below the canvas shows all nine components in
+evaluation order, each with a live picture of its output. Click
+<em>Pinched shell family</em>: the canvas now shows <strong>This
+stage</strong>, the geometry alone. The legend explains the false
+colors: red is the emission rim, green is coverage, blue the signed
+coordinate warp. Press <code>]</code> repeatedly to walk through the
+construction to the final image, and <code>Esc</code> to return to
+it.</li>
+<li>Select <em>Folded star lattices</em> and choose <strong>What it
+changes</strong>: the final image is rendered with and without the
+stars, and only the pixels they change stay in color. Move over the
+image: the rulers’ crosshair reads the world coordinate, pixel,
+displayed color and the component’s raw value; click to pin the reading.
+Raw values require <code>EXT_color_buffer_float</code>; ordinary
+rendering does not.</li>
+<li>In the inspector, read the typeset equation and its <em>where</em>
+list, then press <strong>▦</strong> next to <em>Neck pinch</em> to see
+the image across the parameter’s whole range. Hover a thumbnail to
+preview it, click to use it, then <strong>↺</strong> to put it back.
+Hold <strong>◐ Original</strong> to compare with the scene as
+opened.</li>
+<li>Press <strong>Only structure</strong> above the pipeline, then tick
+<em>Folded star lattices</em>, then <em>Gas emission</em>. The image
+builds up one layer at a time, and ticking a component also includes
+what it needs.</li>
 <li>Open <strong>Ring Nebula</strong>. Its cloud machinery is unchanged;
-only its geometry input is replaced. This is the smallest useful example
+only its geometry is replaced (the inspector’s <strong>Replace
+with…</strong> does exactly this). This is the smallest useful example
 of composition rather than merely retinting an image.</li>
-<li>Open <strong>Lensed Galaxy</strong>. Play the timeline and inspect
-the lens-strength keys. At strength zero the lens coordinate map is the
-identity. The foreground cluster is not distorted with the background
-galaxy.</li>
+<li>Open <strong>Galaxy behind a star cluster</strong>. Play the
+timeline and inspect the lens-strength keys. Untick the lens: a bypassed
+coordinate map passes its input through, so the galaxy appears unlensed.
+The foreground cluster is not distorted with the background galaxy.</li>
 <li>Select a numeric control and click <strong>◆</strong> to make a
 first key. Move the playhead, then change that control: a tracked
-parameter gets a new key at the current time. Choose smooth, linear, or
-hold interpolation in its animation section.</li>
+parameter gets a new key at the current time. Drag keys along their lane
+to retime them.</li>
 <li>Open <strong>Components</strong>, search for <strong>Custom
-scalar</strong>, and drag it onto the graph. Edit
-<code>0.5 + 0.5*cos(12.0*r - t)</code> and apply. Isolate it, or drag
-its output dot onto a palette’s input. Coordinates are explicitly
-connected; an unconnected socket supplies zero, not an inferred world
-coordinate.</li>
+scalar</strong>, and drag it onto the graph. Type
+<code>0.5 + 0.5*cos(12.0*r - t)</code> and watch it typeset above the
+text; apply it. Coordinates are explicitly connected; an unconnected
+socket supplies zero, not an inferred world coordinate.</li>
 <li>Press <strong>Snapshot</strong> before a risky change; the Snapshots
-tab brings the state back. Save the project JSON, then export PNG or a
-PNG sequence. PNG files from the Export dialog include the complete
-project and render settings as embedded text metadata.</li>
+tab brings the state back, and <strong>⟲ Revert</strong> restores the
+whole scene (undoably). Save the project JSON, then export PNG or a PNG
+sequence. PNG files from the Export dialog include the complete project
+and render settings as embedded text metadata.</li>
 </ol>
 <h2 id="editing-and-inspection">Editing and inspection</h2>
 <p>The left library contains scenes, components and snapshots. The
-center contains a live canvas, a typed function graph, generated GLSL,
-and a timeline. The right inspector explains the selected component’s
-intent, equation, input sockets, parameters, and animation tracks.</p>
+center contains the live canvas and, below it, the Pipeline, the typed
+function graph and the generated GLSL. The right inspector explains the
+selected component: its intent, typeset equation and symbols, inputs,
+parameters with plain-language help, and animation tracks. Every control
+has a hover explanation.</p>
+<p>The canvas shows the <strong>final image</strong>, one
+<strong>stage</strong> (any component’s own output), or <strong>what a
+component changes</strong>. Unticking a component bypasses it: a
+modifier such as a coordinate warp, tint or mask passes its input
+through unchanged, a combiner passes its main input, and content such as
+a field or star layer contributes nothing.</p>
 <p>Wire components by dragging between dots, by clicking an output dot
 and then an input dot, or by choosing the input in the inspector; drag a
-library entry onto a socket to add and connect in one step. Cycles and
+library entry onto a socket to add and connect in one step, use
+<strong>＋</strong> on an input to insert a modifier, and
+<strong>Replace with…</strong> to swap a component. Cycles and
 mismatched types are rejected. Graph layout is automatic and scrollable;
-this is not a free-position node-canvas editor. Components can be
-duplicated, disabled, deleted, isolated, shown as a contribution, or
-assigned as output. Numeric changes update uniforms; graph or equation
-changes compile a new shader. A failed custom equation does not replace
-the last valid project/image.</p>
+this is not a free-position node-canvas editor. Numeric changes update
+uniforms; graph or equation changes compile a new shader. A failed
+custom equation does not replace the last valid project/image.</p>
 <p>Drag the artwork to pan; scroll or pinch to zoom about the cursor;
 <strong>Fit</strong> resets the camera. <strong>Rulers</strong> and
-<strong>Grid</strong> overlay world coordinates with a crosshair readout
-of position, pixel, color and raw field values; a click pins the
-readout. <strong>Compare</strong> loads a local PNG/JPEG/WebP overlay or
-difference view. It does not infer equations, fit parameters, or affect
-exported artwork. Crop a reference before loading; the overlay is
-stretched to the canvas rectangle.</p>
+<strong>Grid</strong>, on by default, overlay world coordinates with a
+crosshair readout of position, pixel, color and raw field values; a
+click pins the readout. <strong>Compare with a picture</strong> (in the
+⋯ menu) loads a local PNG/JPEG/WebP overlay or difference view. It does
+not infer equations, fit parameters, or affect exported artwork. Crop a
+reference before loading; the overlay is stretched to the canvas
+rectangle.</p>
 <p>Projects autosave opportunistically to browser storage. Browser
 storage can be unavailable or cleared; <strong>Save project</strong> is
 the portable backup. Reference images are session-only and are not
@@ -361,6 +402,8 @@ src/
   compiler.js              Typed DAG → one fused fragment shader (display, raw, contribution, preview modes)
   renderer.js              WebGL programs, uniforms, offscreen snapshots and previews, float probes
   view-math.js             Camera arithmetic shared by the canvas, rulers and tests
+  math-render.js           TeX and GLSL expressions → MathML for typeset equations
+  explore.js               Parameter sweeps, variations and original values
   graph-layout.js          Deterministic graph layout
   math-glsl.js             Low-level field, noise, shape, color and composition atoms
   source-constants.js      Float64 constant folding of source&#39;s fixed band expressions
@@ -371,7 +414,8 @@ src/
   export.js                PNG metadata and dependency-free ZIP export
   snapshots.js             Session bookmarks
   editor.js                Shared editor state, event bus and model operations
-  ui-*.js                  One module per panel: library, canvas, graph, inspector, timeline, export, toolbar
+  ui-*.js                  One module per panel or tool: library, canvas, pipeline, graph, previews,
+                           inspector, explorer, tooltips, timeline, export, toolbar
   app.js                   Boot, frame loop and integration hooks
   research.js              Evidence/provenance ledger displayed inside the app
 examples/                  Saved projects and an embeddable renderer example

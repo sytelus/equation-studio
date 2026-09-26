@@ -1,4 +1,4 @@
-import { $, esc, state, on, toast, showError, transact, loadProject, undo, redo, seek, setIsolated, setContribution, setPref, duplicateNode, deleteNode, history } from './editor.js';
+import { $, esc, state, on, toast, showError, transact, loadProject, undo, redo, revertScene, seek, setView, viewedNode, stepStage, setPref, duplicateNode, deleteNode, history } from './editor.js';
 import { parseProject } from './graph.js';
 import { getPreset } from './presets.js';
 import { sources, methodNotes } from './research.js';
@@ -6,7 +6,8 @@ import { download, fileStem } from './export.js';
 import { takeSnapshot } from './ui-library.js';
 import { togglePlay, stepFrames } from './ui-timeline.js';
 import { setPreviews, renderGraph } from './ui-graph.js';
-import { hasPin, clearPin } from './ui-canvas.js';
+import { hasPin, clearPin, setCompareOriginal } from './ui-canvas.js';
+import { exploreOpen, closeExplore } from './ui-explore.js';
 /** Top bar, dialogs and global keyboard shortcuts. */
 $('projectTitle').onchange = e => transact(p => p.title = e.target.value);
 $('undo').onclick = () => {
@@ -17,6 +18,11 @@ $('undo').onclick = () => {
 $('redo').onclick = () => {
     if (!state.busy) {
         redo();
+    }
+};
+$('revertScene').onclick = () => {
+    if (!state.busy) {
+        revertScene();
     }
 };
 $('saveProject').onclick = () => {
@@ -74,6 +80,11 @@ on('refresh', () => {
     $('projectTitle').value = state.project.title;
     $('counts').textContent = `${state.project.nodes.length} components · ${state.project.tracks.length} tracks`;
 });
+/** Show the selected component's stage or effect, or return to the final image. */
+function toggleView(mode) {
+    const same = state.viewMode === mode && viewedNode().id === state.selected;
+    setView(same ? 'final' : mode, { node: state.selected, lock: false });
+}
 /** Single-key shortcuts apply only outside text fields and dialogs. */
 export const shortcuts = {
     ' ': togglePlay,
@@ -84,8 +95,10 @@ export const shortcuts = {
     'r': () => setPref('rulers', !state.prefs.rulers),
     'g': () => setPref('grid', !state.prefs.grid),
     'p': () => setPreviews(!state.prefs.previews),
-    'i': () => setIsolated(state.isolated === state.selected ? null : state.selected),
-    'c': () => setContribution(state.contribution === state.selected ? null : state.selected),
+    'i': () => toggleView('stage'),
+    'c': () => toggleView('effect'),
+    '[': () => stepStage(-1),
+    ']': () => stepStage(1),
     'f': () => $('resetView').click(),
     's': () => takeSnapshot(),
     'l': () => $('graphFit').click()
@@ -97,11 +110,14 @@ document.addEventListener('keydown', e => {
             state.connection = null;
             renderGraph();
         }
+        else if (!modal && exploreOpen()) {
+            closeExplore();
+        }
         else if (!modal && hasPin()) {
             clearPin();
         }
-        else if (!modal && (state.isolated || state.contribution)) {
-            setIsolated(null);
+        else if (!modal && state.viewMode !== 'final') {
+            setView('final');
         }
         return;
     }
@@ -111,6 +127,12 @@ document.addEventListener('keydown', e => {
         return;
     }
     if (editing || modal || state.busy) {
+        return;
+    }
+    if (e.key.toLowerCase() === 'o' && !meta && !e.altKey) { // hold O: compare with the original
+        if (!e.repeat) {
+            setCompareOriginal(true);
+        }
         return;
     }
     if (meta && e.key.toLowerCase() === 'z') {
@@ -130,3 +152,9 @@ document.addEventListener('keydown', e => {
         shortcuts[e.key.length === 1 ? e.key.toLowerCase() : e.key]();
     }
 });
+document.addEventListener('keyup', e => {
+    if (e.key.toLowerCase() === 'o') {
+        setCompareOriginal(false);
+    }
+});
+addEventListener('blur', () => setCompareOriginal(false));

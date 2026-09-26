@@ -1,4 +1,4 @@
-import { catalog, parameterDefaults } from './catalog.js';
+import { catalog, parameterDefaults, bypassSocket } from './catalog.js';
 /** JSON-only graph model; imported projects are data, never executable JavaScript. */
 export const SCHEMA_VERSION = 1;
 export const MAX_NODES = 80;
@@ -160,9 +160,19 @@ export function validateProject(project) {
     }
     return project;
 }
+/** Inputs a node actually evaluates. A disabled node is bypassed: it evaluates only
+ * its pass-through socket (catalog `bypass`), or nothing when it has none.
+ */
+export function activeInputs(node) {
+    if (node.enabled) {
+        return Object.values(node.inputs).filter(Boolean);
+    }
+    const socket = bypassSocket(node.type);
+    return socket && node.inputs[socket] ? [node.inputs[socket]] : [];
+}
 /** Dependencies of `target` in evaluation order, ending with the target itself.
- * Disabled nodes do not pull in their inputs. Pass `null` to order every node,
- * which the multi-target preview shader uses.
+ * Disabled nodes pull in only their bypass input. Pass `null` to order every
+ * node, which the multi-target preview shader uses.
  */
 export function topologicalOrder(project, target = project.output) {
     const map = new Map(project.nodes.map(n => [n.id, n])), seen = new Set(), order = [];
@@ -175,12 +185,8 @@ export function topologicalOrder(project, target = project.output) {
             throw new Error(`Unknown component ${id}`);
         }
         seen.add(id);
-        if (n.enabled) {
-            for (const i of Object.values(n.inputs)) {
-                if (i) {
-                    walk(i);
-                }
-            }
+        for (const i of activeInputs(n)) {
+            walk(i);
         }
         order.push(n);
     }
@@ -193,6 +199,39 @@ export function topologicalOrder(project, target = project.output) {
         walk(target);
     }
     return order;
+}
+/** Every node in a valid evaluation order, following all connections whatever the
+ * enabled flags. This is the order of the Pipeline panel: each node appears after
+ * everything it reads.
+ */
+export function evaluationOrder(project) {
+    const map = new Map(project.nodes.map(n => [n.id, n])), seen = new Set(), order = [];
+    const walk = id => {
+        if (seen.has(id) || !map.has(id)) {
+            return;
+        }
+        seen.add(id);
+        for (const source of Object.values(map.get(id).inputs)) {
+            if (source) {
+                walk(source);
+            }
+        }
+        order.push(map.get(id));
+    };
+    project.nodes.forEach(n => walk(n.id));
+    return order;
+}
+/** Nodes that read `id` directly, with the socket they read it through. */
+export function consumers(project, id) {
+    const result = [];
+    for (const n of project.nodes) {
+        for (const [socket, source] of Object.entries(n.inputs)) {
+            if (source === id) {
+                result.push({ node: n, socket });
+            }
+        }
+    }
+    return result;
 }
 /** IDs that `id` depends on, transitively (regardless of enabled flags). */
 export function upstream(project, id) {

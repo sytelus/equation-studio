@@ -1,61 +1,574 @@
 const __modules = Object.create(null);
 __modules['catalog.js'] = (() => {
 /** Single source of truth for the node palette, type system, UI and shader compiler.
- * To add a component: define its typed sockets, parameter schema, equation, and emit().
- * emit() receives GLSL expressions, not JS values. Numerical parameters are uniforms.
+ *
+ * Each component declares:
+ *   name, category, output      display name, palette group, output type
+ *   inputs                      socket name → type ('coord' | 'scalar' | 'geometry' | 'layer')
+ *   inputSymbols                optional socket name → TeX symbol used in the equation
+ *   params                      parameter schema; every number/color has a TeX `symbol`
+ *                               that appears in `tex`, and a plain-language `help`
+ *   tex                         typeset equation lines (TeX subset, see math-render.js)
+ *   notes                       [TeX symbol, meaning] for symbols that are not parameters
+ *   equation                    one-line plain-text summary (search, docs)
+ *   description                 what the component is for
+ *   role                        'source' | 'modifier' | 'combine' | 'content'
+ *   bypass                      socket passed through unchanged when the node is
+ *                               disabled; null means a disabled node outputs typed zero
+ *   emit(inputs, uniforms)      GLSL expression; receives GLSL expression strings,
+ *                               not JS values. Numerical parameters are uniforms.
  */
-const num = (label, value, min, max, step, help = '') => ({ kind: 'number', label, value, min, max, step, help });
-const rgb = (label, value) => ({ kind: 'color', label, value, help: 'Linear radiance multiplier; display conversion happens only after composition.' });
-const expr = (value) => ({ kind: 'expression', label: 'GLSL expression', value, help: 'Use p, x, y, r, theta, t, a and b. Expression only: no statements, loops, declarations, or JavaScript.' });
-const node = (name, category, output, inputs, params, equation, description, emit) => ({ name, category, output, inputs, params, equation, description, emit });
+const num = (label, value, min, max, step, symbol, help) => ({ kind: 'number', label, value, min, max, step, symbol, help });
+const rgb = (label, value, symbol, help) => ({ kind: 'color', label, value, symbol, help: `${help} A linear radiance multiplier; display conversion happens only after composition.` });
+const expr = value => ({ kind: 'expression', label: 'GLSL expression', value, help: 'Use p, x, y, r, theta, t, a and b. Expression only: no statements, loops, declarations, or JavaScript.' });
+const component = def => ({ inputs: {}, inputSymbols: {}, params: {}, notes: [], role: 'content', bypass: null, ...def });
+const customNotes = [['p = (x, y)', 'input coordinates'], ['r, \\theta', 'polar radius and angle of p'], ['a, b', 'optional scalar inputs'], ['t', 'time in seconds']];
 const catalog = {
-    coordinates: node('Image coordinates', 'Coordinates', 'coord', {}, {}, 'p = (pixel − center) × worldUnitsPerPixel', 'World-space coordinates. Native 2000 × 1200 sampling keeps the original +1/840 offset on each axis. All image layers share this field.', () => 'p'),
-    transform: node('Translate · rotate · scale', 'Coordinates', 'coord', { p: 'coord' }, {
-        x: num('Center X', 0, -5, 5, 0.01), y: num('Center Y', 0, -5, 5, 0.01), angle: num('Rotation', 0, -6.28, 6.28, 0.01), scale: num('Scale', 1, 0.05, 5, 0.01), stretch: num('Vertical stretch', 1, 0.1, 4, 0.01)
-    }, 'q = R(−angle) (p − center) / scale', 'Inverse-map world pixels into local object coordinates. This moves the object without stretching a stored picture.', (i, u) => `rotate2(${i.p}-vec2(${u.x},${u.y}),-${u.angle})/vec2(${u.scale},${u.scale}*${u.stretch})`),
-    vortex: node('Localized vortex', 'Coordinates', 'coord', { p: 'coord' }, { strength: num('Twist', 4, -16, 16, 0.1), radius: num('Influence radius', 1, 0.02, 4, 0.02), speed: num('Rotation speed', 0, -2, 2, 0.01) }, 'q = R(strength · exp(−r²/radius²) + speed · t) p', 'A smooth local coordinate twist. Send any texture, star field or silhouette through this map.', (i, u) => `vortex(${i.p},${u.strength},${u.radius},${u.speed}*u_time)`),
-    domainwarp: node('Turbulent coordinate warp', 'Coordinates', 'coord', { p: 'coord' }, { amplitude: num('Displacement', 0.4, 0, 2, 0.01), frequency: num('Frequency', 2, 0.1, 12, 0.1), speed: num('Flow speed', 0.1, -2, 2, 0.01) }, 'q = p + amplitude · (noise₁(p,t), noise₂(p,t))', 'Independent smooth fields displace the two coordinate axes. A reusable alternative to drawing complicated boundaries directly.', (i, u) => `domainWarp(${i.p},${u.amplitude},${u.frequency},u_time*${u.speed})`),
-    polar: node('Polar coordinates', 'Coordinates', 'coord', { p: 'coord' }, { angleScale: num('Angle scale', 1, 0.1, 12, 0.1), radiusScale: num('Radius scale', 1, 0.1, 12, 0.1) }, 'q = (atan2(y,x), length(p))', 'Unroll angles and radii into a texture plane. There is a branch seam at ±π; integer angular repetition can hide it.', (i, u) => `vec2(angleOf(${i.p})*${u.angleScale},length(${i.p})*${u.radiusScale})`),
-    kaleidoscope: node('Angular mirror', 'Coordinates', 'coord', { p: 'coord' }, { sectors: num('Sectors', 6, 2, 24, 1), spin: num('Rotation speed', 0.1, -1, 1, 0.01) }, 'a = |mod(theta + π/n, 2π/n) − π/n|', 'Fold the angular coordinate into mirrored sectors. Reuse any source pattern to create symmetry.', (i, u) => `angularMirror(${i.p},${u.sectors},u_time*${u.spin})`),
-    noise: node('Fractal value noise', 'Scalar fields', 'scalar', { p: 'coord' }, { frequency: num('Frequency', 3, 0.1, 30, 0.1), octaves: num('Octaves', 6, 1, 8, 1), speed: num('Flow speed', 0.1, -2, 2, 0.01), seed: num('Seed offset', 0, 0, 100, 1) }, 'f(p) = Σ 2⁻ᵏ noise(2ᵏ Rp + offset)', 'Smooth deterministic multiscale noise. Not part of the original nebula formulas; useful for new organic surfaces.', (i, u) => `fbm(${i.p}*${u.frequency}+vec2(${u.seed},u_time*${u.speed}),${u.octaves})`),
-    waves: node('Nested cosine bands', 'Scalar fields', 'scalar', { p: 'coord' }, { frequency: num('Frequency', 9, 0.1, 80, 0.1), bend: num('Phase bending', 4, 0, 20, 0.1), speed: num('Phase speed', 0.5, -4, 4, 0.01) }, 'f = ½ + ½ cos(kx + b sin(ky − t))', 'A compact example of phase modulation: one wave bends another. It becomes marbling under a coordinate warp.', (i, u) => `(0.5+0.5*cos(${i.p}.x*${u.frequency}+${u.bend}*sin(${i.p}.y*${u.frequency}*0.65-u_time*${u.speed})))`),
-    disc: node('Soft disc / sphere mask', 'Scalar fields', 'scalar', { p: 'coord' }, { radius: num('Radius', 1, 0.02, 3, 0.01), edge: num('Edge softness', 0.02, 0.001, 0.6, 0.001) }, 'mask = 1 − smoothstep(−edge, edge, |p| − radius)', 'Coverage mask. Connect to Mask layer, or use it to modulate another field.', (i, u) => `softInside(length(${i.p})-${u.radius},${u.edge})`),
-    ring: node('Gaussian ring', 'Scalar fields', 'scalar', { p: 'coord' }, { radius: num('Radius', 1, 0, 3, 0.01), width: num('Width', 0.1, 0.005, 1, 0.005) }, 'f = exp(−((|p| − radius)/width)²)', 'A luminous rim with a hollow center. A Gaussian field, not a geometric mesh.', (i, u) => `gaussian(length(${i.p})-${u.radius},${u.width})`),
-    threshold: node('Soft threshold', 'Scalar fields', 'scalar', { field: 'scalar' }, { level: num('Threshold', 0.5, -2, 2, 0.01), sharpness: num('Sharpness', 8, 0.1, 60, 0.1) }, 'f = exp(−exp(−sharpness · (field − level)))', 'The same nested-exponential gate used by the source equations. Turns smooth variation into wisps, islands or filaments.', (i, u) => `cutoff(-${u.sharpness}*(${i.field}-${u.level}))`),
-    fieldmath: node('Combine scalar fields', 'Scalar fields', 'scalar', { a: 'scalar', b: 'scalar' }, { weightA: num('A weight', 1, -5, 5, 0.01), weightB: num('B weight', 1, -5, 5, 0.01), product: num('Product weight', 0, -5, 5, 0.01), bias: num('Bias', 0, -4, 4, 0.01) }, 'f = wa·a + wb·b + wp·a·b + bias', 'One small arithmetic node supports sums, differences, products and threshold offsets.', (i, u) => `(${u.weightA}*${i.a}+${u.weightB}*${i.b}+${u.product}*${i.a}*${i.b}+${u.bias})`),
-    expression: node('Custom scalar equation', 'Authoring', 'scalar', { p: 'coord', a: 'scalar', b: 'scalar' }, { expression: expr('0.5 + 0.5*cos(8.0*r - 3.0*theta - t)') }, 'float f(p,a,b,t) = your expression', 'Compile an editable GLSL scalar expression. x,y,r,theta are derived from p. Additional scalar sockets a and b can carry any fields.', () => ''),
-    vectorExpression: node('Custom coordinate equation', 'Authoring', 'coord', { p: 'coord', a: 'scalar', b: 'scalar' }, { expression: expr('rotate2(p, 0.5*sin(r*3.0-t))') }, 'vec2 q(p,a,b,t) = your expression', 'Author new coordinate maps without rewriting the renderer. Returns vec2; no JavaScript execution.', () => ''),
-    colorExpression: node('Custom color equation', 'Authoring', 'layer', { p: 'coord', a: 'scalar', b: 'scalar' }, { expression: expr('spectrum(r - t*0.1, 0.0) * (0.5 + 0.5*cos(theta*6.0))') }, 'vec3 color(p,a,b,t) = your expression', 'Author RGB radiance. Returns vec3; alpha is set to one. Combine with a mask for transparency.', () => ''),
-    palette: node('Two-color emission', 'Color & composition', 'layer', { field: 'scalar' }, { low: rgb('Low color', '#09212e'), high: rgb('High color', '#62edc3'), gain: num('Emission', 1, 0, 5, 0.01), power: num('Contrast power', 1, 0.1, 8, 0.05) }, 'RGB = gain · mix(low, high, clamp(field)^power)', 'Color a scalar field. This returns straight RGB with full coverage; add a mask when the layer should be transparent.', (i, u) => `vec4(mix(${u.low},${u.high},pow(clamp(${i.field},0.0,1.0),${u.power}))*${u.gain},1)`),
-    solid: node('Solid color', 'Color & composition', 'layer', {}, { color: rgb('Color', '#030712'), gain: num('Gain', 1, 0, 4, 0.01) }, 'RGB = color × gain', 'A background or constant radiance layer.', (i, u) => `vec4(${u.color}*${u.gain},1)`),
-    tint: node('Tint & gain', 'Color & composition', 'layer', { layer: 'layer' }, { color: rgb('RGB multiplier', '#ffffff'), gain: num('Gain', 1, 0, 5, 0.01) }, 'RGB = incoming RGB × tint × gain', 'Multiply floating-point radiance before output conversion. Does not discard highlight detail.', (i, u) => `vec4(${i.layer}.rgb*${u.color}*${u.gain},${i.layer}.a)`),
-    mask: node('Mask layer', 'Color & composition', 'layer', { layer: 'layer', mask: 'scalar' }, { strength: num('Strength', 1, 0, 1, 0.01) }, 'alpha = alpha × mix(1, clamp(mask), strength)', 'Changes coverage, not straight RGB. Use Over to honor alpha; Add intentionally sums emitted RGB regardless of coverage.', (i, u) => `vec4(${i.layer}.rgb,${i.layer}.a*mix(1.0,clamp(${i.mask},0.0,1.0),${u.strength}))`),
-    add: node('Add light', 'Color & composition', 'layer', { a: 'layer', b: 'layer' }, { gain: num('B gain', 1, 0, 5, 0.01) }, 'RGB = A.rgb + gain · B.rgb', 'Sum radiance before tone mapping. Alpha does not attenuate emission; use Over for opaque objects or alpha-masked layers.', (i, u) => `addLight(${i.a},${i.b},${u.gain})`),
-    over: node('Front over back', 'Color & composition', 'layer', { front: 'layer', back: 'layer' }, {}, 'alpha = af + ab(1−af); RGB = (af Cf + (1−af)ab Cb)/alpha', 'Correct straight-alpha composition. Use it to hide background stars behind a planet, feathers, or a silhouette.', i => `overLayer(${i.front},${i.back})`),
-    nebulaGeometry: node('Pinched shell family · S,A', 'Source nebula', 'geometry', { p: 'coord' }, { pinch: num('Neck pinch', 0.3, 0.05, 0.8, 0.005), shear: num('Shell shear', 0.15, -0.5, 0.6, 0.005), shells: num('Shell count', 27, 1, 27, 1) }, 'Lₛ = sqrt(Uₛ² + (2Rₛ^0.3 |Uₛ|^−0.3 Vₛ)²) − Rₛ', 'Exact structural port at defaults. Ordered soft first-hit selection produces S (texture coordinate), A (emission rim), and coverage. These are separate meanings.', (i, u) => `nebulaGeometry(${i.p},${u.pinch},${u.shear},${u.shells})`),
-    ringGeometry: node('Replacement ring geometry', 'Source nebula', 'geometry', { p: 'coord' }, { radius: num('Radius', 1.1, 0.1, 2, 0.01), width: num('Rim width', 0.16, 0.01, 0.7, 0.01), flatten: num('Vertical compression', 1.5, 0.2, 3, 0.01) }, 'S=2d; A=0.22 exp(−(d/width)²); d=|scaled p|−radius', 'New geometry with the same interface as the pinched shell family. Reuse the entire original cloud machinery unchanged.', (i, u) => `ringGeometry(${i.p},${u.radius},${u.width},${u.flatten})`),
-    geometryField: node('Inspect geometry channel', 'Source nebula', 'scalar', { geometry: 'geometry' }, { channel: num('0=warp · 1=rim · 2=coverage', 1, 0, 2, 1), gain: num('Display gain', 4, 0.1, 10, 0.1) }, 'f = geometry.warp / rim / coverage', 'Extract one named field for diagnosis, masks or further composition. The rim and coverage are deliberately not interchangeable.', (i, u) => `((${u.channel}<0.5)?${i.geometry}.warp:((${u.channel}<1.5)?${i.geometry}.rim:${i.geometry}.coverage))*${u.gain}`),
-    nebulaTurbulence: node('Nested-cosine turbulence · E', 'Source nebula', 'scalar', { p: 'coord', geometry: 'geometry' }, { bands: num('Bands', 50, 1, 50, 1), speed: num('Phase speed', 0, -1, 1, 0.01) }, 'E = Σ (19/20)ˢ Dₛ(S,Qₛ)', 'Original 50-band signed modulation. It perturbs the filament threshold and central glow. Motion is an optional new phase shift, zero in source mode.', (i, u) => `nebulaTurbulence(${i.p},${i.geometry},${u.bands},u_time*${u.speed})`),
-    nebulaCloud: node('Filaments & haze · K', 'Source nebula', 'layer', { p: 'coord', geometry: 'geometry', turbulence: 'scalar' }, { bands: num('Bands', 50, 1, 50, 1), detail: num('Sharp filament gain', 1, 0, 3, 0.01) }, 'Iₛ=45 C₁,ₛ+6 C₀,ₛ; Kᵥ=Σ Iₛ (19/20)ˢ κᵥ,ₛ', 'Original RGB field before the geometry rim and core cutout are applied. Preview looks over-bright because masking happens downstream.', (i, u) => `nebulaCloud(${i.p},${i.geometry},${i.turbulence},${u.bands},${u.detail})`),
-    nebulaGas: node('Gas emission · Hgas', 'Source nebula', 'layer', { p: 'coord', geometry: 'geometry', turbulence: 'scalar', cloud: 'layer' }, { gain: num('Gas gain', 1, 0, 3, 0.01) }, 'Hgas = 1.1 (1−W) K A', 'Original gas contribution. A confines emission to shell rims; 1−W clears the central glow region.', (i, u) => `nebulaGas(${i.p},${i.geometry},${i.turbulence},${i.cloud},${u.gain})`),
-    nebulaCore: node('Central glow · W', 'Source nebula', 'layer', { p: 'coord', turbulence: 'scalar' }, { gain: num('Core gain', 1, 0, 3, 0.01) }, 'W=exp(−exp(10|p|−1+E/4)); Hcore=W(2,2,3)', 'Original glow. The square root in the source contains x²+y² only, not −1 or E/4.', (i, u) => `nebulaCore(${i.p},${i.turbulence},${u.gain})`),
-    nebulaStars: node('Folded star lattices · T', 'Source nebula', 'layer', { p: 'coord' }, { bands: num('Lattices', 30, 1, 30, 1), gain: num('Starlight', 1, 0, 3, 0.01) }, 'M,N=acos(cos(rotated coordinates)); T=Σ colored(center+halo)', 'Original deterministic stars with pointed centers. Folded-angle lattices, not random sprites or an astronomical catalog.', (i, u) => `nebulaStars(${i.p},${u.bands},${u.gain})`),
-    scatterStars: node('Seeded star field', 'Astronomical studies', 'layer', { p: 'coord' }, { density: num('Density scale', 22, 3, 60, 1), gain: num('Starlight', 0.7, 0, 3, 0.01), seed: num('Seed', 17, 0, 100, 1), speed: num('Twinkle speed', 0.1, 0, 2, 0.01) }, 'star = Gaussian core + halo + cross rays', 'New deterministic jittered-cell stars. Three scales and warm/cool variation; distinct from the original folded lattice algorithm.', (i, u) => `scatterStars(${i.p},${u.density},${u.gain},${u.seed},u_time*${u.speed})`),
-    planet: node('Cyclonic water planet', 'Astronomical studies', 'layer', { p: 'coord' }, { radius: num('Radius', 1.08, 0.1, 2, 0.01), cloud: num('Cloud cover', 0.65, 0, 2, 0.01), twist: num('Cyclone twist', 5, 0, 14, 0.1), light: num('Light angle', 2.25, 0, 6.28, 0.01), speed: num('Cloud drift', 0.5, -2, 2, 0.01) }, 'visible sphere → spherical coordinates → cyclone maps → clouds → lighting', 'Subject-inspired study, not the artist’s unretrieved formula. Rotated cloud coordinates, finite-octave noise, Lambert-like light, glint and rim scattering.', (i, u) => `waterPlanet(${i.p},${u.radius},${u.cloud},${u.twist},${u.light},u_time*${u.speed})`),
-    atmosphere: node('Atmospheric rim', 'Astronomical studies', 'layer', { p: 'coord' }, { radius: num('Radius', 1.08, 0.1, 2, 0.01), gain: num('Glow', 0.7, 0, 3, 0.01) }, 'glow = Gaussian(|p|−radius)', 'An independent analytic limb glow; align its radius with the planet when composing them.', (i, u) => `atmosphere(${i.p},${u.radius},${u.gain})`),
-    lens: node('Star-cluster lens map', 'Astronomical studies', 'coord', { p: 'coord' }, { strength: num('Deflection strength', 1, 0, 3, 0.01), count: num('Lenses', 7, 1, 12, 1), softening: num('Softening', 0.015, 0.001, 0.2, 0.001) }, 'β = θ − Σ mᵢ(θ−θᵢ)/(|θ−θᵢ|²+ε²)', 'Illustrative softened thin-lens backward mapping. Zero strength is the identity. Feed the result into a galaxy; draw foreground lens stars in the unwarped plane.', (i, u) => `clusterLens(${i.p},${u.strength},${u.count},${u.softening})`),
-    clusterLights: node('Foreground cluster stars', 'Astronomical studies', 'layer', { p: 'coord' }, { gain: num('Brightness', 1, 0, 3, 0.01), count: num('Stars', 7, 1, 12, 1) }, 'centers share the lens map’s deterministic positions', 'Draw these AFTER lensing the background. Moving a background star image through this node would not model a foreground lens cluster.', (i, u) => `clusterLights(${i.p},${u.gain},${u.count})`),
-    galaxy: node('Logarithmic spiral galaxy', 'Astronomical studies', 'layer', { p: 'coord' }, { arms: num('Spiral arms', 3, 1, 8, 1), pitch: num('Winding', 7, 0.5, 15, 0.1), radius: num('Scale', 0.75, 0.1, 2, 0.01), dust: num('Dust lanes', 0.6, 0, 1, 0.01), speed: num('Phase speed', 0.2, -2, 2, 0.01) }, 'phase = arms·theta − pitch·log(r+0.1)', 'New analytic spiral arms, Gaussian-like central bulge, radial fade, dusty modulation and emission knots. Its input coordinates can be gravitationally warped.', (i, u) => `spiralGalaxy(${i.p},${u.arms},${u.pitch},${u.radius},${u.dust},u_time*${u.speed})`),
-    aurora: node('Spiral auroral curtain', 'Astronomical studies', 'layer', { p: 'coord' }, { turns: num('Winding', 4, 0.5, 12, 0.1), width: num('Ribbon width', 0.115, 0.01, 0.4, 0.005), curtain: num('Fine rays', 1, 0, 3, 0.01), speed: num('Flow speed', 0.5, -2, 2, 0.01) }, 'ribbon = exp(−[sin(theta + turns·log(r+0.12))/width]²)', 'New projected spiral ribbon with green/purple emission and angular striations. It illustrates appearance, not an auroral plasma simulation.', (i, u) => `auroraVortex(${i.p},${u.turns},${u.width},${u.curtain},u_time*${u.speed})`),
-    disk: node('Accretion disk & shadow', 'Astronomical studies', 'layer', { p: 'coord' }, { radius: num('Shadow scale', 0.34, 0.06, 0.8, 0.005), inclination: num('Projection flattening', 3, 1, 7, 0.05), spin: num('Texture winding', 4, 0, 12, 0.1), speed: num('Flow speed', 0.5, -2, 2, 0.01) }, 'projected annulus + bent rear arc − central shadow', 'New stylized construction. The bright-side weighting and bent arc are artistic terms, not a relativistic transfer calculation.', (i, u) => `accretionDisk(${i.p},${u.radius},${u.inclination},${u.spin},u_time*${u.speed})`),
-    tidal: node('Stretched star & tidal stream', 'Astronomical studies', 'layer', { p: 'coord' }, { stretch: num('Taper power', 2.5, 0.3, 6, 0.05), size: num('Star width', 0.13, 0.02, 0.4, 0.005), speed: num('Stream speed', 0.5, -2, 2, 0.01) }, 'emission = Gaussian(distance to tapered centerline) + star core', 'New narrow curved stream broadening toward a luminous star. Independent from the disk so it can be translated, masked or reused as a comet.', (i, u) => `tidalStream(${i.p},${u.stretch},${u.size},u_time*${u.speed})`),
-    feather: node('Single eyespot feather', 'Natural studies', 'layer', { p: 'coord' }, { width: num('Width', 0.095, 0.02, 0.3, 0.005), eye: num('Eyespot scale', 1, 0.3, 2, 0.01), speed: num('Barb motion', 0.2, 0, 2, 0.01) }, 'tapered local silhouette + oblique cosine barbs + nested eyespot rings', 'Reusable analytic stamp. Base at (0,0), tip at (0,1). No texture. The fan node instances this exact kernel many times.', (i, u) => `feather(${i.p},${u.width},${u.eye},u_time*${u.speed})`),
-    fan: node('Peacock feather fan', 'Natural studies', 'layer', { p: 'coord' }, { spread: num('Fan spread', 2.9, 0.4, 3.5, 0.01), rows: num('Feather rows', 4, 1, 4, 1), width: num('Feather width', 0.095, 0.03, 0.2, 0.005), speed: num('Breeze speed', 0.3, 0, 2, 0.01) }, 'fan = Overᵢ feather(Rᵢ(p−base)/lengthᵢ)', 'New full-display construction, not a recovered 2026 formula. Outer-to-inner rows, shared feather kernels and staggered phase give repeated yet varied detail.', (i, u) => `peacockFan(${i.p},${u.spread},${u.rows},${u.width},u_time*${u.speed})`),
-    peacockBody: node('Peacock body & crest', 'Natural studies', 'layer', { p: 'coord' }, { size: num('Size', 1, 0.3, 2, 0.01) }, 'body ellipses + curved neck + head + crest segments', 'A separate opaque silhouette over the feather fan, so changing the fan does not distort the bird.', (i, u) => `peacockBody(${i.p},${u.size})`),
-    fire: node('Tapered flame field', 'Natural studies', 'layer', { p: 'coord' }, { height: num('Height', 2, 0.2, 3, 0.01), width: num('Base width', 0.8, 0.1, 2, 0.01), turbulence: num('Turbulence', 1, 0, 2, 0.01), speed: num('Rise speed', 1, 0, 3, 0.01) }, 'tapered silhouette + advected noise + heat palette', 'New explanatory fire study. Moving the sampling coordinates creates upward flow without storing a simulation state. Not a reconstruction of the linked video.', (i, u) => `firePlume(${i.p},${u.height},${u.width},${u.turbulence},u_time*${u.speed})`),
-    hedgehog: node('Hedgehog & quill field', 'Natural studies', 'layer', { p: 'coord' }, { quills: num('Quill length', 0.28, 0.02, 0.7, 0.01), density: num('Quill count', 160, 10, 160, 1), speed: num('Breathing speed', 0.5, 0, 2, 0.01) }, 'elliptical body + repeated tapered segment quills + facial masks', 'New constructive hedgehog example. Separate local stamps supply a readable silhouette and repeated surface detail; no claim about the inaccessible video steps.', (i, u) => `hedgehog(${i.p},${u.quills},${u.density},u_time*${u.speed})`)
+    coordinates: component({
+        name: 'Image coordinates', category: 'Coordinates', output: 'coord', role: 'source',
+        equation: 'p = (pixel − center) × worldUnitsPerPixel / zoom + pan',
+        tex: ['p = \\frac{W}{w\\, z}\\left(\\mathbf{x} - \\frac{\\mathbf{s}}{2}\\right) + \\mathbf{o}'],
+        notes: [['\\mathbf{x}', 'pixel position'], ['\\mathbf{s}, w', 'image size and width in pixels'], ['W', 'world width, 2000/420 units'], ['z, \\mathbf{o}', 'camera zoom and pan']],
+        description: 'World-space coordinates of every pixel. Native 2000 × 1200 sampling keeps the original +1/840 offset on each axis. Most scenes feed all their components from this one field.',
+        emit: () => 'p'
+    }),
+    transform: component({
+        name: 'Translate · rotate · scale', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
+        params: {
+            x: num('Center X', 0, -5, 5, 0.01, 'c_x', 'Horizontal position of the local origin in world units. Moves whatever is sampled downstream right (+) or left (−).'),
+            y: num('Center Y', 0, -5, 5, 0.01, 'c_y', 'Vertical position of the local origin. Moves the downstream object up (+) or down (−).'),
+            angle: num('Rotation', 0, -6.28, 6.28, 0.01, '\\theta', 'Counter-clockwise rotation in radians (6.28 is one full turn).'),
+            scale: num('Scale', 1, 0.05, 5, 0.01, 's', 'Uniform size: values above 1 enlarge the downstream object, below 1 shrink it.'),
+            stretch: num('Vertical stretch', 1, 0.1, 4, 0.01, 'k', 'Extra vertical scale on top of Scale: above 1 makes the object taller, below 1 flatter.')
+        },
+        equation: 'q = R(−angle) (p − center) / scale',
+        tex: ['q = \\operatorname{diag}(s,\\ s k)^{-1}\\, R(-\\theta)\\,(p - c), \\quad c = (c_x, c_y)'],
+        notes: [['R(\\theta)', 'rotation matrix']],
+        description: 'Inverse-map world pixels into local object coordinates. This moves the object without stretching a stored picture.',
+        emit: (i, u) => `rotate2(${i.p}-vec2(${u.x},${u.y}),-${u.angle})/vec2(${u.scale},${u.scale}*${u.stretch})`
+    }),
+    vortex: component({
+        name: 'Localized vortex', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
+        params: {
+            strength: num('Twist', 4, -16, 16, 0.1, '\\kappa', 'Rotation at the center in radians; negative twists the other way. The twist fades to zero away from the center.'),
+            radius: num('Influence radius', 1, 0.02, 4, 0.02, '\\rho', 'Distance over which the twist fades (Gaussian falloff). Larger values twist a wider area.'),
+            speed: num('Rotation speed', 0, -2, 2, 0.01, '\\omega', 'Extra rotation that grows with time, in radians per second. Zero keeps the twist static.')
+        },
+        equation: 'q = R(strength · exp(−r²/radius²) + speed · t) p',
+        tex: ['q = R\\left(\\kappa\\, e^{-|p|^2/\\rho^2} + \\omega t\\right) p'],
+        notes: [['R(\\cdot)', 'rotation by the given angle'], ['t', 'time in seconds']],
+        description: 'A smooth local coordinate twist. Send any texture, star field or silhouette through this map.',
+        emit: (i, u) => `vortex(${i.p},${u.strength},${u.radius},${u.speed}*u_time)`
+    }),
+    domainwarp: component({
+        name: 'Turbulent coordinate warp', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
+        params: {
+            amplitude: num('Displacement', 0.4, 0, 2, 0.01, 'A', 'How far coordinates are pushed, in world units. Zero leaves them unchanged.'),
+            frequency: num('Frequency', 2, 0.1, 12, 0.1, 'f', 'Spatial frequency of the displacement noise. Higher values give smaller, busier wobbles.'),
+            speed: num('Flow speed', 0.1, -2, 2, 0.01, '\\omega', 'How quickly the noise pattern drifts over time. Zero freezes it.')
+        },
+        equation: 'q = p + amplitude · (noise₁(p,t), noise₂(p,t))',
+        tex: ['q = p + A\\left[\\left(n_1(f p + \\omega t),\\ n_2(f p - \\omega t)\\right) - \\frac{1}{2}\\right]'],
+        notes: [['n_1, n_2', 'independent five-octave fractal noise, 0 to 1'], ['t', 'time in seconds']],
+        description: 'Independent smooth fields displace the two coordinate axes. A reusable alternative to drawing complicated boundaries directly.',
+        emit: (i, u) => `domainWarp(${i.p},${u.amplitude},${u.frequency},u_time*${u.speed})`
+    }),
+    polar: component({
+        name: 'Polar coordinates', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
+        params: {
+            angleScale: num('Angle scale', 1, 0.1, 12, 0.1, 'k_\\theta', 'Multiplies the angle before it becomes the x coordinate. Integer values tile the pattern around the circle without a seam.'),
+            radiusScale: num('Radius scale', 1, 0.1, 12, 0.1, 'k_r', 'Multiplies the distance from the center before it becomes the y coordinate. Higher values repeat the pattern more often outward.')
+        },
+        equation: 'q = (atan2(y,x), length(p))',
+        tex: ['q = (k_\\theta\\, \\theta,\\ k_r\\, r), \\quad \\theta = \\operatorname{atan2}(p_y, p_x),\\ r = |p|'],
+        description: 'Unroll angles and radii into a texture plane. There is a branch seam at ±π; integer angular repetition can hide it.',
+        emit: (i, u) => `vec2(angleOf(${i.p})*${u.angleScale},length(${i.p})*${u.radiusScale})`
+    }),
+    kaleidoscope: component({
+        name: 'Angular mirror', category: 'Coordinates', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
+        params: {
+            sectors: num('Sectors', 6, 2, 24, 1, 'n', 'Number of mirrored wedges around the center.'),
+            spin: num('Rotation speed', 0.1, -1, 1, 0.01, '\\omega', 'Rotates the mirror pattern over time, in radians per second.')
+        },
+        equation: 'a = |mod(theta + π/n, 2π/n) − π/n|',
+        tex: ['\\varphi = \\left|\\left(\\theta + \\omega t + \\frac{\\pi}{n}\\right) \\bmod \\frac{2\\pi}{n} - \\frac{\\pi}{n}\\right|, \\quad q = |p|\\,(\\cos\\varphi,\\ \\sin\\varphi)'],
+        notes: [['\\theta', 'angle of p'], ['t', 'time in seconds']],
+        description: 'Fold the angular coordinate into mirrored sectors. Reuse any source pattern to create symmetry.',
+        emit: (i, u) => `angularMirror(${i.p},${u.sectors},u_time*${u.spin})`
+    }),
+    noise: component({
+        name: 'Fractal value noise', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
+        params: {
+            frequency: num('Frequency', 3, 0.1, 30, 0.1, '\\nu', 'Size of the noise features: higher values are finer.'),
+            octaves: num('Octaves', 6, 1, 8, 1, 'N', 'Number of noise layers, each about twice as fine and half as strong. More octaves add fine detail.'),
+            speed: num('Flow speed', 0.1, -2, 2, 0.01, '\\omega', 'Vertical drift of the pattern per second.'),
+            seed: num('Seed offset', 0, 0, 100, 1, '\\sigma', 'Shifts to a different but equally random-looking pattern.')
+        },
+        equation: 'f(p) = Σ 2⁻ᵏ noise(2ᵏ Rp + offset)',
+        tex: ['f = \\frac{1}{Z}\\sum_{k=0}^{N-1} 2^{-k}\\, n\\left(2.03^{k} M^{k} q\\right), \\quad q = \\nu p + (\\sigma,\\ \\omega t)'],
+        notes: [['n', 'smooth value noise, 0 to 1'], ['M', 'fixed small rotation between octaves'], ['Z', 'normalization so f stays in 0 to 1']],
+        description: 'Smooth deterministic multiscale noise. Not part of the original nebula formulas; useful for new organic surfaces.',
+        emit: (i, u) => `fbm(${i.p}*${u.frequency}+vec2(${u.seed},u_time*${u.speed}),${u.octaves})`
+    }),
+    waves: component({
+        name: 'Nested cosine bands', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
+        params: {
+            frequency: num('Frequency', 9, 0.1, 80, 0.1, '\\nu', 'Bands per world unit: higher values give thinner, denser bands.'),
+            bend: num('Phase bending', 4, 0, 20, 0.1, '\\beta', 'How strongly a second wave bends the bands. Zero gives straight parallel stripes.'),
+            speed: num('Phase speed', 0.5, -4, 4, 0.01, '\\omega', 'Speed of the bending wave over time.')
+        },
+        equation: 'f = ½ + ½ cos(kx + b sin(ky − t))',
+        tex: ['f = \\frac{1}{2} + \\frac{1}{2}\\cos\\left(\\nu x + \\beta \\sin(0.65\\, \\nu y - \\omega t)\\right)'],
+        notes: [['p = (x, y)', 'input coordinates']],
+        description: 'A compact example of phase modulation: one wave bends another. It becomes marbling under a coordinate warp.',
+        emit: (i, u) => `(0.5+0.5*cos(${i.p}.x*${u.frequency}+${u.bend}*sin(${i.p}.y*${u.frequency}*0.65-u_time*${u.speed})))`
+    }),
+    disc: component({
+        name: 'Soft disc / sphere mask', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
+        params: {
+            radius: num('Radius', 1, 0.02, 3, 0.01, 'r', 'Radius of the disc in world units.'),
+            edge: num('Edge softness', 0.02, 0.001, 0.6, 0.001, '\\epsilon', 'Width of the soft transition at the rim. Small values give a crisp edge.')
+        },
+        equation: 'mask = 1 − smoothstep(−edge, edge, |p| − radius)',
+        tex: ['m = 1 - \\operatorname{smoothstep}\\left(-\\epsilon,\\ \\epsilon,\\ |p| - r\\right)'],
+        description: 'Coverage mask: 1 inside, 0 outside. Connect it to Mask layer, or use it to modulate another field.',
+        emit: (i, u) => `softInside(length(${i.p})-${u.radius},${u.edge})`
+    }),
+    ring: component({
+        name: 'Gaussian ring', category: 'Scalar fields', output: 'scalar', inputs: { p: 'coord' },
+        params: {
+            radius: num('Radius', 1, 0, 3, 0.01, 'r', 'Distance of the bright rim from the center.'),
+            width: num('Width', 0.1, 0.005, 1, 0.005, 'w', 'Thickness of the rim (Gaussian width).')
+        },
+        equation: 'f = exp(−((|p| − radius)/width)²)',
+        tex: ['f = \\exp\\left(-\\left(\\frac{|p| - r}{w}\\right)^2\\right)'],
+        description: 'A luminous rim with a hollow center. A Gaussian field, not a geometric mesh.',
+        emit: (i, u) => `gaussian(length(${i.p})-${u.radius},${u.width})`
+    }),
+    threshold: component({
+        name: 'Soft threshold', category: 'Scalar fields', output: 'scalar', inputs: { field: 'scalar' }, inputSymbols: { field: 'g' }, role: 'modifier', bypass: 'field',
+        params: {
+            level: num('Threshold', 0.5, -2, 2, 0.01, '\\ell', 'Input value where the output crosses about 0.37. Raise it to keep only the highest parts of the field.'),
+            sharpness: num('Sharpness', 8, 0.1, 60, 0.1, 's', 'Steepness of the transition. High values give hard-edged islands; low values a gentle ramp.')
+        },
+        equation: 'f = exp(−exp(−sharpness · (field − level)))',
+        tex: ['f = \\exp\\left(-e^{-s\\,(g - \\ell)}\\right)'],
+        description: 'The same nested-exponential gate used by the source equations. Turns smooth variation into wisps, islands or filaments.',
+        emit: (i, u) => `cutoff(-${u.sharpness}*(${i.field}-${u.level}))`
+    }),
+    fieldmath: component({
+        name: 'Combine scalar fields', category: 'Scalar fields', output: 'scalar', inputs: { a: 'scalar', b: 'scalar' }, role: 'combine', bypass: 'a',
+        params: {
+            weightA: num('A weight', 1, -5, 5, 0.01, 'w_a', 'Multiplier for input a.'),
+            weightB: num('B weight', 1, -5, 5, 0.01, 'w_b', 'Multiplier for input b. Use a negative value to subtract b.'),
+            product: num('Product weight', 0, -5, 5, 0.01, 'w_p', 'Weight of the product a·b; use it to modulate one field by another.'),
+            bias: num('Bias', 0, -4, 4, 0.01, 'c', 'Constant added to the result.')
+        },
+        equation: 'f = wa·a + wb·b + wp·a·b + bias',
+        tex: ['f = w_a\\, a + w_b\\, b + w_p\\, a b + c'],
+        description: 'One small arithmetic node supports sums, differences, products and threshold offsets.',
+        emit: (i, u) => `(${u.weightA}*${i.a}+${u.weightB}*${i.b}+${u.product}*${i.a}*${i.b}+${u.bias})`
+    }),
+    expression: component({
+        name: 'Custom scalar equation', category: 'Authoring', output: 'scalar', inputs: { p: 'coord', a: 'scalar', b: 'scalar' },
+        params: { expression: expr('0.5 + 0.5*cos(8.0*r - 3.0*theta - t)') },
+        equation: 'float f(p,a,b,t) = your expression', tex: ['f(p, a, b, t) = \\text{your expression}'], notes: customNotes,
+        description: 'Compile an editable GLSL scalar expression. x,y,r,theta are derived from p. Additional scalar sockets a and b can carry any fields.',
+        emit: () => ''
+    }),
+    vectorExpression: component({
+        name: 'Custom coordinate equation', category: 'Authoring', output: 'coord', inputs: { p: 'coord', a: 'scalar', b: 'scalar' }, role: 'modifier', bypass: 'p',
+        params: { expression: expr('rotate2(p, 0.5*sin(r*3.0-t))') },
+        equation: 'vec2 q(p,a,b,t) = your expression', tex: ['q(p, a, b, t) = \\text{your expression}'], notes: customNotes,
+        description: 'Author new coordinate maps without rewriting the renderer. Returns vec2; no JavaScript execution.',
+        emit: () => ''
+    }),
+    colorExpression: component({
+        name: 'Custom color equation', category: 'Authoring', output: 'layer', inputs: { p: 'coord', a: 'scalar', b: 'scalar' },
+        params: { expression: expr('spectrum(r - t*0.1, 0.0) * (0.5 + 0.5*cos(theta*6.0))') },
+        equation: 'vec3 color(p,a,b,t) = your expression', tex: ['\\mathrm{RGB}(p, a, b, t) = \\text{your expression}'], notes: customNotes,
+        description: 'Author RGB radiance. Returns vec3; alpha is set to one. Combine with a mask for transparency.',
+        emit: () => ''
+    }),
+    palette: component({
+        name: 'Two-color emission', category: 'Color & composition', output: 'layer', inputs: { field: 'scalar' }, inputSymbols: { field: 'f' },
+        params: {
+            low: rgb('Low color', '#09212e', 'C_0', 'Color where the field is 0 or below.'),
+            high: rgb('High color', '#62edc3', 'C_1', 'Color where the field is 1 or above.'),
+            gain: num('Emission', 1, 0, 5, 0.01, 'g', 'Overall brightness multiplier, before exposure and tone mapping.'),
+            power: num('Contrast power', 1, 0.1, 8, 0.05, '\\gamma', 'Shapes the blend: above 1 keeps more of the low color, below 1 pushes toward the high color.')
+        },
+        equation: 'RGB = gain · mix(low, high, clamp(field)^power)',
+        tex: ['\\mathrm{RGB} = g\\cdot \\operatorname{mix}\\left(C_0,\\ C_1,\\ \\operatorname{clamp}(f, 0, 1)^{\\gamma}\\right), \\quad \\alpha = 1'],
+        description: 'Color a scalar field. This returns straight RGB with full coverage; add a mask when the layer should be transparent.',
+        emit: (i, u) => `vec4(mix(${u.low},${u.high},pow(clamp(${i.field},0.0,1.0),${u.power}))*${u.gain},1)`
+    }),
+    solid: component({
+        name: 'Solid color', category: 'Color & composition', output: 'layer',
+        params: {
+            color: rgb('Color', '#030712', 'C', 'The constant color.'),
+            gain: num('Gain', 1, 0, 4, 0.01, 'g', 'Brightness multiplier.')
+        },
+        equation: 'RGB = color × gain', tex: ['\\mathrm{RGB} = g\\, C, \\quad \\alpha = 1'],
+        description: 'A background or constant radiance layer.',
+        emit: (i, u) => `vec4(${u.color}*${u.gain},1)`
+    }),
+    tint: component({
+        name: 'Tint & gain', category: 'Color & composition', output: 'layer', inputs: { layer: 'layer' }, inputSymbols: { layer: 'L' }, role: 'modifier', bypass: 'layer',
+        params: {
+            color: rgb('RGB multiplier', '#ffffff', 'C', 'Per-channel multiplier; white leaves the layer unchanged.'),
+            gain: num('Gain', 1, 0, 5, 0.01, 'g', 'Overall brightness multiplier.')
+        },
+        equation: 'RGB = incoming RGB × tint × gain',
+        tex: ['\\mathrm{RGB} = g\\, C \\odot L_{\\mathrm{rgb}}, \\quad \\alpha = L_{\\alpha}'],
+        description: 'Multiply floating-point radiance before output conversion. Does not discard highlight detail.',
+        emit: (i, u) => `vec4(${i.layer}.rgb*${u.color}*${u.gain},${i.layer}.a)`
+    }),
+    mask: component({
+        name: 'Mask layer', category: 'Color & composition', output: 'layer', inputs: { layer: 'layer', mask: 'scalar' }, inputSymbols: { layer: 'L', mask: 'm' }, role: 'modifier', bypass: 'layer',
+        params: { strength: num('Strength', 1, 0, 1, 0.01, 's', 'How much the mask applies: 0 ignores it, 1 applies it fully.') },
+        equation: 'alpha = alpha × mix(1, clamp(mask), strength)',
+        tex: ['\\alpha = L_{\\alpha} \\cdot \\operatorname{mix}\\left(1,\\ \\operatorname{clamp}(m, 0, 1),\\ s\\right), \\quad \\mathrm{RGB} = L_{\\mathrm{rgb}}'],
+        description: 'Changes coverage, not straight RGB. Use Over to honor alpha; Add intentionally sums emitted RGB regardless of coverage.',
+        emit: (i, u) => `vec4(${i.layer}.rgb,${i.layer}.a*mix(1.0,clamp(${i.mask},0.0,1.0),${u.strength}))`
+    }),
+    add: component({
+        name: 'Add light', category: 'Color & composition', output: 'layer', inputs: { a: 'layer', b: 'layer' }, inputSymbols: { a: 'A', b: 'B' }, role: 'combine', bypass: 'a',
+        params: { gain: num('B gain', 1, 0, 5, 0.01, 'g', 'Brightness of layer B before it is added to A. Zero removes B; 2 doubles it.') },
+        equation: 'RGB = A.rgb + gain · B.rgb',
+        tex: ['\\mathrm{RGB} = A_{\\mathrm{rgb}} + g\\, B_{\\mathrm{rgb}}, \\quad \\alpha = \\max(A_{\\alpha}, B_{\\alpha})'],
+        description: 'Sum radiance before tone mapping. Alpha does not attenuate emission; use Over for opaque objects or alpha-masked layers.',
+        emit: (i, u) => `addLight(${i.a},${i.b},${u.gain})`
+    }),
+    over: component({
+        name: 'Front over back', category: 'Color & composition', output: 'layer', inputs: { front: 'layer', back: 'layer' }, inputSymbols: { front: 'F', back: 'B' }, role: 'combine', bypass: 'back',
+        equation: 'alpha = af + ab(1−af); RGB = (af Cf + (1−af)ab Cb)/alpha',
+        tex: ['\\alpha = \\alpha_F + \\alpha_B(1 - \\alpha_F), \\quad C = \\frac{\\alpha_F C_F + (1 - \\alpha_F)\\,\\alpha_B C_B}{\\alpha}'],
+        notes: [['C_F, \\alpha_F', 'front color and coverage'], ['C_B, \\alpha_B', 'back color and coverage']],
+        description: 'Correct straight-alpha composition. Use it to hide background stars behind a planet, feathers, or a silhouette.',
+        emit: i => `overLayer(${i.front},${i.back})`
+    }),
+    nebulaGeometry: component({
+        name: 'Pinched shell family · S,A', category: 'Source nebula', output: 'geometry', inputs: { p: 'coord' },
+        params: {
+            pinch: num('Neck pinch', 0.3, 0.05, 0.8, 0.005, '\\eta', 'Exponent that squeezes the shells toward the vertical center line, forming the waist between the two lobes. The source uses 0.3; higher values pinch harder.'),
+            shear: num('Shell shear', 0.15, -0.5, 0.6, 0.005, '\\sigma', 'Common tilt added to every shell’s sheared coordinates. The source uses 0.15; changing it leans and skews the lobes.'),
+            shells: num('Shell count', 27, 1, 27, 1, 'N', 'How many of the 27 source shells are evaluated, from the first. Fewer shells give fewer overlapping contours.')
+        },
+        equation: 'Lₛ = sqrt(Uₛ² + (2Rₛ^0.3 |Uₛ|^−0.3 Vₛ)²) − Rₛ',
+        tex: [
+            'U_s = x + (\\sigma + c_s)\\, y, \\quad V_s = y - (\\sigma + d_s)\\, x',
+            'L_s = \\sqrt{U_s^2 + \\left(\\frac{2 R_s^{\\eta}\\, V_s}{|U_s|^{\\eta}}\\right)^2} - R_s, \\quad s = 1 \\ldots N',
+            'w_s = J_s \\prod_{u<s}(1 - J_u), \\quad J_s = e^{-e^{25 - 50 s}}\\, e^{-e^{10 L_s}}',
+            'S = \\sum_s 2 w_s L_s, \\quad A = \\sum_s \\frac{w_s}{4}\\, e^{-e^{0.15(s - 23)}}\\, e^{-e^{-3 L_s}}'
+        ],
+        notes: [['R_s, c_s, d_s', 'fixed per-shell radius and shears from the source'], ['S', 'shell-following texture coordinate (warp)'], ['A', 'emission rim'], ['w_s', 'ordered first-hit weight of shell s']],
+        description: 'Exact structural port at defaults. Ordered soft first-hit selection produces S (texture coordinate), A (emission rim), and coverage. These are separate meanings.',
+        emit: (i, u) => `nebulaGeometry(${i.p},${u.pinch},${u.shear},${u.shells})`
+    }),
+    ringGeometry: component({
+        name: 'Replacement ring geometry', category: 'Source nebula', output: 'geometry', inputs: { p: 'coord' },
+        params: {
+            radius: num('Radius', 1.1, 0.1, 2, 0.01, 'r', 'Radius of the ring in world units.'),
+            width: num('Rim width', 0.16, 0.01, 0.7, 0.01, 'w', 'Thickness of the emitting rim.'),
+            flatten: num('Vertical compression', 1.5, 0.2, 3, 0.01, 'k', 'Squashes the ring vertically: 1 is a circle, larger values a flatter ellipse.')
+        },
+        equation: 'S=2d; A=0.22 exp(−(d/width)²); d=|scaled p|−radius',
+        tex: ['d = \\sqrt{x^2 + (k y)^2} - r, \\quad S = 2 d, \\quad A = 0.22\\, e^{-(d/w)^2}, \\quad \\text{coverage} = e^{-(d/w)^2}'],
+        description: 'New geometry with the same interface as the pinched shell family. Reuse the entire original cloud machinery unchanged.',
+        emit: (i, u) => `ringGeometry(${i.p},${u.radius},${u.width},${u.flatten})`
+    }),
+    geometryField: component({
+        name: 'Inspect geometry channel', category: 'Source nebula', output: 'scalar', inputs: { geometry: 'geometry' },
+        params: {
+            channel: num('0=warp · 1=rim · 2=coverage', 1, 0, 2, 1, 'c', 'Which geometry channel to output: 0 the shell-following warp coordinate S, 1 the emission rim A, 2 the coverage.'),
+            gain: num('Display gain', 4, 0.1, 10, 0.1, 'g', 'Multiplier applied to the extracted channel.')
+        },
+        equation: 'f = geometry.warp / rim / coverage',
+        tex: ['f = g \\cdot G_c, \\quad G_0 = S,\\ G_1 = A,\\ G_2 = \\text{coverage}'],
+        description: 'Extract one named field for diagnosis, masks or further composition. The rim and coverage are deliberately not interchangeable.',
+        emit: (i, u) => `((${u.channel}<0.5)?${i.geometry}.warp:((${u.channel}<1.5)?${i.geometry}.rim:${i.geometry}.coverage))*${u.gain}`
+    }),
+    nebulaTurbulence: component({
+        name: 'Nested-cosine turbulence · E', category: 'Source nebula', output: 'scalar', inputs: { p: 'coord', geometry: 'geometry' }, inputSymbols: { geometry: 'S' },
+        params: {
+            bands: num('Bands', 50, 1, 50, 1, 'N', 'Number of the 50 source cosine terms summed, from the largest scale. Fewer bands give smoother, blobbier turbulence.'),
+            speed: num('Phase speed', 0, -1, 1, 0.01, '\\omega', 'Optional animation that shifts the cosine phases over time. The source is static (0).')
+        },
+        equation: 'E = Σ (19/20)ˢ Dₛ(S,Qₛ)',
+        tex: [
+            'E = \\sum_{s=1}^{N} 0.95^{s} \\cos\\left(a_s + 4\\cos b_s + \\phi_s + \\omega t\\right)\\cos\\left(c_s + 4\\cos d_s + \\psi_s - \\omega t\\right)',
+            'a_s, b_s, c_s, d_s = 1.25^{s} \\times \\text{fixed rotations of } (S, Q_s), \\quad Q_s = p \\cdot (\\cos 15 s^2,\\ \\sin 15 s^2)'
+        ],
+        notes: [['S', 'warp coordinate from the geometry'], ['\\phi_s, \\psi_s', 'fixed phases from the source']],
+        description: 'Original 50-band signed modulation. It perturbs the filament threshold and central glow. Motion is an optional new phase shift, zero in source mode.',
+        emit: (i, u) => `nebulaTurbulence(${i.p},${i.geometry},${u.bands},u_time*${u.speed})`
+    }),
+    nebulaCloud: component({
+        name: 'Filaments & haze · K', category: 'Source nebula', output: 'layer', inputs: { p: 'coord', geometry: 'geometry', turbulence: 'scalar' }, inputSymbols: { geometry: 'S, A', turbulence: 'E' },
+        params: {
+            bands: num('Bands', 50, 1, 50, 1, 'N', 'Number of the 50 source filament bands summed, coarse to fine. Fewer bands remove the finest filaments.'),
+            detail: num('Sharp filament gain', 1, 0, 3, 0.01, '\\delta', 'Weight of the sharp filament term (45 in the source). Zero leaves only the soft haze.')
+        },
+        equation: 'Iₛ=45 C₁,ₛ+6 C₀,ₛ; Kᵥ=Σ Iₛ (19/20)ˢ κᵥ,ₛ',
+        tex: [
+            'Z_s = C_s - 1.25 + 2A + \\frac{E}{7}, \\quad I_s = 45\\,\\delta\\, e^{-e^{-4 Z_s}} + 6\\, e^{-e^{-Z_s/4}}',
+            'K = \\sum_{s=1}^{N} 0.95^{s}\\, I_s\\, \\kappa_s'
+        ],
+        notes: [['C_s', 'product of two cosines of S and the rotated coordinate at frequency 0.2·1.15^s'], ['\\kappa_s', 'fixed per-band RGB weight (can be negative)']],
+        description: 'Original RGB field before the geometry rim and core cutout are applied. Preview looks over-bright because masking happens downstream.',
+        emit: (i, u) => `nebulaCloud(${i.p},${i.geometry},${i.turbulence},${u.bands},${u.detail})`
+    }),
+    nebulaGas: component({
+        name: 'Gas emission · Hgas', category: 'Source nebula', output: 'layer', inputs: { p: 'coord', geometry: 'geometry', turbulence: 'scalar', cloud: 'layer' }, inputSymbols: { geometry: 'A', turbulence: 'E', cloud: 'K' },
+        params: { gain: num('Gas gain', 1, 0, 3, 0.01, 'g', 'Brightness of the shell gas emission.') },
+        equation: 'Hgas = 1.1 (1−W) K A',
+        tex: ['H_{\\text{gas}} = 1.1\\, g\\, (1 - W)\\, K A, \\quad W = e^{-e^{10|p| - 1 + E/4}}'],
+        notes: [['W', 'central glow mask']],
+        description: 'Original gas contribution. A confines emission to shell rims; 1−W clears the central glow region.',
+        emit: (i, u) => `nebulaGas(${i.p},${i.geometry},${i.turbulence},${i.cloud},${u.gain})`
+    }),
+    nebulaCore: component({
+        name: 'Central glow · W', category: 'Source nebula', output: 'layer', inputs: { p: 'coord', turbulence: 'scalar' }, inputSymbols: { turbulence: 'E' },
+        params: { gain: num('Core gain', 1, 0, 3, 0.01, 'g', 'Brightness of the central glow.') },
+        equation: 'W=exp(−exp(10|p|−1+E/4)); Hcore=W(2,2,3)',
+        tex: ['W = e^{-e^{10|p| - 1 + E/4}}, \\quad H_{\\text{core}} = g\\, W\\, (2, 2, 3)'],
+        description: 'Original glow. The square root in the source contains x²+y² only, not −1 or E/4.',
+        emit: (i, u) => `nebulaCore(${i.p},${i.turbulence},${u.gain})`
+    }),
+    nebulaStars: component({
+        name: 'Folded star lattices · T', category: 'Source nebula', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            bands: num('Lattices', 30, 1, 30, 1, 'L', 'Number of the 30 folded star lattices summed. Fewer lattices give a sparser star field.'),
+            gain: num('Starlight', 1, 0, 3, 0.01, 'g', 'Brightness of all stars.')
+        },
+        equation: 'M,N=acos(cos(rotated coordinates)); T=Σ colored(center+halo)',
+        tex: [
+            'M_s, N_s = \\arccos\\cos(\\text{rotated, scaled } p), \\quad \\rho_s^2 = M_s^2 + N_s^2',
+            'T = g \\sum_{s=1}^{L} \\left(4\\, e^{-e^{200(\\rho_s^2 - 0.00125 - B_s/200)}} + e^{-e^{20 \\rho_s^2 - 0.14}}\\right) \\chi_s'
+        ],
+        notes: [['B_s', 'angular modulation that makes the pointed star shapes'], ['\\chi_s', 'alternating warm and cool star color']],
+        description: 'Original deterministic stars with pointed centers. Folded-angle lattices, not random sprites or an astronomical catalog.',
+        emit: (i, u) => `nebulaStars(${i.p},${u.bands},${u.gain})`
+    }),
+    scatterStars: component({
+        name: 'Seeded star field', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            density: num('Density scale', 22, 3, 60, 1, '\\rho', 'Grid frequency of the star cells: higher values give more, closer stars.'),
+            gain: num('Starlight', 0.7, 0, 3, 0.01, 'g', 'Brightness of all stars.'),
+            seed: num('Seed', 17, 0, 100, 1, '\\sigma', 'Chooses a different random arrangement.'),
+            speed: num('Twinkle speed', 0.1, 0, 2, 0.01, '\\omega', 'How fast the stars twinkle (±12% brightness).')
+        },
+        equation: 'star = Gaussian core + halo + cross rays',
+        tex: [
+            'q_\\ell = \\rho\\,(1 + 0.71\\,\\ell)\\, p, \\quad \\ell = 0, 1, 2, \\quad \\text{cells hashed with seed } \\sigma',
+            'I = g \\sum_{\\ell} \\sum_{\\text{cells}} \\left(e^{-(d/r)^2} + 0.018\\, e^{-(d/6r)^2}\\right) b\\, \\left(0.88 + 0.12 \\sin(\\omega t + 2\\pi h)\\right)'
+        ],
+        notes: [['d', 'distance to the jittered star in the cell (hashed with seed σ)'], ['r, b, h', 'hashed star size, brightness and phase']],
+        description: 'New deterministic jittered-cell stars. Three scales and warm/cool variation; distinct from the original folded lattice algorithm.',
+        emit: (i, u) => `scatterStars(${i.p},${u.density},${u.gain},${u.seed},u_time*${u.speed})`
+    }),
+    planet: component({
+        name: 'Cyclonic water planet', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            radius: num('Radius', 1.08, 0.1, 2, 0.01, 'R', 'Planet radius in world units.'),
+            cloud: num('Cloud cover', 0.65, 0, 2, 0.01, 'c', 'How much of the surface is covered by bright cloud; 0 shows mostly ocean.'),
+            twist: num('Cyclone twist', 5, 0, 14, 0.1, '\\tau', 'Strength of the seven storm vortices that swirl the clouds.'),
+            light: num('Light angle', 2.25, 0, 6.28, 0.01, '\\lambda', 'Direction of the sunlight around the planet, in radians.'),
+            speed: num('Cloud drift', 0.5, -2, 2, 0.01, '\\omega', 'How fast the cloud pattern drifts east–west.')
+        },
+        equation: 'visible sphere → spherical coordinates → cyclone maps → clouds → lighting',
+        tex: [
+            'd = p / R, \\quad \\mathbf{n} = \\left(d_x,\\ d_y,\\ \\sqrt{1 - |d|^2}\\right)',
+            'u = \\operatorname{cyclones}_{\\tau}(\\text{lon}, \\text{lat}) + (0.025\\, \\omega t,\\ 0), \\quad m = \\operatorname{smoothstep}(0.62 - 0.3 c,\\ 0.79 - 0.28 c,\\ n(u))',
+            'C = \\operatorname{mix}(C_{\\text{ocean}},\\ C_{\\text{cloud}},\\ m)\\,\\left(0.06 + \\max(\\mathbf{n} \\cdot \\mathbf{l},\\ 0)\\right), \\quad \\mathbf{l} \\propto (\\cos\\lambda,\\ 0.35,\\ \\sin\\lambda)'
+        ],
+        notes: [['\\mathbf{n}', 'sphere normal (lighting)'], ['n(u)', 'fractal noise of the cyclone-warped surface coordinate']],
+        description: 'Subject-inspired study, not the artist’s unretrieved formula. Rotated cloud coordinates, finite-octave noise, Lambert-like light, glint and rim scattering.',
+        emit: (i, u) => `waterPlanet(${i.p},${u.radius},${u.cloud},${u.twist},${u.light},u_time*${u.speed})`
+    }),
+    atmosphere: component({
+        name: 'Atmospheric rim', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            radius: num('Radius', 1.08, 0.1, 2, 0.01, 'R', 'Radius of the glowing limb; match it to the planet radius.'),
+            gain: num('Glow', 0.7, 0, 3, 0.01, 'g', 'Brightness of the atmospheric rim.')
+        },
+        equation: 'glow = Gaussian(|p|−radius)',
+        tex: ['I = g\\left(e^{-(\\Delta/0.025)^2} + 0.18\\, e^{-(\\Delta/0.07)^2}\\right)(0.08, 0.25, 0.55), \\quad \\Delta = |p| - R'],
+        description: 'An independent analytic limb glow; align its radius with the planet when composing them.',
+        emit: (i, u) => `atmosphere(${i.p},${u.radius},${u.gain})`
+    }),
+    lens: component({
+        name: 'Star-cluster lens map', category: 'Astronomical studies', output: 'coord', inputs: { p: 'coord' }, role: 'modifier', bypass: 'p',
+        params: {
+            strength: num('Deflection strength', 1, 0, 3, 0.01, 'k', 'Scales every lens mass. 0 is no lensing (the identity map); higher values bend the background into bigger arcs.'),
+            count: num('Lenses', 7, 1, 12, 1, 'n', 'How many cluster members deflect light; the first is the heavy central one.'),
+            softening: num('Softening', 0.015, 0.001, 0.2, 0.001, '\\epsilon', 'Core radius that keeps the deflection finite near each lens; larger values give softer, smaller distortion.')
+        },
+        equation: 'β = θ − Σ mᵢ(θ−θᵢ)/(|θ−θᵢ|²+ε²)',
+        tex: ['q = p - \\sum_{i=0}^{n-1} m_i\\, \\frac{p - c_i}{|p - c_i|^2 + \\epsilon^2}, \\quad m_0 = 0.18\\, k,\\ m_{i>0} = 0.024\\, k'],
+        notes: [['c_i', 'fixed golden-angle cluster positions (shared with Foreground cluster stars)']],
+        description: 'Illustrative softened thin-lens backward mapping. Zero strength is the identity. Feed the result into a galaxy; draw foreground lens stars in the unwarped plane.',
+        emit: (i, u) => `clusterLens(${i.p},${u.strength},${u.count},${u.softening})`
+    }),
+    clusterLights: component({
+        name: 'Foreground cluster stars', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            gain: num('Brightness', 1, 0, 3, 0.01, 'g', 'Brightness of the foreground cluster stars.'),
+            count: num('Stars', 7, 1, 12, 1, 'n', 'How many cluster stars are drawn; keep it equal to the lens count.')
+        },
+        equation: 'centers share the lens map’s deterministic positions',
+        tex: ['I = g \\sum_{i=0}^{n-1} \\left(1.8\\, e^{-(|p - c_i|/0.014)^2} + 0.14\\, e^{-(|p - c_i|/0.055)^2} + \\text{rays}\\right) \\chi_i'],
+        notes: [['c_i', 'the lens map’s cluster positions'], ['\\chi_i', 'per-star color']],
+        description: 'Draw these AFTER lensing the background. Moving a background star image through this node would not model a foreground lens cluster.',
+        emit: (i, u) => `clusterLights(${i.p},${u.gain},${u.count})`
+    }),
+    galaxy: component({
+        name: 'Logarithmic spiral galaxy', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            arms: num('Spiral arms', 3, 1, 8, 1, 'm', 'Number of spiral arms.'),
+            pitch: num('Winding', 7, 0.5, 15, 0.1, 'k', 'How tightly the arms wind: higher values wrap them around the center more times.'),
+            radius: num('Scale', 0.75, 0.1, 2, 0.01, 's', 'Overall size of the galaxy.'),
+            dust: num('Dust lanes', 0.6, 0, 1, 0.01, '\\delta', 'Strength of the dark dust lanes across the disk.'),
+            speed: num('Phase speed', 0.2, -2, 2, 0.01, '\\omega', 'Rotation of the arm pattern over time.')
+        },
+        equation: 'phase = arms·theta − pitch·log(r+0.1)',
+        tex: [
+            '\\phi = m\\, \\theta - k \\log(r/s + 0.1) - 0.1\\, \\omega t, \\quad \\text{arm} = \\left(\\frac{1}{2} + \\frac{1}{2}\\cos(\\phi + \\text{noise})\\right)^8',
+            'I = C(r)\\,(0.17 + \\text{arm})\\, e^{-1.65\\, r/s}\\,(1 - \\delta\\, \\text{lanes}) + \\text{bulge} + \\text{knots}'
+        ],
+        notes: [['r, \\theta', 'polar coordinates of the tilted, flattened p']],
+        description: 'New analytic spiral arms, Gaussian-like central bulge, radial fade, dusty modulation and emission knots. Its input coordinates can be gravitationally warped.',
+        emit: (i, u) => `spiralGalaxy(${i.p},${u.arms},${u.pitch},${u.radius},${u.dust},u_time*${u.speed})`
+    }),
+    aurora: component({
+        name: 'Spiral auroral curtain', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            turns: num('Winding', 4, 0.5, 12, 0.1, 'k', 'How tightly the ribbon spirals around its center.'),
+            width: num('Ribbon width', 0.115, 0.01, 0.4, 0.005, 'w', 'Thickness of the bright ribbon, in phase units.'),
+            curtain: num('Fine rays', 1, 0, 3, 0.01, 'c', 'Strength of the thin radial rays within the ribbon; 0 gives a smooth ribbon.'),
+            speed: num('Flow speed', 0.5, -2, 2, 0.01, '\\omega', 'How fast the spiral and its rays move.')
+        },
+        equation: 'ribbon = exp(−[sin(theta + turns·log(r+0.12))/width]²)',
+        tex: [
+            '\\phi = \\theta + k \\log(r + 0.12) + 0.18\\, \\omega t + \\text{noise}, \\quad B = e^{-(\\sin\\phi / w)^2}(1 - e^{-8r})\\, e^{-0.7 r}',
+            'F = 0.28 + 0.72\\left(\\frac{1}{2} + \\frac{1}{2}\\sin(175\\,\\theta + \\ldots)\\right)^2, \\quad I = (0.05, 0.86, 0.22)\\, B\\,(0.4 + c F) + \\text{fringe}'
+        ],
+        notes: [['r, \\theta', 'polar coordinates around the spiral center']],
+        description: 'New projected spiral ribbon with green/purple emission and angular striations. It illustrates appearance, not an auroral plasma simulation.',
+        emit: (i, u) => `auroraVortex(${i.p},${u.turns},${u.width},${u.curtain},u_time*${u.speed})`
+    }),
+    disk: component({
+        name: 'Accretion disk & shadow', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            radius: num('Shadow scale', 0.34, 0.06, 0.8, 0.005, '\\rho', 'Size of the black-hole shadow; the disk and arc scale with it.'),
+            inclination: num('Projection flattening', 3, 1, 7, 0.05, '\\iota', 'How edge-on the disk appears: 1 is face-on, higher values flatter.'),
+            spin: num('Texture winding', 4, 0, 12, 0.1, '\\tau', 'How much the disk’s ring texture spirals.'),
+            speed: num('Flow speed', 0.5, -2, 2, 0.01, '\\omega', 'Speed of the swirling texture.')
+        },
+        equation: 'projected annulus + bent rear arc − central shadow',
+        tex: [
+            'r = \\sqrt{x_r^2 + (\\iota\\, y_r)^2}, \\quad E = e^{-((r - 1.65\\rho)/0.65\\rho)^2}',
+            '\\text{rings} = \\frac{1}{2} + \\frac{1}{2}\\sin\\left(90 r + 4\\sin(3\\theta + \\tau\\log(r + 0.1) - 0.8\\, \\omega t)\\right), \\quad \\text{shadow: } |p| < 0.9\\rho'
+        ],
+        notes: [['x_r, y_r', 'p rotated by −0.28 rad'], ['\\theta', 'angle in the flattened disk plane']],
+        description: 'New stylized construction. The bright-side weighting and bent arc are artistic terms, not a relativistic transfer calculation.',
+        emit: (i, u) => `accretionDisk(${i.p},${u.radius},${u.inclination},${u.spin},u_time*${u.speed})`
+    }),
+    tidal: component({
+        name: 'Stretched star & tidal stream', category: 'Astronomical studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            stretch: num('Taper power', 2.5, 0.3, 6, 0.05, 'a', 'How quickly the stream widens toward the star; higher values keep it thin for longer.'),
+            size: num('Star width', 0.13, 0.02, 0.4, 0.005, '\\sigma', 'Size of the disrupted star and the stream’s maximum width.'),
+            speed: num('Stream speed', 0.5, -2, 2, 0.01, '\\omega', 'Speed of the wiggle and fibers along the stream.')
+        },
+        equation: 'emission = Gaussian(distance to tapered centerline) + star core',
+        tex: [
+            'u = \\operatorname{clamp}\\left(\\frac{x + 0.05}{1.65}, 0, 1\\right), \\quad y_c = 0.14 + 0.4 u^2 + 0.05 \\sin(5u - 0.25\\, \\omega t)',
+            'w = \\operatorname{mix}(0.015,\\ \\sigma,\\ u^{a}), \\quad I = e^{-((y - y_c)/w)^2}\\, \\text{fibers} + 2.4\\, e^{-(|p - p_\\star|/\\sigma)^2} + \\text{glow}'
+        ],
+        notes: [['p_\\star', 'position of the star at the stream’s end']],
+        description: 'New narrow curved stream broadening toward a luminous star. Independent from the disk so it can be translated, masked or reused as a comet.',
+        emit: (i, u) => `tidalStream(${i.p},${u.stretch},${u.size},u_time*${u.speed})`
+    }),
+    feather: component({
+        name: 'Single eyespot feather', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            width: num('Width', 0.095, 0.02, 0.3, 0.005, 'w_0', 'Maximum half-width of the feather vane.'),
+            eye: num('Eyespot scale', 1, 0.3, 2, 0.01, 's', 'Size of the eyespot rings near the tip.'),
+            speed: num('Barb motion', 0.2, 0, 2, 0.01, '\\omega', 'Speed of the shimmering barb pattern.')
+        },
+        equation: 'tapered local silhouette + oblique cosine barbs + nested eyespot rings',
+        tex: [
+            'w(v) = w_0 \\sin(\\pi v)^{0.55}, \\quad \\text{coverage} = [\\,|x| < w(v)\\,]',
+            '\\text{barbs} = 0.25 + 0.75\\left(\\frac{1}{2} + \\frac{1}{2}\\cos(250(v + 1.3|x|) + 0.4 \\sin \\omega t)\\right)^3',
+            'e = \\sqrt{\\left(\\frac{x}{0.76\\, w_0 s}\\right)^2 + \\left(\\frac{v - 0.79}{0.107\\, s}\\right)^2} \\quad \\text{(eyespot rings at fixed } e\\text{)}'
+        ],
+        notes: [['p = (x, v)', 'local coordinates: base at v = 0, tip at v = 1']],
+        description: 'Reusable analytic stamp. Base at (0,0), tip at (0,1). No texture. The fan node instances this exact kernel many times.',
+        emit: (i, u) => `feather(${i.p},${u.width},${u.eye},u_time*${u.speed})`
+    }),
+    fan: component({
+        name: 'Peacock feather fan', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            spread: num('Fan spread', 2.9, 0.4, 3.5, 0.01, '\\Delta', 'Total opening angle of the fan in radians (3.14 is a half circle).'),
+            rows: num('Feather rows', 4, 1, 4, 1, 'N', 'Number of feather rows, outermost first (23, 20, 17 and 14 feathers).'),
+            width: num('Feather width', 0.095, 0.03, 0.2, 0.005, 'w', 'Width of each feather.'),
+            speed: num('Breeze speed', 0.3, 0, 2, 0.01, '\\omega', 'Speed of the gentle swaying.')
+        },
+        equation: 'fan = Overᵢ feather(Rᵢ(p−base)/lengthᵢ)',
+        tex: [
+            'F = \\mathrm{Over}_{r=0}^{N-1}\\ \\mathrm{Over}_{i}\\ \\operatorname{feather}\\left(\\frac{R(a_{ri})\\,(p - b)}{\\ell_r};\\ w\\right)',
+            'a_{ri} = \\left(\\frac{i}{n_r - 1} - \\frac{1}{2}\\right)\\Delta + 0.015\\sin(1.8\\, i + 0.45\\, \\omega t), \\quad \\ell_r = 2.12 - 0.26\\, r'
+        ],
+        notes: [['b', 'common base point'], ['n_r', 'feathers in row r']],
+        description: 'New full-display construction, not a recovered 2026 formula. Outer-to-inner rows, shared feather kernels and staggered phase give repeated yet varied detail.',
+        emit: (i, u) => `peacockFan(${i.p},${u.spread},${u.rows},${u.width},u_time*${u.speed})`
+    }),
+    peacockBody: component({
+        name: 'Peacock body & crest', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
+        params: { size: num('Size', 1, 0.3, 2, 0.01, 's', 'Overall size of the body, neck, head and crest.') },
+        equation: 'body ellipses + curved neck + head + crest segments',
+        tex: ['q = p / s, \\quad \\text{coverage} = \\max(\\text{body},\\ \\text{neck},\\ \\text{head},\\ \\text{beak},\\ \\text{crest})(q)'],
+        description: 'A separate opaque silhouette over the feather fan, so changing the fan does not distort the bird.',
+        emit: (i, u) => `peacockBody(${i.p},${u.size})`
+    }),
+    fire: component({
+        name: 'Tapered flame field', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            height: num('Height', 2, 0.2, 3, 0.01, 'h', 'Height of the flame envelope.'),
+            width: num('Base width', 0.8, 0.1, 2, 0.01, 'b', 'Width of the flame at its base.'),
+            turbulence: num('Turbulence', 1, 0, 2, 0.01, '\\tau', 'How much noise tears the envelope into tongues; 0 gives a smooth teardrop.'),
+            speed: num('Rise speed', 1, 0, 3, 0.01, '\\omega', 'How fast the flame pattern rises.')
+        },
+        equation: 'tapered silhouette + advected noise + heat palette',
+        tex: [
+            'q = \\left(\\frac{x}{b},\\ \\frac{y + 1.05}{h}\\right), \\quad u = \\operatorname{warp}_{0.75\\tau}\\left(2 q_x,\\ 3.8\\, q_y - 0.3\\, \\omega t\\right)',
+            '\\text{flame} = 1 - \\operatorname{smoothstep}\\left(-0.13,\\ 0.13,\\ |q_x| - 0.7(1 - q_y)^{0.63} - 0.65\\,\\tau\\,\\left(n(u) - \\frac{1}{2}\\right)\\right)'
+        ],
+        notes: [['n(u)', 'fractal noise of the upward-advected coordinate'], ['\\text{heat}', 'flame × height falloff, mapped red → yellow → white']],
+        description: 'New explanatory fire study. Moving the sampling coordinates creates upward flow without storing a simulation state. Not a reconstruction of the linked video.',
+        emit: (i, u) => `firePlume(${i.p},${u.height},${u.width},${u.turbulence},u_time*${u.speed})`
+    }),
+    hedgehog: component({
+        name: 'Hedgehog & quill field', category: 'Natural studies', output: 'layer', inputs: { p: 'coord' },
+        params: {
+            quills: num('Quill length', 0.28, 0.02, 0.7, 0.01, 'L', 'Length of the quills.'),
+            density: num('Quill count', 160, 10, 160, 1, 'N', 'Number of quills drawn (up to 160).'),
+            speed: num('Breathing speed', 0.5, 0, 2, 0.01, '\\omega', 'Speed of the subtle breathing motion.')
+        },
+        equation: 'elliptical body + repeated tapered segment quills + facial masks',
+        tex: [
+            '\\text{body} = [\\,|q/(0.91, 0.59)| < 1\\,], \\quad q = (p - c)\\,/\\,(1,\\ 1 + 0.007 \\sin(1.8\\, \\omega t))',
+            '\\text{quill}_i = e^{-(d_i/0.007(1.1 - 0.8 u_i))^2}, \\quad |\\text{quill}_i| = L\\,(0.65 + 0.35\\, h_i), \\quad i < N'
+        ],
+        notes: [['d_i, u_i', 'distance to quill i and position along it'], ['h_i', 'hashed per-quill variation']],
+        description: 'New constructive hedgehog example. Separate local stamps supply a readable silhouette and repeated surface detail; no claim about the inaccessible video steps.',
+        emit: (i, u) => `hedgehog(${i.p},${u.quills},${u.density},u_time*${u.speed})`
+    })
 };
 const typeNames = { coord: 'Coordinates · vec2', scalar: 'Scalar field · float', geometry: 'Geometry · S/A/coverage', layer: 'Radiance + alpha · vec4' };
+const typeLabels = { coord: 'coordinates', scalar: 'scalar field', geometry: 'geometry', layer: 'color layer' };
 const zeroByType = { coord: 'vec2(0)', scalar: '0.0', geometry: 'Geometry(0.0,0.0,0.0)', layer: 'vec4(0)' };
 function parameterDefaults(type) {
     if (!Object.hasOwn(catalog, type)) {
@@ -63,11 +576,33 @@ function parameterDefaults(type) {
     }
     return Object.fromEntries(Object.entries(catalog[type].params).map(([key, spec]) => [key, spec.value]));
 }
+/** Socket passed through when a node of this type is disabled, or null. */
+function bypassSocket(type) {
+    return catalog[type]?.bypass ?? null;
+}
+/** Types that can be inserted on a wire of `kind`: modifiers whose bypass socket
+ * and output both have that type, so the old connection passes through them.
+ */
+function insertableTypes(kind) {
+    return Object.entries(catalog).filter(([, d]) => d.output === kind && d.bypass && d.inputs[d.bypass] === kind).map(([type]) => type);
+}
+/** Types with the same output that could replace a node of `type`. */
+function replacementTypes(type) {
+    const output = catalog[type].output;
+    return Object.entries(catalog).filter(([t, d]) => t !== type && d.output === output).map(([t]) => t);
+}
+/** GLSL for one node with readable names: socket names for inputs and parameter
+ * keys for uniforms. Shown in the inspector next to the typeset equation.
+ */
+function emitPreview(type, params = {}) {
+    const d = catalog[type], names = keys => Object.fromEntries(keys.map(k => [k, k]));
+    return d.emit(names(Object.keys(d.inputs)), names(Object.keys(d.params))) || params.expression || '';
+}
 
-return {catalog,typeNames,zeroByType,parameterDefaults};
+return {catalog,typeNames,typeLabels,zeroByType,parameterDefaults,bypassSocket,insertableTypes,replacementTypes,emitPreview};
 })();
 __modules['graph.js'] = (() => {
-const { catalog, parameterDefaults } = __modules['catalog.js'];
+const { catalog, parameterDefaults, bypassSocket } = __modules['catalog.js'];
 /** JSON-only graph model; imported projects are data, never executable JavaScript. */
 const SCHEMA_VERSION = 1;
 const MAX_NODES = 80;
@@ -229,9 +764,19 @@ function validateProject(project) {
     }
     return project;
 }
+/** Inputs a node actually evaluates. A disabled node is bypassed: it evaluates only
+ * its pass-through socket (catalog `bypass`), or nothing when it has none.
+ */
+function activeInputs(node) {
+    if (node.enabled) {
+        return Object.values(node.inputs).filter(Boolean);
+    }
+    const socket = bypassSocket(node.type);
+    return socket && node.inputs[socket] ? [node.inputs[socket]] : [];
+}
 /** Dependencies of `target` in evaluation order, ending with the target itself.
- * Disabled nodes do not pull in their inputs. Pass `null` to order every node,
- * which the multi-target preview shader uses.
+ * Disabled nodes pull in only their bypass input. Pass `null` to order every
+ * node, which the multi-target preview shader uses.
  */
 function topologicalOrder(project, target = project.output) {
     const map = new Map(project.nodes.map(n => [n.id, n])), seen = new Set(), order = [];
@@ -244,12 +789,8 @@ function topologicalOrder(project, target = project.output) {
             throw new Error(`Unknown component ${id}`);
         }
         seen.add(id);
-        if (n.enabled) {
-            for (const i of Object.values(n.inputs)) {
-                if (i) {
-                    walk(i);
-                }
-            }
+        for (const i of activeInputs(n)) {
+            walk(i);
         }
         order.push(n);
     }
@@ -262,6 +803,39 @@ function topologicalOrder(project, target = project.output) {
         walk(target);
     }
     return order;
+}
+/** Every node in a valid evaluation order, following all connections whatever the
+ * enabled flags. This is the order of the Pipeline panel: each node appears after
+ * everything it reads.
+ */
+function evaluationOrder(project) {
+    const map = new Map(project.nodes.map(n => [n.id, n])), seen = new Set(), order = [];
+    const walk = id => {
+        if (seen.has(id) || !map.has(id)) {
+            return;
+        }
+        seen.add(id);
+        for (const source of Object.values(map.get(id).inputs)) {
+            if (source) {
+                walk(source);
+            }
+        }
+        order.push(map.get(id));
+    };
+    project.nodes.forEach(n => walk(n.id));
+    return order;
+}
+/** Nodes that read `id` directly, with the socket they read it through. */
+function consumers(project, id) {
+    const result = [];
+    for (const n of project.nodes) {
+        for (const [socket, source] of Object.entries(n.inputs)) {
+            if (source === id) {
+                result.push({ node: n, socket });
+            }
+        }
+    }
+    return result;
 }
 /** IDs that `id` depends on, transitively (regardless of enabled flags). */
 function upstream(project, id) {
@@ -359,7 +933,7 @@ class History {
     }
 }
 
-return {SCHEMA_VERSION,MAX_NODES,MAX_TRACKS,MAX_KEYS,MAX_LABEL,VIEW_LIMITS,DURATION_LIMITS,EXPOSURE_LIMITS,clone,makeNode,validateExpression,validateProject,topologicalOrder,upstream,downstream,parseProject,uniqueId,removeNode,History};
+return {SCHEMA_VERSION,MAX_NODES,MAX_TRACKS,MAX_KEYS,MAX_LABEL,VIEW_LIMITS,DURATION_LIMITS,EXPOSURE_LIMITS,clone,makeNode,validateExpression,validateProject,activeInputs,topologicalOrder,evaluationOrder,consumers,upstream,downstream,parseProject,uniqueId,removeNode,History};
 })();
 __modules['math-glsl.js'] = (() => {
 /** Shared analytic atoms. GLSL ES 3.00, highp float. No image textures or RNG state. */
@@ -815,14 +1389,16 @@ vec4 hedgehog(vec2 p,float quillLength,float density,float time) {
 return {motifsGLSL};
 })();
 __modules['compiler.js'] = (() => {
-const { catalog, zeroByType } = __modules['catalog.js'];
+const { catalog, zeroByType, bypassSocket } = __modules['catalog.js'];
 const { validateProject, topologicalOrder } = __modules['graph.js'];
 const { mathGLSL } = __modules['math-glsl.js'];
 const { nebulaGLSL } = __modules['nebula-glsl.js'];
 const { motifsGLSL } = __modules['motifs-glsl.js'];
 /** Typed DAG → one fused GLSL ES 3.00 fragment shader.
  *
- * Every reachable node becomes one local variable inside `shade()`. Numeric and
+ * Every reachable node becomes one local variable inside `shade()`. A disabled
+ * node is bypassed: it forwards its catalog `bypass` input unchanged, or yields a
+ * typed zero when it has none (content such as a star field). Numeric and
  * color parameters become uniforms, so value edits never recompile. Only the
  * structure (types, wiring, enabled flags, custom expressions, compile mode)
  * changes the generated source.
@@ -832,8 +1408,9 @@ const { motifsGLSL } = __modules['motifs-glsl.js'];
  *                 false color for non-layer types)
  *   raw           the target's numeric value without any conversion; used by
  *                 float probes
- *   contribution  the target with and without one node, presented as a
- *                 highlight or signed-difference view of the changed pixels
+ *   contribution  the target with and without one node (bypassed, exactly as if
+ *                 it were disabled), shown as a highlight or signed-difference
+ *                 view of the pixels it changes
  *   preview       every node computed once; `u_previewIndex` selects which
  *                 one is shown, so all graph thumbnails share one program
  */
@@ -862,6 +1439,11 @@ function toVec4(type, name, raw) {
 function presentGLSL(type) {
     return type === 'layer' ? 'displayColor(f.rgb,u_exposure,u_tone)' : 'clamp(f.rgb,0.0,1.0)';
 }
+/** What a bypassed node evaluates to: its pass-through input, or a typed zero. */
+function bypassExpression(node, names) {
+    const socket = bypassSocket(node.type), source = socket && node.inputs[socket];
+    return source && names.has(source) ? names.get(source) : zeroByType[catalog[node.type].output];
+}
 function compileGraph(project, target = project.output, options = {}) {
     const { raw = false, contribution = null, contributionStyle = 'highlight', preview = false } = options;
     validateProject(project);
@@ -888,7 +1470,7 @@ function compileGraph(project, target = project.output, options = {}) {
         }
         let expression;
         if (!n.enabled) {
-            expression = zeroByType[d.output];
+            expression = bypassExpression(n, names);
         }
         else if (Object.hasOwn(expressionTypes, n.type)) {
             // Custom equations become small typed functions with the documented local names.
@@ -903,9 +1485,9 @@ function compileGraph(project, target = project.output, options = {}) {
         }
         expressions.set(n.id, expression);
     }
-    const statement = (n, zeroed = false) => {
+    const statement = (n, bypassed = false) => {
         const d = catalog[n.type], name = names.get(n.id);
-        return `  // ${name}: ${d.name.replace(/\n/g, ' ')} [${n.id}]\n  ${glslTypes[d.output]} ${name} = ${zeroed ? zeroByType[d.output] : expressions.get(n.id)};`;
+        return `  // ${name}: ${d.name.replace(/\n/g, ' ')} [${n.id}]\n  ${glslTypes[d.output]} ${name} = ${bypassed ? bypassExpression(n, names) : expressions.get(n.id)};`;
     };
     const last = order.at(-1), type = preview ? 'layer' : catalog[last.type].output;
     let shaders, fieldCall, presentation;
@@ -1430,11 +2012,106 @@ function getPreset(id) {
 
 return {presets,getPreset};
 })();
-__modules['editor.js'] = (() => {
+__modules['explore.js'] = (() => {
 const { catalog } = __modules['catalog.js'];
-const { clone, makeNode, validateProject, uniqueId, removeNode, History, MAX_LABEL } = __modules['graph.js'];
-const { getPreset } = __modules['presets.js'];
+const { clone, validateProject } = __modules['graph.js'];
+/** Pure helpers behind the editor's exploration tools: parameter sweeps, random
+ * variations, and the "original value" each control resets to. No DOM here.
+ */
+/** Snap a value to a parameter's step and clamp it to its range. */
+function snapToStep(spec, value) {
+    const steps = Math.round((value - spec.min) / spec.step);
+    const snapped = spec.min + steps * spec.step;
+    return Number(Math.min(spec.max, Math.max(spec.min, snapped)).toFixed(6));
+}
+/** `count` values evenly spread across a numeric parameter's range, snapped to
+ * its step, without duplicates (integer parameters may yield fewer).
+ */
+function sweepValues(spec, count = 7) {
+    if (spec.kind !== 'number' || count < 2) {
+        throw new Error('Sweeps need a numeric parameter and at least two samples.');
+    }
+    const values = [];
+    for (let i = 0; i < count; i++) {
+        const v = snapToStep(spec, spec.min + (spec.max - spec.min) * i / (count - 1));
+        if (!values.includes(v)) {
+            values.push(v);
+        }
+    }
+    return values;
+}
+/** Deterministic pseudo-random numbers in [0, 1) (mulberry32). */
+function seededRandom(seed) {
+    let a = seed >>> 0;
+    return () => {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+function perturbColor(hex, amount, random) {
+    const channels = [1, 3, 5].map(k => parseInt(hex.slice(k, k + 2), 16));
+    const shifted = channels.map(c => Math.round(Math.min(255, Math.max(0, c + (random() * 2 - 1) * amount * 255))));
+    return `#${shifted.map(c => c.toString(16).padStart(2, '0')).join('')}`;
+}
+/** Parameters a variation may change: animated (keyed) parameters are skipped
+ * because their keys, not the base value, decide what is shown.
+ */
+function variableParams(project, node, includeColors) {
+    const keyed = new Set(project.tracks.filter(t => t.node === node.id && t.keys.length).map(t => t.param));
+    return Object.entries(catalog[node.type].params).filter(([key, spec]) => !keyed.has(key) && (spec.kind === 'number' || (includeColors && spec.kind === 'color')));
+}
+/** Random variations of one component (`nodeId`) or, with `nodeId` null, of every
+ * enabled content component. Each numeric parameter moves by up to `amount` of its
+ * range around the current value. Returns [{project, changes}], every project valid.
+ */
+function makeVariations(project, { nodeId = null, count = 8, amount = 0.25, seed = 1, includeColors = true } = {}) {
+    const random = seededRandom(seed), results = [];
+    const targets = project.nodes.filter(n => nodeId ? n.id === nodeId : n.enabled && catalog[n.type].role === 'content');
+    if (!targets.length) {
+        throw new Error(nodeId ? `Unknown component ${nodeId}.` : 'No enabled components to vary.');
+    }
+    for (let i = 0; i < count; i++) {
+        const next = clone(project), changes = [];
+        for (const target of targets) {
+            const node = next.nodes.find(n => n.id === target.id);
+            for (const [key, spec] of variableParams(next, node, includeColors)) {
+                const before = node.params[key];
+                node.params[key] = spec.kind === 'color'
+                    ? perturbColor(before, amount * 0.6, random)
+                    : snapToStep(spec, before + (random() * 2 - 1) * amount * (spec.max - spec.min));
+                if (node.params[key] !== before) {
+                    changes.push({ node: node.id, param: key, from: before, to: node.params[key] });
+                }
+            }
+        }
+        validateProject(next);
+        results.push({ project: next, changes });
+    }
+    return results;
+}
+/** The value a parameter resets to: its value in the baseline project (the scene
+ * as it was opened) when that node exists there, otherwise the catalog default.
+ */
+function originalValue(baseline, node, key) {
+    const original = baseline?.nodes.find(n => n.id === node.id && n.type === node.type);
+    return original && Object.hasOwn(original.params, key) ? original.params[key] : catalog[node.type].params[key].value;
+}
+/** True when any parameter of `node` differs from its original value. */
+function isModified(baseline, node) {
+    return Object.keys(catalog[node.type].params).some(key => node.params[key] !== originalValue(baseline, node, key));
+}
+
+return {snapToStep,sweepValues,seededRandom,makeVariations,originalValue,isModified};
+})();
+__modules['editor.js'] = (() => {
+const { catalog, bypassSocket } = __modules['catalog.js'];
+const { clone, makeNode, validateProject, uniqueId, removeNode, upstream, evaluationOrder, History, MAX_LABEL } = __modules['graph.js'];
+const { presets, getPreset } = __modules['presets.js'];
 const { CONTRIBUTION_STYLES } = __modules['compiler.js'];
+const { originalValue } = __modules['explore.js'];
 /** Shared editor core: transient state, the event bus and every model operation.
  *
  * UI state never enters shader source; numeric values remain uniforms. The
@@ -1443,27 +2120,41 @@ const { CONTRIBUTION_STYLES } = __modules['compiler.js'];
  * cycles and bad values never reach the renderer. Panels subscribe to events
  * rather than calling each other:
  *
- *   refresh    the project was replaced or structurally edited; rebuild everything
+ *   refresh    the project was replaced or edited; rebuild everything
  *   selection  the selected component changed
- *   view       isolation / contribution mode changed
+ *   view       the canvas view mode, lock or contribution style changed
  *   time       the playhead moved
  *   history    undo/redo availability changed
  *   prefs      a persisted preference changed
+ *
+ * The canvas shows one of three views of the project:
+ *   final   the scene's final output (what exports and saves)
+ *   stage   the output of one component: the viewed node alone
+ *   effect  the final output with and without the viewed node (what it changes)
+ * The viewed node follows the selection unless the view is locked to a node.
  */
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
-const STORAGE = { project: 'equation-studio.project.v1', prefs: 'equation-studio.prefs.v1', snapshots: 'equation-studio.snapshots.v1' };
+const STORAGE = { project: 'equation-studio.project.v1', baseline: 'equation-studio.baseline.v1', prefs: 'equation-studio.prefs.v1', snapshots: 'equation-studio.snapshots.v1' };
 const CUSTOM_STATUS = 'Custom construction';
-const defaultPrefs = { previews: false, rulers: false, grid: false, quality: 800, graphHeight: 228 };
+const VIEW_MODES = ['final', 'stage', 'effect'];
+/** Bump when defaults change in a way returning users should receive. */
+const PREFS_VERSION = 2;
+const defaultPrefs = { version: PREFS_VERSION, previews: true, rulers: true, grid: true, quality: 800, graphHeight: 260, bottomTab: 'pipeline' };
 const state = {
     project: getPreset('bipolar'),
+    /** The project as it was opened (preset, file or snapshot): what "Original" and resets return to. */
+    baseline: getPreset('bipolar'),
     selected: 'shell',
-    /** Node shown alone in the canvas, or null for the composite. */
-    isolated: null,
-    /** Node whose effect on the output is visualized, or null. */
-    contribution: null,
+    viewMode: 'final',
+    /** Node the stage/effect view is locked to, or null to follow the selection. */
+    viewLock: null,
     contributionStyle: 'highlight',
+    /** Temporary project drawn instead of the real one (explore hover), or null. */
+    preview: null,
+    /** Show the baseline while the Original button is held. */
+    compareOriginal: false,
     time: 0,
     playing: false,
     /** The canvas needs a new frame. */
@@ -1480,7 +2171,8 @@ const state = {
     overlayDirty: true,
     previewsDirty: true,
     fps: 0,
-    frameStamp: 0
+    frameStamp: 0,
+    frameCount: 0
 };
 const history = new History();
 const listeners = new Map();
@@ -1512,11 +2204,27 @@ function writeStorage(key, value) {
         return false;
     }
 }
-try {
-    Object.assign(state.prefs, JSON.parse(readStorage(STORAGE.prefs) || '{}'));
+/** Stored preferences, upgraded to the current defaults for older versions. */
+function loadPrefs(text) {
+    let stored = {};
+    try {
+        stored = JSON.parse(text || '{}') || {};
+    }
+    catch (e) { /* Ignore unreadable preferences. */
+    }
+    if (stored.version !== PREFS_VERSION) { // new defaults: previews, rulers and grid on
+        stored = { quality: stored.quality, graphHeight: stored.graphHeight };
+    }
+    const prefs = { ...defaultPrefs };
+    for (const [key, value] of Object.entries(stored)) {
+        if (Object.hasOwn(defaultPrefs, key) && typeof value === typeof defaultPrefs[key]) {
+            prefs[key] = value;
+        }
+    }
+    prefs.version = PREFS_VERSION;
+    return prefs;
 }
-catch (e) { /* Ignore unreadable preferences. */
-}
+state.prefs = loadPrefs(readStorage(STORAGE.prefs));
 function savePrefs() {
     writeStorage(STORAGE.prefs, JSON.stringify(state.prefs));
     emit('prefs');
@@ -1532,7 +2240,7 @@ function toast(message, error = false) {
     $('toast').textContent = message;
     $('toast').className = error ? 'error' : '';
     $('toast').hidden = false;
-    toastTimer = setTimeout(() => $('toast').hidden = true, error ? 8500 : 4200);
+    toastTimer = setTimeout(() => $('toast').hidden = true, error ? 8500 : 4800);
 }
 function showError(error) {
     toast(error instanceof Error ? error.message : String(error), true);
@@ -1542,9 +2250,8 @@ function persist() {
     clearTimeout(saveTimer);
     $('saveStatus').textContent = 'Unsaved changes';
     saveTimer = setTimeout(() => {
-        $('saveStatus').textContent = writeStorage(STORAGE.project, JSON.stringify(state.project))
-            ? 'Saved in this browser · no uploads'
-            : 'Use Save project · browser storage unavailable';
+        const ok = writeStorage(STORAGE.project, JSON.stringify(state.project)) && writeStorage(STORAGE.baseline, JSON.stringify(state.baseline));
+        $('saveStatus').textContent = ok ? 'Autosaved in this browser · no uploads' : 'Use Save project · browser storage unavailable';
     }, 300);
 }
 function pause() {
@@ -1564,16 +2271,14 @@ function changed() {
     emit('history');
 }
 function refreshUI() {
-    if (!state.project.nodes.some(n => n.id === state.selected)) {
+    const ids = new Set(state.project.nodes.map(n => n.id));
+    if (!ids.has(state.selected)) {
         state.selected = state.project.nodes[0].id;
     }
-    if (state.isolated && !state.project.nodes.some(n => n.id === state.isolated)) {
-        state.isolated = null;
+    if (state.viewLock && !ids.has(state.viewLock)) {
+        state.viewLock = null;
     }
-    if (state.contribution && !state.project.nodes.some(n => n.id === state.contribution)) {
-        state.contribution = null;
-    }
-    if (state.connection && !state.project.nodes.some(n => n.id === state.connection)) {
+    if (state.connection && !ids.has(state.connection)) {
         state.connection = null;
     }
     state.time = clamp(state.time, 0, state.project.duration);
@@ -1609,8 +2314,11 @@ function transact(edit, { refresh = true, structural = false } = {}) {
         return false;
     }
 }
-/** Replace the whole project. History restores keep the playhead and selection. */
-function loadProject(next, { fromHistory = false } = {}) {
+/** Replace the whole project. History restores and reverts (`keepContext`) keep
+ * the playhead, selection and view; a newly opened project becomes the new
+ * baseline unless `keepBaseline` is set.
+ */
+function loadProject(next, { fromHistory = false, keepBaseline = false, keepContext = false } = {}) {
     validateProject(next);
     pause();
     if (!fromHistory) {
@@ -1618,15 +2326,23 @@ function loadProject(next, { fromHistory = false } = {}) {
     }
     state.project = clone(next);
     state.connection = null;
-    if (!fromHistory) {
+    state.preview = null;
+    if (!keepBaseline && !fromHistory) {
+        state.baseline = clone(next);
+    }
+    else if (fromHistory && next.id !== state.baseline.id && presets.some(p => p.id === next.id)) {
+        state.baseline = getPreset(next.id); // undo/redo across a scene change: the original follows the scene
+    }
+    if (!fromHistory && !keepContext) {
         state.time = 0;
-        state.isolated = null;
-        state.contribution = null;
+        state.viewMode = 'final';
+        state.viewLock = null;
         state.probePin = null;
         state.selected = state.project.nodes.find(n => n.id !== 'space')?.id || state.project.nodes[0].id;
     }
     changed();
     refreshUI();
+    emit('view');
 }
 function undo() {
     const previous = history.undo(state.project);
@@ -1640,6 +2356,11 @@ function redo() {
         loadProject(next, { fromHistory: true });
     }
 }
+/** Restore the scene exactly as it was opened (undoable). */
+function revertScene() {
+    loadProject(state.baseline, { keepBaseline: true, keepContext: true });
+    toast('Scene restored to how it was when opened. Undo brings your changes back.');
+}
 function currentNode() {
     return state.project.nodes.find(n => n.id === state.selected) || state.project.nodes[0];
 }
@@ -1647,31 +2368,71 @@ function nodeById(id) {
     return state.project.nodes.find(n => n.id === id);
 }
 function setSelected(id) {
+    if (!nodeById(id)) {
+        return;
+    }
     state.selected = id;
     state.connection = null;
+    if (state.viewMode !== 'final' && !state.viewLock) {
+        markDirty(); // the stage/effect view follows the selection
+    }
     emit('selection');
 }
-/** Show one component alone; clears contribution mode. */
-function setIsolated(id) {
-    state.isolated = id;
-    state.contribution = null;
+// ---- Canvas view -------------------------------------------------------------
+/** The node the stage and effect views show: the lock, else the selection. */
+function viewedNode() {
+    return (state.viewLock && nodeById(state.viewLock)) || currentNode();
+}
+/** Switch the canvas view. `node` also selects that node; `lock` pins the view. */
+function setView(mode, { node = null, lock } = {}) {
+    if (!VIEW_MODES.includes(mode)) {
+        throw new Error(`Unknown view ${mode}.`);
+    }
+    if (node) {
+        state.selected = node;
+        state.connection = null;
+    }
+    state.viewMode = mode;
+    if (lock !== undefined) {
+        state.viewLock = lock ? (node || viewedNode().id) : null;
+    }
+    if (mode === 'final') {
+        state.viewLock = null;
+    }
     markDirty();
+    if (node) {
+        emit('selection');
+    }
     emit('view');
 }
-/** Show which output pixels one component changes; clears isolation. */
-function setContribution(id, style = state.contributionStyle) {
+function setContributionStyle(style) {
     if (!CONTRIBUTION_STYLES.includes(style)) {
         throw new Error(`Unknown contribution style ${style}.`);
     }
-    state.contribution = id;
     state.contributionStyle = style;
-    state.isolated = null;
     markDirty();
     emit('view');
 }
-/** The node the canvas currently shows: isolated field, or the project output. */
+/** Renderer options for the current view. */
+function viewOptions() {
+    const project = state.project;
+    if (state.viewMode === 'stage') {
+        return { target: viewedNode().id };
+    }
+    if (state.viewMode === 'effect') {
+        return { target: project.output, contribution: viewedNode().id, contributionStyle: state.contributionStyle };
+    }
+    return { target: project.output };
+}
+/** Node the canvas currently displays (for readouts and legends). */
 function viewTarget() {
-    return state.isolated || state.project.output;
+    return state.viewMode === 'stage' ? viewedNode().id : state.project.output;
+}
+/** Move the stage view to the previous/next component in evaluation order. */
+function stepStage(delta) {
+    const order = evaluationOrder(state.project), index = order.findIndex(n => n.id === viewedNode().id);
+    const next = order[clamp((index < 0 ? 0 : index) + delta, 0, order.length - 1)];
+    setView('stage', { node: next.id, lock: false });
 }
 function seek(t) {
     if (!Number.isFinite(t)) {
@@ -1681,6 +2442,86 @@ function seek(t) {
     state.time = clamp(t, 0, state.project.duration);
     markDirty();
     emit('time');
+}
+// ---- Enabling and bypassing ---------------------------------------------------
+/** Enable or disable components. Enabling also enables disabled components that
+ * they depend on, so the result is visible; returns the ids enabled that way.
+ */
+function setEnabled(ids, enabled) {
+    const extra = new Set();
+    const ok = transact(p => {
+        for (const id of ids) {
+            p.nodes.find(n => n.id === id).enabled = enabled;
+            if (enabled) {
+                for (const dep of upstream(p, id)) {
+                    const n = p.nodes.find(v => v.id === dep);
+                    if (!n.enabled) {
+                        n.enabled = true;
+                        extra.add(dep);
+                    }
+                }
+            }
+        }
+    });
+    if (ok && extra.size) {
+        toast(`Also enabled ${[...extra].map(id => nodeById(id).label).join(', ')}, which ${ids.length === 1 ? nodeById(ids[0]).label : 'these'} ${ids.length === 1 ? 'needs' : 'need'}.`);
+    }
+    return ok ? [...extra] : null;
+}
+function toggleEnabled(id) {
+    return setEnabled([id], !nodeById(id).enabled);
+}
+function enableAll() {
+    return transact(p => p.nodes.forEach(n => n.enabled = true));
+}
+/** Disable every content component, keeping coordinates, combiners and modifiers,
+ * so ticking components one by one builds the image up layer by layer.
+ */
+function onlyStructure() {
+    return transact(p => p.nodes.forEach(n => n.enabled = catalog[n.type].role !== 'content'));
+}
+/** Enabled flags as in the baseline; components added since are enabled. */
+function restoreEnabled() {
+    return transact(p => p.nodes.forEach(n => {
+        const original = state.baseline.nodes.find(b => b.id === n.id);
+        n.enabled = original ? original.enabled : true;
+    }));
+}
+/** What unticking a component does, for tooltips. */
+function bypassDescription(node) {
+    const socket = bypassSocket(node.type), source = socket && nodeById(node.inputs[socket]);
+    if (socket) {
+        return source ? `passes “${source.label}” through unchanged` : `passes its ${socket} input through (currently unconnected, so zero)`;
+    }
+    return 'contributes nothing (zero)';
+}
+// ---- Parameters ---------------------------------------------------------------
+function resetParam(nodeId, key) {
+    return transact(p => {
+        const n = p.nodes.find(v => v.id === nodeId);
+        n.params[key] = originalValue(state.baseline, n, key);
+        p.tracks = p.tracks.filter(t => !(t.node === nodeId && t.param === key));
+    });
+}
+function resetNode(nodeId) {
+    return transact(p => {
+        const n = p.nodes.find(v => v.id === nodeId);
+        for (const key of Object.keys(catalog[n.type].params)) {
+            n.params[key] = originalValue(state.baseline, n, key);
+        }
+        p.tracks = p.tracks.filter(t => t.node !== nodeId);
+    });
+}
+/** Replace one component's parameters with those of a candidate project (explore). */
+function applyParams(candidate, nodeIds = null) {
+    return transact(p => {
+        for (const n of p.nodes) {
+            const source = candidate.nodes.find(c => c.id === n.id);
+            if (source && (!nodeIds || nodeIds.includes(n.id))) {
+                n.params = clone(source.params);
+            }
+        }
+    });
 }
 // ---- Graph operations -------------------------------------------------------
 /** Add a component; sockets connect to the selection when types match, else to
@@ -1712,12 +2553,72 @@ function addComponent(type, { connectTo = null } = {}) {
     }, { refresh: false, structural: true });
     if (ok) {
         state.selected = id;
-        state.isolated = connectTo ? null : id;
-        state.contribution = null;
+        state.viewMode = connectTo ? state.viewMode : 'stage';
+        state.viewLock = null;
         refreshUI();
-        toast(connectTo ? 'Component added and connected.' : 'Component added and isolated. Wire it downstream, then choose Set as output.');
+        emit('view');
+        toast(connectTo ? 'Component added and connected.' : 'Component added; the canvas shows its output. Wire it downstream, or make it the final output.');
     }
     return ok ? id : null;
+}
+/** Insert a modifier on an input: target.socket ← new ← previous source. */
+function insertComponent(type, targetId, socket) {
+    const def = catalog[type], target = nodeById(targetId);
+    if (!def || !target || !def.bypass || def.output !== catalog[target.type].inputs[socket]) {
+        throw new Error('That component cannot be inserted on this input.');
+    }
+    let id;
+    const ok = transact(p => {
+        id = uniqueId(p, type);
+        const t = p.nodes.find(n => n.id === targetId), inputs = {};
+        if (t.inputs[socket]) {
+            inputs[def.bypass] = t.inputs[socket];
+        }
+        const coordinates = t.inputs.p || p.nodes.find(n => n.type === 'coordinates')?.id; // extra coordinate sockets share the scene's coordinates
+        for (const [s, kind] of Object.entries(def.inputs)) {
+            if (!inputs[s] && kind === 'coord' && coordinates) {
+                inputs[s] = coordinates;
+            }
+        }
+        p.nodes.push(makeNode(type, id, inputs));
+        t.inputs[socket] = id;
+    }, { refresh: false, structural: true });
+    if (ok) {
+        state.selected = id;
+        refreshUI();
+        emit('view');
+        toast(`${def.name} inserted on ${target.label} · ${socket}. Its parameters are in the inspector.`);
+    }
+    return ok ? id : null;
+}
+/** Change a component's kind in place, keeping its id, label and connections
+ * wherever the new kind has a socket of the same name and type.
+ */
+function replaceComponent(id, type) {
+    const node = nodeById(id), def = catalog[type];
+    if (!node || !def || def.output !== catalog[node.type].output) {
+        throw new Error('The replacement must produce the same type.');
+    }
+    const ok = transact(p => {
+        const n = p.nodes.find(v => v.id === id), fresh = makeNode(type, id);
+        const oldInputs = n.inputs;
+        fresh.inputs = {};
+        for (const [socket, kind] of Object.entries(def.inputs)) {
+            const same = oldInputs[socket] && catalog[n.type].inputs[socket] === kind ? oldInputs[socket] : null;
+            const byType = Object.entries(catalog[n.type].inputs).find(([s, k]) => k === kind && oldInputs[s] && !Object.hasOwn(def.inputs, s));
+            const source = same || (byType && oldInputs[byType[0]]);
+            if (source) {
+                fresh.inputs[socket] = source;
+            }
+        }
+        fresh.enabled = n.enabled;
+        Object.assign(n, fresh);
+        p.tracks = p.tracks.filter(t => t.node !== id);
+    }, { structural: true });
+    if (ok) {
+        toast(`Replaced with ${def.name}. Connections with matching sockets were kept.`);
+    }
+    return ok;
 }
 function connect(source, target, socket) {
     state.connection = null;
@@ -1754,6 +2655,7 @@ function duplicateNode(id) {
     if (ok) {
         state.selected = copyId;
         refreshUI();
+        emit('view');
     }
     return ok ? copyId : null;
 }
@@ -1761,18 +2663,15 @@ function deleteNode(id) {
     return transact(p => removeNode(p, id), { structural: true });
 }
 function setOutput(id) {
-    state.isolated = null;
-    state.contribution = null;
-    return transact(p => p.output = id, { structural: true });
-}
-function toggleEnabled(id) {
-    return transact(p => {
-        const n = p.nodes.find(v => v.id === id);
-        n.enabled = !n.enabled;
-    }, { structural: true });
+    const ok = transact(p => p.output = id, { structural: true });
+    if (ok) {
+        setView('final');
+        toast(`${nodeById(id).label} is now the final output: it is what the canvas shows in Final image, and what saves and exports use.`);
+    }
+    return ok;
 }
 
-return {$,esc,clamp,STORAGE,CUSTOM_STATUS,state,history,on,emit,readStorage,writeStorage,savePrefs,setPref,toast,showError,persist,pause,markDirty,changed,refreshUI,markCustom,transact,loadProject,undo,redo,currentNode,nodeById,setSelected,setIsolated,setContribution,viewTarget,seek,addComponent,connect,duplicateNode,deleteNode,setOutput,toggleEnabled};
+return {$,esc,clamp,STORAGE,CUSTOM_STATUS,VIEW_MODES,state,history,on,emit,readStorage,writeStorage,loadPrefs,savePrefs,setPref,toast,showError,persist,pause,markDirty,changed,refreshUI,markCustom,transact,loadProject,undo,redo,revertScene,currentNode,nodeById,setSelected,viewedNode,setView,setContributionStyle,viewOptions,viewTarget,stepStage,seek,setEnabled,toggleEnabled,enableAll,onlyStructure,restoreEnabled,bypassDescription,resetParam,resetNode,applyParams,addComponent,insertComponent,replaceComponent,connect,duplicateNode,deleteNode,setOutput};
 })();
 __modules['view-math.js'] = (() => {
 const { VIEW_LIMITS } = __modules['graph.js'];
@@ -1839,41 +2738,200 @@ function formatTick(value, step) {
 
 return {WORLD_WIDTH,HALF_PIXEL,unitsPerPixel,pixelToWorld,worldToPixel,clientToPixel,zoomAbout,panBy,tickSpacing,formatTick};
 })();
+__modules['ui-tooltip.js'] = (() => {
+const { esc } = __modules['editor.js'];
+/** Hover tips for every control. Mark an element with:
+ *
+ *   data-tip="Heading|Body text"   heading and explanation ("|" separates them)
+ *   data-key="R"                    keyboard shortcut shown as a key cap
+ *   data-toggle                     states that the control switches on and off
+ *
+ * or register a provider for richer content (see registerTipProvider). Tips
+ * appear after a short delay, instantly when moving between controls, and hide on
+ * any press, key or scroll. aria-label attributes stay as the accessible names.
+ */
+const providers = [];
+let timer = null, current = null, lastHidden = 0;
+const tip = document.createElement('div');
+tip.id = 'tooltip';
+tip.setAttribute('role', 'tooltip');
+tip.hidden = true;
+document.body.append(tip);
+/** `provider(element)` returns HTML for elements matching `selector`, or null. */
+function registerTipProvider(selector, provider) {
+    providers.push({ selector, provider });
+}
+function contentFor(el) {
+    for (const { selector, provider } of providers) {
+        const match = el.closest(selector);
+        if (match === el) {
+            const html = provider(el);
+            if (html) {
+                return html;
+            }
+        }
+    }
+    const text = el.dataset.tip;
+    if (!text) {
+        return null;
+    }
+    const [heading, ...rest] = text.split('|');
+    const body = rest.join('|');
+    const state = el.hasAttribute('data-toggle') ? `<span class="tip-state">${el.getAttribute('aria-pressed') === 'true' || el.classList.contains('active') ? 'On · click to turn off' : 'Off · click to turn on'}</span>` : '';
+    const key = el.dataset.key ? `<kbd>${esc(el.dataset.key)}</kbd>` : '';
+    return `<b>${esc(heading)}</b>${key}${state}${body ? `<p>${esc(body).replace(/\n/g, '<br>')}</p>` : ''}`;
+}
+function place(el) {
+    const r = el.getBoundingClientRect(), t = tip.getBoundingClientRect(), margin = 8;
+    let top = r.bottom + margin;
+    if (top + t.height > innerHeight - 4) {
+        top = Math.max(4, r.top - t.height - margin);
+    }
+    const left = Math.min(Math.max(4, r.left + r.width / 2 - t.width / 2), innerWidth - t.width - 4);
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+}
+function show(el) {
+    const html = contentFor(el);
+    if (!html) {
+        return;
+    }
+    current = el;
+    tip.innerHTML = html;
+    tip.hidden = false;
+    place(el);
+}
+function hideTip() {
+    clearTimeout(timer);
+    if (!tip.hidden) {
+        lastHidden = performance.now();
+    }
+    tip.hidden = true;
+    current = null;
+}
+function target(el) {
+    return el?.closest?.('[data-tip], [data-rich-tip]');
+}
+document.addEventListener('pointerover', e => {
+    const el = target(e.target);
+    if (el === current) {
+        return;
+    }
+    clearTimeout(timer);
+    if (!el) {
+        hideTip();
+        return;
+    }
+    const quick = !tip.hidden || performance.now() - lastHidden < 400;
+    if (!tip.hidden) {
+        tip.hidden = true;
+    }
+    timer = setTimeout(() => show(el), quick ? 60 : 420);
+});
+document.addEventListener('pointerout', e => {
+    if (current && !current.contains(e.relatedTarget)) {
+        hideTip();
+    }
+});
+for (const type of ['pointerdown', 'keydown', 'wheel']) {
+    document.addEventListener(type, hideTip, { capture: true, passive: true });
+}
+document.addEventListener('scroll', hideTip, { capture: true, passive: true });
+/** Refresh the visible tip, e.g. after a toggle changed state. */
+function refreshTip() {
+    if (current && !tip.hidden) {
+        show(current);
+    }
+}
+
+return {registerTipProvider,hideTip,refreshTip};
+})();
 __modules['ui-canvas.js'] = (() => {
-const { $, state, on, toast, showError, transact, history, changed, markDirty, pause, currentNode, viewTarget, setIsolated, setPref, clamp } = __modules['editor.js'];
+const { $, esc, state, on, toast, showError, transact, history, changed, markDirty, pause, currentNode, viewedNode, viewOptions, setView, setContributionStyle, setPref, clamp } = __modules['editor.js'];
 const { catalog } = __modules['catalog.js'];
 const { clone } = __modules['graph.js'];
 const { pixelToWorld, worldToPixel, clientToPixel, zoomAbout, panBy, unitsPerPixel, tickSpacing, formatTick } = __modules['view-math.js'];
-/** Center panel: the live canvas, its camera gestures, rulers and readouts,
- * reference comparison and the canvas toolbar.
+const { refreshTip } = __modules['ui-tooltip.js'];
+/** Center panel: the live canvas and its view switch, camera gestures, rulers and
+ * readouts, the diagnostic legend, reference comparison and the canvas toolbar.
  */
 const app = $('app'), canvas = $('artCanvas'), overlay = $('overlay'), probeNames = { scalar: ['value'], coord: ['x', 'y'], geometry: ['S / warp', 'A / rim', 'coverage'], layer: ['R', 'G', 'B', 'alpha'] };
 let lastProgram = null, rawProbeArmed = false, referenceURL = null, hover = null, pinReadout = null, hoverStamp = 0;
 let gesture = null, pinch = null, wheelBefore = null, wheelTimer;
+/** What the last frame drew: needed so readouts query the same project. */
+let drawn = { project: null, target: null };
 const pointers = new Map();
 function armProbe() {
     rawProbeArmed = true;
-    toast('Click a point on the artwork to read this component’s raw field value. Alt-click also probes; turn on Rulers for continuous readouts.');
+    toast('Click a point on the artwork to read the shown component’s raw field value. Alt-click also probes; Rulers show it continuously.');
 }
-function refreshViewLabel() {
-    const project = state.project, id = state.contribution || state.isolated, n = project.nodes.find(v => v.id === id);
-    $('viewLabel').textContent = state.contribution ? `CONTRIBUTION / ${n?.label || id}` : state.isolated ? `FIELD / ${n?.label || id}` : 'COMPOSITE';
-    $('previewBadge').textContent = state.contribution ? 'Contribution view' : 'Isolated field';
-    $('previewBadge').hidden = !id;
-    $('clearPreview').hidden = !id;
+/** Legend explaining the false colors of a non-layer stage, or the effect view. */
+function legendHTML() {
+    if (state.compareOriginal) {
+        return '<b>ORIGINAL</b> the scene as it was opened · release to return';
+    }
+    if (state.viewMode === 'effect') {
+        return state.contributionStyle === 'signed'
+            ? '<span class="swatch warm"></span>brighter with it <span class="swatch cool"></span>darker with it <span class="swatch black"></span>no change'
+            : '<b>In color:</b> pixels this component changes · <b>gray:</b> unchanged';
+    }
+    if (state.viewMode !== 'stage') {
+        return '';
+    }
+    const type = catalog[viewedNode().type].output;
+    if (type === 'scalar') {
+        return '<span class="ramp gray"></span><span>−2</span><span>0</span><span>+2</span> gray = ½ + ½·tanh(value) · Rulers show exact values';
+    }
+    if (type === 'coord') {
+        return '<span class="swatch red"></span>red = ½+½ sin x <span class="swatch green"></span>green = ½+½ sin y · repeats every 2π';
+    }
+    if (type === 'geometry') {
+        return '<span class="swatch red"></span>red = 4 × rim A <span class="swatch green"></span>green = coverage <span class="swatch blue"></span>blue = warp S';
+    }
+    return '';
+}
+function refreshView() {
+    const project = state.project, node = viewedNode(), mode = state.viewMode;
+    document.querySelectorAll('[data-view]').forEach(b => {
+        const active = b.dataset.view === mode;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-checked', String(active));
+    });
+    $('viewSubject').hidden = mode === 'final';
+    $('viewSubject').innerHTML = mode === 'final' ? '' : `<span class="type-dot ${catalog[node.type].output}"></span>${esc(node.label)}`;
+    $('viewLock').hidden = mode === 'final';
+    $('viewLock').classList.toggle('active', !!state.viewLock);
+    $('viewLock').setAttribute('aria-pressed', String(!!state.viewLock));
+    $('viewLock').textContent = state.viewLock ? '🔒' : '🔓';
+    $('effectStyle').hidden = mode !== 'effect';
+    $('effectStyle').value = state.contributionStyle;
     $('sceneStatus').textContent = project.status || 'Custom construction';
     $('sceneStatus').classList.toggle('study', project.status === 'Interpretive study');
-    $('cornerLabel').textContent = state.contribution ? (state.contributionStyle === 'signed' ? 'CONTRIBUTION · SIGNED DIFFERENCE' : 'CONTRIBUTION · CHANGED PIXELS IN COLOR') : state.isolated ? 'ISOLATED FIELD · DIAGNOSTIC VIEW' : 'LIVE EQUATIONS · NO IMAGE TEXTURES';
+    const legend = legendHTML();
+    $('legend').innerHTML = legend;
+    $('legend').hidden = !legend;
+    $('holdOriginal').classList.toggle('active', state.compareOriginal);
+    $('clearPin').hidden = !state.probePin;
     for (const [id, key] of [['rulersButton', 'rulers'], ['gridButton', 'grid']]) {
         $(id).classList.toggle('active', state.prefs[key]);
         $(id).setAttribute('aria-pressed', String(state.prefs[key]));
     }
+    refreshTip();
 }
 function resizeImage() {
     const stage = $('stage'), pad = innerWidth < 650 ? 24 : innerWidth < 1200 ? 36 : 56;
     const width = Math.max(10, Math.min(stage.clientWidth - pad, (stage.clientHeight - 42) * 5 / 3));
     $('imageWrap').style.width = `${width}px`;
     state.overlayDirty = true;
+}
+/** Project and renderer options for the next frame: the held original, an
+ * exploration candidate under the pointer, or the real project in the chosen view.
+ */
+function frameSource() {
+    if (state.compareOriginal) {
+        return { project: state.baseline, options: { target: state.baseline.output } };
+    }
+    return { project: state.preview || state.project, options: viewOptions() };
 }
 /** Draw the current view to the canvas; called by the frame loop when dirty. */
 function renderFrame() {
@@ -1883,15 +2941,20 @@ function renderFrame() {
     }
     const width = state.prefs.quality, height = Math.round(width * .6);
     try {
-        const start = performance.now();
-        const options = state.contribution ? { target: state.project.output, contribution: state.contribution, contributionStyle: state.contributionStyle } : { target: viewTarget() };
-        state.compiled = renderer.draw(state.project, state.time, width, height, options);
+        const start = performance.now(), { project, options } = frameSource();
+        state.compiled = renderer.draw(project, state.time, width, height, options);
+        drawn = { project, target: options.contribution ? null : options.target };
         if (renderer.current !== lastProgram) {
             lastProgram = renderer.current;
             $('shaderView').textContent = state.compiled.fragment;
         }
         const ms = performance.now() - start;
-        $('renderStats').textContent = `${width} × ${height}${state.playing ? ` · ${state.fps.toFixed(0)} fps` : ` · ${ms.toFixed(1)} ms submit`}`;
+        state.frameCount++;
+        $('renderStats').textContent = `${width} × ${height}${state.playing ? ` · ${state.fps.toFixed(0)} fps` : ''}`;
+        $('liveStats').textContent = `${width}×${height} · ${ms < 1 ? '<1' : ms.toFixed(0)} ms · frame ${state.frameCount}`;
+        $('liveBadge').classList.remove('pulse');
+        void $('liveBadge').offsetWidth; // restart the pulse animation
+        $('liveBadge').classList.add('pulse');
         if (state.probePin) {
             pinReadout = readout(state.probePin.px, state.probePin.py, true);
         }
@@ -1903,11 +2966,16 @@ function renderFrame() {
     }
 }
 // ---- Readouts ----------------------------------------------------------------
+/** Component whose raw values the readouts report: the shown stage, else the selection. */
+function readoutNode() {
+    const node = state.viewMode === 'stage' ? viewedNode() : currentNode();
+    return drawn.project?.nodes.some(n => n.id === node.id) ? node : null;
+}
 /** Everything known about one framebuffer pixel: world position, displayed color
- * and (optionally) the raw field of the selected component.
+ * and (optionally) the raw field of the shown or selected component.
  */
 function readout(px, py, raw) {
-    const { project, renderer } = state, view = project.view;
+    const { renderer } = state, project = drawn.project || state.project, view = project.view;
     const col = Math.floor(px), row = Math.floor(py), world = pixelToWorld(col + .5, row + .5, canvas.width, canvas.height, view);
     const result = { px, py, x: world.x, y: world.y, col, rowFromTop: canvas.height - 1 - row, rgb: null, raw: null, rawError: null };
     if (!renderer || !renderer.current) {
@@ -1918,9 +2986,10 @@ function readout(px, py, raw) {
     }
     catch (e) { /* Context loss is reported by the renderer's event handler. */
     }
-    if (raw && renderer.info.rawFields && Math.abs(world.x) <= 19 && Math.abs(world.y) <= 19) {
+    const node = readoutNode();
+    if (raw && node && renderer.info.rawFields && Math.abs(world.x) <= 19 && Math.abs(world.y) <= 19) {
         try {
-            const node = currentNode(), values = renderer.samplePoint(project, state.time, node.id, world.x, world.y), names = probeNames[catalog[node.type].output];
+            const values = renderer.samplePoint(project, state.time, node.id, world.x, world.y), names = probeNames[catalog[node.type].output];
             result.raw = { label: node.label, entries: names.map((name, i) => [name, values[i]]) };
         }
         catch (e) {
@@ -2049,9 +3118,12 @@ function drawOverlay() {
                     ctx.restore();
                 }
             }
-            ctx.textBaseline = 'alphabetic';
+            const scale = `${formatTick(step, step)} / major tick`; // top-right, clear of the live badge
+            ctx.fillStyle = 'rgba(10,14,16,0.9)';
+            ctx.fillRect(W - ctx.measureText(scale).width - 12, 0, ctx.measureText(scale).width + 12, 16);
             ctx.fillStyle = '#9fb3aa';
-            ctx.fillText(`${formatTick(step, step)} / tick`, W - 60, H - 6);
+            ctx.fillText(scale, W - ctx.measureText(scale).width - 6, 3);
+            ctx.textBaseline = 'alphabetic';
         }
     }
     if (state.probePin && pinReadout) {
@@ -2213,7 +3285,33 @@ canvas.addEventListener('wheel', e => {
 }, { passive: false });
 // ---- Canvas toolbar ------------------------------------------------------------
 $('resetView').onclick = () => transact(p => p.view = { x: 0, y: 0, zoom: 1 });
-$('clearPreview').onclick = () => setIsolated(null);
+document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => setView(b.dataset.view));
+$('viewLock').onclick = () => setView(state.viewMode, { lock: !state.viewLock });
+$('effectStyle').onchange = e => setContributionStyle(e.target.value);
+/** While held, the canvas shows the scene exactly as it was opened. */
+function setCompareOriginal(on) {
+    if (state.compareOriginal === on) {
+        return;
+    }
+    state.compareOriginal = on;
+    markDirty();
+    refreshView();
+}
+const hold = $('holdOriginal');
+hold.addEventListener('pointerdown', e => {
+    hold.setPointerCapture(e.pointerId);
+    setCompareOriginal(true);
+});
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    hold.addEventListener(type, () => setCompareOriginal(false));
+}
+hold.addEventListener('keydown', e => {
+    if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
+        e.preventDefault();
+        setCompareOriginal(true);
+    }
+});
+hold.addEventListener('keyup', () => setCompareOriginal(false));
 $('clearPin').onclick = clearPin;
 $('rulersButton').onclick = () => setPref('rulers', !state.prefs.rulers);
 $('gridButton').onclick = () => setPref('grid', !state.prefs.grid);
@@ -2224,8 +3322,21 @@ if ($('quality').value !== String(state.prefs.quality)) { // unknown stored valu
 $('quality').onchange = () => setPref('quality', Number($('quality').value));
 $('focusButton').onclick = () => {
     app.classList.toggle('focus-canvas');
+    $('focusButton').setAttribute('aria-pressed', String(app.classList.contains('focus-canvas')));
     resizeImage();
 };
+// "⋯" menu for less frequent canvas actions; any choice or outside click closes it.
+$('moreButton').onclick = e => {
+    e.stopPropagation();
+    $('moreMenu').hidden = !$('moreMenu').hidden;
+    $('moreButton').setAttribute('aria-expanded', String(!$('moreMenu').hidden));
+};
+document.addEventListener('click', e => {
+    if (!$('moreMenu').hidden && (!$('moreMenu').contains(e.target) || e.target.closest('button'))) {
+        $('moreMenu').hidden = true;
+        $('moreButton').setAttribute('aria-expanded', 'false');
+    }
+});
 $('copyImage').onclick = async () => {
     if (!state.renderer) {
         showError('A working WebGL 2 context is required.');
@@ -2293,16 +3404,17 @@ $('removeReference').onclick = () => {
     resizeImage();
 };
 on('refresh', () => {
-    refreshViewLabel();
+    refreshView();
     resizeImage();
 });
-on('view', refreshViewLabel);
+on('view', refreshView);
+on('selection', refreshView);
 on('prefs', () => {
-    refreshViewLabel();
+    refreshView();
     state.overlayDirty = true;
 });
 
-return {armProbe,refreshViewLabel,resizeImage,renderFrame,drawOverlay,clearPin,hasPin};
+return {armProbe,refreshView,resizeImage,renderFrame,drawOverlay,clearPin,hasPin,setCompareOriginal};
 })();
 __modules['graph-layout.js'] = (() => {
 const { catalog } = __modules['catalog.js'];
@@ -2315,12 +3427,15 @@ const COLUMN_PITCH = 225;
 const ROW_GAP = 23;
 const SOCKET_PITCH = 13;
 const SOCKET_TOP = 29;
-const PREVIEW_WIDTH = 150;
-const PREVIEW_HEIGHT = 90;
+/** Size of every live thumbnail tile (graph cards and pipeline). */
+const PREVIEW_WIDTH = 160;
+const PREVIEW_HEIGHT = 96;
+/** Height the thumbnail occupies on a graph card, which shows it at 150 × 90. */
+const CARD_PREVIEW_HEIGHT = 90;
 const MARGIN_X = 24, MARGIN_Y = 18;
 function nodeHeight(node, previews) {
     const sockets = Object.keys(catalog[node.type].inputs).length;
-    return Math.max(78, 42 + sockets * SOCKET_PITCH) + (previews ? PREVIEW_HEIGHT + 8 : 0);
+    return Math.max(78, 42 + sockets * SOCKET_PITCH) + (previews ? CARD_PREVIEW_HEIGHT + 8 : 0);
 }
 /** Returns positions (id → {x, y, height, column}) and the board size in pixels. */
 function layoutGraph(project, { previews = false } = {}) {
@@ -2370,7 +3485,429 @@ function wirePath(from, to) {
     return `M${from.x},${from.y} C${from.x + bend},${from.y} ${to.x - bend},${to.y} ${to.x},${to.y}`;
 }
 
-return {NODE_WIDTH,COLUMN_PITCH,ROW_GAP,SOCKET_PITCH,SOCKET_TOP,PREVIEW_WIDTH,PREVIEW_HEIGHT,nodeHeight,layoutGraph,outputSocketPoint,inputSocketPoint,wirePath};
+return {NODE_WIDTH,COLUMN_PITCH,ROW_GAP,SOCKET_PITCH,SOCKET_TOP,PREVIEW_WIDTH,PREVIEW_HEIGHT,CARD_PREVIEW_HEIGHT,nodeHeight,layoutGraph,outputSocketPoint,inputSocketPoint,wirePath};
+})();
+__modules['math-render.js'] = (() => {
+/** Typeset equations as native MathML, with no fonts, scripts or network access.
+ *
+ * texToMathML() converts the small TeX subset used by the component catalog:
+ * letters, numbers, operators, groups, ^ and _, \frac, \sqrt, \text, \mathrm,
+ * \operatorname, \mathbf, accents, \left/\right, big operators (\sum, \prod),
+ * Greek letters, common functions, relations and spacing commands. Unknown
+ * commands throw, so the unit tests catch catalog typos.
+ *
+ * expressionToMathML() parses a custom GLSL expression (the same grammar the
+ * editor accepts) and renders it as mathematics: a/b becomes a fraction,
+ * pow(a,b) a power, sqrt a radical, abs and length bars, vecN a tuple, theta θ.
+ */
+const escapeXML = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const GREEK = {
+    alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', varepsilon: 'ε', zeta: 'ζ', eta: 'η', theta: 'θ', vartheta: 'ϑ',
+    iota: 'ι', kappa: 'κ', lambda: 'λ', mu: 'μ', nu: 'ν', xi: 'ξ', pi: 'π', rho: 'ρ', sigma: 'σ', tau: 'τ', upsilon: 'υ',
+    phi: 'ϕ', varphi: 'φ', chi: 'χ', psi: 'ψ', omega: 'ω', Gamma: 'Γ', Delta: 'Δ', Theta: 'Θ', Lambda: 'Λ', Xi: 'Ξ', Pi: 'Π',
+    Sigma: 'Σ', Phi: 'Φ', Psi: 'Ψ', Omega: 'Ω', ell: 'ℓ'
+};
+const FUNCTIONS = new Set(['sin', 'cos', 'tan', 'exp', 'log', 'ln', 'max', 'min', 'arccos', 'arcsin', 'arctan', 'tanh', 'sinh', 'cosh', 'det']);
+const OPERATORS = {
+    cdot: '·', times: '×', odot: '⊙', le: '≤', leq: '≤', ge: '≥', geq: '≥', ne: '≠', neq: '≠', approx: '≈', propto: '∝',
+    to: '→', mapsto: '↦', rightarrow: '→', leftarrow: '←', pm: '±', in: '∈', infty: '∞', partial: '∂', nabla: '∇', circ: '∘',
+    ldots: '…', cdots: '⋯', lvert: '|', rvert: '|', vert: '|', lVert: '‖', rVert: '‖', Vert: '‖', langle: '⟨', rangle: '⟩',
+    star: '⋆', prime: '′', lfloor: '⌊', rfloor: '⌋', lceil: '⌈', rceil: '⌉', bmod: 'mod', '{': '{', '}': '}', '|': '‖'
+};
+const LARGE = { sum: '∑', prod: '∏' };
+const SPACES = { quad: '1em', qquad: '2em', ',': '0.167em', ';': '0.278em', ':': '0.222em', ' ': '0.25em', '!': '0em' };
+const ACCENTS = { hat: '^', bar: '¯', tilde: '~', vec: '→', dot: '˙' };
+const IGNORED = new Set(['left', 'right', 'big', 'bigl', 'bigr', 'Big', 'Bigl', 'Bigr', 'displaystyle']);
+const OPERATOR_CHARS = { '-': '−', '*': '∗', "'": '′' };
+class TexParser {
+    constructor(source) {
+        this.s = source;
+        this.i = 0;
+    }
+    error(message) {
+        return new Error(`${message} at position ${this.i} in “${this.s}”`);
+    }
+    skipSpace() {
+        while (this.i < this.s.length && /\s/.test(this.s[this.i])) {
+            this.i++;
+        }
+    }
+    peek() {
+        this.skipSpace();
+        return this.s[this.i];
+    }
+    /** Read a command name after a backslash: letters, or one symbol character. */
+    command() {
+        this.i++;
+        const letters = /^[A-Za-z]+/.exec(this.s.slice(this.i));
+        if (letters) {
+            this.i += letters[0].length;
+            return letters[0];
+        }
+        if (this.i >= this.s.length) {
+            throw this.error('Dangling backslash');
+        }
+        return this.s[this.i++];
+    }
+    /** Raw text of a braced argument, for \text and \mathrm. */
+    rawGroup() {
+        if (this.peek() !== '{') {
+            throw this.error('Expected {');
+        }
+        let depth = 0, start = ++this.i;
+        for (; this.i < this.s.length; this.i++) {
+            if (this.s[this.i] === '{') {
+                depth++;
+            }
+            else if (this.s[this.i] === '}') {
+                if (depth === 0) {
+                    return this.s.slice(start, this.i++);
+                }
+                depth--;
+            }
+        }
+        throw this.error('Unclosed {');
+    }
+    list() {
+        const items = [];
+        while (this.peek() !== undefined && this.peek() !== '}') {
+            items.push(this.scripted());
+        }
+        return items.join('');
+    }
+    group() {
+        this.i++; // {
+        const body = this.list();
+        if (this.peek() !== '}') {
+            throw this.error('Unclosed {');
+        }
+        this.i++;
+        return `<mrow>${body}</mrow>`;
+    }
+    argument() {
+        const c = this.peek();
+        if (c === undefined) {
+            throw this.error('Missing argument');
+        }
+        return c === '{' ? this.group() : this.atom().xml;
+    }
+    scripted() {
+        const base = this.atom();
+        let sub = null, sup = null;
+        for (;;) {
+            const c = this.peek();
+            if (c === '^' && sup === null) {
+                this.i++;
+                sup = this.argument();
+            }
+            else if (c === '_' && sub === null) {
+                this.i++;
+                sub = this.argument();
+            }
+            else {
+                break;
+            }
+        }
+        if (sub === null && sup === null) {
+            return base.xml;
+        }
+        const [both, under, over] = base.large ? ['munderover', 'munder', 'mover'] : ['msubsup', 'msub', 'msup'];
+        if (sub !== null && sup !== null) {
+            return `<${both}>${base.xml}${sub}${sup}</${both}>`;
+        }
+        return sub !== null ? `<${under}>${base.xml}${sub}</${under}>` : `<${over}>${base.xml}${sup}</${over}>`;
+    }
+    atom() {
+        const c = this.peek();
+        if (c === undefined) {
+            throw this.error('Unexpected end');
+        }
+        if (c === '{') {
+            return { xml: this.group() };
+        }
+        if (c === '\\') {
+            return this.commandAtom(this.command());
+        }
+        if (c === '^' || c === '_' || c === '}') {
+            throw this.error(`Unexpected ${c}`);
+        }
+        const number = /^(\d+(\.\d+)?|\.\d+)/.exec(this.s.slice(this.i));
+        if (number) {
+            this.i += number[0].length;
+            return { xml: `<mn>${number[0]}</mn>` };
+        }
+        this.i++;
+        if (/[A-Za-z]/.test(c)) {
+            return { xml: `<mi>${c}</mi>` };
+        }
+        return { xml: `<mo>${escapeXML(OPERATOR_CHARS[c] || c)}</mo>` };
+    }
+    commandAtom(name) {
+        if (IGNORED.has(name)) {
+            return this.peek() === '.' ? (this.i++, { xml: '' }) : this.atom();
+        }
+        if (name === 'frac' || name === 'tfrac' || name === 'dfrac') {
+            const top = this.argument(), bottom = this.argument();
+            return { xml: `<mfrac>${top}${bottom}</mfrac>` };
+        }
+        if (name === 'sqrt') {
+            return { xml: `<msqrt>${this.argument()}</msqrt>` };
+        }
+        if (name === 'text') {
+            return { xml: `<mtext>${escapeXML(this.rawGroup())}</mtext>` };
+        }
+        if (name === 'mathrm' || name === 'operatorname') {
+            return { xml: `<mi mathvariant="normal">${escapeXML(this.rawGroup())}</mi>` };
+        }
+        if (name === 'mathbf' || name === 'boldsymbol') {
+            return { xml: `<mrow class="bold">${this.argument()}</mrow>` };
+        }
+        if (Object.hasOwn(ACCENTS, name)) {
+            return { xml: `<mover accent="true">${this.argument()}<mo>${ACCENTS[name]}</mo></mover>` };
+        }
+        if (Object.hasOwn(GREEK, name)) {
+            return { xml: `<mi>${GREEK[name]}</mi>` };
+        }
+        if (FUNCTIONS.has(name)) {
+            return { xml: `<mi mathvariant="normal">${name}</mi>` };
+        }
+        if (Object.hasOwn(LARGE, name)) {
+            return { xml: `<mo largeop="true" movablelimits="false">${LARGE[name]}</mo>`, large: true };
+        }
+        if (Object.hasOwn(OPERATORS, name)) {
+            return { xml: `<mo>${escapeXML(OPERATORS[name])}</mo>` };
+        }
+        if (Object.hasOwn(SPACES, name)) {
+            return { xml: `<mspace width="${SPACES[name]}"></mspace>` };
+        }
+        throw this.error(`Unsupported TeX command \\${name}`);
+    }
+}
+/** Convert one line of TeX to a MathML string. Throws on unsupported input. */
+function texToMathML(tex, { display = true } = {}) {
+    const parser = new TexParser(String(tex));
+    const body = parser.list();
+    if (parser.peek() !== undefined) {
+        throw parser.error('Unbalanced }');
+    }
+    return `<math${display ? ' display="block"' : ''}>${body}</math>`;
+}
+// ---- GLSL expressions -----------------------------------------------------------
+const TOKEN = /\s*(?:(\d+\.?\d*(?:[eE][-+]?\d+)?|\.\d+(?:[eE][-+]?\d+)?)|([A-Za-z_]\w*)|(<=|>=|==|!=|&&|\|\||[-+*/%(),?:.<>!]))/y;
+function tokenize(source) {
+    const tokens = [];
+    TOKEN.lastIndex = 0;
+    while (TOKEN.lastIndex < source.length) {
+        if (/^\s*$/.test(source.slice(TOKEN.lastIndex))) {
+            break;
+        }
+        const at = TOKEN.lastIndex, m = TOKEN.exec(source);
+        if (!m) {
+            throw new Error(`Unexpected character “${source[at]}” at position ${at}`);
+        }
+        tokens.push(m[1] !== undefined ? { kind: 'num', value: m[1] } : m[2] !== undefined ? { kind: 'id', value: m[2] } : { kind: 'op', value: m[3] });
+    }
+    return tokens;
+}
+const BINARY = { '||': 1, '&&': 2, '==': 3, '!=': 3, '<': 4, '>': 4, '<=': 4, '>=': 4, '+': 5, '-': 5, '*': 6, '/': 6, '%': 6 };
+/** Parse a custom expression into a small AST. Throws on syntax errors. */
+function parseExpression(source) {
+    const tokens = tokenize(String(source));
+    let k = 0;
+    const peek = () => tokens[k], take = () => tokens[k++];
+    const expect = value => {
+        const t = take();
+        if (!t || t.value !== value) {
+            throw new Error(`Expected “${value}”${t ? ` but found “${t.value}”` : ' at the end'}`);
+        }
+    };
+    function primary() {
+        const t = take();
+        if (!t) {
+            throw new Error('Unexpected end of expression');
+        }
+        let node;
+        if (t.kind === 'num') {
+            node = { type: 'num', value: t.value };
+        }
+        else if (t.kind === 'id') {
+            if (peek()?.value === '(') {
+                take();
+                const args = [];
+                if (peek()?.value !== ')') {
+                    do {
+                        args.push(ternary());
+                    } while (peek()?.value === ',' && take());
+                }
+                expect(')');
+                node = { type: 'call', name: t.value, args };
+            }
+            else {
+                node = { type: 'id', name: t.value };
+            }
+        }
+        else if (t.value === '(') {
+            node = { type: 'group', body: ternary() };
+            expect(')');
+        }
+        else if (t.value === '-' || t.value === '+' || t.value === '!') {
+            return { type: 'unary', op: t.value, arg: unaryOperand() };
+        }
+        else {
+            throw new Error(`Unexpected “${t.value}”`);
+        }
+        while (peek()?.value === '.') {
+            take();
+            const field = take();
+            if (!field || field.kind !== 'id') {
+                throw new Error('Expected a component name after “.”');
+            }
+            node = { type: 'member', object: node, field: field.value };
+        }
+        return node;
+    }
+    function unaryOperand() {
+        return primary();
+    }
+    function binary(level) {
+        let left = primary();
+        for (;;) {
+            const t = peek();
+            if (!t || t.kind !== 'op' || !Object.hasOwn(BINARY, t.value) || BINARY[t.value] < level) {
+                return left;
+            }
+            take();
+            left = { type: 'binary', op: t.value, left, right: binary(BINARY[t.value] + 1) };
+        }
+    }
+    function ternary() {
+        const cond = binary(1);
+        if (peek()?.value !== '?') {
+            return cond;
+        }
+        take();
+        const a = ternary();
+        expect(':');
+        return { type: 'ternary', cond, a, b: ternary() };
+    }
+    const tree = ternary();
+    if (k < tokens.length) {
+        throw new Error(`Unexpected “${tokens[k].value}”`);
+    }
+    return tree;
+}
+const IDENTIFIERS = { theta: 'θ', PI: 'π', TAU: 'τ' };
+const PREFIX_FUNCTIONS = new Set(['sin', 'cos', 'tan', 'tanh', 'log', 'atan', 'asin', 'acos']);
+const mo = s => `<mo>${escapeXML(s)}</mo>`;
+const fenced = (open, body, close) => `<mrow>${mo(open)}${body}${mo(close)}</mrow>`;
+/** Precedence of a rendered node, used to decide where parentheses are needed. */
+function precedence(node) {
+    if (node.type === 'group') { // parentheses are re-added only where the context needs them
+        return precedence(node.body);
+    }
+    if (node.type === 'binary') {
+        return BINARY[node.op];
+    }
+    if (node.type === 'ternary') {
+        return 0;
+    }
+    if (node.type === 'unary') {
+        return 7;
+    }
+    return 9;
+}
+function renderNode(node) {
+    switch (node.type) {
+        case 'num': {
+            const n = Number(node.value);
+            return `<mn>${Number.isFinite(n) && Math.abs(n) < 1e7 && !/[eE]/.test(node.value) ? String(n) : escapeXML(node.value)}</mn>`;
+        }
+        case 'id':
+            return Object.hasOwn(IDENTIFIERS, node.name) ? `<mi>${IDENTIFIERS[node.name]}</mi>` : node.name.length === 1 ? `<mi>${node.name}</mi>` : `<mi mathvariant="normal">${escapeXML(node.name)}</mi>`;
+        case 'group':
+            return renderNode(node.body);
+        case 'member':
+            return `<msub>${wrap(node.object, 9)}<mi>${escapeXML(node.field)}</mi></msub>`;
+        case 'unary':
+            return `<mrow>${mo(node.op === '-' ? '−' : node.op === '!' ? '¬' : '+')}${wrap(node.arg, 7)}</mrow>`;
+        case 'ternary':
+            return `<mrow>${mo('{')}<mtable><mtr><mtd>${renderNode(node.a)}</mtd><mtd><mtext>if </mtext>${renderNode(node.cond)}</mtd></mtr><mtr><mtd>${renderNode(node.b)}</mtd><mtd><mtext>otherwise</mtext></mtd></mtr></mtable></mrow>`;
+        case 'binary':
+            return renderBinary(node);
+        case 'call':
+            return renderCall(node);
+    }
+    throw new Error(`Cannot render ${node.type}`);
+}
+/** Render a child, adding parentheses when it binds more loosely than its context. */
+function wrap(node, level, strict = false) {
+    const p = precedence(node), xml = renderNode(node);
+    return p < level || (strict && p === level) ? fenced('(', xml, ')') : xml;
+}
+function renderBinary(node) {
+    const level = BINARY[node.op];
+    if (node.op === '/') {
+        return `<mfrac>${renderNode(node.left)}${renderNode(node.right)}</mfrac>`;
+    }
+    const symbols = { '*': '·', '-': '−', '==': '=', '!=': '≠', '<=': '≤', '>=': '≥', '&&': '∧', '||': '∨', '%': 'mod' };
+    const left = wrap(node.left, level), right = wrap(node.right, level, node.op === '-' || node.op === '%');
+    if (node.op === '*' && node.left.type === 'num' && node.right.type !== 'num') {
+        return `<mrow>${left}<mo>&#x2062;</mo>${right}</mrow>`; // 3θ, not 3·θ
+    }
+    return `<mrow>${left}${mo(symbols[node.op] || node.op)}${right}</mrow>`;
+}
+function renderCall(node) {
+    const args = node.args.map(renderNode), list = args.join(mo(','));
+    switch (node.name) {
+        case 'pow':
+            if (args.length === 2) {
+                return `<msup>${wrap(node.args[0], 9)}${args[1]}</msup>`;
+            }
+            break;
+        case 'exp':
+            if (args.length === 1) {
+                return `<msup><mi mathvariant="normal">e</mi>${args[0]}</msup>`;
+            }
+            break;
+        case 'sqrt':
+            if (args.length === 1) {
+                return `<msqrt>${args[0]}</msqrt>`;
+            }
+            break;
+        case 'abs':
+        case 'length':
+            if (args.length === 1) {
+                return fenced('|', args[0], '|');
+            }
+            break;
+        case 'floor':
+            if (args.length === 1) {
+                return fenced('⌊', args[0], '⌋');
+            }
+            break;
+        case 'mod':
+            if (args.length === 2) {
+                return `<mrow>${wrap(node.args[0], 6)}${mo('mod')}${wrap(node.args[1], 6, true)}</mrow>`;
+            }
+            break;
+        case 'vec2':
+        case 'vec3':
+        case 'vec4':
+            return fenced('(', list, ')');
+    }
+    const name = `<mi mathvariant="normal">${escapeXML(node.name)}</mi>`;
+    if (PREFIX_FUNCTIONS.has(node.name) && node.args.length === 1 && precedence(node.args[0]) >= 9) {
+        return `<mrow>${name}<mo>&#x2061;</mo>${args[0]}</mrow>`; // sin θ
+    }
+    return `<mrow>${name}<mo>&#x2061;</mo>${fenced('(', list, ')')}</mrow>`;
+}
+/** Render a custom GLSL expression as MathML, optionally with a left-hand side. */
+function expressionToMathML(source, lhs = '') {
+    const body = renderNode(parseExpression(source));
+    return `<math display="block">${lhs ? `<mrow>${lhs}<mo>=</mo>${body}</mrow>` : body}</math>`;
+}
+
+return {texToMathML,parseExpression,expressionToMathML};
 })();
 __modules['thumbnails.js'] = (() => {
 /** Navigation previews only; the GPU artwork renderer never samples these. */
@@ -2445,7 +3982,9 @@ return {SNAPSHOT_LIMIT,THUMB_WIDTH,parseSnapshots,addSnapshot,removeSnapshot,thu
 })();
 __modules['ui-library.js'] = (() => {
 const { $, esc, state, on, toast, showError, loadProject, addComponent, seek, readStorage, writeStorage, STORAGE } = __modules['editor.js'];
-const { catalog, typeNames } = __modules['catalog.js'];
+const { catalog, typeNames, typeLabels } = __modules['catalog.js'];
+const { texToMathML } = __modules['math-render.js'];
+const { registerTipProvider } = __modules['ui-tooltip.js'];
 const { presets, getPreset } = __modules['presets.js'];
 const { thumbnails } = __modules['thumbnails.js'];
 const { parseSnapshots, addSnapshot, removeSnapshot, thumbnailFrom, relativeTime } = __modules['snapshots.js'];
@@ -2465,7 +4004,8 @@ function showLibraryTab(next) {
     renderLibrary();
 }
 function renderScenes(query) {
-    const cards = presets.filter(p => `${p.title} ${p.status}`.toLowerCase().includes(query)).map(p => `<button class="scene-card ${state.project.id === p.id ? 'active' : ''}" data-preset="${p.id}" title="${esc(p.description)}"><img src="${thumbnails[p.id] || ''}" alt="${esc(p.title)} procedural preview"><span><span class="scene-name">${esc(p.title)}</span><small>${esc(p.status)}</small></span></button>`);
+    const cards = presets.filter(p => `${p.title} ${p.status}`.toLowerCase().includes(query)).map(p => `<button class="scene-card ${state.project.id === p.id ? 'active' : ''}" data-preset="${p.id}" data-tip="${esc(p.title)} · ${esc(p.status)}|${esc(p.description)}
+The thumbnail is a small saved picture; opening the scene renders it live from its equations."><img src="${thumbnails[p.id] || ''}" alt="${esc(p.title)} procedural preview"><span><span class="scene-name">${esc(p.title)}</span><small>${esc(p.status)}</small></span></button>`);
     return `<div class="library-kicker">${presets.length} CONSTRUCTIONS / ALL EDITABLE</div>${cards.join('')}`;
 }
 function renderParts(query) {
@@ -2478,7 +4018,7 @@ function renderParts(query) {
             html += `<div class="library-kicker">${esc(def.category.toUpperCase())}</div>`;
             category = def.category;
         }
-        html += `<button class="part-card" draggable="true" data-add="${type}" title="${esc(def.description)}"><span class="type-dot ${def.output}"></span><span><b>${esc(def.name)}</b><small>${esc(typeNames[def.output])} · click or drag into the graph</small></span></button>`;
+        html += `<button class="part-card" draggable="true" data-add="${type}" data-rich-tip><span class="type-dot ${def.output}"></span><span><b>${esc(def.name)}</b><small>${esc(typeLabels[def.output])} · ${esc(def.description.split('. ')[0])}</small></span></button>`;
     }
     return html || '<p class="muted">No matching components.</p>';
 }
@@ -2487,7 +4027,7 @@ function renderSnapshots(query) {
     if (!list.length) {
         return '<div class="library-kicker">SNAPSHOTS</div><p class="muted library-note">No snapshots yet. Press <b>Snapshot</b> above the canvas (or the S key) to bookmark the current state before trying a variation. Snapshots stay in this browser.</p>';
     }
-    return `<div class="library-kicker">${list.length} SNAPSHOTS · THIS BROWSER</div>` + list.map(s => `<div class="scene-card snapshot-card" data-snapshot="${s.id}" role="button" tabindex="0" title="Restore this state"><img src="${s.thumb}" alt=""><span><span class="scene-name">${esc(s.title)}</span><small>t = ${s.time.toFixed(2)} s · ${esc(relativeTime(s.savedAt))}</small></span><button class="snapshot-remove" data-remove-snapshot="${s.id}" title="Delete snapshot" aria-label="Delete snapshot ${esc(s.title)}">×</button></div>`).join('') + '<button class="library-clear" data-clear-snapshots>Clear all snapshots</button>';
+    return `<div class="library-kicker">${list.length} SNAPSHOTS · THIS BROWSER</div>` + list.map(s => `<div class="scene-card snapshot-card" data-snapshot="${s.id}" role="button" tabindex="0" data-tip="Restore this snapshot|Returns the project and playhead to this bookmark. Undo takes you back."><img src="${s.thumb}" alt=""><span><span class="scene-name">${esc(s.title)}</span><small>t = ${s.time.toFixed(2)} s · ${esc(relativeTime(s.savedAt))}</small></span><button class="snapshot-remove" data-remove-snapshot="${s.id}" data-tip="Delete this snapshot" aria-label="Delete snapshot ${esc(s.title)}">×</button></div>`).join('') + '<button class="library-clear" data-clear-snapshots>Clear all snapshots</button>';
 }
 function renderLibrary() {
     const query = $('librarySearch').value.toLowerCase();
@@ -2524,7 +4064,8 @@ function restoreSnapshot(id) {
         return;
     }
     try {
-        loadProject(s.project);
+        // A snapshot of the scene being edited keeps that scene's original for Revert and reset.
+        loadProject(s.project, { keepBaseline: s.project.id === state.baseline.id });
         seek(s.time);
         $('library').classList.remove('open');
         toast('Snapshot restored. Undo returns to the previous state.');
@@ -2583,6 +4124,17 @@ $('libraryContent').addEventListener('dragend', () => {
     dragged = null;
     document.body.classList.remove('dragging-component');
 });
+/** Palette tips: description, the typeset equation and how to add the component. */
+registerTipProvider('[data-add]', el => {
+    const def = catalog[el.dataset.add];
+    let equation = '';
+    try {
+        equation = def.tex.map(line => texToMathML(line)).join('');
+    }
+    catch (e) { /* plain-text fallback below */
+    }
+    return `<b>${esc(def.name)}</b><span class="tip-state">${esc(typeNames[def.output])}</span><p>${esc(def.description)}</p><div class="tip-math">${equation || esc(def.equation)}</div><p class="muted">Click to add it, or drag it onto the graph, a card or a matching input dot.</p>`;
+});
 $('librarySearch').oninput = renderLibrary;
 document.querySelectorAll('[data-library]').forEach(b => b.onclick = () => showLibraryTab(b.dataset.library));
 $('mobileLibrary').onclick = () => $('library').classList.toggle('open');
@@ -2590,6 +4142,62 @@ $('snapshotButton').onclick = () => takeSnapshot();
 on('refresh', renderLibrary);
 
 return {DRAG_TYPE,draggedType,showLibraryTab,renderLibrary,takeSnapshot,getSnapshots};
+})();
+__modules['ui-previews.js'] = (() => {
+const { state, on, showError } = __modules['editor.js'];
+const { PREVIEW_WIDTH, PREVIEW_HEIGHT } = __modules['graph-layout.js'];
+/** Live thumbnails of every component's output, shared by the Pipeline panel and
+ * the graph cards. One preview program renders all tiles into one offscreen atlas
+ * with a single readback; any <canvas data-preview="id"> is painted from it.
+ */
+let tiles = new Map(), failed = false, frame = 0;
+/** Paint every preview canvas currently in the document. */
+function paintPreviews(root = document) {
+    root.querySelectorAll('canvas[data-preview]').forEach(canvas => {
+        const tile = tiles.get(canvas.dataset.preview);
+        if (tile) {
+            if (canvas.width !== tile.width || canvas.height !== tile.height) {
+                canvas.width = tile.width;
+                canvas.height = tile.height;
+            }
+            canvas.getContext('2d').putImageData(new ImageData(tile.data, tile.width, tile.height), 0, 0);
+            canvas.classList.add('painted');
+        }
+    });
+}
+function previewsFailed() {
+    return failed;
+}
+/** Called by the frame loop: re-render tiles when the model or time changed. */
+function updatePreviews() {
+    if (!state.prefs.previews || !state.renderer || state.busy || failed || !state.previewsDirty) {
+        return;
+    }
+    if (!document.querySelector('canvas[data-preview]')) {
+        return; // nothing on screen wants a thumbnail
+    }
+    if (state.playing && (frame++ % 3)) {
+        return; // one third of the frame rate during playback
+    }
+    try {
+        tiles = state.renderer.previewAtlas(state.project, state.time, state.project.nodes.map(n => n.id), PREVIEW_WIDTH, PREVIEW_HEIGHT);
+        state.previewsDirty = false;
+        paintPreviews();
+    }
+    catch (e) {
+        failed = true;
+        showError(`Live previews stopped: ${e.message}`);
+    }
+}
+/** Forget the cached tiles (e.g. after previews are switched back on). */
+function resetPreviews() {
+    tiles = new Map();
+    failed = false;
+    state.previewsDirty = true;
+}
+on('refresh', () => state.previewsDirty = true);
+
+return {paintPreviews,previewsFailed,updatePreviews,resetPreviews};
 })();
 __modules['export.js'] = (() => {
 /** Dependency-free, uncompressed ZIP writer. PNG is already compressed.
@@ -2710,33 +4318,31 @@ async function embedPNGMetadata(blob, metadata) {
 return {crc32,makeZip,fileStem,download,frameTimes,embedPNGMetadata};
 })();
 __modules['ui-graph.js'] = (() => {
-const { $, esc, state, on, toast, showError, setSelected, connect, transact, addComponent, nodeById, setPref, clamp } = __modules['editor.js'];
-const { catalog } = __modules['catalog.js'];
+const { $, esc, state, on, toast, showError, setSelected, setView, setEnabled, viewedNode, connect, transact, addComponent, nodeById, setPref, clamp, bypassDescription } = __modules['editor.js'];
+const { catalog, typeLabels } = __modules['catalog.js'];
 const { upstream, downstream } = __modules['graph.js'];
-const { layoutGraph, PREVIEW_WIDTH, PREVIEW_HEIGHT, SOCKET_TOP, SOCKET_PITCH, outputSocketPoint, inputSocketPoint, wirePath } = __modules['graph-layout.js'];
+const { layoutGraph, SOCKET_TOP, SOCKET_PITCH, outputSocketPoint, inputSocketPoint, wirePath } = __modules['graph-layout.js'];
 const { DRAG_TYPE, draggedType, showLibraryTab } = __modules['ui-library.js'];
+const { paintPreviews, resetPreviews, previewsFailed } = __modules['ui-previews.js'];
 const { download } = __modules['export.js'];
-/** Bottom panel: the typed function graph (automatic layered layout), live
- * per-node previews, wiring by click or drag, drag-and-drop from the palette,
- * and the generated GLSL view.
+/** Bottom panel: the Pipeline tab (see ui-pipeline.js), the typed function graph
+ * (automatic layered layout) with live per-node previews, wiring by click or drag,
+ * drag-and-drop from the palette, and the generated GLSL view.
  */
 const wireColors = { coord: '#7094b6', scalar: '#b4946d', layer: '#649b83', geometry: '#9a82b1' };
-let positions = new Map(), tiles = new Map(), previewFrames = 0, previewError = false, bottomTab = 'graph';
+let positions = new Map();
 function socketMarkup(n, def) {
-    const inputs = Object.entries(def.inputs);
-    return inputs.map(([socket, kind], i) => `<button class="socket input ${kind} ${n.inputs[socket] ? 'connected' : ''}" data-to="${n.id}" data-socket="${socket}" style="top:${SOCKET_TOP + i * SOCKET_PITCH}px" title="${esc(socket)} · ${kind} input" aria-label="Connect to ${esc(n.label)} ${socket}"></button>`).join('')
-        + `<button class="socket output ${def.output} ${state.connection === n.id ? 'chosen' : ''}" data-from="${n.id}" title="${def.output} output · click or drag to connect" aria-label="Connect output of ${esc(n.label)}"></button>`;
+    const inputs = Object.entries(def.inputs), source = id => nodeById(id)?.label;
+    return inputs.map(([socket, kind], i) => `<button class="socket input ${kind} ${n.inputs[socket] ? 'connected' : ''}" data-to="${n.id}" data-socket="${socket}" style="top:${SOCKET_TOP + i * SOCKET_PITCH}px" aria-label="Connect to ${esc(n.label)} ${socket}" data-tip="Input ${esc(socket)} · ${esc(typeLabels[kind])}|${n.inputs[socket] ? `Fed by ${esc(source(n.inputs[socket]))}. Drag away to disconnect or onto another input to move the wire.` : 'Unconnected: evaluates to zero. Drag here from a matching output dot.'}"></button>`).join('')
+        + `<button class="socket output ${def.output} ${state.connection === n.id ? 'chosen' : ''}" data-from="${n.id}" aria-label="Connect output of ${esc(n.label)}" data-tip="Output · ${esc(typeLabels[def.output])}|Drag to an input dot of the same color to connect, or click here and then an input."></button>`;
 }
 function marks(n) {
     const list = [];
     if (state.project.output === n.id) {
-        list.push('OUTPUT');
+        list.push('FINAL');
     }
-    if (state.isolated === n.id) {
-        list.push('ISOLATED');
-    }
-    if (state.contribution === n.id) {
-        list.push('CONTRIBUTION');
+    if (state.viewMode !== 'final' && viewedNode().id === n.id) {
+        list.push(state.viewMode === 'stage' ? 'ON CANVAS' : 'EFFECT ON CANVAS');
     }
     return list.length ? `<span class="output-mark">${list.join(' · ')}</span>` : '';
 }
@@ -2756,8 +4362,9 @@ function renderGraph() {
                 edges += `<path d="${wirePath(outputSocketPoint(positions.get(from)), inputSocketPoint(pos, i))}" data-edge-from="${from}" data-edge-to="${n.id}" fill="none" stroke="${wireColors[kind]}" stroke-width="1.5" opacity="${n.enabled ? .75 : .25}"/>`;
             }
         });
-        const preview = previews ? `<canvas class="node-preview" width="${PREVIEW_WIDTH}" height="${PREVIEW_HEIGHT}" data-preview="${n.id}" aria-label="Preview of ${esc(n.label)}"></canvas>` : '';
-        nodes += `<div class="graph-node ${def.output} ${state.selected === n.id ? 'selected' : ''} ${n.enabled ? '' : 'disabled'}" data-node="${n.id}" style="left:${pos.x}px;top:${pos.y}px;height:${pos.height}px" tabindex="0" role="button" aria-label="Inspect ${esc(n.label)}"><b>${esc(n.label)}</b><small>${esc(def.category)} · ${esc(def.output)}</small><div class="node-sockets">${inputs.map(([socket]) => `<span class="in-label">${esc(socket)}</span>`).join('')}</div>${preview}${socketMarkup(n, def)}${marks(n)}</div>`;
+        const preview = previews ? `<canvas class="node-preview" width="160" height="96" data-preview="${n.id}" aria-hidden="true"></canvas>` : '';
+        const checkTip = `${n.enabled ? 'Included' : 'Bypassed'}|Untick to bypass: it then ${esc(bypassDescription(n))}.`;
+        nodes += `<div class="graph-node ${def.output} ${state.selected === n.id ? 'selected' : ''} ${n.enabled ? '' : 'disabled'}" data-node="${n.id}" style="left:${pos.x}px;top:${pos.y}px;height:${pos.height}px" tabindex="0" role="button" aria-label="Inspect ${esc(n.label)}"><div class="node-head"><input type="checkbox" class="node-enable" data-enable="${n.id}" ${n.enabled ? 'checked' : ''} aria-label="Include ${esc(n.label)}" data-tip="${checkTip}"><b>${esc(n.label)}</b><button class="node-eye" data-show="${n.id}" aria-label="Show ${esc(n.label)} on the canvas" data-tip="Show this stage|Show this component’s output on the canvas.">👁</button></div><small>${esc(def.category)} · ${esc(typeLabels[def.output])}</small><div class="node-sockets">${inputs.map(([socket]) => `<span class="in-label">${esc(socket)}</span>`).join('')}</div>${preview}${socketMarkup(n, def)}${marks(n)}</div>`;
     }
     const hadFocus = $('graphNodes').contains(document.activeElement);
     $('graphEdges').innerHTML = edges + '<path id="dragWire" fill="none" stroke="#a5f2cf" stroke-width="1.5" stroke-dasharray="4 3" style="display:none"/>';
@@ -2765,48 +4372,20 @@ function renderGraph() {
     if (hadFocus) { // keep keyboard focus on the selected card so Delete/Enter keep working
         document.querySelector(`[data-node="${state.selected}"]`)?.focus({ preventScroll: true });
     }
-    paintTiles();
+    paintPreviews($('graphNodes'));
     updateSummary();
     $('connectionHint').textContent = state.connection
         ? `Connecting ${state.connection} (${catalog[nodeById(state.connection).type].output}). Click a compatible input dot. Escape cancels.`
-        : 'Click a component to inspect it. Drag an output dot to an input dot to wire them, or drag a palette entry onto a socket.';
+        : 'Click a card to inspect it · tick to include or bypass · 👁 shows its output · drag between dots to wire · drag palette entries onto sockets.';
 }
 function updateSummary() {
-    const status = state.prefs.previews ? (previewError ? ' · previews unavailable' : ' · live previews') : '';
-    $('graphSummary').textContent = `${state.project.nodes.length} nodes / typed DAG${status}`;
+    const status = state.prefs.previews ? (previewsFailed() ? ' · previews unavailable' : ' · live previews') : '';
+    $('graphSummary').textContent = `${state.project.nodes.length} components${status}`;
     $('previewsButton').classList.toggle('active', state.prefs.previews);
     $('previewsButton').setAttribute('aria-pressed', String(state.prefs.previews));
 }
-function paintTiles() {
-    document.querySelectorAll('[data-preview]').forEach(canvas => {
-        const tile = tiles.get(canvas.dataset.preview);
-        if (tile) {
-            canvas.getContext('2d').putImageData(new ImageData(tile.data, tile.width, tile.height), 0, 0);
-        }
-    });
-}
-/** Refresh every node thumbnail from one atlas draw; called by the frame loop. */
-function updatePreviews() {
-    if (!state.prefs.previews || !state.renderer || state.busy || previewError || !state.previewsDirty) {
-        return;
-    }
-    if (state.playing && (previewFrames++ % 2)) {
-        return; // half rate during playback
-    }
-    try {
-        tiles = state.renderer.previewAtlas(state.project, state.time, state.project.nodes.map(n => n.id), PREVIEW_WIDTH, PREVIEW_HEIGHT);
-        paintTiles();
-        state.previewsDirty = false;
-    }
-    catch (e) {
-        previewError = true;
-        showError(e);
-        updateSummary();
-    }
-}
 function setPreviews(enabled) {
-    previewError = false;
-    tiles = new Map();
+    resetPreviews();
     setPref('previews', !!enabled);
     renderGraph();
 }
@@ -2915,12 +4494,23 @@ $('graphNodes').addEventListener('pointercancel', () => {
     $('dragWire').style.display = 'none';
 });
 $('graphNodes').addEventListener('click', e => {
-    if (e.target.closest('.socket')) {
-        return; // handled by the pointer handlers above
+    if (e.target.closest('.socket') || e.target.closest('.node-enable')) {
+        return; // sockets use the pointer handlers above; checkboxes their change event
+    }
+    const eye = e.target.closest('[data-show]');
+    if (eye) {
+        setView('stage', { node: eye.dataset.show, lock: false });
+        return;
     }
     const card = e.target.closest('[data-node]');
     if (card) {
         setSelected(card.dataset.node);
+    }
+});
+$('graphNodes').addEventListener('change', e => {
+    const box = e.target.closest('[data-enable]');
+    if (box) {
+        setEnabled([box.dataset.enable], box.checked);
     }
 });
 $('graphNodes').addEventListener('keydown', e => {
@@ -2979,15 +4569,24 @@ for (const zone of [$('graphViewport'), $('stage')]) {
     });
 }
 // ---- Toolbar, tabs, GLSL view and the resizable splitter ----------------------
-document.querySelectorAll('[data-bottom]').forEach(b => b.onclick = () => {
-    bottomTab = b.dataset.bottom;
-    document.querySelectorAll('[data-bottom]').forEach(v => v.classList.toggle('active', v === b));
-    $('graphViewport').hidden = bottomTab !== 'graph';
-    $('shaderView').hidden = bottomTab !== 'shader';
-    $('copyShader').hidden = bottomTab !== 'shader';
-    $('graphFit').hidden = bottomTab !== 'graph';
-    $('previewsButton').hidden = bottomTab !== 'graph';
-});
+/** Show one bottom-panel tab: pipeline, graph or shader. Remembered across sessions. */
+function showBottomTab(tab) {
+    const known = ['pipeline', 'graph', 'shader'], active = known.includes(tab) ? tab : 'pipeline';
+    document.querySelectorAll('[data-bottom]').forEach(v => v.classList.toggle('active', v.dataset.bottom === active));
+    $('pipelineView').hidden = active !== 'pipeline';
+    $('graphViewport').hidden = active !== 'graph';
+    $('shaderView').hidden = active !== 'shader';
+    $('copyShader').hidden = active !== 'shader';
+    $('graphFit').hidden = active !== 'graph';
+    $('connectionHint').hidden = active !== 'graph';
+    $('previewsButton').hidden = active === 'shader';
+    if (state.prefs.bottomTab !== active) {
+        state.prefs.bottomTab = active;
+        setPref('bottomTab', active);
+    }
+    state.previewsDirty = true;
+}
+document.querySelectorAll('[data-bottom]').forEach(b => b.onclick = () => showBottomTab(b.dataset.bottom));
 $('copyShader').onclick = async () => {
     try {
         await navigator.clipboard.writeText($('shaderView').textContent);
@@ -3029,12 +4628,102 @@ splitter.addEventListener('pointerup', e => {
         splitDrag = null;
     }
 });
-splitter.addEventListener('dblclick', () => setPref('graphHeight', applyGraphHeight(228)));
+splitter.addEventListener('dblclick', () => setPref('graphHeight', applyGraphHeight(260)));
 on('refresh', renderGraph);
 on('selection', renderGraph);
 on('view', renderGraph);
+on('prefs', updateSummary);
 
-return {renderGraph,updatePreviews,setPreviews,locateSelected,applyGraphHeight};
+return {renderGraph,setPreviews,locateSelected,showBottomTab,applyGraphHeight};
+})();
+__modules['ui-pipeline.js'] = (() => {
+const { $, esc, state, on, setView, setEnabled, enableAll, onlyStructure, restoreEnabled, bypassDescription, viewedNode } = __modules['editor.js'];
+const { catalog, typeLabels } = __modules['catalog.js'];
+const { evaluationOrder, consumers, topologicalOrder } = __modules['graph.js'];
+const { paintPreviews } = __modules['ui-previews.js'];
+/** Pipeline panel: every component in evaluation order with a live thumbnail of
+ * its output, a checkbox to include or bypass it, and what it feeds. Clicking a
+ * card shows that stage on the canvas, so the image can be read step by step.
+ */
+function roleLine(node) {
+    const users = consumers(state.project, node.id);
+    if (state.project.output === node.id) {
+        return 'the scene’s final output';
+    }
+    if (!users.length) {
+        return 'not used by anything';
+    }
+    return `feeds ${users.map(u => `${esc(u.node.label)}${Object.keys(catalog[u.node.type].inputs).length > 1 ? ` · ${esc(u.socket)}` : ''}`).join(', ')}`;
+}
+function renderPipeline() {
+    const project = state.project, order = evaluationOrder(project), reachable = new Set(topologicalOrder(project).map(n => n.id));
+    const viewed = state.viewMode === 'stage' ? viewedNode().id : null, previews = state.prefs.previews;
+    const cards = order.map((n, i) => {
+        const def = catalog[n.type], isOutput = project.output === n.id;
+        const classes = ['stage-card', def.output, state.selected === n.id ? 'selected' : '', viewed === n.id ? 'viewed' : '', n.enabled ? '' : 'disabled', reachable.has(n.id) ? '' : 'unused'].filter(Boolean).join(' ');
+        const checkTip = `${n.enabled ? 'Included' : 'Bypassed'}: ${esc(n.label)}|Untick to bypass it: it then ${esc(bypassDescription(n))}. Tick to include it again (anything it needs is included too).`;
+        const thumb = previews ? `<canvas class="stage-thumb" width="160" height="96" data-preview="${n.id}" aria-hidden="true"></canvas>` : `<div class="stage-thumb placeholder"><span class="type-dot ${def.output}"></span></div>`;
+        return `${i ? '<span class="stage-arrow" aria-hidden="true">→</span>' : ''}<div class="${classes}" data-stage="${n.id}" role="button" tabindex="0" aria-label="Show the output of ${esc(n.label)}" data-tip="Step ${i + 1}: ${esc(n.label)}|${esc(def.description)}\nClick to show this stage’s output on the canvas.">
+<label class="stage-check" data-tip="${checkTip}"><input type="checkbox" data-enable="${n.id}" ${n.enabled ? 'checked' : ''} aria-label="Include ${esc(n.label)}"><span class="stage-step">${i + 1}</span><b>${esc(n.label)}</b></label>
+${thumb}${isOutput ? '<span class="stage-badge">FINAL</span>' : ''}${reachable.has(n.id) ? '' : '<span class="stage-badge muted">UNUSED</span>'}
+<small><span class="type-chip ${def.output}">${esc(typeLabels[def.output])}</span> ${roleLine(n)}</small></div>`;
+    }).join('');
+    $('pipelineCards').innerHTML = cards;
+    const enabled = project.nodes.filter(n => n.enabled).length;
+    $('pipelineCount').textContent = `${enabled} of ${project.nodes.length} included`;
+    paintPreviews($('pipelineCards'));
+}
+$('pipelineCards').addEventListener('click', e => {
+    if (e.target.closest('.stage-check')) {
+        return; // the checkbox handles itself
+    }
+    const card = e.target.closest('[data-stage]');
+    if (card) {
+        const id = card.dataset.stage;
+        setView(id === state.project.output ? 'final' : 'stage', { node: id, lock: false });
+    }
+});
+$('pipelineCards').addEventListener('change', e => {
+    const box = e.target.closest('[data-enable]');
+    if (box) {
+        setEnabled([box.dataset.enable], box.checked);
+    }
+});
+$('pipelineCards').addEventListener('keydown', e => {
+    const card = e.target.closest?.('[data-stage]');
+    if (!card) {
+        return;
+    }
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        card.click();
+    }
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const next = e.key === 'ArrowRight' ? card.nextElementSibling?.nextElementSibling : card.previousElementSibling?.previousElementSibling;
+        if (next?.dataset.stage) {
+            next.focus();
+            next.click();
+        }
+    }
+});
+$('pipelineAll').onclick = enableAll;
+$('pipelineNone').onclick = onlyStructure;
+$('pipelineOriginal').onclick = restoreEnabled;
+/** Keep the viewed or selected card in sight. */
+function revealSelection() {
+    const card = document.querySelector(`#pipelineCards [data-stage="${state.selected}"]`);
+    card?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+}
+on('refresh', renderPipeline);
+on('selection', () => {
+    renderPipeline();
+    revealSelection();
+});
+on('view', renderPipeline);
+on('prefs', renderPipeline);
+
+return {renderPipeline};
 })();
 __modules['ui-timeline.js'] = (() => {
 const { $, esc, state, on, transact, history, changed, markDirty, pause, seek, setSelected, clamp } = __modules['editor.js'];
@@ -3062,7 +4751,7 @@ function renderTracks() {
         $('tracks').innerHTML = '<div class="empty-tracks">No keyframes yet. Click ◆ next to any numeric parameter. Procedural flow-speed controls also animate directly with time.</div>';
         return;
     }
-    $('tracks').innerHTML = project.tracks.map(t => `<div class="track-row"><span class="track-label" data-select-track="${t.node}" title="Select ${esc(t.node)}">${esc(t.node)} / ${esc(t.param)}</span><div class="track-lane" data-lane="${t.node}" data-param="${t.param}"><span class="track-playhead" style="left:${time / project.duration * 100}%"></span>${t.keys.map(k => `<button class="track-key" data-track-time="${k.time}" style="left:${k.time / project.duration * 100}%" title="${k.time}s: ${k.value} · drag to move" aria-label="Key for ${t.param} at ${k.time} seconds">◆</button>`).join('')}</div></div>`).join('');
+    $('tracks').innerHTML = project.tracks.map(t => `<div class="track-row"><span class="track-label" data-select-track="${t.node}" data-tip="Select ${esc(t.node)}|Shows this component in the inspector.">${esc(t.node)} / ${esc(t.param)}</span><div class="track-lane" data-lane="${t.node}" data-param="${t.param}"><span class="track-playhead" style="left:${time / project.duration * 100}%"></span>${t.keys.map(k => `<button class="track-key" data-track-time="${k.time}" style="left:${k.time / project.duration * 100}%" data-tip="Key at ${k.time} s = ${k.value}|Drag along the lane to retime it; click to move the playhead here." aria-label="Key for ${t.param} at ${k.time} seconds">◆</button>`).join('')}</div></div>`).join('');
 }
 function togglePlay() {
     if (!state.renderer || state.busy) {
@@ -3174,15 +4863,183 @@ on('time', updateClock);
 
 return {updateClock,renderTracks,togglePlay,stepFrames};
 })();
+__modules['ui-explore.js'] = (() => {
+const { $, esc, state, on, showError, transact, markDirty, applyParams, viewOptions, nodeById } = __modules['editor.js'];
+const { catalog } = __modules['catalog.js'];
+const { clone } = __modules['graph.js'];
+const { animatedParameters, insertKey } = __modules['timeline.js'];
+const { sweepValues, makeVariations } = __modules['explore.js'];
+/** Exploration tray over the bottom of the canvas. A parameter sweep renders the
+ * image across one parameter's range; variations render random nearby parameter
+ * sets. Hovering a thumbnail previews it on the main canvas; clicking applies it
+ * (undoable), so experiments are cheap to try and to take back.
+ */
+const THUMB_WIDTH = 176, THUMB_HEIGHT = 106;
+let session = null, token = 0, applying = false;
+const formatNumber = value => String(Number(Number(value).toFixed(4)));
+function candidatesForSweep(nodeId, key) {
+    const node = nodeById(nodeId), spec = catalog[node.type].params[key];
+    const tracked = state.project.tracks.some(t => t.node === nodeId && t.param === key && t.keys.length);
+    const current = animatedParameters(state.project, node, state.time)[key];
+    return sweepValues(spec, 7).map(value => {
+        const project = clone(state.project);
+        if (tracked) { // animated: the sweep edits the key at the playhead
+            insertKey(project, nodeId, key, state.time, value);
+        }
+        else {
+            project.nodes.find(n => n.id === nodeId).params[key] = value;
+        }
+        return { project, label: `${spec.label} = ${formatNumber(value)}`, short: formatNumber(value), current: Math.abs(value - current) <= spec.step / 2 };
+    });
+}
+function candidatesForVariations() {
+    const { nodeId, scope, amount, seed } = session;
+    return makeVariations(state.project, { nodeId: scope === 'scene' ? null : nodeId, count: 8, amount, seed }).map((v, i) => ({
+        project: v.project,
+        label: v.changes.map(c => `${nodeById(c.node)?.label}: ${catalog[nodeById(c.node).type].params[c.param].label} ${typeof c.from === 'number' ? `${formatNumber(c.from)} → ${formatNumber(c.to)}` : `${c.from} → ${c.to}`}`).join('\n') || 'No change',
+        short: `#${i + 1}`
+    }));
+}
+function build() {
+    session.items = session.kind === 'sweep' ? candidatesForSweep(session.nodeId, session.key) : candidatesForVariations();
+    render();
+}
+function openSweep(nodeId, key) {
+    const node = nodeById(nodeId), spec = catalog[node.type].params[key];
+    session = { kind: 'sweep', nodeId, key, title: `${spec.label} across its range (${spec.min} → ${spec.max})`, subtitle: node.label };
+    build();
+}
+function openVariations(nodeId, scope = 'node') {
+    session = { kind: 'variations', nodeId, scope, amount: 0.25, seed: Math.floor(Math.random() * 1e9), title: 'Variations', subtitle: nodeById(nodeId).label };
+    build();
+}
+function closeExplore() {
+    session = null;
+    token++;
+    state.preview = null;
+    $('exploreTray').hidden = true;
+    markDirty();
+}
+function exploreOpen() {
+    return !!session;
+}
+function render() {
+    const tray = $('exploreTray'), variations = session.kind === 'variations';
+    $('exploreTitle').innerHTML = `${esc(session.title)} <small>${esc(variations && session.scope === 'scene' ? 'whole scene' : session.subtitle)}</small>`;
+    $('exploreShuffle').hidden = !variations;
+    $('exploreAmount').hidden = !variations;
+    $('exploreScope').hidden = !variations;
+    if (variations) {
+        $('exploreAmount').value = String(session.amount);
+        $('exploreScope').value = session.scope;
+    }
+    $('exploreItems').innerHTML = session.items.map((item, i) => `<button class="explore-item ${item.current ? 'current' : ''}" data-explore="${i}" data-tip="${esc(item.short)}|${esc(item.label)}\nHover to preview on the canvas, click to use it."><canvas width="${THUMB_WIDTH}" height="${THUMB_HEIGHT}" data-explore-thumb="${i}"></canvas><span>${esc(item.short)}</span></button>`).join('');
+    tray.hidden = false;
+    drawThumbnails(++token);
+}
+/** Render thumbnails one per frame so the editor stays responsive. */
+function drawThumbnails(current) {
+    const items = session.items;
+    let i = 0;
+    const step = () => {
+        if (current !== token || !session || i >= items.length || !state.renderer) {
+            return;
+        }
+        if (state.busy) {
+            requestAnimationFrame(step);
+            return;
+        }
+        try {
+            const tile = state.renderer.snapshot(items[i].project, state.time, THUMB_WIDTH, THUMB_HEIGHT, viewOptions());
+            const canvas = document.querySelector(`[data-explore-thumb="${i}"]`);
+            canvas?.getContext('2d').putImageData(new ImageData(tile.data, tile.width, tile.height), 0, 0);
+        }
+        catch (e) {
+            showError(e);
+            return;
+        }
+        i++;
+        requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+}
+function apply(index) {
+    const item = session.items[index];
+    applying = true;
+    let ok;
+    if (session.kind === 'sweep') {
+        const { nodeId, key } = session, source = item.project;
+        ok = transact(p => {
+            p.nodes.find(n => n.id === nodeId).params[key] = source.nodes.find(n => n.id === nodeId).params[key];
+            p.tracks = clone(source.tracks);
+        });
+    }
+    else {
+        ok = applyParams(item.project, session.scope === 'scene' ? null : [session.nodeId]);
+    }
+    applying = false;
+    state.preview = null;
+    if (ok) {
+        session.items.forEach((it, i) => it.current = i === index);
+        document.querySelectorAll('[data-explore]').forEach(el => el.classList.toggle('current', Number(el.dataset.explore) === index));
+    }
+}
+$('exploreItems').addEventListener('pointerover', e => {
+    const item = e.target.closest('[data-explore]');
+    if (item && session) {
+        state.preview = session.items[Number(item.dataset.explore)].project;
+        markDirty();
+    }
+});
+$('exploreItems').addEventListener('pointerleave', () => {
+    state.preview = null;
+    markDirty();
+});
+$('exploreItems').addEventListener('click', e => {
+    const item = e.target.closest('[data-explore]');
+    if (item) {
+        apply(Number(item.dataset.explore));
+    }
+});
+$('exploreClose').onclick = closeExplore;
+$('exploreShuffle').onclick = () => {
+    session.seed = Math.floor(Math.random() * 1e9);
+    build();
+};
+$('exploreAmount').onchange = e => {
+    session.amount = Number(e.target.value);
+    build();
+};
+$('exploreScope').onchange = e => {
+    session.scope = e.target.value;
+    build();
+};
+// Other edits make the candidates stale: rebuild them from the new project.
+on('refresh', () => {
+    if (!session || applying) {
+        return;
+    }
+    if (!nodeById(session.nodeId)) {
+        closeExplore();
+        return;
+    }
+    build();
+});
+
+return {openSweep,openVariations,closeExplore,exploreOpen};
+})();
 __modules['ui-inspector.js'] = (() => {
-const { $, esc, clamp, state, on, history, toast, showError, transact, changed, markDirty, markCustom, pause, seek, currentNode, setIsolated, setContribution, setOutput, toggleEnabled, duplicateNode, deleteNode, connect, refreshUI } = __modules['editor.js'];
-const { catalog, typeNames } = __modules['catalog.js'];
+const { $, esc, clamp, state, on, history, toast, showError, transact, changed, markDirty, markCustom, pause, seek, currentNode, nodeById, setView, viewedNode, setOutput, toggleEnabled, duplicateNode, deleteNode, connect, refreshUI, resetParam, resetNode, insertComponent, replaceComponent, bypassDescription } = __modules['editor.js'];
+const { catalog, typeNames, typeLabels, insertableTypes, replacementTypes, emitPreview } = __modules['catalog.js'];
 const { clone, validateProject, topologicalOrder } = __modules['graph.js'];
 const { animatedParameters, insertKey } = __modules['timeline.js'];
 const { compileGraph } = __modules['compiler.js'];
-const { armProbe } = __modules['ui-canvas.js'];
-/** Right panel: the selected component's intent, equation, inputs, parameters,
- * animation tracks and actions.
+const { texToMathML, expressionToMathML } = __modules['math-render.js'];
+const { originalValue } = __modules['explore.js'];
+const { openSweep, openVariations } = __modules['ui-explore.js'];
+/** Right panel: the selected component explained and edited. Its intent, typeset
+ * equation with a live "where" legend, inputs (with insert), parameters (with
+ * help, original-value markers, reset and sweep), animation tracks, and actions.
  */
 const helpers = [
     ['rotate2(p, angle)', 'rotate a coordinate'], ['angleOf(p)', 'atan2 of a coordinate'], ['noise2(p)', 'smooth value noise 0–1'], ['fbm(p, octaves)', 'fractal noise 0–1'],
@@ -3190,56 +5047,117 @@ const helpers = [
     ['segmentDistance(p, a, b)', 'distance to a segment'], ['spectrum(x, shift)', 'vec3 rainbow palette'], ['vortex(p, strength, radius, phase)', 'local twist map'],
     ['domainWarp(p, amplitude, frequency, time)', 'noise displacement map'], ['angularMirror(p, sectors, phase)', 'kaleidoscopic fold'], ['hash21(p)', 'deterministic pseudo-random 0–1']
 ];
-const formatNumber = value => String(Number(value.toFixed(5)));
+const expressionLHS = { expression: '<mi>f</mi>', vectorExpression: '<mi>q</mi>', colorExpression: '<mi mathvariant="normal">RGB</mi>' };
+const formatNumber = value => String(Number(Number(value).toFixed(5)));
+/** Whether the equation section is expanded; kept while moving between components. */
+let equationOpen = true;
+/** Typeset TeX, falling back to the source text so a typo never hides content. */
+function math(tex, display = false) {
+    try {
+        return texToMathML(tex, { display });
+    }
+    catch (e) {
+        return `<code>${esc(tex)}</code>`;
+    }
+}
 function reachesOutput(node) {
     return topologicalOrder(state.project).some(n => n.id === node.id);
 }
-function renderActions(n) {
-    const isolated = state.isolated === n.id, contribution = state.contribution === n.id;
-    let html = `<div class="mini-actions"><button id="isolateNode" class="${isolated ? 'active' : ''}" title="Show only this component's field (I)">${isolated ? 'Viewing isolated' : 'Isolate'}</button><button id="contributionNode" class="${contribution ? 'active' : ''}" title="Show which output pixels this component changes (C)">${contribution ? 'Viewing contribution' : 'Contribution'}</button><button id="makeOutput" ${state.project.output === n.id ? 'disabled' : ''}>${state.project.output === n.id ? '✓ Output' : 'Set as output'}</button><button id="toggleNode">${n.enabled ? 'Disable' : 'Enable'}</button><button id="sampleField" title="Read raw field values before tone mapping">Probe value</button></div>`;
-    if (contribution) {
-        html += `<div class="input-row contribution-row"><label for="contributionStyle">View</label><select id="contributionStyle" aria-label="Contribution view style"><option value="highlight" ${state.contributionStyle === 'highlight' ? 'selected' : ''}>Changed pixels in color, others dimmed</option><option value="signed" ${state.contributionStyle === 'signed' ? 'selected' : ''}>Signed difference: warm brightens, cool darkens</option></select></div><p class="node-caption">The composite is rendered with and without this component. The comparison uses displayed colors after exposure and tone mapping.</p>`;
+function isParamModified(node, key) {
+    const tracked = state.project.tracks.some(t => t.node === node.id && t.param === key && t.keys.length);
+    const trackedOriginally = state.baseline.tracks.some(t => t.node === node.id && t.param === key && t.keys.length);
+    return node.params[key] !== originalValue(state.baseline, node, key) || tracked !== trackedOriginally;
+}
+function renderHeader(n, def) {
+    const bypass = bypassDescription(n);
+    return `<div class="inspector-head"><label class="switch" data-tip="${n.enabled ? 'Included' : 'Bypassed'}|Untick to bypass this component: it then ${esc(bypass)}. Tick to include it again." data-toggle aria-pressed="${n.enabled}"><input type="checkbox" id="nodeEnabled" ${n.enabled ? 'checked' : ''} aria-label="Include this component"><span></span></label><input class="node-title" id="nodeLabel" value="${esc(n.label)}" aria-label="Component label" maxlength="160" data-tip="Rename|The label is only for you; the id stays ${esc(n.id)}."></div>
+<div class="node-kind"><span class="type-chip ${def.output}">${esc(typeLabels[def.output])}</span><span>${esc(def.category)}</span><code>${esc(n.id)}</code></div>
+<p class="node-caption">${esc(def.description)}</p>`;
+}
+function renderViewButtons(n) {
+    const viewing = viewedNode().id === n.id, stage = viewing && state.viewMode === 'stage', effect = viewing && state.viewMode === 'effect', output = state.project.output === n.id;
+    let html = `<div class="view-buttons"><button id="showStage" class="${stage ? 'active' : ''}" data-key="I" data-tip="Show this stage|The canvas shows only this component’s output: what it produces before anything downstream uses it. Scalar, coordinate and geometry fields appear in false color (see the legend on the canvas).">👁 Show this stage</button><button id="showEffect" class="${effect ? 'active' : ''}" data-key="C" data-tip="Show what it changes|Renders the final image with and without this component (bypassed) and highlights the pixels it changes.">Δ What it changes</button><button id="makeOutput" ${output ? 'disabled' : ''} data-tip="${output ? 'This is the final output|The canvas’s Final image, saves and exports use this component.' : 'Make final output|Use this component as the scene’s final image, for the canvas, saves and exports. To just look at it, use Show this stage instead.'}">${output ? '★ Final output' : '☆ Make final output'}</button></div>`;
+    if (!n.enabled) {
+        html += `<div class="selection-note warning">Bypassed: this component ${esc(bypassDescription(n))}. Tick the switch above to include it.</div>`;
     }
-    if (!reachesOutput(n)) {
-        html += '<div class="selection-note warning">Not connected to the output. It does not affect the composite image until something downstream uses it, or it becomes the output.</div>';
+    else if (!reachesOutput(n)) {
+        html += '<div class="selection-note warning">Not connected to the final output, so it does not change the image. Show this stage to see it, wire it into something downstream, or make it the final output.</div>';
     }
     return html;
+}
+function renderEquation(n, def, evaluated) {
+    const custom = Object.hasOwn(expressionLHS, n.type);
+    let equation;
+    if (custom) {
+        let rendered;
+        try {
+            rendered = expressionToMathML(n.params.expression, expressionLHS[n.type]);
+        }
+        catch (e) {
+            rendered = `<code>${esc(n.params.expression)}</code>`;
+        }
+        const options = helpers.map(([signature, hint]) => `<option value="${esc(signature)}">${esc(signature)} — ${esc(hint)}</option>`).join('');
+        const modified = isParamModified(n, 'expression');
+        equation = `<div class="equation-card" id="expressionPreview" data-tip="Live preview|Your GLSL expression typeset as mathematics while you type. Apply compiles it into the shader.">${rendered}</div>
+<textarea id="equationEditor" class="expression-input" spellcheck="false" aria-label="Custom GLSL expression">${esc(n.params.expression)}</textarea><div class="expression-tools"><select id="insertHelper" aria-label="Insert a helper function" data-tip="Insert a helper|Adds a built-in GLSL function at the cursor."><option value="">Insert helper…</option>${options}</select><button id="resetExpression" class="reset" ${modified ? '' : 'disabled'} data-tip="Reset the expression|Back to the expression the scene was opened with.">↺</button><button id="applyEquation" class="primary" data-key="Ctrl/⌘ Enter" data-tip="Apply equation|Compiles the expression. A failed compile leaves the image unchanged.">Apply</button></div><p class="node-caption">${esc(def.params.expression.help)} Use decimal literals: <code>2.0</code>, not <code>2</code>.</p><pre id="equationError" class="code-error"></pre>`;
+    }
+    else {
+        equation = `<div class="equation-card">${def.tex.map(line => math(line, true)).join('')}</div>`;
+    }
+    const rows = [];
+    for (const [key, s] of Object.entries(def.params)) {
+        if (s.symbol) {
+            const value = s.kind === 'number' ? formatNumber(evaluated[key]) : evaluated[key];
+            rows.push(`<button class="sym-row" data-focus-param="${key}" data-tip="${esc(s.label)}|${esc(s.help)}"><span class="sym">${math(s.symbol)}</span><span>${esc(s.label)}</span><span class="val" data-sym-value="${key}">${s.kind === 'color' ? `<i class="chip" style="background:${esc(value)}"></i>` : ''}${esc(value)}</span></button>`);
+        }
+    }
+    for (const [socket, kind] of Object.entries(def.inputs)) {
+        const symbol = def.inputSymbols[socket] || socket, source = nodeById(n.inputs[socket]);
+        rows.push(`<div class="sym-row input"><span class="sym">${math(symbol)}</span><span>${esc(typeLabels[kind])} input</span><span class="val">${source ? `from ${esc(source.label)}` : 'unconnected · zero'}</span></div>`);
+    }
+    for (const [symbol, meaning] of def.notes) {
+        rows.push(`<div class="sym-row sym-note"><span class="sym">${math(symbol)}</span><span class="wide">${esc(meaning)}</span></div>`);
+    }
+    return `<details class="equation-details" id="equationDetails" ${equationOpen ? 'open' : ''}><summary class="inspector-section" data-tip="Equation|What this component computes, typeset, with every symbol explained below it. Click to collapse or expand.">EQUATION <button id="toggleCode" class="link" data-tip="Show the GLSL|The shader code this component contributes, with parameter names in place of uniforms.">GLSL</button></summary>${equation}<pre id="nodeCode" class="node-code" hidden>${esc(emitPreview(n.type, n.params))}</pre>${rows.length ? `<div class="sym-list"><small class="where">where</small>${rows.join('')}</div>` : ''}</details>`;
 }
 function renderInputs(n, def) {
     const entries = Object.entries(def.inputs);
     if (!entries.length) {
         return '';
     }
-    let html = '<div class="inspector-section">INPUT CONNECTIONS</div>';
+    let html = '<div class="inspector-section">INPUTS</div>';
     for (const [socket, kind] of entries) {
-        const options = state.project.nodes.filter(other => other.id !== n.id && catalog[other.type].output === kind).map(other => `<option value="${other.id}" ${n.inputs[socket] === other.id ? 'selected' : ''}>${esc(other.label)} [${other.id}]</option>`).join('');
-        html += `<div class="input-row"><label for="in-${socket}"><span class="type-dot ${kind}"></span>${esc(socket)}</label><select id="in-${socket}" data-input="${socket}" aria-label="${esc(socket)} input"><option value="">Unconnected · zero</option>${options}</select></div>`;
+        const options = state.project.nodes.filter(other => other.id !== n.id && catalog[other.type].output === kind).map(other => `<option value="${other.id}" ${n.inputs[socket] === other.id ? 'selected' : ''}>${esc(other.label)}</option>`).join('');
+        const inserts = !n.inputs[socket] ? '' : insertableTypes(kind).map(type => `<option value="${type}">${esc(catalog[type].name)}</option>`).join('');
+        html += `<div class="input-row"><label for="in-${socket}" data-tip="${esc(socket)}: ${esc(typeLabels[kind])}|Choose which component feeds this input. Unconnected inputs are zero, not the image coordinates."><span class="type-dot ${kind}"></span>${esc(socket)}</label><select id="in-${socket}" data-input="${socket}" aria-label="${esc(socket)} input"><option value="">Unconnected · zero</option>${options}</select>${inserts ? `<select class="insert" data-insert="${socket}" aria-label="Insert a component on ${esc(socket)}" data-tip="Insert on this input|Put a modifier between this input and what feeds it, e.g. a warp before a field or a tint before a layer. The old connection passes through it."><option value="">＋</option>${inserts}</select>` : ''}</div>`;
     }
     return html;
 }
+function renderNumber(n, key, s, value, modified) {
+    const original = originalValue(state.baseline, n, key), track = state.project.tracks.find(t => t.node === n.id && t.param === key);
+    const pct = clamp((original - s.min) / (s.max - s.min), 0, 1);
+    return `<div class="param ${modified ? 'modified' : ''}" data-param-row="${key}"><div class="param-head"><label for="param-${key}" data-tip="${esc(s.label)}|${esc(s.help)}\nDouble-click to reset.">${esc(s.label)} <span class="sym">${math(s.symbol)}</span></label><input type="number" data-param="${key}" id="number-${key}" value="${formatNumber(value)}" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${esc(s.label)} numerical value"><button class="key ${track?.keys.length ? 'keyed' : ''}" data-keyframe="${key}" aria-label="Keyframe ${esc(s.label)}" data-tip="Add a key|Records this value at ${state.time.toFixed(2)} s. Move the playhead and change the value to animate it.">◆</button><button class="reset" data-reset="${key}" ${modified ? '' : 'disabled'} aria-label="Reset ${esc(s.label)}" data-tip="Reset to ${formatNumber(original)}|Returns this parameter to its value when the scene was opened${track ? ' and removes its animation' : ''}.">↺</button><button class="sweep" data-sweep="${key}" aria-label="Explore ${esc(s.label)}" data-tip="Explore this parameter|Renders the image across the parameter’s whole range. Hover a thumbnail to preview it, click to use it.">▦</button></div><div class="slider-wrap"><input type="range" id="param-${key}" data-param="${key}" value="${value}" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${esc(s.label)}"><span class="default-mark" style="left:calc(${(pct * 100).toFixed(2)}% + ${((0.5 - pct) * 14).toFixed(1)}px)" data-tip="Original value ${formatNumber(original)}|Where this parameter started. ↺ returns here."></span></div><small>${esc(s.help)} <span class="range">Range ${s.min} to ${s.max}${formatNumber(original) !== formatNumber(value) ? ` · original ${formatNumber(original)}` : ''}</span></small></div>`;
+}
 function renderParameters(n, def, evaluated) {
-    const params = Object.entries(def.params);
+    const params = Object.entries(def.params).filter(([, s]) => s.kind !== 'expression'); // expressions are edited with their equation
     if (!params.length) {
         return '';
     }
-    const numeric = params.some(([, s]) => s.kind === 'number');
-    let html = `<div class="inspector-section">PARAMETERS ${numeric ? '<span>◆ ADD KEY · ↺ RESET</span>' : ''}</div>`;
+    const anyModified = params.some(([key]) => isParamModified(n, key));
+    let html = `<div class="inspector-section">PARAMETERS <button id="resetNode" class="link" ${anyModified ? '' : 'disabled'} data-tip="Reset all parameters|Returns every parameter of this component to its value when the scene was opened (undoable).">↺ Reset all</button></div>`;
     if (state.project.tracks.some(t => t.node === n.id && t.keys.length)) {
-        html += '<div class="selection-note">Tracked controls show the value at the playhead. Adjusting one adds a key here. Untracked controls change the base value.</div>';
+        html += '<div class="selection-note">Animated controls (◆ lit) show the value at the playhead. Changing one adds or updates a key there.</div>';
     }
     for (const [key, s] of params) {
-        const value = evaluated[key], track = state.project.tracks.find(t => t.node === n.id && t.param === key);
-        const reset = `<button class="reset" data-reset="${key}" title="Reset to the default ${esc(String(s.value))}" aria-label="Reset ${esc(s.label)}">↺</button>`;
+        const value = evaluated[key], modified = isParamModified(n, key);
         if (s.kind === 'number') {
-            html += `<div class="param"><div class="param-head"><label for="param-${key}">${esc(s.label)}</label><input type="number" data-param="${key}" id="number-${key}" value="${formatNumber(value)}" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${esc(s.label)} numerical value"><button class="key ${track?.keys.length ? 'keyed' : ''}" data-key="${key}" title="Add or replace a key at ${state.time.toFixed(3)} s" aria-label="Keyframe ${esc(s.label)}">◆</button>${reset}</div><input type="range" id="param-${key}" data-param="${key}" value="${value}" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${esc(s.label)}">${s.help ? `<small>${esc(s.help)}</small>` : ''}</div>`;
+            html += renderNumber(n, key, s, value, modified);
         }
         else if (s.kind === 'color') {
-            html += `<div class="param"><div class="param-head"><label>${esc(s.label)}</label><input type="color" value="${value}" data-param="${key}" aria-label="${esc(s.label)}"><span class="muted" data-color-text="${key}">${esc(value)}</span>${reset}</div><small>${esc(s.help)}</small></div>`;
+            const original = originalValue(state.baseline, n, key);
+            html += `<div class="param ${modified ? 'modified' : ''}" data-param-row="${key}"><div class="param-head"><label data-tip="${esc(s.label)}|${esc(s.help)}">${esc(s.label)} <span class="sym">${math(s.symbol)}</span></label><input type="color" value="${value}" data-param="${key}" aria-label="${esc(s.label)}"><span class="muted mono" data-color-text="${key}">${esc(value)}</span><button class="reset" data-reset="${key}" ${modified ? '' : 'disabled'} aria-label="Reset ${esc(s.label)}" data-tip="Reset to ${esc(original)}|Returns this color to its value when the scene was opened.">↺</button></div><small>${esc(s.help)}</small></div>`;
         }
-        else {
-            const options = helpers.map(([signature, hint]) => `<option value="${esc(signature)}">${esc(signature)} — ${esc(hint)}</option>`).join('');
-            html += `<textarea id="equationEditor" class="expression-input" spellcheck="false" aria-label="Custom GLSL expression">${esc(n.params[key])}</textarea><div class="expression-tools"><select id="insertHelper" aria-label="Insert a helper function"><option value="">Insert helper…</option>${options}</select><button id="applyEquation" class="primary" title="Apply (Ctrl/⌘ Enter)">Apply equation</button></div><p class="node-caption">${esc(s.help)} Use decimal literals: <code>2.0</code>, not <code>2</code>. Ctrl/⌘ Enter applies.</p><pre id="equationError" class="code-error"></pre>`;
-        }
+
     }
     return html;
 }
@@ -3248,50 +5166,74 @@ function renderTracks(n) {
     if (!tracks.length) {
         return '';
     }
-    return '<div class="inspector-section">ANIMATION TRACKS</div>' + tracks.map(t => `<div class="track-edit"><header><b>${esc(t.param)}</b><select data-interpolation="${t.param}" aria-label="Interpolation for ${t.param}">${['smooth', 'linear', 'hold'].map(v => `<option ${v === t.interpolation ? 'selected' : ''}>${v}</option>`).join('')}</select><button data-remove-track="${t.param}" title="Remove track; use base value" aria-label="Remove ${t.param} animation track">×</button></header><div class="key-list">${t.keys.map(k => `<button class="key-chip" data-seek="${k.time}" title="Seek to this key">${k.time}s: ${Number(k.value.toFixed(3))}<span data-remove-key="${t.param}" data-time="${k.time}" title="Delete this key">×</span></button>`).join('')}</div></div>`).join('');
+    return '<div class="inspector-section">ANIMATION</div>' + tracks.map(t => `<div class="track-edit"><header><b>${esc(catalog[n.type].params[t.param]?.label || t.param)}</b><select data-interpolation="${t.param}" aria-label="Interpolation for ${t.param}" data-tip="Interpolation|smooth eases in and out of each key, linear moves at constant speed, hold jumps at each key.">${['smooth', 'linear', 'hold'].map(v => `<option ${v === t.interpolation ? 'selected' : ''}>${v}</option>`).join('')}</select><button data-remove-track="${t.param}" aria-label="Remove ${t.param} animation track" data-tip="Remove animation|Deletes every key; the parameter keeps its current base value.">×</button></header><div class="key-list">${t.keys.map(k => `<button class="key-chip" data-seek="${k.time}" data-tip="Key at ${k.time} s|Click to move the playhead here.">${k.time}s: ${Number(k.value.toFixed(3))}<span data-remove-key="${t.param}" data-time="${k.time}" data-tip="Delete this key">×</span></button>`).join('')}</div></div>`).join('');
+}
+function renderActions(n) {
+    const replacements = replacementTypes(n.type).map(type => `<option value="${type}">${esc(catalog[type].name)}</option>`).join('');
+    const numeric = Object.values(catalog[n.type].params).some(s => s.kind === 'number');
+    return `<div class="inspector-section">EXPLORE & EDIT</div><div class="node-bottom">${numeric ? '<button id="variations" data-tip="Variations|Renders eight random variations of this component’s parameters. Hover to preview, click to use one; Undo returns.">✦ Variations</button>' : ''}<select id="replaceWith" aria-label="Replace with another component" data-tip="Replace with…|Swap this component for another of the same output type, keeping its connections where the sockets match. The Ring Nebula scene is the Bipolar Nebula with its geometry replaced this way."><option value="">Replace with…</option>${replacements}</select><button id="duplicateNode" data-key="Ctrl/⌘ D" data-tip="Duplicate|Adds a copy with the same parameters and inputs.">Duplicate</button><button id="deleteNode" class="danger" data-key="Delete" data-tip="Delete component|Removes it and disconnects anything it fed (undoable).">Delete</button></div><p class="node-caption">Type <code>${n.type}</code> · output ${esc(typeNames[catalog[n.type].output])}. Unconnected inputs evaluate to zero; they are not inferred.</p>`;
 }
 function renderInspector() {
     const n = currentNode(), def = catalog[n.type], evaluated = animatedParameters(state.project, n, state.time);
     $('nodeTypeBadge').textContent = typeNames[def.output];
-    $('inspectorContent').innerHTML = `<input class="node-title" id="nodeLabel" value="${esc(n.label)}" aria-label="Component label" maxlength="160"><p class="node-caption">${esc(def.description)}</p><div class="equation-box">${esc(def.equation)}</div>`
-        + renderActions(n) + renderInputs(n, def) + renderParameters(n, def, evaluated) + renderTracks(n)
-        + `<div class="node-bottom"><button id="duplicateNode" title="Duplicate (Ctrl/⌘ D)">Duplicate</button><button id="deleteNode" class="danger" title="Delete (Delete key while the graph has focus)">Delete component</button></div><p class="node-caption">ID: <code>${n.id}</code> · Type: <code>${n.type}</code><br>Output: ${esc(typeNames[def.output])}. Unconnected inputs evaluate to zero; they are not inferred dependencies.</p>`;
+    const code = $('nodeCode') && !$('nodeCode').hidden;
+    $('inspectorContent').innerHTML = renderHeader(n, def) + renderViewButtons(n) + renderEquation(n, def, evaluated) + renderInputs(n, def) + renderParameters(n, def, evaluated) + renderTracks(n) + renderActions(n);
+    $('nodeCode').hidden = !code;
     bindInspector(n, def);
 }
 function bindInspector(n, def) {
+    $('nodeEnabled').onchange = () => toggleEnabled(n.id);
     $('nodeLabel').onchange = e => transact(p => p.nodes.find(v => v.id === n.id).label = e.target.value);
-    $('isolateNode').onclick = () => setIsolated(state.isolated === n.id ? null : n.id);
-    $('contributionNode').onclick = () => setContribution(state.contribution === n.id ? null : n.id);
+    $('showStage').onclick = () => setView(state.viewMode === 'stage' && viewedNode().id === n.id ? 'final' : 'stage', { node: n.id, lock: false });
+    $('showEffect').onclick = () => setView(state.viewMode === 'effect' && viewedNode().id === n.id ? 'final' : 'effect', { node: n.id, lock: false });
     $('makeOutput').onclick = () => setOutput(n.id);
-    $('toggleNode').onclick = () => toggleEnabled(n.id);
-    $('sampleField').onclick = () => armProbe();
+    $('toggleCode').onclick = e => {
+        e.preventDefault(); // do not also toggle the <details>
+        $('nodeCode').hidden = !$('nodeCode').hidden;
+        $('equationDetails').open = true;
+    };
+    $('equationDetails').ontoggle = () => equationOpen = $('equationDetails').open;
     $('duplicateNode').onclick = () => duplicateNode(n.id);
     $('deleteNode').onclick = () => deleteNode(n.id);
-    const style = $('contributionStyle');
-    if (style) {
-        style.onchange = () => setContribution(n.id, style.value);
+    $('replaceWith').onchange = e => e.target.value && replaceComponent(n.id, e.target.value);
+    if ($('variations')) {
+        $('variations').onclick = () => openVariations(n.id);
     }
+    if ($('resetNode')) {
+        $('resetNode').onclick = () => resetNode(n.id);
+    }
+    document.querySelectorAll('[data-focus-param]').forEach(row => row.onclick = () => {
+        const target = $(`number-${row.dataset.focusParam}`) || document.querySelector(`[data-param="${row.dataset.focusParam}"]`);
+        const block = document.querySelector(`[data-param-row="${row.dataset.focusParam}"]`);
+        block?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        block?.classList.add('flash');
+        setTimeout(() => block?.classList.remove('flash'), 900);
+        target?.focus({ preventScroll: true });
+    });
     document.querySelectorAll('[data-input]').forEach(input => input.onchange = e => connect(e.target.value, n.id, input.dataset.input));
+    document.querySelectorAll('[data-insert]').forEach(select => select.onchange = e => {
+        if (e.target.value) {
+            try {
+                insertComponent(e.target.value, n.id, select.dataset.insert);
+            }
+            catch (err) {
+                showError(err);
+            }
+        }
+    });
     bindParameters(n, def);
-    document.querySelectorAll('[data-key]').forEach(button => button.onclick = () => {
+    document.querySelectorAll('[data-keyframe]').forEach(button => button.onclick = () => {
         pause();
-        const key = button.dataset.key;
+        const key = button.dataset.keyframe;
         transact(p => {
             const value = animatedParameters(p, p.nodes.find(v => v.id === n.id), state.time)[key];
             insertKey(p, n.id, key, state.time, value);
         });
         toast(`Key added at ${state.time.toFixed(3)} s. Move the playhead, then change the control to add another.`);
     });
-    document.querySelectorAll('[data-reset]').forEach(button => button.onclick = () => {
-        const key = button.dataset.reset, value = def.params[key].value;
-        transact(p => {
-            const node = p.nodes.find(v => v.id === n.id);
-            node.params[key] = value;
-            if (p.tracks.some(t => t.node === n.id && t.param === key && t.keys.length)) {
-                insertKey(p, n.id, key, state.time, value);
-            }
-        });
-    });
+    document.querySelectorAll('[data-reset]').forEach(button => button.onclick = () => resetParam(n.id, button.dataset.reset));
+    document.querySelectorAll('[data-param-row] label').forEach(label => label.ondblclick = () => resetParam(n.id, label.closest('[data-param-row]').dataset.paramRow));
+    document.querySelectorAll('[data-sweep]').forEach(button => button.onclick = () => openSweep(n.id, button.dataset.sweep));
     document.querySelectorAll('[data-interpolation]').forEach(el => el.onchange = () => transact(p => p.tracks.find(t => t.node === n.id && t.param === el.dataset.interpolation).interpolation = el.value));
     document.querySelectorAll('[data-remove-track]').forEach(el => el.onclick = () => transact(p => p.tracks = p.tracks.filter(t => !(t.node === n.id && t.param === el.dataset.removeTrack))));
     document.querySelectorAll('[data-remove-key]').forEach(el => el.onclick = e => {
@@ -3335,6 +5277,10 @@ function bindParameters(n, def) {
             if (text) {
                 text.textContent = value;
             }
+            const legend = document.querySelector(`[data-sym-value="${key}"]`);
+            if (legend) {
+                legend.textContent = s.kind === 'number' ? formatNumber(value) : value;
+            }
             markDirty();
         };
         input.onchange = () => {
@@ -3352,6 +5298,18 @@ function bindExpression(n) {
     if (!editor) {
         return;
     }
+    const preview = () => {
+        try {
+            $('expressionPreview').innerHTML = expressionToMathML(editor.value, expressionLHS[n.type]);
+            $('expressionPreview').classList.remove('invalid');
+        }
+        catch (e) {
+            $('expressionPreview').classList.add('invalid');
+            $('equationError').textContent = `Preview: ${e.message}`;
+            return;
+        }
+        $('equationError').textContent = '';
+    };
     const apply = () => {
         const next = clone(state.project);
         next.nodes.find(v => v.id === n.id).params.expression = editor.value;
@@ -3375,7 +5333,9 @@ function bindExpression(n) {
             showError('Equation not applied. The last good image is unchanged.');
         }
     };
+    editor.oninput = preview;
     $('applyEquation').onclick = apply;
+    $('resetExpression').onclick = () => resetParam(n.id, 'expression');
     editor.onkeydown = e => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             e.preventDefault();
@@ -3388,6 +5348,7 @@ function bindExpression(n) {
         if (text) {
             editor.setRangeText(text, editor.selectionStart, editor.selectionEnd, 'end');
             editor.focus();
+            preview();
         }
     };
 }
@@ -3407,7 +5368,12 @@ function syncInspectorValues() {
         }
         input.value = input.type === 'number' ? formatNumber(evaluated[input.dataset.param]) : evaluated[input.dataset.param];
     });
-    document.querySelectorAll('[data-key]').forEach(button => button.title = `Add or replace a key at ${state.time.toFixed(3)} s`);
+    document.querySelectorAll('[data-sym-value]').forEach(el => {
+        const s = def.params[el.dataset.symValue];
+        if (s?.kind === 'number') {
+            el.textContent = formatNumber(evaluated[el.dataset.symValue]);
+        }
+    });
 }
 on('refresh', renderInspector);
 on('selection', renderInspector);
@@ -3417,7 +5383,7 @@ on('time', syncInspectorValues);
 return {renderInspector,syncInspectorValues};
 })();
 __modules['ui-export.js'] = (() => {
-const { $, state, showError, pause, viewTarget } = __modules['editor.js'];
+const { $, state, showError, pause, viewOptions } = __modules['editor.js'];
 const { clone } = __modules['graph.js'];
 const { makeZip, download, fileStem, frameTimes, embedPNGMetadata } = __modules['export.js'];
 const { updateClock } = __modules['ui-timeline.js'];
@@ -3441,7 +5407,7 @@ function updateExportAdvice() {
             ? 'Records one timeline pass in real time. Browser codec support varies; use the PNG sequence for exact frame times and lossless output.'
             : 'PNG exports the current playhead at the selected resolution. Preview width does not remove equation terms. Reference overlays are never included.';
     $('exportFPS').disabled = mode === 'png';
-    $('exportIsolated').parentElement.hidden = !(state.isolated || state.contribution);
+    $('exportIsolated').parentElement.hidden = state.viewMode === 'final';
 }
 $('exportButton').onclick = () => {
     if (!state.renderer) {
@@ -3603,10 +5569,8 @@ $('startExport').onclick = async () => {
         return;
     }
     const width = Number($('exportWidth').value), height = Number($('exportHeight').value), fps = Number($('exportFPS').value), mode = $('exportFormat').value;
-    const useView = $('exportIsolated').checked && (state.isolated || state.contribution);
-    const options = useView && state.contribution
-        ? { target: state.project.output, contribution: state.contribution, contributionStyle: state.contributionStyle }
-        : { target: useView ? viewTarget() : state.project.output };
+    const useView = $('exportIsolated').checked && state.viewMode !== 'final';
+    const options = useView ? viewOptions() : { target: state.project.output };
     const savedTime = state.time, scene = clone(state.project), stem = fileStem(state.project.title);
     try {
         if (!Number.isInteger(width) || !Number.isInteger(height) || Math.min(width, height) < 32 || Math.max(width, height) > renderer.info.maxSize) {
@@ -3697,7 +5661,7 @@ const methodNotes = [
 return {sources,methodNotes};
 })();
 __modules['ui-toolbar.js'] = (() => {
-const { $, esc, state, on, toast, showError, transact, loadProject, undo, redo, seek, setIsolated, setContribution, setPref, duplicateNode, deleteNode, history } = __modules['editor.js'];
+const { $, esc, state, on, toast, showError, transact, loadProject, undo, redo, revertScene, seek, setView, viewedNode, stepStage, setPref, duplicateNode, deleteNode, history } = __modules['editor.js'];
 const { parseProject } = __modules['graph.js'];
 const { getPreset } = __modules['presets.js'];
 const { sources, methodNotes } = __modules['research.js'];
@@ -3705,7 +5669,8 @@ const { download, fileStem } = __modules['export.js'];
 const { takeSnapshot } = __modules['ui-library.js'];
 const { togglePlay, stepFrames } = __modules['ui-timeline.js'];
 const { setPreviews, renderGraph } = __modules['ui-graph.js'];
-const { hasPin, clearPin } = __modules['ui-canvas.js'];
+const { hasPin, clearPin, setCompareOriginal } = __modules['ui-canvas.js'];
+const { exploreOpen, closeExplore } = __modules['ui-explore.js'];
 /** Top bar, dialogs and global keyboard shortcuts. */
 $('projectTitle').onchange = e => transact(p => p.title = e.target.value);
 $('undo').onclick = () => {
@@ -3716,6 +5681,11 @@ $('undo').onclick = () => {
 $('redo').onclick = () => {
     if (!state.busy) {
         redo();
+    }
+};
+$('revertScene').onclick = () => {
+    if (!state.busy) {
+        revertScene();
     }
 };
 $('saveProject').onclick = () => {
@@ -3773,6 +5743,11 @@ on('refresh', () => {
     $('projectTitle').value = state.project.title;
     $('counts').textContent = `${state.project.nodes.length} components · ${state.project.tracks.length} tracks`;
 });
+/** Show the selected component's stage or effect, or return to the final image. */
+function toggleView(mode) {
+    const same = state.viewMode === mode && viewedNode().id === state.selected;
+    setView(same ? 'final' : mode, { node: state.selected, lock: false });
+}
 /** Single-key shortcuts apply only outside text fields and dialogs. */
 const shortcuts = {
     ' ': togglePlay,
@@ -3783,8 +5758,10 @@ const shortcuts = {
     'r': () => setPref('rulers', !state.prefs.rulers),
     'g': () => setPref('grid', !state.prefs.grid),
     'p': () => setPreviews(!state.prefs.previews),
-    'i': () => setIsolated(state.isolated === state.selected ? null : state.selected),
-    'c': () => setContribution(state.contribution === state.selected ? null : state.selected),
+    'i': () => toggleView('stage'),
+    'c': () => toggleView('effect'),
+    '[': () => stepStage(-1),
+    ']': () => stepStage(1),
     'f': () => $('resetView').click(),
     's': () => takeSnapshot(),
     'l': () => $('graphFit').click()
@@ -3796,11 +5773,14 @@ document.addEventListener('keydown', e => {
             state.connection = null;
             renderGraph();
         }
+        else if (!modal && exploreOpen()) {
+            closeExplore();
+        }
         else if (!modal && hasPin()) {
             clearPin();
         }
-        else if (!modal && (state.isolated || state.contribution)) {
-            setIsolated(null);
+        else if (!modal && state.viewMode !== 'final') {
+            setView('final');
         }
         return;
     }
@@ -3810,6 +5790,12 @@ document.addEventListener('keydown', e => {
         return;
     }
     if (editing || modal || state.busy) {
+        return;
+    }
+    if (e.key.toLowerCase() === 'o' && !meta && !e.altKey) { // hold O: compare with the original
+        if (!e.repeat) {
+            setCompareOriginal(true);
+        }
         return;
     }
     if (meta && e.key.toLowerCase() === 'z') {
@@ -3829,17 +5815,25 @@ document.addEventListener('keydown', e => {
         shortcuts[e.key.length === 1 ? e.key.toLowerCase() : e.key]();
     }
 });
+document.addEventListener('keyup', e => {
+    if (e.key.toLowerCase() === 'o') {
+        setCompareOriginal(false);
+    }
+});
+addEventListener('blur', () => setCompareOriginal(false));
 
 return {shortcuts};
 })();
 __modules['app.js'] = (() => {
 const { Renderer } = __modules['renderer.js'];
-const { $, state, refreshUI, changed, pause, toast, showError, loadProject, seek, setIsolated, setContribution, readStorage, STORAGE, markDirty } = __modules['editor.js'];
+const { $, state, refreshUI, changed, pause, toast, showError, loadProject, seek, setView, setContributionStyle, readStorage, STORAGE, markDirty, emit } = __modules['editor.js'];
 const { parseProject, clone } = __modules['graph.js'];
 const { catalog } = __modules['catalog.js'];
 const { loopTime } = __modules['timeline.js'];
 const { renderFrame, drawOverlay } = __modules['ui-canvas.js'];
-const { updatePreviews, setPreviews, applyGraphHeight } = __modules['ui-graph.js'];
+const { setPreviews, applyGraphHeight, showBottomTab } = __modules['ui-graph.js'];
+const { updatePreviews } = __modules['ui-previews.js'];
+const { renderPipeline } = __modules['ui-pipeline.js'];
 const { updateClock } = __modules['ui-timeline.js'];
 const { syncInspectorValues } = __modules['ui-inspector.js'];
 const { takeSnapshot, getSnapshots } = __modules['ui-library.js'];
@@ -3848,13 +5842,19 @@ const { shortcuts } = __modules['ui-toolbar.js'];
 const { sources } = __modules['research.js'];
 /** Application entry: restore the last session, create the renderer, run the
  * frame loop and expose the documented integration hooks. Panel behavior lives in
- * the ui-*.js modules; model operations live in editor.js.
+ * the ui-*.js modules, which register their event listeners when imported; model
+ * operations live in editor.js.
  */
 const saved = readStorage(STORAGE.project);
 if (saved) {
     try {
         state.project = parseProject(saved);
         state.selected = state.project.nodes.find(n => n.id !== 'space')?.id || state.project.nodes[0].id;
+        state.baseline = clone(state.project);
+        const baseline = readStorage(STORAGE.baseline);
+        if (baseline) {
+            state.baseline = parseProject(baseline);
+        }
     }
     catch (e) { /* An incompatible autosave falls back to the default scene. */
     }
@@ -3929,19 +5929,38 @@ window.equationStudio = {
     getCatalog: () => catalog,
     getSources: () => sources,
     getShortcuts: () => Object.keys(shortcuts),
-    getView: () => ({ isolated: state.isolated, contribution: state.contribution, contributionStyle: state.contributionStyle, prefs: { ...state.prefs }, selected: state.selected }),
+    renderPipeline: () => renderPipeline(),
+    getView: () => ({
+        mode: state.viewMode, node: state.viewMode === 'final' ? null : (state.viewLock || state.selected), locked: !!state.viewLock,
+        isolated: state.viewMode === 'stage' ? (state.viewLock || state.selected) : null,
+        contribution: state.viewMode === 'effect' ? (state.viewLock || state.selected) : null,
+        contributionStyle: state.contributionStyle, prefs: { ...state.prefs }, selected: state.selected
+    }),
+    /** Canvas view: 'final', 'stage' or 'effect', optionally for a given node. */
+    setView: (mode, node) => {
+        if (node && !state.project.nodes.some(n => n.id === node)) {
+            throw new Error('Unknown node.');
+        }
+        setView(mode, { node, lock: false });
+    },
+    /** Compatibility with 1.1: show one node's stage, or the final image for null. */
     isolate: id => {
         if (id && !state.project.nodes.some(n => n.id === id)) {
             throw new Error('Unknown node.');
         }
-        setIsolated(id);
+        setView(id ? 'stage' : 'final', { node: id || null, lock: false });
     },
+    /** Compatibility with 1.1: show what one node changes, or the final image for null. */
     contribution: (id, style) => {
         if (id && !state.project.nodes.some(n => n.id === id)) {
             throw new Error('Unknown node.');
         }
-        setContribution(id, style);
+        if (style) {
+            setContributionStyle(style);
+        }
+        setView(id ? 'effect' : 'final', { node: id || null, lock: false });
     },
+    getBaseline: () => clone(state.baseline),
     setPreviews: enabled => setPreviews(enabled),
     snapshot: title => takeSnapshot(title),
     getSnapshots: () => clone(getSnapshots()),
@@ -3960,7 +5979,9 @@ window.equationStudio = {
     }
 };
 applyGraphHeight(state.prefs.graphHeight);
+showBottomTab(state.prefs.bottomTab);
 refreshUI();
+emit('view');
 changed();
 requestAnimationFrame(tick);
 

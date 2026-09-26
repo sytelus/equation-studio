@@ -175,9 +175,11 @@ Shrinking project duration is rejected when existing keys would lie
 outside it; move or remove those keys first.</p>
 <p>While the animation plays, the inspector shows the evaluated value of
 every tracked control without rebuilding the panel, so an expression you
-are typing is not discarded. <code>,</code> and <code>.</code> step the
-playhead by one frame at 24 fps, which matches the export dialog’s
-default rate.</p>
+are typing is not discarded. A parameter sweep (▦) on an animated
+parameter edits its key at the playhead, and ↺ reset removes a
+parameter’s animation along with restoring its original value.
+<code>,</code> and <code>.</code> step the playhead by one frame at 24
+fps, which matches the export dialog’s default rate.</p>
 <h2 id="seamless-loops-require-more-than-the-loop-checkbox">Seamless
 loops require more than the Loop checkbox</h2>
 <p>The checkbox wraps the playhead. It does not change the mathematical

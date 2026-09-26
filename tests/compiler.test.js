@@ -41,6 +41,16 @@ describe('shader generation', () => {
         assert.equal(compileGraph(p, 'space').type, 'coord');
         assert(compileGraph(p, 'turbulence').fragment.includes('tanh('));
     });
+    it('a disabled node is bypassed in the shader', () => {
+        const p = getPreset('lensing');
+        p.nodes.find(n => n.id === 'lens').enabled = false;
+        const c = compileGraph(p), index = c.order.indexOf('lens');
+        assert(c.fragment.includes(`vec2 n${index} = n${c.order.indexOf('space')};`));
+        const q = getPreset('bipolar');
+        q.nodes.find(n => n.id === 'stars').enabled = false;
+        const d = compileGraph(q);
+        assert(d.fragment.includes(`vec4 n${d.order.indexOf('stars')} = vec4(0);`), 'content without a bypass becomes zero');
+    });
     it('raw mode skips display conversion', () => {
         const p = getPreset('bipolar'), raw = compileGraph(p, 'turbulence', { raw: true });
         assert.equal(raw.raw, true);
@@ -80,6 +90,11 @@ describe('contribution mode', () => {
         const [withNode, without] = c.fragment.split('vec4 shadeWithout');
         assert(withNode.includes('nebulaStars('));
         assert(without.includes('vec4 n') && without.includes('= vec4(0);'));
+    });
+    it('removes a modifier by bypassing it, not by zeroing it', () => {
+        const p = getPreset('lensing'), c = compileGraph(p, p.output, { contribution: 'lens' });
+        const without = c.fragment.split('vec4 shadeWithout')[1], index = c.order.indexOf('lens'), source = c.order.indexOf('space');
+        assert(without.includes(`vec2 n${index} = n${source};`), 'the lens passes the coordinates through');
     });
     it('reports unreachable nodes and still compiles', () => {
         const p = getPreset('bipolar');

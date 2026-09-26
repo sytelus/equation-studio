@@ -23,12 +23,16 @@ python3 start.py          # serves the repository on http://127.0.0.1:8765/ (loo
 
 ```text
 src/
-  catalog.js          43 component definitions: sockets, parameters, equation text, GLSL emitter
-  graph.js            project schema, validation, traversal (topological order, upstream/downstream), edits, history
+  catalog.js          43 component definitions: sockets, parameters with symbols and help, TeX equations,
+                      roles and bypass sockets, GLSL emitters
+  graph.js            project schema, validation, traversal (bypass-aware topological order, evaluation
+                      order, upstream/downstream, consumers), edits, history
   compiler.js         typed DAG → one fragment shader; display, raw, contribution and preview modes
   renderer.js         WebGL 2 programs and cache, visible draw, offscreen snapshot / preview atlas / float probe
   timeline.js         keyframe interpolation, key insertion and retiming
   view-math.js        camera arithmetic: pixel ↔ world, zoom about a point, ruler ticks
+  math-render.js      TeX subset → MathML; custom GLSL expressions → MathML
+  explore.js          parameter sweeps, seeded variations, original values for reset
   graph-layout.js     deterministic layered layout and socket geometry for the graph panel
   export.js           ZIP writer, PNG metadata, frame times, downloads
   presets.js          the twelve editable scenes
@@ -40,11 +44,17 @@ src/
   research.js         evidence ledger shown in the app
   thumbnails.js       generated JPEG data URLs for the scene list
 
-  editor.js           shared editor state, event bus and every model operation (transact, load, select, add, connect…)
-  ui-library.js       scenes / components / snapshots panel, drag sources
-  ui-canvas.js        frame rendering, camera gestures, rulers and readouts, compare, canvas toolbar
-  ui-graph.js         graph rendering, previews, wiring, drop target, GLSL tab, splitter
-  ui-inspector.js     inspector rendering and parameter editing
+  editor.js           shared editor state, event bus, the canvas view model and every model operation
+                      (transact, load, revert, select, view, enable/bypass, reset, add, insert, replace, connect…)
+  ui-tooltip.js       rich hover tips for every control (data-tip, data-key, data-toggle, providers)
+  ui-library.js       scenes / components / snapshots panel, drag sources, palette tips
+  ui-canvas.js        frame rendering, view switch, live badge, legend, camera gestures, rulers and
+                      readouts, hold-to-compare, compare overlay, canvas toolbar
+  ui-previews.js      the shared live-thumbnail atlas painted into pipeline and graph cards
+  ui-pipeline.js      the Pipeline tab: stages in evaluation order with include checkboxes
+  ui-graph.js         graph rendering, wiring, drop target, bottom-panel tabs, GLSL tab, splitter
+  ui-inspector.js     inspector: header, view buttons, typeset equation and symbols, inputs, parameters
+  ui-explore.js       the explorer tray: sweeps and variations with hover preview
   ui-timeline.js      transport and key lanes
   ui-export.js        export dialog
   ui-toolbar.js       top bar, dialogs, keyboard shortcuts
@@ -62,14 +72,16 @@ The first group has no DOM dependency and is covered by the Node unit tests. The
 |---|---|---|
 | `refresh` | the project was replaced or structurally edited | every panel |
 | `selection` | the selected component changed | inspector, graph, tracks |
-| `view` | isolation or contribution mode changed | inspector, graph, canvas labels |
+| `view` | the canvas view (final / stage / effect), its lock or style changed | inspector, graph, pipeline, canvas |
 | `time` | the playhead moved | clock, lanes, live inspector values |
 | `history` | undo/redo availability changed | toolbar buttons |
 | `prefs` | a persisted preference changed | canvas labels and overlay |
 
 Every model change goes through `transact(edit, {structural})`: it edits a clone, validates it, pushes the previous project onto the history and only then replaces `state.project`. Structural edits (adding, wiring, deleting, enabling, expressions, output) also mark the project as a custom construction so the scene list stops highlighting the preset. Continuous gestures (sliders, panning, zooming) mutate the live project for smooth feedback and push one history entry when the gesture ends.
 
-The frame loop in `app.js` renders when `state.dirty` is set, refreshes graph previews when `state.previewsDirty` is set, and redraws the ruler overlay when `state.overlayDirty` is set. `markDirty()` sets all three.
+The frame loop in `app.js` renders when `state.dirty` is set, refreshes the preview atlas when `state.previewsDirty` is set, and redraws the ruler overlay when `state.overlayDirty` is set. `markDirty()` sets all three. The canvas draws `state.baseline` while the Original button is held and `state.preview` (an explorer candidate) while one is hovered; otherwise the project in the current view. `state.baseline` is the project as it was opened; loading a preset, file or snapshot replaces it, and undo and revert do not.
+
+Tooltips are declarative: give an element `data-tip="Heading|Body"`, optionally `data-key` for its shortcut and `data-toggle` for on/off controls, and `ui-tooltip.js` does the rest. Use `registerTipProvider(selector, fn)` for generated content such as the palette's equations. Prefer `data-tip` over `title` so tips are immediate, styled and consistent.
 
 ## Conventions for the bundler
 
@@ -85,7 +97,7 @@ Style: four-space indentation, one statement per line, comments that explain int
 ## Tests
 
 ```bash
-node --test tests/*.test.js                 # unit tests: graph, compiler, timeline, export, view math, layout, snapshots
+node --test tests/*.test.js                 # unit tests: catalog, graph, compiler, math, explore, timeline, export, view
 python3 tools/workflow_check.py             # editor workflows in Chromium: keys, wiring, drag-and-drop, previews, exports…
 python3 tools/browser_check.py              # UI checks and the gallery screenshots
 python3 tools/gpu_validate.py               # renders every preset and component, raw-field and native-image comparison

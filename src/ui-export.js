@@ -1,4 +1,4 @@
-import { $, state, showError, pause, viewTarget } from './editor.js';
+import { $, state, showError, pause, viewOptions } from './editor.js';
 import { clone } from './graph.js';
 import { makeZip, download, fileStem, frameTimes, embedPNGMetadata } from './export.js';
 import { updateClock } from './ui-timeline.js';
@@ -22,7 +22,7 @@ function updateExportAdvice() {
             ? 'Records one timeline pass in real time. Browser codec support varies; use the PNG sequence for exact frame times and lossless output.'
             : 'PNG exports the current playhead at the selected resolution. Preview width does not remove equation terms. Reference overlays are never included.';
     $('exportFPS').disabled = mode === 'png';
-    $('exportIsolated').parentElement.hidden = !(state.isolated || state.contribution);
+    $('exportIsolated').parentElement.hidden = state.viewMode === 'final';
 }
 $('exportButton').onclick = () => {
     if (!state.renderer) {
@@ -184,10 +184,8 @@ $('startExport').onclick = async () => {
         return;
     }
     const width = Number($('exportWidth').value), height = Number($('exportHeight').value), fps = Number($('exportFPS').value), mode = $('exportFormat').value;
-    const useView = $('exportIsolated').checked && (state.isolated || state.contribution);
-    const options = useView && state.contribution
-        ? { target: state.project.output, contribution: state.contribution, contributionStyle: state.contributionStyle }
-        : { target: useView ? viewTarget() : state.project.output };
+    const useView = $('exportIsolated').checked && state.viewMode !== 'final';
+    const options = useView ? viewOptions() : { target: state.project.output };
     const savedTime = state.time, scene = clone(state.project), stem = fileStem(state.project.title);
     try {
         if (!Number.isInteger(width) || !Number.isInteger(height) || Math.min(width, height) < 32 || Math.max(width, height) > renderer.info.maxSize) {

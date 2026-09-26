@@ -8,12 +8,15 @@ export const COLUMN_PITCH = 225;
 export const ROW_GAP = 23;
 export const SOCKET_PITCH = 13;
 export const SOCKET_TOP = 29;
-export const PREVIEW_WIDTH = 150;
-export const PREVIEW_HEIGHT = 90;
+/** Size of every live thumbnail tile (graph cards and pipeline). */
+export const PREVIEW_WIDTH = 160;
+export const PREVIEW_HEIGHT = 96;
+/** Height the thumbnail occupies on a graph card, which shows it at 150 × 90. */
+export const CARD_PREVIEW_HEIGHT = 90;
 const MARGIN_X = 24, MARGIN_Y = 18;
 export function nodeHeight(node, previews) {
     const sockets = Object.keys(catalog[node.type].inputs).length;
-    return Math.max(78, 42 + sockets * SOCKET_PITCH) + (previews ? PREVIEW_HEIGHT + 8 : 0);
+    return Math.max(78, 42 + sockets * SOCKET_PITCH) + (previews ? CARD_PREVIEW_HEIGHT + 8 : 0);
 }
 /** Returns positions (id → {x, y, height, column}) and the board size in pixels. */
 export function layoutGraph(project, { previews = false } = {}) {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { getPreset } from '../src/presets.js';
 import { makeNode, VIEW_LIMITS } from '../src/graph.js';
 import { WORLD_WIDTH, HALF_PIXEL, unitsPerPixel, pixelToWorld, worldToPixel, clientToPixel, zoomAbout, panBy, tickSpacing, formatTick } from '../src/view-math.js';
-import { layoutGraph, nodeHeight, outputSocketPoint, inputSocketPoint, wirePath, NODE_WIDTH, COLUMN_PITCH, PREVIEW_HEIGHT } from '../src/graph-layout.js';
+import { layoutGraph, nodeHeight, outputSocketPoint, inputSocketPoint, wirePath, NODE_WIDTH, COLUMN_PITCH, CARD_PREVIEW_HEIGHT } from '../src/graph-layout.js';
 import { parseSnapshots, addSnapshot, removeSnapshot, relativeTime, SNAPSHOT_LIMIT } from '../src/snapshots.js';
 
 const close = (a, b, eps = 1e-9) => assert(Math.abs(a - b) < eps, `${a} != ${b}`);
@@ -81,7 +81,7 @@ describe('graph layout', () => {
         const p = getPreset('water');
         assert.deepEqual([...layoutGraph(p).positions], [...layoutGraph(p).positions]);
         const plain = nodeHeight(p.nodes[0], false), withPreview = nodeHeight(p.nodes[0], true);
-        assert.equal(withPreview - plain, PREVIEW_HEIGHT + 8);
+        assert.equal(withPreview - plain, CARD_PREVIEW_HEIGHT + 8);
         assert(layoutGraph(p, { previews: true }).height > layoutGraph(p).height);
     });
     it('socket points and wire paths are consistent', () => {

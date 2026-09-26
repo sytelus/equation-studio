@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { catalog, parameterDefaults } from '../src/catalog.js';
 import { presets, getPreset } from '../src/presets.js';
-import { makeNode, clone, validateProject, parseProject, topologicalOrder, removeNode, uniqueId, History, validateExpression, upstream, downstream, MAX_NODES, MAX_LABEL, VIEW_LIMITS } from '../src/graph.js';
+import { makeNode, clone, validateProject, parseProject, topologicalOrder, activeInputs, evaluationOrder, consumers, removeNode, uniqueId, History, validateExpression, upstream, downstream, MAX_NODES, MAX_LABEL, VIEW_LIMITS } from '../src/graph.js';
 
 describe('presets and catalog', () => {
     for (const p of presets) {
@@ -78,10 +78,38 @@ describe('graph traversal', () => {
         assert.equal(order.filter(id => id === 'turbulence').length, 1);
         assert(order.indexOf('turbulence') < order.indexOf('cloud'));
     });
-    it('a disabled node does not pull in its inputs', () => {
+    it('a disabled content node does not pull in its inputs', () => {
         const p = getPreset('bipolar');
-        p.nodes.find(n => n.id === p.output).enabled = false;
-        assert.deepEqual(topologicalOrder(p).map(n => n.id), ['final']);
+        p.nodes.find(n => n.id === 'gas').enabled = false;
+        const order = topologicalOrder(p).map(n => n.id);
+        assert(order.includes('gas'));
+        assert(!order.includes('cloud'), 'cloud only feeds gas, so it is pruned');
+    });
+    it('a disabled modifier or combiner pulls in only its bypass input', () => {
+        const p = getPreset('bipolar');
+        p.nodes.find(n => n.id === p.output).enabled = false; // Add: bypass passes a (gascore)
+        const order = topologicalOrder(p).map(n => n.id);
+        assert.equal(order.at(-1), 'final');
+        assert(order.includes('gascore') && !order.includes('stars'));
+        const lens = getPreset('lensing');
+        lens.nodes.find(n => n.id === 'lens').enabled = false;
+        assert.deepEqual(activeInputs(lens.nodes.find(n => n.id === 'lens')), ['space']);
+    });
+    it('evaluation order lists every node after its inputs, whatever the enabled flags', () => {
+        const p = getPreset('bipolar');
+        p.nodes.push(makeNode('solid', 'unused'));
+        p.nodes.forEach(n => n.enabled = false);
+        const order = evaluationOrder(p).map(n => n.id), at = id => order.indexOf(id);
+        assert.equal(order.length, p.nodes.length);
+        for (const n of p.nodes) {
+            for (const source of Object.values(n.inputs)) {
+                assert(at(source) < at(n.id), `${source} before ${n.id}`);
+            }
+        }
+    });
+    it('consumers report the reading node and socket', () => {
+        const users = consumers(getPreset('bipolar'), 'turbulence').map(u => `${u.node.id}.${u.socket}`).sort();
+        assert.deepEqual(users, ['cloud.turbulence', 'core.turbulence', 'gas.turbulence']);
     });
     it('null target orders every node, including unreachable ones', () => {
         const p = getPreset('bipolar');

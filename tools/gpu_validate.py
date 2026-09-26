@@ -57,6 +57,15 @@ with sync_playwright() as pw:
     r = page.evaluate('''()=>{const p=testLibrary.getPreset('lensing');p.tracks=[];p.nodes.find(n=>n.id==='lens').params.strength=0;renderer.draw(p,0,16,16);return renderer.samplePoint(p,0,'lens',.75,-.25);}''')
     assert abs(r[0] - .75) < 1e-6 and abs(r[1] + .25) < 1e-6, r
     record('raw float framebuffer + zero lens identity', r)
+    # Bypass: a disabled modifier passes its input through exactly; a disabled
+    # combiner passes its first input; disabled content contributes zero.
+    r = page.evaluate('''()=>{const p=testLibrary.getPreset('lensing');p.tracks=[];p.nodes.find(n=>n.id==='lens').enabled=false;const lens=renderer.samplePoint(p,0,'lens',.61,-.37);
+const q=testLibrary.getPreset('bipolar');const gascore=renderer.samplePoint(q,0,'gascore',.2,.1);q.nodes.find(n=>n.id==='final').enabled=false;const bypassed=renderer.samplePoint(q,0,'final',.2,.1);
+q.nodes.find(n=>n.id==='final').enabled=true;q.nodes.find(n=>n.id==='stars').enabled=false;const stars=renderer.samplePoint(q,0,'stars',.2,.1);return {lens,gascore,bypassed,stars};}''')
+    assert abs(r['lens'][0] - .61) < 1e-6 and abs(r['lens'][1] + .37) < 1e-6, r
+    assert all(abs(a - b) < 1e-6 for a, b in zip(r['gascore'], r['bypassed'])), r
+    assert r['stars'][:3] == [0, 0, 0], r
+    record('bypass: modifier identity, combiner pass-through, content zero', r)
     # Offscreen probes must leave the visible canvas untouched.
     r = page.evaluate('''()=>{const p=testLibrary.getPreset('marble');renderer.draw(p,0,96,60);const before=[...renderer.pixels()];renderer.samplePoint(p,0,'veins',.1,.2);renderer.snapshot(p,0,32,20,{target:'warp'});const after=[...renderer.pixels()];return {size:[renderer.canvas.width,renderer.canvas.height],same:before.every((v,i)=>v===after[i])};}''')
     assert r['same'] and r['size'] == [96, 60], r
@@ -75,6 +84,10 @@ with sync_playwright() as pw:
     r = page.evaluate('''()=>{const p=testLibrary.getPreset('bipolar');const changed=(opts)=>{const s=renderer.snapshot(p,0,96,60,{contributionStyle:'signed',...opts});let n=0;for(let i=0;i<s.data.length;i+=4)if(s.data[i]||s.data[i+1]||s.data[i+2])n++;return n;};const {makeNode:N}=__modules['graph.js'];const stars=changed({contribution:'stars'});p.nodes.push(N('solid','unused'));const unused=changed({contribution:'unused'});return {stars,unused,total:96*60};}''')
     assert 0 < r['stars'] < r['total'] and r['unused'] == 0, r
     record('contribution view marks only pixels the node changes', r)
+    # A zero-strength lens is the identity, so its contribution (lens vs. bypass) is nothing.
+    r = page.evaluate('''()=>{const p=testLibrary.getPreset('lensing');p.tracks=[];p.nodes.find(n=>n.id==='lens').params.strength=0;const s=renderer.snapshot(p,0,96,60,{contribution:'lens',contributionStyle:'signed'});let n=0;for(let i=0;i<s.data.length;i+=4)if(s.data[i]||s.data[i+1]||s.data[i+2])n++;return n;}''')
+    assert r == 0, r
+    record('contribution of an identity modifier is empty (compared with its bypass, not zero)', r)
     # Compare actual float fields against the retained independent CPU renderer.
     # Selected points are native-grid pixel centers, so no alignment is fitted.
     rng = np.random.default_rng(1731)

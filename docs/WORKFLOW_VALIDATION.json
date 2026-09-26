@@ -2,6 +2,34 @@
   "scope": "Chromium in-memory browser interaction; ANGLE / SwiftShader software backend",
   "checks": [
     {
+      "name": "Defaults: live pipeline previews for all 9 source components, rulers and grid on",
+      "passed": true,
+      "details": {
+        "version": 2,
+        "previews": true,
+        "rulers": true,
+        "grid": true,
+        "quality": 480,
+        "graphHeight": 260,
+        "bottomTab": "pipeline"
+      }
+    },
+    {
+      "name": "Pipeline card shows a stage, the legend explains it, [ ] step and Escape returns",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "View switch: effect styles, lock keeps a stage while selecting elsewhere",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Rich tooltips name the control, its shortcut and its on/off state",
+      "passed": true,
+      "details": "RulersROn \u00b7 click to turn offWorld-coordinate rulers and a crosshair that reads "
+    },
+    {
       "name": "UI key creation, tracked control editing and interpolation",
       "passed": true,
       "details": {
@@ -34,24 +62,52 @@
       ]
     },
     {
-      "name": "Parameter reset restores the catalog default",
+      "name": "Reset: modified marker, parameter and component reset, hold-to-compare, undoable revert",
       "passed": true,
       "details": null
     },
     {
-      "name": "Cycle rejection restores model AND visible connection menu",
+      "name": "Sweep across a range and random variations apply on click and undo cleanly",
       "passed": true,
       "details": null
     },
     {
-      "name": "Raw floating-point field probe through editor",
+      "name": "Unticking a coordinate modifier bypasses it (identity), not zero",
       "passed": true,
-      "details": "Raw Translate \u00b7 rotate \u00b7 scale at (-1.13472, 0.63115)\nx: -1.134722 \u00b7 y: 0.6311508"
+      "details": [
+        0.30000001192092896,
+        -0.19999998807907104,
+        0,
+        1
+      ]
     },
     {
-      "name": "Rulers readout with raw values, pin and unpin",
+      "name": "Only structure bypasses content; ticking one component includes its dependencies; Original restores",
       "passed": true,
-      "details": "p(-0.430, -0.024) \u00b7 px 196,146 \u00b7 RGB 215 221 226 \u00b7 x -0.4304 y -0.02361"
+      "details": [
+        "cloud",
+        "final",
+        "gas",
+        "gascore",
+        "shell",
+        "space",
+        "turbulence"
+      ]
+    },
+    {
+      "name": "Insert a modifier on an input and replace a component while keeping its wiring",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Typeset equations; live MathML preview of custom expressions; failed compiles keep the image",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Alt-click raw probe; rulers readout with raw values; pin and unpin",
+      "passed": true,
+      "details": "p(-0.430, -0.024) \u00b7 px 196,146 \u00b7 RGB 215 221 226 \u00b7 R 0.7699 G 0.8662 B 0.9624 alpha 1"
     },
     {
       "name": "Wheel zoom keeps the world point under the cursor fixed",
@@ -59,22 +115,12 @@
       "details": 1.3498588075760032
     },
     {
-      "name": "Live per-node previews render for every component",
-      "passed": true,
-      "details": 8
-    },
-    {
-      "name": "Contribution view toggles and styles through the inspector",
-      "passed": true,
-      "details": null
-    },
-    {
       "name": "Drag-and-drop onto a socket adds and wires a compatible component; incompatible drops are rejected",
       "passed": true,
       "details": null
     },
     {
-      "name": "Drag wiring between dots and drag-off disconnection",
+      "name": "Drag wiring, drag-off disconnection, card checkboxes and the card eye button",
       "passed": true,
       "details": null
     },

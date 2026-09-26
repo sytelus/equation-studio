@@ -23,7 +23,7 @@ export function renderTracks() {
         $('tracks').innerHTML = '<div class="empty-tracks">No keyframes yet. Click ◆ next to any numeric parameter. Procedural flow-speed controls also animate directly with time.</div>';
         return;
     }
-    $('tracks').innerHTML = project.tracks.map(t => `<div class="track-row"><span class="track-label" data-select-track="${t.node}" title="Select ${esc(t.node)}">${esc(t.node)} / ${esc(t.param)}</span><div class="track-lane" data-lane="${t.node}" data-param="${t.param}"><span class="track-playhead" style="left:${time / project.duration * 100}%"></span>${t.keys.map(k => `<button class="track-key" data-track-time="${k.time}" style="left:${k.time / project.duration * 100}%" title="${k.time}s: ${k.value} · drag to move" aria-label="Key for ${t.param} at ${k.time} seconds">◆</button>`).join('')}</div></div>`).join('');
+    $('tracks').innerHTML = project.tracks.map(t => `<div class="track-row"><span class="track-label" data-select-track="${t.node}" data-tip="Select ${esc(t.node)}|Shows this component in the inspector.">${esc(t.node)} / ${esc(t.param)}</span><div class="track-lane" data-lane="${t.node}" data-param="${t.param}"><span class="track-playhead" style="left:${time / project.duration * 100}%"></span>${t.keys.map(k => `<button class="track-key" data-track-time="${k.time}" style="left:${k.time / project.duration * 100}%" data-tip="Key at ${k.time} s = ${k.value}|Drag along the lane to retime it; click to move the playhead here." aria-label="Key for ${t.param} at ${k.time} seconds">◆</button>`).join('')}</div></div>`).join('');
 }
 export function togglePlay() {
     if (!state.renderer || state.busy) {

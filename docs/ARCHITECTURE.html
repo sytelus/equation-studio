@@ -121,6 +121,8 @@ id="toc-reuse-the-renderer-without-the-editor">Reuse the renderer
 without the editor</a></li>
 <li><a href="#add-your-own-component"
 id="toc-add-your-own-component">Add your own component</a></li>
+<li><a href="#typeset-equations" id="toc-typeset-equations">Typeset
+equations</a></li>
 <li><a href="#boundaries-and-extensions"
 id="toc-boundaries-and-extensions">Boundaries and extensions</a></li>
 </ul></li>
@@ -189,11 +191,61 @@ and diagnostic membership</td>
 </table>
 <p>Every socket has one of these types. The editor rejects a
 color-to-coordinate wire rather than silently treating red/green as
-position. Missing sockets and disabled outputs are typed zeros. In
-particular an unconnected coordinate socket is <code>(0,0)</code>,
-<strong>not</strong> the world position. Disabled nodes do not forward
-their inputs. Those choices make graph behavior explicit; bypass a node
-by reconnecting its upstream field.</p>
+position. Missing sockets are typed zeros. In particular an unconnected
+coordinate socket is <code>(0,0)</code>, <strong>not</strong> the world
+position; inputs are always explicit.</p>
+<h3 id="disabled-means-bypassed">Disabled means bypassed</h3>
+<p>A disabled component is <strong>bypassed</strong>. Each catalog entry
+names a <code>bypass</code> socket whose type equals its output; a
+disabled node forwards that input unchanged. Components without one
+output a typed zero:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Role</th>
+<th>Examples</th>
+<th>Disabled</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>modifier</td>
+<td>Translate, Vortex, Domain warp, Polar, Angular mirror, Lens map,
+Custom coordinate, Tint, Mask layer, Soft threshold</td>
+<td>passes its input through (a warp becomes the identity)</td>
+</tr>
+<tr>
+<td>combiner</td>
+<td>Add light (a), Front over back (back), Combine scalar fields
+(a)</td>
+<td>passes its main input through</td>
+</tr>
+<tr>
+<td>content</td>
+<td>fields, shapes, lights, star fields, nebula layers, custom
+scalar/color</td>
+<td>outputs zero</td>
+</tr>
+<tr>
+<td>source</td>
+<td>Image coordinates</td>
+<td>outputs zero</td>
+</tr>
+</tbody>
+</table>
+<p>This matches the pass-through convention of compositing tools and
+keeps experiments meaningful: switching off a warp removes the warp
+instead of collapsing every downstream coordinate to the origin.
+<code>activeInputs()</code> in <code>graph.js</code> and
+<code>bypassExpression()</code> in <code>compiler.js</code> implement
+it; a disabled node’s other inputs are not evaluated at all. The roles
+also drive the editor’s <em>Only structure</em> action, which bypasses
+content and keeps the rest.</p>
 <p>The <code>geometry</code> bundle does not mean a mesh, physical
 volume, or signed-distance field. The original <code>warp</code> is an
 implicit shell-following coordinate, <code>rim</code> is an emission
@@ -276,9 +328,9 @@ false colors below</td>
 <td>contribution</td>
 <td><code>contribution: id</code>, <code>contributionStyle</code></td>
 <td><code>shade(p)</code> and <code>shadeWithout(p)</code>, the latter
-with the named node replaced by its typed zero, compared after display
-conversion: either the composite with unchanged pixels dimmed to gray
-(<code>highlight</code>) or a signed warm/cool difference scaled ×4
+with the named node bypassed (exactly as if disabled), compared after
+display conversion: either the composite with unchanged pixels dimmed to
+gray (<code>highlight</code>) or a signed warm/cool difference scaled ×4
 (<code>signed</code>)</td>
 </tr>
 <tr>
@@ -445,19 +497,21 @@ currently restricts points to world coordinates within ±19.
 <code>{width, height, data}</code> objects whose <code>data</code> is
 laid out like <code>ImageData</code>.</p>
 <p>The editor also exposes <code>window.equationStudio</code> for
-integration: <code>getProject()</code>,
+integration: <code>getProject()</code>, <code>getBaseline()</code>,
 <code>loadProject(project)</code>, <code>seek(t)</code>,
 <code>getTime()</code>, <code>getRenderer()</code>,
 <code>getCatalog()</code>, <code>getView()</code>,
-<code>isolate(id)</code>, <code>contribution(id, style)</code>,
+<code>setView(mode, node)</code> with mode <code>final</code>,
+<code>stage</code> or <code>effect</code>, <code>isolate(id)</code> and
+<code>contribution(id, style)</code> (1.1-compatible shorthands),
 <code>setPreviews(enabled)</code>, <code>snapshot(title)</code>,
 <code>getSnapshots()</code>, <code>renderNow()</code>, and
-<code>exportPNG()</code>. <code>getProject()</code> and
-<code>getSnapshots()</code> return clones. The low-level
-<code>exportPNG()</code> hook returns a plain preview-resolution PNG;
-use the dialog or metadata helper for an archival export. The <a
-href="DEVELOPMENT.html">development guide</a> maps the editor’s modules
-and events.</p>
+<code>exportPNG()</code>. <code>getProject()</code>,
+<code>getBaseline()</code> and <code>getSnapshots()</code> return
+clones. The low-level <code>exportPNG()</code> hook returns a plain
+preview-resolution PNG; use the dialog or metadata helper for an
+archival export. The <a href="DEVELOPMENT.html">development guide</a> maps
+the editor’s modules and events.</p>
 <h2 id="add-your-own-component">Add your own component</h2>
 <p>Small formulas can be authored inside the browser with Custom scalar,
 Custom coordinate, or Custom color. Use GLSL float literals such as
@@ -470,25 +524,55 @@ expressions compile as GLSL, never as JavaScript. Statements, loops,
 declarations, assignments, comments and certain unsafe tokens are
 rejected; arbitrary JS evaluation is not used.</p>
 <p>For a reusable component with sliders, add an entry to
-<code>catalog.js</code>. For example, using the existing local
-<code>node</code> and <code>num</code> helpers:</p>
+<code>catalog.js</code> using its local <code>component</code>,
+<code>num</code> and <code>rgb</code> helpers. Each parameter has a TeX
+<code>symbol</code> that appears in the component’s <code>tex</code>
+equation, and a plain-language <code>help</code> string saying what
+changing it does:</p>
 <div class="sourceCode" id="cb5"><pre
-class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>petals<span class="op">:</span> <span class="fu">node</span>(</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;Petal field&#39;</span><span class="op">,</span> <span class="st">&#39;Scalar fields&#39;</span><span class="op">,</span> <span class="st">&#39;scalar&#39;</span><span class="op">,</span> {<span class="dt">p</span><span class="op">:</span> <span class="st">&#39;coord&#39;</span>}<span class="op">,</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    {<span class="dt">count</span><span class="op">:</span> <span class="fu">num</span>(<span class="st">&#39;Petals&#39;</span><span class="op">,</span> <span class="dv">5</span><span class="op">,</span> <span class="dv">2</span><span class="op">,</span> <span class="dv">16</span><span class="op">,</span> <span class="dv">1</span>)<span class="op">,</span> <span class="dt">width</span><span class="op">:</span> <span class="fu">num</span>(<span class="st">&#39;Edge&#39;</span><span class="op">,</span> <span class="op">.</span><span class="bn">02</span><span class="op">,</span> <span class="op">.</span><span class="bn">001</span><span class="op">,</span> <span class="op">.</span><span class="dv">1</span><span class="op">,</span> <span class="op">.</span><span class="bn">001</span>)}<span class="op">,</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;mask = inside(r − [0.8 + 0.2 cos(n theta)])&#39;</span><span class="op">,</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;A radial flower silhouette. Feed it into a palette or use it as coverage.&#39;</span><span class="op">,</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    (inputs<span class="op">,</span> uniforms) <span class="kw">=&gt;</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>        <span class="vs">`softInside(length(</span><span class="sc">${</span>inputs<span class="op">.</span><span class="at">p</span><span class="sc">}</span><span class="vs">) - (0.8 + 0.2*cos(</span><span class="sc">${</span>uniforms<span class="op">.</span><span class="at">count</span><span class="sc">}</span><span class="vs">*angleOf(</span><span class="sc">${</span>inputs<span class="op">.</span><span class="at">p</span><span class="sc">}</span><span class="vs">))), </span><span class="sc">${</span>uniforms<span class="op">.</span><span class="at">width</span><span class="sc">}</span><span class="vs">)`</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>petals<span class="op">:</span> <span class="fu">component</span>({</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">name</span><span class="op">:</span> <span class="st">&#39;Petal field&#39;</span><span class="op">,</span> <span class="dt">category</span><span class="op">:</span> <span class="st">&#39;Scalar fields&#39;</span><span class="op">,</span> <span class="dt">output</span><span class="op">:</span> <span class="st">&#39;scalar&#39;</span><span class="op">,</span> <span class="dt">inputs</span><span class="op">:</span> { <span class="dt">p</span><span class="op">:</span> <span class="st">&#39;coord&#39;</span> }<span class="op">,</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">params</span><span class="op">:</span> {</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>        <span class="dt">count</span><span class="op">:</span> <span class="fu">num</span>(<span class="st">&#39;Petals&#39;</span><span class="op">,</span> <span class="dv">5</span><span class="op">,</span> <span class="dv">2</span><span class="op">,</span> <span class="dv">16</span><span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="st">&#39;n&#39;</span><span class="op">,</span> <span class="st">&#39;Number of petals around the center.&#39;</span>)<span class="op">,</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>        <span class="dt">width</span><span class="op">:</span> <span class="fu">num</span>(<span class="st">&#39;Edge&#39;</span><span class="op">,</span> <span class="fl">0.02</span><span class="op">,</span> <span class="fl">0.001</span><span class="op">,</span> <span class="fl">0.1</span><span class="op">,</span> <span class="fl">0.001</span><span class="op">,</span> <span class="st">&#39;</span><span class="sc">\\</span><span class="st">epsilon&#39;</span><span class="op">,</span> <span class="st">&#39;Softness of the petal outline; small values give a crisp edge.&#39;</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    }<span class="op">,</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">equation</span><span class="op">:</span> <span class="st">&#39;mask = inside(r − [0.8 + 0.2 cos(n theta)])&#39;</span><span class="op">,</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">tex</span><span class="op">:</span> [<span class="st">&#39;m = 1 - </span><span class="sc">\\</span><span class="st">operatorname{smoothstep}</span><span class="sc">\\</span><span class="st">left(-</span><span class="sc">\\</span><span class="st">epsilon,</span><span class="sc">\\</span><span class="st"> </span><span class="sc">\\</span><span class="st">epsilon,</span><span class="sc">\\</span><span class="st"> r - (0.8 + 0.2</span><span class="sc">\\</span><span class="st">cos n</span><span class="sc">\\</span><span class="st">theta)</span><span class="sc">\\</span><span class="st">right)&#39;</span>]<span class="op">,</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">notes</span><span class="op">:</span> [[<span class="st">&#39;r, </span><span class="sc">\\</span><span class="st">theta&#39;</span><span class="op">,</span> <span class="st">&#39;polar coordinates of p&#39;</span>]]<span class="op">,</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">description</span><span class="op">:</span> <span class="st">&#39;A radial flower silhouette. Feed it into a palette or use it as coverage.&#39;</span><span class="op">,</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="dt">emit</span><span class="op">:</span> (inputs<span class="op">,</span> uniforms) <span class="kw">=&gt;</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        <span class="vs">`softInside(length(</span><span class="sc">${</span>inputs<span class="op">.</span><span class="at">p</span><span class="sc">}</span><span class="vs">) - (0.8 + 0.2*cos(</span><span class="sc">${</span>uniforms<span class="op">.</span><span class="at">count</span><span class="sc">}</span><span class="vs">*angleOf(</span><span class="sc">${</span>inputs<span class="op">.</span><span class="at">p</span><span class="sc">}</span><span class="vs">))), </span><span class="sc">${</span>uniforms<span class="op">.</span><span class="at">width</span><span class="sc">}</span><span class="vs">)`</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div>
+<p>A modifier also sets <code>role: 'modifier'</code> and
+<code>bypass</code> to the socket it passes through when disabled.
+<code>tests/catalog.test.js</code> checks that every parameter has help
+and a symbol, that the symbol appears in the equation, that the TeX
+converts, and that bypass sockets have the output’s type.</p>
 <p>For a larger kernel, put a named GLSL function with comments into a
 shader library and have the emitter call it. The emitter receives
 <strong>GLSL expression strings</strong>, including uniform names, not
 runtime JS numbers. The metadata automatically drives the component
-browser, controls, socket validation, drag-and-drop typing, previews and
-code generation. Add a preset/example, a unit test, and a GPU test. Then
-follow the regeneration checklist in the <a
+browser and its tips, the inspector’s typeset equation, symbol list and
+controls, socket validation, drag-and-drop typing, insert and replace
+menus, previews and code generation. Add a preset/example, a unit test,
+and a GPU test. Then follow the regeneration checklist in the <a
 href="DEVELOPMENT.html">development guide</a>.</p>
+<h2 id="typeset-equations">Typeset equations</h2>
+<p><code>src/math-render.js</code> converts the catalog’s TeX subset to
+native MathML, which browsers typeset without fonts, scripts or network
+access. It supports fractions, roots, scripts, big operators with
+limits, Greek letters, upright names (<code>\operatorname</code>,
+<code>\mathrm</code>, <code>\text</code>), common functions and
+relations, accents, <code>\left</code>/<code>\right</code> and spacing;
+an unknown command throws, so a catalog typo fails the unit tests
+instead of rendering wrongly. The same module parses a custom GLSL
+expression with the editor’s expression grammar and renders it as
+mathematics (<code>a/b</code> as a fraction, <code>pow</code> as a
+power, <code>sqrt</code> as a radical,
+<code>abs</code>/<code>length</code> as bars, <code>vecN</code> as a
+tuple, <code>theta</code> as θ), keeping only the parentheses the
+meaning needs. The inspector uses it for the live preview above the
+expression editor.</p>
 <h2 id="boundaries-and-extensions">Boundaries and extensions</h2>
 <p>This version supports acyclic spatial function graphs and stateless
 time. It does not yet implement feedback textures, fluid simulation

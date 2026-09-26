@@ -1,0 +1,7 @@
+# Text files use LF on every platform, so checkouts match MANIFEST.json hashes.
+* text=auto eol=lf
+# Binary artifacts
+*.png binary
+*.jpg binary
+*.zip binary
+*.webm binary

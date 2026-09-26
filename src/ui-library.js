@@ -1,5 +1,7 @@
 import { $, esc, state, on, toast, showError, loadProject, addComponent, seek, readStorage, writeStorage, STORAGE } from './editor.js';
-import { catalog, typeNames } from './catalog.js';
+import { catalog, typeNames, typeLabels } from './catalog.js';
+import { texToMathML } from './math-render.js';
+import { registerTipProvider } from './ui-tooltip.js';
 import { presets, getPreset } from './presets.js';
 import { thumbnails } from './thumbnails.js';
 import { parseSnapshots, addSnapshot, removeSnapshot, thumbnailFrom, relativeTime } from './snapshots.js';
@@ -19,7 +21,8 @@ export function showLibraryTab(next) {
     renderLibrary();
 }
 function renderScenes(query) {
-    const cards = presets.filter(p => `${p.title} ${p.status}`.toLowerCase().includes(query)).map(p => `<button class="scene-card ${state.project.id === p.id ? 'active' : ''}" data-preset="${p.id}" title="${esc(p.description)}"><img src="${thumbnails[p.id] || ''}" alt="${esc(p.title)} procedural preview"><span><span class="scene-name">${esc(p.title)}</span><small>${esc(p.status)}</small></span></button>`);
+    const cards = presets.filter(p => `${p.title} ${p.status}`.toLowerCase().includes(query)).map(p => `<button class="scene-card ${state.project.id === p.id ? 'active' : ''}" data-preset="${p.id}" data-tip="${esc(p.title)} · ${esc(p.status)}|${esc(p.description)}
+The thumbnail is a small saved picture; opening the scene renders it live from its equations."><img src="${thumbnails[p.id] || ''}" alt="${esc(p.title)} procedural preview"><span><span class="scene-name">${esc(p.title)}</span><small>${esc(p.status)}</small></span></button>`);
     return `<div class="library-kicker">${presets.length} CONSTRUCTIONS / ALL EDITABLE</div>${cards.join('')}`;
 }
 function renderParts(query) {
@@ -32,7 +35,7 @@ function renderParts(query) {
             html += `<div class="library-kicker">${esc(def.category.toUpperCase())}</div>`;
             category = def.category;
         }
-        html += `<button class="part-card" draggable="true" data-add="${type}" title="${esc(def.description)}"><span class="type-dot ${def.output}"></span><span><b>${esc(def.name)}</b><small>${esc(typeNames[def.output])} · click or drag into the graph</small></span></button>`;
+        html += `<button class="part-card" draggable="true" data-add="${type}" data-rich-tip><span class="type-dot ${def.output}"></span><span><b>${esc(def.name)}</b><small>${esc(typeLabels[def.output])} · ${esc(def.description.split('. ')[0])}</small></span></button>`;
     }
     return html || '<p class="muted">No matching components.</p>';
 }
@@ -41,7 +44,7 @@ function renderSnapshots(query) {
     if (!list.length) {
         return '<div class="library-kicker">SNAPSHOTS</div><p class="muted library-note">No snapshots yet. Press <b>Snapshot</b> above the canvas (or the S key) to bookmark the current state before trying a variation. Snapshots stay in this browser.</p>';
     }
-    return `<div class="library-kicker">${list.length} SNAPSHOTS · THIS BROWSER</div>` + list.map(s => `<div class="scene-card snapshot-card" data-snapshot="${s.id}" role="button" tabindex="0" title="Restore this state"><img src="${s.thumb}" alt=""><span><span class="scene-name">${esc(s.title)}</span><small>t = ${s.time.toFixed(2)} s · ${esc(relativeTime(s.savedAt))}</small></span><button class="snapshot-remove" data-remove-snapshot="${s.id}" title="Delete snapshot" aria-label="Delete snapshot ${esc(s.title)}">×</button></div>`).join('') + '<button class="library-clear" data-clear-snapshots>Clear all snapshots</button>';
+    return `<div class="library-kicker">${list.length} SNAPSHOTS · THIS BROWSER</div>` + list.map(s => `<div class="scene-card snapshot-card" data-snapshot="${s.id}" role="button" tabindex="0" data-tip="Restore this snapshot|Returns the project and playhead to this bookmark. Undo takes you back."><img src="${s.thumb}" alt=""><span><span class="scene-name">${esc(s.title)}</span><small>t = ${s.time.toFixed(2)} s · ${esc(relativeTime(s.savedAt))}</small></span><button class="snapshot-remove" data-remove-snapshot="${s.id}" data-tip="Delete this snapshot" aria-label="Delete snapshot ${esc(s.title)}">×</button></div>`).join('') + '<button class="library-clear" data-clear-snapshots>Clear all snapshots</button>';
 }
 export function renderLibrary() {
     const query = $('librarySearch').value.toLowerCase();
@@ -78,7 +81,8 @@ function restoreSnapshot(id) {
         return;
     }
     try {
-        loadProject(s.project);
+        // A snapshot of the scene being edited keeps that scene's original for Revert and reset.
+        loadProject(s.project, { keepBaseline: s.project.id === state.baseline.id });
         seek(s.time);
         $('library').classList.remove('open');
         toast('Snapshot restored. Undo returns to the previous state.');
@@ -136,6 +140,17 @@ $('libraryContent').addEventListener('dragstart', e => {
 $('libraryContent').addEventListener('dragend', () => {
     dragged = null;
     document.body.classList.remove('dragging-component');
+});
+/** Palette tips: description, the typeset equation and how to add the component. */
+registerTipProvider('[data-add]', el => {
+    const def = catalog[el.dataset.add];
+    let equation = '';
+    try {
+        equation = def.tex.map(line => texToMathML(line)).join('');
+    }
+    catch (e) { /* plain-text fallback below */
+    }
+    return `<b>${esc(def.name)}</b><span class="tip-state">${esc(typeNames[def.output])}</span><p>${esc(def.description)}</p><div class="tip-math">${equation || esc(def.equation)}</div><p class="muted">Click to add it, or drag it onto the graph, a card or a matching input dot.</p>`;
 });
 $('librarySearch').oninput = renderLibrary;
 document.querySelectorAll('[data-library]').forEach(b => b.onclick = () => showLibraryTab(b.dataset.library));

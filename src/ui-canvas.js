@@ -1,37 +1,88 @@
-import { $, state, on, toast, showError, transact, history, changed, markDirty, pause, currentNode, viewTarget, setIsolated, setPref, clamp } from './editor.js';
+import { $, esc, state, on, toast, showError, transact, history, changed, markDirty, pause, currentNode, viewedNode, viewOptions, setView, setContributionStyle, setPref, clamp } from './editor.js';
 import { catalog } from './catalog.js';
 import { clone } from './graph.js';
 import { pixelToWorld, worldToPixel, clientToPixel, zoomAbout, panBy, unitsPerPixel, tickSpacing, formatTick } from './view-math.js';
-/** Center panel: the live canvas, its camera gestures, rulers and readouts,
- * reference comparison and the canvas toolbar.
+import { refreshTip } from './ui-tooltip.js';
+/** Center panel: the live canvas and its view switch, camera gestures, rulers and
+ * readouts, the diagnostic legend, reference comparison and the canvas toolbar.
  */
 const app = $('app'), canvas = $('artCanvas'), overlay = $('overlay'), probeNames = { scalar: ['value'], coord: ['x', 'y'], geometry: ['S / warp', 'A / rim', 'coverage'], layer: ['R', 'G', 'B', 'alpha'] };
 let lastProgram = null, rawProbeArmed = false, referenceURL = null, hover = null, pinReadout = null, hoverStamp = 0;
 let gesture = null, pinch = null, wheelBefore = null, wheelTimer;
+/** What the last frame drew: needed so readouts query the same project. */
+let drawn = { project: null, target: null };
 const pointers = new Map();
 export function armProbe() {
     rawProbeArmed = true;
-    toast('Click a point on the artwork to read this component’s raw field value. Alt-click also probes; turn on Rulers for continuous readouts.');
+    toast('Click a point on the artwork to read the shown component’s raw field value. Alt-click also probes; Rulers show it continuously.');
 }
-export function refreshViewLabel() {
-    const project = state.project, id = state.contribution || state.isolated, n = project.nodes.find(v => v.id === id);
-    $('viewLabel').textContent = state.contribution ? `CONTRIBUTION / ${n?.label || id}` : state.isolated ? `FIELD / ${n?.label || id}` : 'COMPOSITE';
-    $('previewBadge').textContent = state.contribution ? 'Contribution view' : 'Isolated field';
-    $('previewBadge').hidden = !id;
-    $('clearPreview').hidden = !id;
+/** Legend explaining the false colors of a non-layer stage, or the effect view. */
+function legendHTML() {
+    if (state.compareOriginal) {
+        return '<b>ORIGINAL</b> the scene as it was opened · release to return';
+    }
+    if (state.viewMode === 'effect') {
+        return state.contributionStyle === 'signed'
+            ? '<span class="swatch warm"></span>brighter with it <span class="swatch cool"></span>darker with it <span class="swatch black"></span>no change'
+            : '<b>In color:</b> pixels this component changes · <b>gray:</b> unchanged';
+    }
+    if (state.viewMode !== 'stage') {
+        return '';
+    }
+    const type = catalog[viewedNode().type].output;
+    if (type === 'scalar') {
+        return '<span class="ramp gray"></span><span>−2</span><span>0</span><span>+2</span> gray = ½ + ½·tanh(value) · Rulers show exact values';
+    }
+    if (type === 'coord') {
+        return '<span class="swatch red"></span>red = ½+½ sin x <span class="swatch green"></span>green = ½+½ sin y · repeats every 2π';
+    }
+    if (type === 'geometry') {
+        return '<span class="swatch red"></span>red = 4 × rim A <span class="swatch green"></span>green = coverage <span class="swatch blue"></span>blue = warp S';
+    }
+    return '';
+}
+export function refreshView() {
+    const project = state.project, node = viewedNode(), mode = state.viewMode;
+    document.querySelectorAll('[data-view]').forEach(b => {
+        const active = b.dataset.view === mode;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-checked', String(active));
+    });
+    $('viewSubject').hidden = mode === 'final';
+    $('viewSubject').innerHTML = mode === 'final' ? '' : `<span class="type-dot ${catalog[node.type].output}"></span>${esc(node.label)}`;
+    $('viewLock').hidden = mode === 'final';
+    $('viewLock').classList.toggle('active', !!state.viewLock);
+    $('viewLock').setAttribute('aria-pressed', String(!!state.viewLock));
+    $('viewLock').textContent = state.viewLock ? '🔒' : '🔓';
+    $('effectStyle').hidden = mode !== 'effect';
+    $('effectStyle').value = state.contributionStyle;
     $('sceneStatus').textContent = project.status || 'Custom construction';
     $('sceneStatus').classList.toggle('study', project.status === 'Interpretive study');
-    $('cornerLabel').textContent = state.contribution ? (state.contributionStyle === 'signed' ? 'CONTRIBUTION · SIGNED DIFFERENCE' : 'CONTRIBUTION · CHANGED PIXELS IN COLOR') : state.isolated ? 'ISOLATED FIELD · DIAGNOSTIC VIEW' : 'LIVE EQUATIONS · NO IMAGE TEXTURES';
+    const legend = legendHTML();
+    $('legend').innerHTML = legend;
+    $('legend').hidden = !legend;
+    $('holdOriginal').classList.toggle('active', state.compareOriginal);
+    $('clearPin').hidden = !state.probePin;
     for (const [id, key] of [['rulersButton', 'rulers'], ['gridButton', 'grid']]) {
         $(id).classList.toggle('active', state.prefs[key]);
         $(id).setAttribute('aria-pressed', String(state.prefs[key]));
     }
+    refreshTip();
 }
 export function resizeImage() {
     const stage = $('stage'), pad = innerWidth < 650 ? 24 : innerWidth < 1200 ? 36 : 56;
     const width = Math.max(10, Math.min(stage.clientWidth - pad, (stage.clientHeight - 42) * 5 / 3));
     $('imageWrap').style.width = `${width}px`;
     state.overlayDirty = true;
+}
+/** Project and renderer options for the next frame: the held original, an
+ * exploration candidate under the pointer, or the real project in the chosen view.
+ */
+function frameSource() {
+    if (state.compareOriginal) {
+        return { project: state.baseline, options: { target: state.baseline.output } };
+    }
+    return { project: state.preview || state.project, options: viewOptions() };
 }
 /** Draw the current view to the canvas; called by the frame loop when dirty. */
 export function renderFrame() {
@@ -41,15 +92,20 @@ export function renderFrame() {
     }
     const width = state.prefs.quality, height = Math.round(width * .6);
     try {
-        const start = performance.now();
-        const options = state.contribution ? { target: state.project.output, contribution: state.contribution, contributionStyle: state.contributionStyle } : { target: viewTarget() };
-        state.compiled = renderer.draw(state.project, state.time, width, height, options);
+        const start = performance.now(), { project, options } = frameSource();
+        state.compiled = renderer.draw(project, state.time, width, height, options);
+        drawn = { project, target: options.contribution ? null : options.target };
         if (renderer.current !== lastProgram) {
             lastProgram = renderer.current;
             $('shaderView').textContent = state.compiled.fragment;
         }
         const ms = performance.now() - start;
-        $('renderStats').textContent = `${width} × ${height}${state.playing ? ` · ${state.fps.toFixed(0)} fps` : ` · ${ms.toFixed(1)} ms submit`}`;
+        state.frameCount++;
+        $('renderStats').textContent = `${width} × ${height}${state.playing ? ` · ${state.fps.toFixed(0)} fps` : ''}`;
+        $('liveStats').textContent = `${width}×${height} · ${ms < 1 ? '<1' : ms.toFixed(0)} ms · frame ${state.frameCount}`;
+        $('liveBadge').classList.remove('pulse');
+        void $('liveBadge').offsetWidth; // restart the pulse animation
+        $('liveBadge').classList.add('pulse');
         if (state.probePin) {
             pinReadout = readout(state.probePin.px, state.probePin.py, true);
         }
@@ -61,11 +117,16 @@ export function renderFrame() {
     }
 }
 // ---- Readouts ----------------------------------------------------------------
+/** Component whose raw values the readouts report: the shown stage, else the selection. */
+function readoutNode() {
+    const node = state.viewMode === 'stage' ? viewedNode() : currentNode();
+    return drawn.project?.nodes.some(n => n.id === node.id) ? node : null;
+}
 /** Everything known about one framebuffer pixel: world position, displayed color
- * and (optionally) the raw field of the selected component.
+ * and (optionally) the raw field of the shown or selected component.
  */
 function readout(px, py, raw) {
-    const { project, renderer } = state, view = project.view;
+    const { renderer } = state, project = drawn.project || state.project, view = project.view;
     const col = Math.floor(px), row = Math.floor(py), world = pixelToWorld(col + .5, row + .5, canvas.width, canvas.height, view);
     const result = { px, py, x: world.x, y: world.y, col, rowFromTop: canvas.height - 1 - row, rgb: null, raw: null, rawError: null };
     if (!renderer || !renderer.current) {
@@ -76,9 +137,10 @@ function readout(px, py, raw) {
     }
     catch (e) { /* Context loss is reported by the renderer's event handler. */
     }
-    if (raw && renderer.info.rawFields && Math.abs(world.x) <= 19 && Math.abs(world.y) <= 19) {
+    const node = readoutNode();
+    if (raw && node && renderer.info.rawFields && Math.abs(world.x) <= 19 && Math.abs(world.y) <= 19) {
         try {
-            const node = currentNode(), values = renderer.samplePoint(project, state.time, node.id, world.x, world.y), names = probeNames[catalog[node.type].output];
+            const values = renderer.samplePoint(project, state.time, node.id, world.x, world.y), names = probeNames[catalog[node.type].output];
             result.raw = { label: node.label, entries: names.map((name, i) => [name, values[i]]) };
         }
         catch (e) {
@@ -207,9 +269,12 @@ export function drawOverlay() {
                     ctx.restore();
                 }
             }
-            ctx.textBaseline = 'alphabetic';
+            const scale = `${formatTick(step, step)} / major tick`; // top-right, clear of the live badge
+            ctx.fillStyle = 'rgba(10,14,16,0.9)';
+            ctx.fillRect(W - ctx.measureText(scale).width - 12, 0, ctx.measureText(scale).width + 12, 16);
             ctx.fillStyle = '#9fb3aa';
-            ctx.fillText(`${formatTick(step, step)} / tick`, W - 60, H - 6);
+            ctx.fillText(scale, W - ctx.measureText(scale).width - 6, 3);
+            ctx.textBaseline = 'alphabetic';
         }
     }
     if (state.probePin && pinReadout) {
@@ -371,7 +436,33 @@ canvas.addEventListener('wheel', e => {
 }, { passive: false });
 // ---- Canvas toolbar ------------------------------------------------------------
 $('resetView').onclick = () => transact(p => p.view = { x: 0, y: 0, zoom: 1 });
-$('clearPreview').onclick = () => setIsolated(null);
+document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => setView(b.dataset.view));
+$('viewLock').onclick = () => setView(state.viewMode, { lock: !state.viewLock });
+$('effectStyle').onchange = e => setContributionStyle(e.target.value);
+/** While held, the canvas shows the scene exactly as it was opened. */
+export function setCompareOriginal(on) {
+    if (state.compareOriginal === on) {
+        return;
+    }
+    state.compareOriginal = on;
+    markDirty();
+    refreshView();
+}
+const hold = $('holdOriginal');
+hold.addEventListener('pointerdown', e => {
+    hold.setPointerCapture(e.pointerId);
+    setCompareOriginal(true);
+});
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    hold.addEventListener(type, () => setCompareOriginal(false));
+}
+hold.addEventListener('keydown', e => {
+    if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
+        e.preventDefault();
+        setCompareOriginal(true);
+    }
+});
+hold.addEventListener('keyup', () => setCompareOriginal(false));
 $('clearPin').onclick = clearPin;
 $('rulersButton').onclick = () => setPref('rulers', !state.prefs.rulers);
 $('gridButton').onclick = () => setPref('grid', !state.prefs.grid);
@@ -382,8 +473,21 @@ if ($('quality').value !== String(state.prefs.quality)) { // unknown stored valu
 $('quality').onchange = () => setPref('quality', Number($('quality').value));
 $('focusButton').onclick = () => {
     app.classList.toggle('focus-canvas');
+    $('focusButton').setAttribute('aria-pressed', String(app.classList.contains('focus-canvas')));
     resizeImage();
 };
+// "⋯" menu for less frequent canvas actions; any choice or outside click closes it.
+$('moreButton').onclick = e => {
+    e.stopPropagation();
+    $('moreMenu').hidden = !$('moreMenu').hidden;
+    $('moreButton').setAttribute('aria-expanded', String(!$('moreMenu').hidden));
+};
+document.addEventListener('click', e => {
+    if (!$('moreMenu').hidden && (!$('moreMenu').contains(e.target) || e.target.closest('button'))) {
+        $('moreMenu').hidden = true;
+        $('moreButton').setAttribute('aria-expanded', 'false');
+    }
+});
 $('copyImage').onclick = async () => {
     if (!state.renderer) {
         showError('A working WebGL 2 context is required.');
@@ -451,11 +555,12 @@ $('removeReference').onclick = () => {
     resizeImage();
 };
 on('refresh', () => {
-    refreshViewLabel();
+    refreshView();
     resizeImage();
 });
-on('view', refreshViewLabel);
+on('view', refreshView);
+on('selection', refreshView);
 on('prefs', () => {
-    refreshViewLabel();
+    refreshView();
     state.overlayDirty = true;
 });
