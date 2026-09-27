@@ -92,7 +92,7 @@
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#architecture-a-small-language-for-visual-fields"
@@ -123,6 +123,12 @@ id="toc-source-coordinates-and-numerical-choices">Source coordinates and
 numerical choices</a></li>
 <li><a href="#the-equation-language" id="toc-the-equation-language">The
 equation language</a></li>
+<li><a href="#shader-code-the-language-of-the-code-component"
+id="toc-shader-code-the-language-of-the-code-component">Shader code: the
+language of the code component</a></li>
+<li><a href="#works-data-scenes-and-verification"
+id="toc-works-data-scenes-and-verification">Works: data, scenes and
+verification</a></li>
 <li><a href="#metadata-that-explains"
 id="toc-metadata-that-explains">Metadata that explains</a></li>
 <li><a href="#reuse-the-renderer-without-the-editor"
@@ -354,8 +360,35 @@ program</td>
 <td>sampling</td>
 <td><code>u_sampling</code>, <code>u_line</code>,
 <code>u_offset</code></td>
-<td>the camera grid, a line of points (the profile) or a tile of an
-atlas</td>
+<td>the camera grid, a line of points (the profile), one point at many
+times (a time profile: <code>u_sampling</code> 2 makes the global
+<code>u_time</code> run along the line), or a tile of an atlas</td>
+</tr>
+<tr>
+<td>time</td>
+<td><code>u_clock</code> → the global <code>u_time</code></td>
+<td>the studio clock; <code>main()</code> copies it into
+<code>u_time</code>, which every kernel reads, unless a time profile
+samples it</td>
+</tr>
+<tr>
+<td>frame</td>
+<td><code>u_frame</code></td>
+<td>the size in pixels of the frame the view represents: twigl’s
+<code>r</code>, and the size of point-cloud textures</td>
+</tr>
+<tr>
+<td>shown variable</td>
+<td><code>u_show</code></td>
+<td>a variable of shader code on the canvas instead of its color (the
+code function returns it when <code>u_target</code> is that
+component)</td>
+</tr>
+<tr>
+<td>point clouds</td>
+<td><code>u_points0</code> … <code>u_points3</code></td>
+<td>the textures the point passes drew, sampled by
+<code>pointsLayer()</code></td>
 </tr>
 </tbody>
 </table>
@@ -367,10 +400,18 @@ deliberately excluded.
 the per-frame masks (<code>active</code>, <code>enabled</code>), the
 list of nodes the view evaluates, and whether a contribution can reach
 the target at all.</p>
-<p>All kernel libraries are included as source; the graphics driver
-removes unreachable functions. A graph does not allocate a texture or
-framebuffer per node. This avoids hidden inter-pass quantization and
-makes inspection/reuse straightforward.</p>
+<p>The kernel libraries (<code>math-glsl.js</code>,
+<code>nebula-glsl.js</code>, <code>motifs-glsl.js</code>,
+<code>twigl-glsl.js</code>) are <strong>linked</strong>, not included
+whole: <code>linkLibraries()</code> in <code>shader-link.js</code>
+splits them into top-level items (functions, overloads, constants,
+structs) and keeps only those reachable from the program’s own code, in
+library order. Most programs shrink from about 60 KB to 6–11 KB of
+source; the browser and the driver have less to parse and validate (on
+the tested Direct3D 11 driver compile time was already dominated by the
+functions used). A graph does not allocate a texture or framebuffer per
+node, except the point clouds (below). This avoids hidden inter-pass
+quantization and makes inspection/reuse straightforward.</p>
 <p>Why one program? Shader compilation is the one expensive operation in
 the app, and some drivers are slow at it: on Direct3D 11 (ANGLE), 1.2
 compiled two programs of about two seconds each whenever a checkbox was
@@ -396,6 +437,36 @@ equation language</a>) into a small typed GLSL function,
 <code>u_params</code> aliases like any other. The statement calls it; a
 color equation that returns <code>vec3</code> is given full
 coverage.</p>
+<h3 id="shader-code-and-point-clouds-in-the-program">Shader code and
+point clouds in the program</h3>
+<p>A <strong>Shader code</strong> component becomes a function
+<code>vec4 code_n3(vec2 p, float time, int show)</code> printed by
+<code>glsl.js</code> (see <a
+href="#shader-code-the-language-of-the-code-component">Shader code</a>),
+called as
+<code>code_n3(n0, u_time*n3_speed+n3_phase, u_target==3?u_show:0)</code>.
+Its numbers are allocated in <code>u_params</code> like parameters
+(<code>params</code> entries of kind <code>literal</code>, whose values
+<code>packParameters()</code> reads from the code text), so two versions
+of a code that differ only in numbers or comments share one program:
+<code>programKey()</code> uses the code’s <em>structure</em>
+(<code>codeStructure()</code>), not its text.
+<code>compileProgram(project, {inlineNumbers: true})</code> prints the
+numbers as constants instead (the exact mode and the exported web page).
+<code>compiled.code[nodeId] = {start, lines}</code> maps each line of
+the function to its code line, and <code>explainCompileLog()</code>
+rewrites a driver’s <code>ERROR: 0:123:</code> as <em>Vortex, code line
+4:</em>.</p>
+<p>A <strong>Point cloud</strong> is drawn by its own small program:
+<code>compiled.points</code> holds, per cloud, a vertex shader that
+evaluates the cloud’s equation (printed by <code>expression.js</code> as
+<code>vec2 points_n3(float i, float n, float t)</code>) for
+<code>gl_VertexID</code> and places a point sprite, and a fragment
+shader that draws an antialiased disc; both read the graph’s
+<code>u_params</code> with the same aliases. The graph program samples
+the cloud’s texture with <code>pointsLayer(u_points0, p)</code>, turning
+the premultiplied accumulation into a straight-alpha layer. At most four
+clouds per program.</p>
 <h2 id="the-renderer-views-passes-and-background-compilation">The
 renderer: views, passes and background compilation</h2>
 <p><code>Renderer</code> in <code>renderer.js</code> owns the WebGL 2
@@ -446,6 +517,41 @@ into a <code>count × 1</code> float target</td>
 <td>statistics for automatic colors</td>
 <td><code>rawImage()</code>: raw values of the target over the camera
 view at 120 × 72</td>
+</tr>
+<tr>
+<td>point clouds</td>
+<td><code>drawPoints()</code> before the graph draw: each cloud’s point
+pass into an <code>RGBA16F</code> texture of the frame’s size (one per
+purpose: view, atlas, probe, stats), with premultiplied blending</td>
+</tr>
+<tr>
+<td>what moves</td>
+<td><code>renderMotion()</code>: the image now and
+<code>MOTION.dt</code> later into two float textures and the compare
+pass; or <em>trails</em>, <code>MOTION.frames</code> frames over
+<code>MOTION.span</code> seconds blended with a constant weight into an
+<code>RGBA16F</code> texture and the <strong>copy pass</strong></td>
+</tr>
+<tr>
+<td>a shown variable</td>
+<td>the target drawn with <code>u_show</code>; <code>shownType()</code>
+gives the type of the variable for the look</td>
+</tr>
+<tr>
+<td>several moments</td>
+<td><code>timeAtlas()</code>: one tile per time in one framebuffer, one
+non-blocking readback (the filmstrip, gallery previews, palette
+previews)</td>
+</tr>
+<tr>
+<td>a point over time</td>
+<td><code>sampleTimes()</code>: <code>u_sampling</code> 2 in one draw,
+or one draw per time when point clouds or keyframes depend on it</td>
+</tr>
+<tr>
+<td>GPU cost</td>
+<td><code>measure()</code>: the median of a few draws of a view, each
+waited for with a one-pixel readback (the Stats tab)</td>
 </tr>
 </tbody>
 </table>
@@ -739,6 +845,125 @@ draws that project instead of the real one, labelled DRAFT; its program
 compiles in the background like any other.
 <code>applyEquation(nodeId, source)</code> commits
 <code>withEquation()</code> as one undo step and discards the draft.</p>
+<h2 id="shader-code-the-language-of-the-code-component">Shader code: the
+language of the code component</h2>
+<p><code>glsl.js</code> reads shader code written for twigl.app’s
+geekest mode: the statements of a GLSL ES 3.00 <code>main()</code> that
+read <code>FC</code>, <code>r</code>, <code>t</code> (and
+<code>m</code>, <code>f</code>, <code>s</code>) and add light to
+<code>o</code>. It never pastes the text into a program:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Function</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tokens</td>
+<td><code>tokenize()</code></td>
+<td>numbers (float vs int), names, operators, comments (kept: they
+caption loops and variables); <code>param</code> lines are separated
+first (<code>parseParamLine()</code> of <code>expression.js</code>)</td>
+</tr>
+<tr>
+<td>parse</td>
+<td><code>Parser</code></td>
+<td>recursive descent: declarations,
+<code>for</code>/<code>while</code>/<code>do</code>/<code>if</code>,
+blocks, <code>break</code>/<code>continue</code>/<code>return</code>,
+and every expression form the one-liners use (comma sequences,
+<code>? :</code> with a sequence in the middle, assignments and compound
+assignments inside expressions, pre/post
+<code>++</code>/<code>--</code>, swizzles, indexing, calls and
+constructors)</td>
+</tr>
+<tr>
+<td>check</td>
+<td><code>Checker</code></td>
+<td>scopes as GLSL ES 3.00 defines them (a <code>for</code> body shares
+the scope of its declaration), no implicit int → float, operators,
+swizzles, constructors, the built-ins’ overloads (generated from generic
+signatures) and twigl’s helpers; errors in words with line and column
+and <em>did you mean</em></td>
+</tr>
+<tr>
+<td>analyze</td>
+<td><code>Simulator</code></td>
+<td>runs the scalar parts of the code in float32
+(<code>Math.fround</code>) to measure how many steps each loop takes
+(<code>for(e=s=9.;s&lt;4e2;s+=s)</code> runs 6 times)</td>
+</tr>
+<tr>
+<td>print</td>
+<td><code>codeGLSL()</code></td>
+<td>every variable renamed (<code>v_depth</code>, <code>v_i_2</code> for
+a shadowing inner <code>i</code>) and declared at the top with zero (so
+each can be shown), declarations inside loops become assignments of zero
+or their value; each loop wrapped as
+<code>{c_1=0; … for(; test &amp;&amp; c_1++ &lt; cap &amp;&amp; --c_budget &gt;= 0; step)}</code>;
+<code>return</code> returns the output; a selector returns the shown
+value</td>
+</tr>
+<tr>
+<td>format</td>
+<td><code>formatCode()</code></td>
+<td>the code laid out one statement per line</td>
+</tr>
+</tbody>
+</table>
+<p><code>analyzeCode(source)</code> (cached) returns
+<code>{params, loops, variables, numbers, refs, comments, helpers, inputs}</code>
+for the UI: the Code view highlights with <code>refs</code> (what every
+name refers to), the Loops panel uses <code>loops</code> (with their
+captions and lengths), Look inside <code>showable()</code>.
+<code>withNumber()</code> and <code>numberText()</code> edit one number
+while keeping twigl’s style (<code>.5</code>). <code>withCode()</code>
+in <code>fork.js</code> applies a new version like
+<code>withEquation()</code>: the component’s time parameters stay,
+<code>param</code> values stay while their default is unchanged, and a
+loop limit the user set stays while a loop that ran in full keeps
+running in full.</p>
+<p>The twigl helpers are in <code>twigl-glsl.js</code> (the noise
+functions by Ashima Arts / Stefan Gustavson as bundled by twigl), with
+<code>codeFragCoord()</code> (the pixel of a plane point; an unwarped
+camera point gets the exact pixel center) and <code>codeColor()</code>
+(NaN → 0, clamp to 0…65504, opaque). The checker’s tables and the
+helpers are one set of names: <code>CODE_HELPERS</code> gives their
+signatures, <code>HELPER_HELP</code> their tooltips.</p>
+<h2 id="works-data-scenes-and-verification">Works: data, scenes and
+verification</h2>
+<p><code>works.js</code> is the single source of the studied animations:
+credit (<code>author</code>, <code>handle</code>, <code>url</code>,
+<code>posted</code>), the clip (<code>video</code>), the scene’s loop
+(<code>duration</code>), <code>original</code> and <code>readable</code>
+code, the point settings of p5 works, a <code>summary</code>, a
+<code>tour</code> of explanation steps (<code>at</code> names code
+snippets whose lines to highlight, <code>show</code> a variable,
+<code>steps</code> loop limits), <code>concepts</code> and
+<code>tags</code>. <code>presets.js</code> turns each into a scene
+(<code>workScene()</code>): a Shader code component with the readable
+code, or a Point cloud over <code>Solid color #090909</code>, in the
+clip’s aspect ratio, output <em>Linear</em> at exposure 1 (so colors are
+what the code computes, as on twigl’s canvas). The component carries
+<code>work: id</code>, so its credit and explanation travel with it when
+it is added to another scene (<code>addWorkComponent()</code> in
+<code>editor.js</code>), and into exported pages and code.</p>
+<p><code>tools/works_check.py</code> verifies every work on the GPU: for
+twigl works it renders the original in a twigl-style shader (the exact
+geekest template and helpers), the original in a Shader code component
+and the readable version, and compares them pixel by pixel; for p5 works
+it runs the original sketch in a p5.js stand-in (Canvas 2D, pixel
+density 2) and compares with the Point cloud.
+<code>tools/generate_works.js</code> writes <code>docs/WORKS.md</code>
+from the registry and the verification.</p>
 <h2 id="metadata-that-explains">Metadata that explains</h2>
 <p>The explanation panel is generated from catalog metadata, so every
 component is explained the same way and a new component is explained by

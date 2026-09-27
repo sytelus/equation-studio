@@ -1,0 +1,47 @@
+{
+  "id": "jewel-box",
+  "title": "Folded jewel box",
+  "description": "A Mandelbox-style fractal: 20 times, space is folded back into a box (2·clamp(p) − p reflects anything outside it) and inverted through the sphere. By yonatan (@zozuar).",
+  "status": "Reproduction · original code",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "shader",
+      "type": "code",
+      "label": "Folded jewel box",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "code": "// Folded jewel box · yonatan (@zozuar), 3 May 2024 · readable version, same image\nvec3 box = vec3(.2, .4, 1.5), p;      // half-size of the folding box along x, y and z\nvec2 uv = (FC.xy - .5*r)/r.y;\nfor (float i, dist, depth, scale, r2; i++ < 50.;) {   // march 50 steps\n  p = vec3(uv*depth, depth) - i/3e4;  // the point on the ray (a tiny shift per step softens banding)\n  mat2 M = rotate2D(t/8.);            // a slow turn\n  p.yz *= M*M;                        // turn about x by twice the angle …\n  p--;                                // … move …\n  p.yx *= M;                          // … and turn about z: the camera orbits\n  scale = 5.;\n  for (int j = 0; j++ < 20; p /= r2) {   // 20 folds of a Mandelbox-like fractal\n    p = 2.*clamp(p, -box, box) - p;   // box fold: whatever sticks out of the box is reflected back in\n    scale /= r2 = dot(p, p);          // sphere inversion (p /= r2 after each fold), tracking the total scale\n  }\n  depth -= dist = p.z/scale;          // step by the folded z, corrected by the scale\n  o += exp(dist*5e3 - sin(vec4(4, 3, 2, 0)*p.z - log(scale)))/50.;   // light near the surface, colored by the fold (p.z) and the scale\n}",
+        "speed": 1,
+        "phase": 0,
+        "steps1": 50,
+        "steps2": 20
+      },
+      "enabled": true,
+      "work": "jewel-box"
+    }
+  ],
+  "output": "shader",
+  "duration": 25.133,
+  "exposure": 1,
+  "tone": "linear",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": [],
+  "aspect": 1,
+  "work": "jewel-box",
+  "thumbTime": 1.3
+}

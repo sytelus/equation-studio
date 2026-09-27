@@ -4,6 +4,7 @@ import { catalog, bypassSocket, insertableTypes, replacementTypes, emitPreview, 
 import { texToMathML, symbolKey } from '../src/math-render.js';
 import { concepts, concept } from '../src/concepts.js';
 import { plotSVG, sample, ticks } from '../src/plot.js';
+import { works } from '../src/works.js';
 
 const ROLES = ['source', 'modifier', 'combine', 'content'];
 const TYPES = Object.keys(typeLabels);
@@ -27,7 +28,7 @@ describe('component catalog', () => {
             }
             for (const [key, spec] of Object.entries(def.params)) {
                 assert(spec.help && spec.help.length > 15, `${key} has help text`);
-                if (spec.kind === 'expression') {
+                if (spec.kind === 'expression' || spec.kind === 'code') {
                     continue;
                 }
                 assert(spec.symbol, `${key} has a symbol`);
@@ -122,8 +123,8 @@ describe('concepts', () => {
             }
         }
     });
-    it('every concept is used by at least one component', () => {
-        const used = new Set(Object.values(catalog).flatMap(d => d.concepts));
+    it('every concept is used by at least one component or work', () => {
+        const used = new Set([...Object.values(catalog).flatMap(d => d.concepts), ...works.flatMap(w => w.concepts)]);
         for (const id of Object.keys(concepts)) {
             assert(used.has(id), id);
         }

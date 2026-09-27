@@ -1,5 +1,6 @@
 import { $, esc, state, on } from './editor.js';
 import { SOFTWARE_ADVICE } from './gpu-info.js';
+import { setExactNumbers } from './ui-settings.js';
 /** What is doing the work: the GPU chip in the LIVE badge, the footer label and
  * the GPU & performance dialog (renderer, capabilities, compile and frame times).
  */
@@ -54,6 +55,8 @@ function dialogHTML() {
 <tr><th>Last frame</th><td>${ms === null ? '—' : `${renderer.gpuTimeExact ? '' : '≤ '}${ms.toFixed(2)} ms on the GPU for ${renderer.gpuPixels.toLocaleString()} pixels`}</td></tr>
 <tr><th>Interactive resolution</th><td>${Math.round(state.adaptiveScale * 100)}% of the still-frame width while dragging or playing</td></tr>
 </table>
+<h3>Shader code</h3>
+<label class="check-row" data-tip="Exact numbers|Off (live): the numbers of shader code are uniforms, so dragging one never recompiles; the GPU compiler cannot fold them, which can change the last digits of chaotic fractals. On (exact): numbers are compiled as constants, exactly as on twigl.app; every number change recompiles."><input type="checkbox" id="exactNumbers" ${state.prefs.exactNumbers ? 'checked' : ''}> Compile numbers as constants (exact, as on twigl; dragging a number recompiles)</label>
 <h3>Compiled programs</h3>
 <p class="muted">One program per graph structure serves every view of it (stages, what a component changes, thumbnails, probes), so ticking components, walking the pipeline or changing parameters never recompiles. Wiring, adding components and editing equations do.</p>
 <table class="gpu-table programs"><tr><th>Program</th><th>Status</th><th>Compile time</th></tr>${programRows(renderer)}</table>
@@ -71,4 +74,9 @@ $('liveBadge').addEventListener('keydown', e => {
     }
 });
 $('gpuLabel').addEventListener('click', openPerformance);
+$('gpuContent').addEventListener('change', e => {
+    if (e.target.id === 'exactNumbers') {
+        setExactNumbers(e.target.checked);
+    }
+});
 on('refresh', refreshGpuLabels);

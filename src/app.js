@@ -1,5 +1,5 @@
 import { Renderer } from './renderer.js';
-import { $, state, refreshUI, changed, pause, toast, showError, loadProject, seek, setView, setContributionStyle, readStorage, STORAGE, markDirty, emit } from './editor.js';
+import { $, state, refreshUI, changed, pause, toast, showError, loadProject, seek, setView, setContributionStyle, setShow, readStorage, STORAGE, markDirty, emit } from './editor.js';
 import { parseProject, clone } from './graph.js';
 import { catalog } from './catalog.js';
 import { loopTime } from './timeline.js';
@@ -21,6 +21,9 @@ import { popOut } from './ui-popout.js';
 import { renderFormulas } from './ui-formula.js';
 import { showMobilePanel } from './ui-mobile.js';
 import { probeSoftwareFallback } from './gpu-info.js';
+import { setFilmstrip } from './ui-filmstrip.js';
+import { cycleContrast, setExactNumbers } from './ui-settings.js';
+import { works } from './works.js';
 import { sources } from './research.js';
 /** Application entry: restore the last session, create the renderer, run the
  * frame loop and expose the documented integration hooks. Panel behavior lives in
@@ -42,7 +45,7 @@ if (saved) {
     }
 }
 try {
-    const renderer = new Renderer($('artCanvas'));
+    const renderer = new Renderer($('artCanvas'), { inlineNumbers: state.prefs.exactNumbers });
     renderer.onLost = () => {
         pause();
         showError('GPU context lost. The browser may restore it; save your project before reloading.');
@@ -71,7 +74,7 @@ function tick(now) {
         state.previewsDirty = true;
     }
     if (state.playing && !state.busy) {
-        state.time += Math.min((now - state.frameStamp) / 1000, .25);
+        state.time += Math.min((now - state.frameStamp) / 1000, .25) * state.prefs.playbackRate;
         if (state.time >= state.project.duration) {
             if ($('loop').checked) {
                 state.time = loopTime(state.time, state.project.duration);
@@ -126,7 +129,7 @@ window.equationStudio = {
         contribution: state.viewMode === 'effect' ? (state.viewLock || state.selected) : null,
         contributionStyle: state.contributionStyle, prefs: { ...state.prefs }, selected: state.selected
     }),
-    /** Canvas view: 'final', 'stage' or 'effect', optionally for a given node. */
+    /** Canvas view: 'final', 'stage', 'effect' or 'motion', optionally for a given node. */
     setView: (mode, node) => {
         if (node && !state.project.nodes.some(n => n.id === node)) {
             throw new Error('Unknown node.');
@@ -151,6 +154,13 @@ window.equationStudio = {
         setView(id ? 'effect' : 'final', { node: id || null, lock: false });
     },
     getBaseline: () => clone(state.baseline),
+    /** The studied works (works.js): credits, original and readable code, tours. */
+    getWorks: () => clone(works),
+    /** Show variable `index` of shader code `node` on the canvas (0: its color). */
+    setShow: (node, index) => setShow(node, index),
+    setFilmstrip: visible => setFilmstrip(visible),
+    cycleContrast: () => cycleContrast(),
+    setExactNumbers: exact => setExactNumbers(exact),
     setPreviews: enabled => setPreviews(enabled),
     snapshot: title => takeSnapshot(title),
     /** Equation Playground: open on a component, close, or ask whether it is open. */

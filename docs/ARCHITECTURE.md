@@ -80,11 +80,15 @@ Everything that changes while you work is a **uniform**, never baked into the so
 | what is evaluated | `u_active`, one bit per component: the shown component's dependencies | a program for the whole graph costs only what the current view needs |
 | which component is shown | `u_target` | walking the pipeline, thumbnails and probes use the same program |
 | display colors or raw values | `u_mode` (`MODES.display`, `MODES.raw`) | float probes and automatic stage colors use the same program |
-| sampling | `u_sampling`, `u_line`, `u_offset` | the camera grid, a line of points (the profile) or a tile of an atlas |
+| sampling | `u_sampling`, `u_line`, `u_offset` | the camera grid, a line of points (the profile), one point at many times (a time profile: `u_sampling` 2 makes the global `u_time` run along the line), or a tile of an atlas |
+| time | `u_clock` → the global `u_time` | the studio clock; `main()` copies it into `u_time`, which every kernel reads, unless a time profile samples it |
+| frame | `u_frame` | the size in pixels of the frame the view represents: twigl's `r`, and the size of point-cloud textures |
+| shown variable | `u_show` | a variable of shader code on the canvas instead of its color (the code function returns it when `u_target` is that component) |
+| point clouds | `u_points0` … `u_points3` | the textures the point passes drew, sampled by `pointsLayer()` |
 
 `programKey(project)` is the structural key of a program: node ids, types, connections and custom equations, in evaluation order. Parameter values, enabled flags, the output choice and the view are deliberately excluded. `viewState(program, project, target, contribution)` computes the per-frame masks (`active`, `enabled`), the list of nodes the view evaluates, and whether a contribution can reach the target at all.
 
-All kernel libraries are included as source; the graphics driver removes unreachable functions. A graph does not allocate a texture or framebuffer per node. This avoids hidden inter-pass quantization and makes inspection/reuse straightforward.
+The kernel libraries (`math-glsl.js`, `nebula-glsl.js`, `motifs-glsl.js`, `twigl-glsl.js`) are **linked**, not included whole: `linkLibraries()` in `shader-link.js` splits them into top-level items (functions, overloads, constants, structs) and keeps only those reachable from the program's own code, in library order. Most programs shrink from about 60 KB to 6–11 KB of source; the browser and the driver have less to parse and validate (on the tested Direct3D 11 driver compile time was already dominated by the functions used). A graph does not allocate a texture or framebuffer per node, except the point clouds (below). This avoids hidden inter-pass quantization and makes inspection/reuse straightforward.
 
 Why one program? Shader compilation is the one expensive operation in the app, and some drivers are slow at it: on Direct3D 11 (ANGLE), 1.2 compiled two programs of about two seconds each whenever a checkbox was unticked, freezing the page. 1.3 compiles the whole scene once (about 0.4 s for the Bipolar Nebula on the same machine) and never again until the wiring or an equation changes. To keep that program small, looks and comparisons are separate fixed shaders (below), not branches of the graph program.
 
@@ -93,6 +97,12 @@ Why one program? Shader compilation is the one expensive operation in the app, a
 ### Custom equations in the program
 
 A custom component's equation is compiled by `expression.js` (see [The equation language](#the-equation-language)) into a small typed GLSL function, `equation_n3(p, a, b, t)`, whose parameters read their `u_params` aliases like any other. The statement calls it; a color equation that returns `vec3` is given full coverage.
+
+### Shader code and point clouds in the program
+
+A **Shader code** component becomes a function `vec4 code_n3(vec2 p, float time, int show)` printed by `glsl.js` (see [Shader code](#shader-code-the-language-of-the-code-component)), called as `code_n3(n0, u_time*n3_speed+n3_phase, u_target==3?u_show:0)`. Its numbers are allocated in `u_params` like parameters (`params` entries of kind `literal`, whose values `packParameters()` reads from the code text), so two versions of a code that differ only in numbers or comments share one program: `programKey()` uses the code's *structure* (`codeStructure()`), not its text. `compileProgram(project, {inlineNumbers: true})` prints the numbers as constants instead (the exact mode and the exported web page). `compiled.code[nodeId] = {start, lines}` maps each line of the function to its code line, and `explainCompileLog()` rewrites a driver's `ERROR: 0:123:` as *Vortex, code line 4:*.
+
+A **Point cloud** is drawn by its own small program: `compiled.points` holds, per cloud, a vertex shader that evaluates the cloud's equation (printed by `expression.js` as `vec2 points_n3(float i, float n, float t)`) for `gl_VertexID` and places a point sprite, and a fragment shader that draws an antialiased disc; both read the graph's `u_params` with the same aliases. The graph program samples the cloud's texture with `pointsLayer(u_points0, p)`, turning the premultiplied accumulation into a straight-alpha layer. At most four clouds per program.
 
 ## The renderer: views, passes and background compilation
 
@@ -108,6 +118,12 @@ A custom component's equation is compiled by `expression.js` (see [The equation 
 | thumbnails | `previewAtlas()`: one draw per tile of one framebuffer, each with its own `u_target`, one readback |
 | profile, point readouts | `sampleLine()` / `samplePoint()`: `u_sampling` evaluates the target at points along a segment into a `count × 1` float target |
 | statistics for automatic colors | `rawImage()`: raw values of the target over the camera view at 120 × 72 |
+| point clouds | `drawPoints()` before the graph draw: each cloud's point pass into an `RGBA16F` texture of the frame's size (one per purpose: view, atlas, probe, stats), with premultiplied blending |
+| what moves | `renderMotion()`: the image now and `MOTION.dt` later into two float textures and the compare pass; or *trails*, `MOTION.frames` frames over `MOTION.span` seconds blended with a constant weight into an `RGBA16F` texture and the **copy pass** |
+| a shown variable | the target drawn with `u_show`; `shownType()` gives the type of the variable for the look |
+| several moments | `timeAtlas()`: one tile per time in one framebuffer, one non-blocking readback (the filmstrip, gallery previews, palette previews) |
+| a point over time | `sampleTimes()`: `u_sampling` 2 in one draw, or one draw per time when point clouds or keyframes depend on it |
+| GPU cost | `measure()`: the median of a few draws of a view, each waited for with a one-pixel readback (the Stats tab) |
 
 The look and compare shaders are fixed: they are compiled once, on first use, whatever the graph. Comparing float images keeps the highlight threshold unquantized; without `EXT_color_buffer_float` the comparison uses bytes and the automatic looks fall back to the classic diagnostic colors (which the graph program computes directly, `presentGLSL`).
 
@@ -220,6 +236,29 @@ so a user edits the math the steps show. Fourteen components have a `source`; th
 `withEquation(project, nodeId, source)` is the single operation behind editing: the project with that component running `source`. A custom equation gets the new text; a built-in component first becomes its equivalent equation (same id and wiring, label “… · equation”, animation tracks renamed with its parameters). Parameters are then synchronized: one whose `param` line keeps its default keeps its current value (clamped to a changed range); a new one, or one whose default was edited, takes the declared default; removed ones lose their tracks. It throws the checker's `EquationError` for an invalid equation.
 
 The editor keeps unapplied edits as **drafts** (`state.drafts`: component id → text, `setDraft()`, `startEdit()`, `discardDraft()` in `editor.js`), shared by every view of the component. While the selected component has a draft, `updateDraftPreview()` computes `withEquation()` for the last text that checked (debounced while typing) and the canvas draws that project instead of the real one, labelled DRAFT; its program compiles in the background like any other. `applyEquation(nodeId, source)` commits `withEquation()` as one undo step and discards the draft.
+
+## Shader code: the language of the code component
+
+`glsl.js` reads shader code written for twigl.app's geekest mode: the statements of a GLSL ES 3.00 `main()` that read `FC`, `r`, `t` (and `m`, `f`, `s`) and add light to `o`. It never pastes the text into a program:
+
+| Stage | Function | What it does |
+|---|---|---|
+| tokens | `tokenize()` | numbers (float vs int), names, operators, comments (kept: they caption loops and variables); `param` lines are separated first (`parseParamLine()` of `expression.js`) |
+| parse | `Parser` | recursive descent: declarations, `for`/`while`/`do`/`if`, blocks, `break`/`continue`/`return`, and every expression form the one-liners use (comma sequences, `? :` with a sequence in the middle, assignments and compound assignments inside expressions, pre/post `++`/`--`, swizzles, indexing, calls and constructors) |
+| check | `Checker` | scopes as GLSL ES 3.00 defines them (a `for` body shares the scope of its declaration), no implicit int → float, operators, swizzles, constructors, the built-ins' overloads (generated from generic signatures) and twigl's helpers; errors in words with line and column and *did you mean* |
+| analyze | `Simulator` | runs the scalar parts of the code in float32 (`Math.fround`) to measure how many steps each loop takes (`for(e=s=9.;s<4e2;s+=s)` runs 6 times) |
+| print | `codeGLSL()` | every variable renamed (`v_depth`, `v_i_2` for a shadowing inner `i`) and declared at the top with zero (so each can be shown), declarations inside loops become assignments of zero or their value; each loop wrapped as `{c_1=0; … for(; test && c_1++ < cap && --c_budget >= 0; step)}`; `return` returns the output; a selector returns the shown value |
+| format | `formatCode()` | the code laid out one statement per line |
+
+`analyzeCode(source)` (cached) returns `{params, loops, variables, numbers, refs, comments, helpers, inputs}` for the UI: the Code view highlights with `refs` (what every name refers to), the Loops panel uses `loops` (with their captions and lengths), Look inside `showable()`. `withNumber()` and `numberText()` edit one number while keeping twigl's style (`.5`). `withCode()` in `fork.js` applies a new version like `withEquation()`: the component's time parameters stay, `param` values stay while their default is unchanged, and a loop limit the user set stays while a loop that ran in full keeps running in full.
+
+The twigl helpers are in `twigl-glsl.js` (the noise functions by Ashima Arts / Stefan Gustavson as bundled by twigl), with `codeFragCoord()` (the pixel of a plane point; an unwarped camera point gets the exact pixel center) and `codeColor()` (NaN → 0, clamp to 0…65504, opaque). The checker's tables and the helpers are one set of names: `CODE_HELPERS` gives their signatures, `HELPER_HELP` their tooltips.
+
+## Works: data, scenes and verification
+
+`works.js` is the single source of the studied animations: credit (`author`, `handle`, `url`, `posted`), the clip (`video`), the scene's loop (`duration`), `original` and `readable` code, the point settings of p5 works, a `summary`, a `tour` of explanation steps (`at` names code snippets whose lines to highlight, `show` a variable, `steps` loop limits), `concepts` and `tags`. `presets.js` turns each into a scene (`workScene()`): a Shader code component with the readable code, or a Point cloud over `Solid color #090909`, in the clip's aspect ratio, output *Linear* at exposure 1 (so colors are what the code computes, as on twigl's canvas). The component carries `work: id`, so its credit and explanation travel with it when it is added to another scene (`addWorkComponent()` in `editor.js`), and into exported pages and code.
+
+`tools/works_check.py` verifies every work on the GPU: for twigl works it renders the original in a twigl-style shader (the exact geekest template and helpers), the original in a Shader code component and the readable version, and compares them pixel by pixel; for p5 works it runs the original sketch in a p5.js stand-in (Canvas 2D, pixel density 2) and compares with the Point cloud. `tools/generate_works.js` writes `docs/WORKS.md` from the registry and the verification.
 
 ## Metadata that explains
 

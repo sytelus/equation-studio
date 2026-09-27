@@ -28,7 +28,7 @@ establishes</title>
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#research-provenance-and-what-from-equations-establishes"
@@ -47,6 +47,9 @@ used in the library</a></li>
 <li><a href="#reproduction-pitfalls-addressed-in-the-port"
 id="toc-reproduction-pitfalls-addressed-in-the-port">Reproduction
 pitfalls addressed in the port</a></li>
+<li><a href="#animation-works-research-of-2526-september-2026"
+id="toc-animation-works-research-of-2526-september-2026">Animation works
+(research of 25–26 September 2026)</a></li>
 <li><a href="#technical-primary-references"
 id="toc-technical-primary-references">Technical primary
 references</a></li>
@@ -277,6 +280,84 @@ worst outlier rather than only a favorable correlation score.</p>
 <p>These are lessons from this implementation and its reference,
 <strong>not</strong> asserted explanations of the unrecovered Rust
 debugging exchange.</p>
+<h2 id="animation-works-research-of-2526-september-2026">Animation works
+(research of 25–26 September 2026)</h2>
+<p>Nineteen links were studied for 2.0. The posts were read through the
+public fxtwitter mirror (<code>api.fxtwitter.com</code>), which returns
+a post’s text, author, date and media; the clips were downloaded only to
+compare frames and are <strong>not</strong> redistributed. Every
+conclusion below comes from the posts’ own text and code:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Posts</th>
+<th>What they contain</th>
+<th>What the studio does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>9 by yonatan (<span class="citation"
+data-cites="zozuar">@zozuar</span>), 1 by Xor (<span class="citation"
+data-cites="XorDev">@XorDev</span>), 3 by Yohei Nishitsuji (<span
+class="citation"
+data-cites="YoheiNishitsuji">@YoheiNishitsuji</span>)</td>
+<td>the complete twigl.app shader (geekest 300 es) in the text of the
+post, with a clip</td>
+<td>runs the code unchanged; a readable version with the same
+operations; bit-identical frames on SwiftShader against the code in
+twigl’s template (<code>tools/works_check.py</code>)</td>
+</tr>
+<tr>
+<td>4 by ア (<span class="citation"
+data-cites="yuruyurau">@yuruyurau</span>)</td>
+<td>the complete p5.js sketch in the text of the post, with a clip</td>
+<td>the sketch’s point formula in a Point cloud with the sketch’s count,
+opacity and speed; compared with the sketch drawn by a p5.js stand-in at
+pixel density 2</td>
+</tr>
+<tr>
+<td>1 by Jae (<span class="citation"
+data-cites="Jaenam97">@Jaenam97</span>), “Fluffy Anemone”</td>
+<td>a clip and a description (“Volumetric raymarch of a fluffy sea
+creature. No geometry… multi pass #glsl fragment shader”); no code; a
+web search found no published source</td>
+<td>our own single-pass volumetric study of the look, labelled a study
+everywhere</td>
+</tr>
+<tr>
+<td>1 Grok conversation
+(<code>x.com/i/grok?conversation=2103445614214463548</code>)</td>
+<td>not readable: it redirects to the X login page and no public copy
+was found</td>
+<td>nothing; recorded as inaccessible</td>
+</tr>
+</tbody>
+</table>
+<p>twigl’s conventions were taken from its source (doxas/twigl, MIT
+License): in geekest mode the code is the body of <code>main()</code>
+with <code>FC</code> = <code>gl_FragCoord</code>, uniforms
+<code>r</code>, <code>m</code>, <code>t</code>, <code>f</code>,
+<code>s</code>, <code>b</code> and the output <code>o</code>, and a
+helper library (simplex noise by Ashima Arts / Stefan Gustavson,
+<code>hsv</code>, <code>rotate2D</code>, <code>rotate3D</code>,
+<code>fsnoise</code>, <code>PI</code>, <code>PI2</code>) that
+<code>src/twigl-glsl.js</code> reproduces. The p5.js sketches were read
+as p5.js runs them: <code>createCanvas(400, 400)</code> at pixel density
+2 (the clips are 800 × 800), <code>background(9)</code> every frame,
+<code>stroke(400, a)</code> (white, alpha a/255), <code>point()</code>
+drawing a disc of the stroke weight (1), and <code>t</code> advanced by
+the sketch’s increment before each frame at 60 frames per second.</p>
+<p>The explanations (titles, summaries, tours, readable variable names)
+are Equation Studio’s reading of the code, checked against its behavior
+in the studio (showing variables, stopping loops); they are not the
+artists’ words. Only “Vortex” and “Fluffy Anemone” are the artists’
+titles.</p>
 <h2 id="technical-primary-references">Technical primary references</h2>
 <ul>
 <li><a
@@ -291,6 +372,20 @@ raw field probes.</li>
 <li><a href="https://www.w3.org/TR/mediacapture-fromelement/">W3C Media
 Capture from DOM Elements</a> — canvas capture used for real-time video.
 Browser support is detected rather than assumed.</li>
+<li><a href="https://github.com/doxas/twigl">twigl</a> by doxas — the
+geekest-mode template and helper library that the Shader code component
+reproduces.</li>
+<li><a href="https://p5js.org/reference/">p5.js reference</a> —
+<code>point()</code>, <code>stroke()</code>, <code>mag()</code>, pixel
+density, as used by the point sketches.</li>
+<li><a href="https://www.w3.org/TR/webcodecs/">WebCodecs</a> and <a
+href="https://www.iso.org/standard/83102.html">ISO/IEC 14496-12 (ISO
+base media file format)</a> — the MP4 export: H.264 samples from
+<code>VideoEncoder</code>, boxes written by
+<code>src/encoders.js</code>.</li>
+<li><a href="https://www.w3.org/Graphics/GIF/spec-gif89a.txt">GIF89a</a>
+and <a href="https://wiki.mozilla.org/APNG_Specification">APNG</a> — the
+GIF and animated-PNG exports.</li>
 <li><a href="https://arxiv.org/abs/astro-ph/9912508">Bartelmann and
 Schneider, Weak Gravitational Lensing</a> — scientific background for
 lens mapping. Our dimensionless softened map is an illustrative

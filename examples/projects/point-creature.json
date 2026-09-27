@@ -1,0 +1,72 @@
+{
+  "id": "point-creature",
+  "title": "Swimming creature",
+  "description": "A creature swimming in a circle. By ア (@yuruyurau).",
+  "status": "Reproduction · original code",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "background",
+      "type": "solid",
+      "label": "Solid color",
+      "inputs": {},
+      "params": {
+        "color": "#090909",
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "cloud",
+      "type": "points",
+      "label": "Swimming creature",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "expression": "// Swimming creature · ア (@yuruyurau), 16 Sep 2026 · the point formula of the p5.js sketch\ny = i/598                             // a slow second index: 0 to 33 over the 20000 points\nk = (5 + sin(y))*cos(i/7)             // across the body: a fast swing every 44 points, wider where sin(y) is large\ne = y/5 - 11                          // along the body: −11 to −4.3\nd = length(vec2(k, e))/.6 - 6         // distance in the (k, e) plane: where along the body the point is\nq = 99 + d*sin(t - d) + y/23*k*(3*sin(e) + e*sin(e*2) + sin(d*4))   // distance from the center: a wave runs along the body; fins and hairs from the sines\nc = d/4 - t/8 + cos(t + e)/9          // angle around the center: the creature circles once every 16π of sketch time and wiggles\nvec2(q*sin(c) + 200, q*cos(c) + 200)  // polar to sketch pixels around the center (200, 200)",
+        "count": 20000,
+        "size": 1,
+        "color": "#ffffff",
+        "alpha": 0.3764705882352941,
+        "canvas": 400,
+        "speed": 6.283185307179586,
+        "phase": 0.10471975511965977
+      },
+      "enabled": true,
+      "work": "point-creature"
+    },
+    {
+      "id": "final",
+      "type": "over",
+      "label": "Front over back",
+      "inputs": {
+        "front": "cloud",
+        "back": "background"
+      },
+      "params": {},
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1,
+  "tone": "linear",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": [],
+  "aspect": 1,
+  "work": "point-creature",
+  "thumbTime": 1.3
+}

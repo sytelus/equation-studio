@@ -367,8 +367,9 @@ export const presentGLSL = `
 uniform int u_type;     // coord 0, scalar 1, geometry 2, layer 3
 uniform int u_look;     // classic 0, auto 1, alpha 2
 uniform float u_gain;   // layer exposure multiplier of the auto look
+uniform int u_overBlack; // show a layer composited over black (point clouds: color only where points are)
 vec3 present(vec4 f){
- if(u_type==3) return u_look==2?vec3(clamp(f.a,0.0,1.0)):displayColor(f.rgb*u_gain,u_exposure,u_tone);
+ if(u_type==3) return u_look==2?vec3(clamp(f.a,0.0,1.0)):displayColor((u_overBlack==1?f.rgb*clamp(f.a,0.0,1.0):f.rgb)*u_gain,u_exposure,u_tone);
  if(u_type==1) return vec3(0.5+0.5*tanh(f.x));
  if(u_type==0) return vec3(0.5+0.5*sin(f.x),0.5+0.5*sin(f.y),0.5);
  return vec3(f.y*4.0,f.z,0.5+0.5*tanh(f.x));

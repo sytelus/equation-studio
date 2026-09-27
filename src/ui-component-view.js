@@ -6,27 +6,35 @@ import { texToMathML, texToMathMLSegments, programToMathML, symbolKey, nameMathM
 import { concept } from './concepts.js';
 import { plotSVG } from './plot.js';
 import { originalValue, isParamModified, isModified } from './explore.js';
-import { forkBlocker, equationSource } from './fork.js';
+import { forkBlocker } from './fork.js';
 import { compileEquation, programGLSL, LIBRARY } from './expression.js';
 import { mathGLSL } from './math-glsl.js';
 import { nebulaGLSL } from './nebula-glsl.js';
 import { motifsGLSL } from './motifs-glsl.js';
 import { previewTile } from './ui-previews.js';
 import { openSweep, openVariations } from './ui-explore.js';
+import { codeTab, insideTab, workSection, tourSection, originalSection, workOf, codeAction, codeClick, startNumberDrag, numberKey, codeDraftStatus, readPointValues } from './ui-code-view.js';
+import { statsTab, statsAction } from './ui-stats.js';
 /** One component, explained and editable. The same view renders in the
  * component panel (normal or wide: the Equation Playground) and in a pop-out
  * window, so it never looks elements up through `document`: everything is scoped
  * to its root and events are delegated to the root once.
  *
  * Layout. A header that stays in view names the component and its place in the
- * construction (◀ 7 of 9 ▶), holds its include switch, and offers four tabs:
+ * construction (◀ 7 of 9 ▶), holds its include switch, and offers tabs:
  *
  *   Equation  what it computes: the equation as numbered steps with captions
  *             (symbols colored by role; drag a parameter symbol to change it),
  *             ✎ Edit, the parameters and the key function
+ *   Code      (shader code) the code, highlighted and explained, its loops, time
+ *             and parameters, and for a work its credit and guided tour
+ *             (ui-code-view.js)
+ *   Look inside (shader code) every variable, viewable on the canvas
  *   In & out  where each input comes from, and where the output goes and what
  *             it is called there
  *   Ideas     the recurring mathematical ideas behind it, and its other symbols
+ *   Stats     measurements of its output: values, histogram, motion over the
+ *             loop, GPU time (ui-stats.js)
  *   More      its shader code, animation tracks, replace / duplicate / delete
  *
  * Editing. ✎ Edit replaces the steps by an editor holding the equation (for a
@@ -35,7 +43,15 @@ import { openSweep, openVariations } from './ui-explore.js';
  * Cancel. Width decides the layout: two columns when the view is wide enough.
  */
 const views = new Set();
-const TABS = [['equation', 'Equation'], ['flow', 'In & out'], ['ideas', 'Ideas'], ['more', 'More']];
+const TAB_LABELS = { equation: 'Equation', code: 'Code', inside: 'Look inside', flow: 'In & out', ideas: 'Ideas', stats: 'Stats', more: 'More' };
+/** The tabs of a component's view. */
+function tabsFor(n) {
+    return catalog[n.type].code ? ['code', 'inside', 'flow', 'ideas', 'stats', 'more'] : ['equation', 'flow', 'ideas', 'stats', 'more'];
+}
+/** The ideas behind a component, and behind the work it belongs to. */
+function conceptsOf(n) {
+    return [...new Set([...catalog[n.type].concepts, ...(workOf(n)?.concepts || [])])];
+}
 const LIBRARY_SOURCE = `${mathGLSL}\n${nebulaGLSL}\n${motifsGLSL}`;
 const CUSTOM_LHS = { expression: '<mi>f</mi>', vectorExpression: '<mi>q</mi>', colorExpression: '<mi mathvariant="normal">RGB</mi>' };
 const formatNumber = value => String(Number(Number(value).toFixed(5)));
@@ -179,10 +195,23 @@ export class ComponentView {
         const def = catalog[n.type], evaluated = animatedParameters(state.project, n, state.time), fresh = this.root.dataset.node !== n.id;
         if (fresh) {
             this.ui.blockedNote = false;
+            this.ui.tour = null;
+            this.ui.pointValues = null;
+        }
+        const tabs = tabsFor(n);
+        if (!tabs.includes(this.ui.tab)) {
+            this.ui.tab = this.ui.tab === 'equation' || this.ui.tab === 'code' ? tabs[0] : this.ui.tab === 'inside' ? 'code' : tabs[0];
         }
         const focus = this.captureFocus();
-        const bodies = { equation: () => this.equationTab(n, def, evaluated), flow: () => this.flowTab(n, def), ideas: () => this.ideasTab(def), more: () => this.moreTab(n, def) };
-        this.root.innerHTML = `<div class="cview">${this.head(n, def)}<div class="cv-body" role="tabpanel" aria-label="${esc(TABS.find(t => t[0] === this.ui.tab)[1])}">${bodies[this.ui.tab]()}</div></div>`;
+        const bodies = { equation: () => this.equationTab(n, def, evaluated), code: () => codeTab(this, n, evaluated), inside: () => insideTab(this, n), flow: () => this.flowTab(n, def), ideas: () => this.ideasTab(n, def), stats: () => statsTab(this, n), more: () => this.moreTab(n, def) };
+        this.root.innerHTML = `<div class="cview">${this.head(n, def)}<div class="cv-body" role="tabpanel" aria-label="${esc(TAB_LABELS[this.ui.tab])}">${bodies[this.ui.tab]()}</div></div>`;
+        if (this.ui.tab === 'inside') {
+            const key = JSON.stringify([state.probePin, state.time, n.params.code, state.project.view]);
+            if (key !== this.ui.pointKey) {
+                this.ui.pointKey = key;
+                readPointValues(this, n);
+            }
+        }
         this.root.dataset.node = n.id;
         this.paintThumbs();
         if (fresh) {
@@ -232,9 +261,10 @@ export class ComponentView {
             ? `<span class="cv-pos">Pinned: step ${position + 1} of ${order.length}</span>`
             : `<button class="cv-step" data-action="prev" ${index <= 0 ? 'disabled' : ''} aria-label="Previous component" data-key="[" data-tip="Previous component|The one before this in evaluation order. The canvas keeps its view.">◀</button><span class="cv-pos" data-tip="Where you are|Components are numbered in evaluation order, the order of the Pipeline.">Step ${index + 1} of ${count}</span><button class="cv-step" data-action="next" ${index >= count - 1 ? 'disabled' : ''} aria-label="Next component" data-key="]" data-tip="Next component|The one after this in evaluation order. The canvas keeps its view.">▶</button>`;
         const draft = this.editing(n) ? '<span class="cv-draft" data-tip="Unapplied edit|This component’s equation has an edit that is not applied yet. Apply or Cancel it in the Equation tab.">✎ editing</span>' : '';
-        const tabs = TABS.map(([id, label]) => {
-            const extra = id === 'ideas' && def.concepts.length ? ` <span class="cv-count">${def.concepts.length}</span>` : id === 'more' && state.project.tracks.some(t => t.node === n.id && t.keys.length) ? ' <span class="cv-count">◆</span>' : id === 'equation' && this.editing(n) ? ' <span class="cv-count">✎</span>' : '';
-            return `<button role="tab" class="cv-tab ${this.ui.tab === id ? 'active' : ''}" data-tab="${id}" aria-selected="${this.ui.tab === id}">${label}${extra}</button>`;
+        const concepts = conceptsOf(n).length;
+        const tabs = tabsFor(n).map(id => {
+            const extra = id === 'ideas' && concepts ? ` <span class="cv-count">${concepts}</span>` : id === 'more' && state.project.tracks.some(t => t.node === n.id && t.keys.length) ? ' <span class="cv-count">◆</span>' : (id === 'equation' || id === 'code') && this.editing(n) ? ' <span class="cv-count">✎</span>' : id === 'inside' && state.show?.node === n.id ? ' <span class="cv-count">◉</span>' : '';
+            return `<button role="tab" class="cv-tab ${this.ui.tab === id ? 'active' : ''}" data-tab="${id}" aria-selected="${this.ui.tab === id}">${TAB_LABELS[id]}${extra}</button>`;
         }).join('');
         return `<header class="cv-head"><div class="cv-nav">${nav}${draft}<span class="spacer"></span>${tools}</div>
 <div class="inspector-head"><label class="switch" data-tip="${n.enabled ? 'Included' : 'Bypassed'}|Untick to bypass this component: it then ${esc(bypass)}. Tick to include it again." data-toggle aria-pressed="${n.enabled}"><input type="checkbox" id="nodeEnabled" ${n.enabled ? 'checked' : ''} aria-label="Include this component"><span></span></label><input class="node-title" id="nodeLabel" value="${esc(n.label)}" aria-label="Component label" maxlength="160" data-tip="Rename|The label is only for you; the id stays ${esc(n.id)}."><span class="type-chip ${def.output}" data-tip="Output type|${esc(typeNames[def.output])}">${esc(typeLabels[def.output])}</span></div>
@@ -255,7 +285,8 @@ export class ComponentView {
         if (this.editing(n)) {
             return `${intro}<div class="cv-cols editing"><div class="cv-col">${this.editor(n, def)}</div><div class="cv-col">${this.draftMath(n, def)}${this.syntaxHelp(n)}</div></div>`;
         }
-        return `${intro}<div class="cv-cols"><div class="cv-col">${this.steps(n, def, evaluated)}</div><div class="cv-col">${this.parameters(n, def, evaluated)}${this.curve(def, evaluated)}</div></div>`;
+        const work = workOf(n) ? `${workSection(this, n)}` : '';
+        return `${intro}<div class="cv-cols"><div class="cv-col">${work}${this.steps(n, def, evaluated)}${workOf(n) ? originalSection(this, n) : ''}</div><div class="cv-col">${workOf(n) ? tourSection(this, n) : ''}${this.parameters(n, def, evaluated)}${this.curve(def, evaluated)}</div></div>`;
     }
     editButton(n) {
         const blocker = forkBlocker(n.type);
@@ -301,6 +332,9 @@ export class ComponentView {
     }
     /** The draft's check result: {ok, text}. */
     draftStatus(n) {
+        if (catalog[n.type].code) {
+            return codeDraftStatus(n);
+        }
         const source = state.drafts.get(n.id);
         try {
             compileEquation(source, catalog[n.type].custom ? n.type : { scalar: 'expression', coord: 'vectorExpression', layer: 'colorExpression' }[catalog[n.type].output]);
@@ -420,8 +454,9 @@ export class ComponentView {
         return this.section('flow', 'DATA FLOW', html, { tip: 'In & out|Where this component’s inputs come from, and where its output goes and what it is called there. Click one to select it.' });
     }
     // ---- Ideas tab -------------------------------------------------------------
-    ideasTab(def) {
-        const cards = def.concepts.length ? def.concepts.map(id => this.conceptCard(id)).join('') : '<p class="muted small-note">No recurring ideas are listed for this component; its steps explain it.</p>';
+    ideasTab(n, def) {
+        const concepts = conceptsOf(n);
+        const cards = concepts.length ? concepts.map(id => this.conceptCard(id)).join('') : '<p class="muted small-note">No recurring ideas are listed for this component; its steps explain it.</p>';
         const rows = def.notes.map(([symbol, meaning]) => `<div class="sym-row sym-note"><span class="sym">${math(symbol)}</span><span class="wide">${richText(meaning)}</span></div>`).join('');
         return this.section('why', 'WHY IT IS WRITTEN THIS WAY', `<div class="concept-grid">${cards}</div>`, { tip: 'The ideas behind it|The recurring mathematical ideas this equation uses, each explained with a small plot you can play with.' })
             + (rows ? this.section('symbols', 'OTHER SYMBOLS', `<div class="sym-list">${rows}</div>`) : '');
@@ -438,6 +473,10 @@ export class ComponentView {
     }
     code(n, def) {
         let body;
+        if (def.code) {
+            body = '<p class="node-caption">The code itself is in the Code tab. The Shader tab under the canvas shows the whole program it becomes: every variable renamed and declared at the top, each loop counted, numbers read from uniforms.</p>';
+            return this.section('code', 'SHADER CODE', body);
+        }
         if (def.custom) {
             try {
                 const program = compileEquation(n.params.expression, n.type);
@@ -514,6 +553,12 @@ export class ComponentView {
             if (curve && def.curve) {
                 curve.innerHTML = this.curveSVG(def, evaluated);
             }
+            for (const row of this.qa('.loop-row')) { // loop sliders show their step count next to them
+                const input = row.querySelector('input[data-param]'), out = row.querySelector('output');
+                if (input && out && input !== this.root.ownerDocument.activeElement) {
+                    out.textContent = input.value;
+                }
+            }
             if (this.ui.values) { // update the numbers in place: a symbol being dragged must survive
                 for (const sym of this.qa('.steps .sym-param[data-param]')) {
                     const value = evaluated[sym.dataset.param];
@@ -531,7 +576,7 @@ export class ComponentView {
             return;
         }
         const editor = this.q('#equationEditor');
-        if (this.editing(n) !== !!editor || this.ui.tab !== 'equation') {
+        if (this.editing(n) !== !!editor || (this.ui.tab !== 'equation' && this.ui.tab !== 'code')) {
             this.render(); // edit mode started or ended
             return;
         }
@@ -580,10 +625,11 @@ export class ComponentView {
                 e.preventDefault();
                 this.applyDraft();
             }
+            numberKey(this, e);
         });
         root.addEventListener('pointerover', e => this.highlight(e.target.closest('[data-param], [data-socket], [data-param-symbol], [data-input-row]'), true));
         root.addEventListener('pointerout', e => this.highlight(e.target.closest('[data-param], [data-socket], [data-param-symbol], [data-input-row]'), false));
-        root.addEventListener('pointerdown', e => this.startScrub(e));
+        root.addEventListener('pointerdown', e => startNumberDrag(this, e) || this.startScrub(e));
     }
     /** Light up every occurrence of the same parameter or input in this view. */
     highlight(el, on) {
@@ -644,13 +690,15 @@ export class ComponentView {
         (this.q(`#number-${CSS.escape(key)}`) || this.q(`[data-param="${CSS.escape(key)}"]`))?.focus({ preventScroll: true });
     }
     showTab(tab) {
-        if (TABS.some(t => t[0] === tab) && tab !== this.ui.tab) {
+        const n = this.node(), tabs = n ? tabsFor(n) : Object.keys(TAB_LABELS);
+        tab = tab === 'equation' && !tabs.includes(tab) ? tabs[0] : tab;
+        if (tabs.includes(tab) && tab !== this.ui.tab) {
             this.ui.tab = tab;
             this.render();
         }
     }
     beginEdit(n) {
-        this.ui.tab = 'equation';
+        this.ui.tab = tabsFor(n)[0];
         startEdit(n.id); // emits `draft`, which renders every view of it in edit mode
         this.render();
         const editor = this.q('#equationEditor');
@@ -678,6 +726,12 @@ export class ComponentView {
             return;
         }
         const action = t.closest('[data-action]')?.dataset.action;
+        if (action && (codeAction(this, n, action, t) || statsAction(this, n, action, t))) {
+            return;
+        }
+        if (!action && codeClick(this, n, t)) {
+            return;
+        }
         const actions = {
             prev: () => selectStep(-1),
             next: () => selectStep(1),
@@ -843,10 +897,10 @@ export class ComponentView {
         if (source === undefined) {
             return;
         }
-        const builtIn = !catalog[n.type].custom;
+        const builtIn = !catalog[n.type].custom && !catalog[n.type].code;
         try {
             if (applyEquation(n.id, source)) {
-                toast(builtIn ? 'Applied: the component is now your equation. Undo restores the original.' : 'Equation applied. Undo returns the previous one.');
+                toast(catalog[n.type].code ? 'Code applied. Undo returns the previous version.' : builtIn ? 'Applied: the component is now your equation. Undo restores the original.' : 'Equation applied. Undo returns the previous one.');
             }
         }
         catch (e) {
@@ -865,7 +919,7 @@ export function renderViews() {
         v.render();
     }
 }
-/** Show one tab of every view ('equation', 'flow', 'ideas', 'more'). */
+/** Show one tab of every view ('equation', 'code', 'inside', 'flow', 'ideas', 'stats', 'more'). */
 export function showViewTab(tab) {
     for (const v of views) {
         v.showTab(tab);
@@ -889,6 +943,14 @@ on('time', () => {
 on('draft', nodeId => {
     for (const v of views) {
         v.onDraft(nodeId);
+    }
+});
+/** A pinned point changed: Look inside reads its values there. */
+on('pin', () => {
+    for (const v of views) {
+        if (v.ui.tab === 'inside') {
+            v.render();
+        }
     }
 });
 on('previews', () => {

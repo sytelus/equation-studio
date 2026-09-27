@@ -24,6 +24,17 @@ def count(pattern, text, default='?'):
 
 
 gpu = json.loads((DOCS / 'GPU_VALIDATION.json').read_text(encoding='utf-8'))
+
+
+def optional(name):
+    """A JSON result that a separate tool writes, or None when it was not run."""
+    path = DOCS / name
+    return json.loads(path.read_text(encoding='utf-8')) if path.exists() else None
+
+
+works_report = optional('WORKS_VALIDATION.json')
+regression = optional('REGRESSION_VALIDATION.json')
+performance = optional('PERFORMANCE.json')
 workflow = json.loads((DOCS / 'WORKFLOW_VALIDATION.json').read_text(encoding='utf-8'))
 node_log = (DOCS / 'NODE_TEST_RESULTS.txt').read_text(encoding='utf-8')
 cpu_log = (DOCS / 'CPU_TEST_RESULTS.txt').read_text(encoding='utf-8')
@@ -44,6 +55,28 @@ try:
 except ValueError:
     date = gpu.get('date', 'unknown')
 workflow_names = '; '.join(c['name'] for c in workflow['checks'] if not c['name'].startswith('No uncaught'))
+performance_section = ''
+if performance:
+    rows = ''.join(f"| {id} | {v['uniform_ms_per_change']} ms | {v['constant_ms_per_change']} ms |\n" for id, v in performance['numbers'].items())
+    points = ''.join(f"| {id} | {v['gpu_frame_ms']} ms | {v['canvas2d_frame_ms']} ms |\n" for id, v in performance['points'].items())
+    frames = ', '.join(f"{id} {ms} ms" for id, ms in performance['frames_1024'].items())
+    compile_rows = performance['compile']
+    smaller = sum(v['all_libraries_chars'] for v in compile_rows.values()) / max(1, sum(v['linked_chars'] for v in compile_rows.values()))
+    performance_section = f'''## Performance measurements (2.0)
+
+Measured by `tools/perf_report.py` on {performance['gpu']} ({performance['date']}); a hardware benchmark of this one machine, not a promise for others.
+
+| Dragging a number of shader code | Numbers as uniforms (live) | Numbers as constants (recompile) |
+|---|---:|---:|
+{rows}
+| 20,000 points per frame | GPU point pass | The sketch in Canvas 2D |
+|---|---:|---:|
+{points}
+Frame time at 1024 pixels wide: {frames}.
+
+Linking only the used library functions makes program sources {smaller:.1f}× smaller on average; compile times with and without it are in [PERFORMANCE.json](PERFORMANCE.json) (on this Direct3D 11 driver they differ little).
+
+'''
 
 
 def check(prefix):
@@ -56,6 +89,16 @@ def verdict(c):
 
 
 shared = check('bypass flags, the output and every view share')
+works_row = regression_row = ''
+if works_report:
+    ws = works_report['works']
+    twigl = [w for w in ws.values() if w['platform'] == 'twigl']
+    exact = sum(1 for w in twigl if w['readable_vs_raw']['max'] == 0 and w['original_vs_raw']['max'] == 0 and w['readable_vs_original']['max'] == 0)
+    p5 = [w for w in ws.values() if w['platform'] == 'p5']
+    works_row = f"| Animation works | **{exact}/{len(twigl)} twigl shaders bit-identical** three ways (the original in twigl's template, in a Shader code component, and the readable version); **{len(p5)} p5.js sketches** against a p5.js stand-in, mean difference at most {max(w['per_pixel']['mean'] for w in p5):.2f}/255 ({works_report['backend']}, {works_report['size']} px) | [Works report](WORKS_VALIDATION.json), [WORKS](WORKS.md) |\n"
+if regression:
+    worst = max(r['final_max_byte_difference'] for r in regression['renders'])
+    regression_row = f"| 1.x scenes unchanged | **{len(regression['renders'])} renders** of the twelve 1.x scenes (final image and every component's raw values, t = 0 and 2.3) against revision `{regression['revision']}`: {'identical' if regression['identical'] else f'largest byte difference {worst}'} | [Regression report](REGRESSION_VALIDATION.json) |\n"
 subgraphs = check('whole-graph and subgraph programs agree')
 lines = check('line probes match point probes')
 forked = check('edit as equation:')
@@ -72,7 +115,7 @@ Validation date: **{date}**. This is an executed implementation, not a mock-up o
 |---|---|---|
 | JavaScript unit tests | **{node_pass} passed, {node_fail} failed** | [Captured output](NODE_TEST_RESULTS.txt) |
 | Retained Python source tests | **{cpu_ran} ran, {'all passed' if cpu_ok else 'see log'}** | [Captured output](CPU_TEST_RESULTS.txt) |
-| Actual WebGL scene rendering | **{presets}/{presets} presets** at 640 × 384, with finite-output checks | [GPU report](GPU_VALIDATION.json) |
+| Actual WebGL scene rendering | **{presets}/{presets} presets** 640 pixels wide in their own aspect ratio, with finite-output checks | [GPU report](GPU_VALIDATION.json) |
 | Actual component shaders | **{components}/{components} component kinds** compiled and rendered with finite default outputs | [GPU report](GPU_VALIDATION.json) |
 | Per-node preview atlas | **{previews}/{previews} presets** rendered a finite thumbnail for every node from one shared program | [GPU report](GPU_VALIDATION.json) |
 | Bypass and contribution | A disabled modifier is an exact identity, a disabled combiner passes its input, disabled content is zero; the contribution view marks only pixels a node changes | [GPU report](GPU_VALIDATION.json) |
@@ -82,7 +125,7 @@ Validation date: **{date}**. This is an executed implementation, not a mock-up o
 | Stateless animation | **{moving}/{moving} tested moving presets** changed at t=2.3 and repeated the original t=0 frame exactly on this backend | [GPU report](GPU_VALIDATION.json) |
 | Original source raw fields | **{probes} native-grid points**, seven field groups, actual float framebuffer readback vs float64 CPU | [GPU report](GPU_VALIDATION.json) |
 | Original source native image | **2000 × 1200** rendered and compared without alignment or color fitting | [GPU PNG](../gallery/bipolar_2000x1200_gpu.png) |
-| Editor workflows | {len(workflow['checks'])} checks: {workflow_names} | [Workflow report](WORKFLOW_VALIDATION.json) |
+{works_row}{regression_row}| Editor workflows | {len(workflow['checks'])} checks: {workflow_names} | [Workflow report](WORKFLOW_VALIDATION.json) |
 | GPU-unavailable fallback | Visible error panel, export rejected, no uncaught JS errors | [Failure report](FAILURE_VALIDATION.json) |
 | Local server | Root page, JS MIME type and port-collision handling passed | [HTTP report](HTTP_VALIDATION.json) |
 
@@ -90,7 +133,7 @@ The unit tests cover all preset models, the component catalog (captioned steps f
 
 Browser workflow tests exercise actual event handlers, pointer gestures and downloads, not only direct function calls. PNG metadata was independently decoded with Pillow after loading all PNG chunks. Four-frame sequence ZIP output was independently checked using Python's zipfile module, including CRCs, frame dimensions, exact timestamps and differing frame pixels. A WebM was downloaded through MediaRecorder. The metadata-extraction utility also recovers the PNG's project without Pillow.
 
-## Native GPU versus CPU measurement
+{performance_section}## Native GPU versus CPU measurement
 
 The comparison uses the same source sampling grid, defaults and display function. No crop search, spatial alignment, fitted palette, blur or histogram correction was applied. Each error is measured across RGB **channel samples**, not a count of whole pixels.
 

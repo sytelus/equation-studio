@@ -1,3 +1,4 @@
+import { works, creditLine } from './works.js';
 /** Evidence ledger. Search-index captions are not the original formula sheets.
  * These distinctions also appear inside the app, not only in the README.
  */
@@ -22,4 +23,20 @@ export const methodNotes = [
     ['Automatic fitting is a separate claim', 'The recovered primary accounts establish iterative equation design, not a pixel-loss optimizer, image tracing system, or generative model. A finished formula cannot uniquely disclose how it was found.'],
     ['Reproducibility is not authorship history', 'A program that reproduces pixels validates a construction, not the route the artist took to discover it. The supplied nebula has a numerical reference; the five new subject studies do not have recovered source formulas.'],
     ['Reusable function networks', 'Coordinate maps → shapes and fields → detail → radiance/coverage → composition → display. A directed graph makes this network explicit and lets one shared subexpression feed several downstream components.']
+];
+/** The animations studied in 2.0 (works.js), and one requested link that could
+ * not be read. Each says what was available and how the scene relates to it.
+ */
+const WORK_NOTES = {
+    twigl: 'The code in the post runs unchanged in a Shader code component; the scene opens its readable version. On a deterministic GPU (SwiftShader) the original in a twigl-style shader, the original in the component and the readable version render bit-identical frames (tools/works_check.py). Hardware GPUs may differ in the last bits of chaotic fractals, as they do between browsers.',
+    p5: 'The point formula of the p5.js sketch is the equation of a Point cloud (20000 points, the sketch’s stroke opacity and speed). Compared with the original sketch drawn by a p5.js stand-in at pixel density 2: the points land in the same places, mean difference under 1 of 255 levels.',
+    study: 'The post shows a multi-pass volumetric shader but did not publish it. The scene is Equation Studio’s own single-pass construction of the look (a ball of glowing, swaying fibers) and is labelled a study everywhere.'
+};
+export const animationSources = [
+    ...works.map(w => ({
+        title: `${w.title} · ${creditLine(w)}`, url: w.url, scene: w.id,
+        status: w.platform === 'study' ? 'Clip only · no code published · our own study' : w.platform === 'p5' ? 'p5.js code in the post · reproduced' : 'twigl code in the post · reproduced exactly',
+        note: WORK_NOTES[w.platform]
+    })),
+    { title: 'Grok conversation 2103445614214463548', url: 'https://x.com/i/grok?conversation=2103445614214463548', status: 'Not accessible · requires a signed-in X account', note: 'The link opens a private Grok conversation: it redirects to the X login page and no public copy exists, so its content could not be read. Nothing in this project is based on it or attributed to it.' }
 ];

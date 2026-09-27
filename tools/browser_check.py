@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from browser import launch
 ROOT = Path(__file__).resolve().parents[1]
 GALLERY = ROOT / 'gallery'
-HTML = (ROOT / 'Equation Studio.html').read_text(encoding='utf-8')
+HTML = (ROOT / 'index.html').read_text(encoding='utf-8')
 PREVIEWS_PAINTED = '[...document.querySelectorAll("canvas[data-preview]")].length>0 && [...document.querySelectorAll("canvas[data-preview]")].every(c=>c.classList.contains("painted"))'
 # The canvas is idle: no program compiling and no frame pending.
 SETTLED = 'document.getElementById("compileStatus").hidden'
@@ -34,6 +34,7 @@ def hide_toast(page):
 def open_scene(page, preset):
     """Open a scene the way a user does: the library drawer, then the scene card."""
     page.locator('#libraryButton').click()
+    page.locator('[data-library="scenes"]').click()
     page.locator(f'[data-preset="{preset}"]').click()
     page.wait_for_function(PREVIEWS_PAINTED, timeout=300000)
 
@@ -193,6 +194,78 @@ with sync_playwright() as pw:
     settle(page)
     page.screenshot(path=str(GALLERY / 'studio-graph.png'))
     page.locator('[data-bottom="pipeline"]').click()
+
+    # ---- 2.0: animations ----
+    # The gallery of scenes, filtered to shader code, with a card coming alive.
+    page.locator('#libraryButton').click()
+    page.locator('[data-library="scenes"]').click()
+    page.locator('[data-preset="jellyfish-lattice"]').hover()
+    page.wait_for_function('!document.querySelector("[data-preset=jellyfish-lattice] .gallery-live").hidden', timeout=300000)
+    page.wait_for_timeout(800)
+    page.screenshot(path=str(GALLERY / 'studio-gallery.png'))
+    page.keyboard.press('Escape')
+    # A work: its credited, highlighted code in the Playground with a tour step.
+    open_scene(page, 'jellyfish-lattice')
+    page.set_viewport_size({'width': 1920, 'height': 1080})
+    page.evaluate('equationStudio.openPlayground("shader")')
+    page.wait_for_function('equationStudio.isPlaygroundOpen()')
+    page.locator('#inspectorContent [data-tour="3"]').click()
+    page.mouse.move(5, 5)
+    settle(page, 1200)
+    assert page.locator('#codeView .c-line.hl').count() >= 2
+    page.screenshot(path=str(GALLERY / 'studio-code.png'))
+    page.locator('#inspectorContent [data-action="tour-end"]').click()
+    # A variable on the canvas: the depth the raymarcher reached, with its legend.
+    page.locator('#inspectorContent [data-tab="inside"]').click()
+    page.locator('#inspectorContent .inside-row', has_text='depth').click()
+    page.mouse.move(5, 5)
+    settle(page, 1200)
+    assert 'VARIABLE' in page.locator('#canvasMode').text_content()
+    page.screenshot(path=str(GALLERY / 'studio-variable.png'))
+    # Stats: values, histogram and the loop.
+    page.locator('#inspectorContent [data-tab="stats"]').click()
+    page.wait_for_function('document.querySelector("#inspectorContent .stats-table")', timeout=120000)
+    page.locator('#inspectorContent [data-action="measure-loop"]').click()
+    page.wait_for_function('document.querySelector("#inspectorContent .stats-verdict")', timeout=300000)
+    page.keyboard.press('Escape')
+    page.mouse.move(5, 5)
+    settle(page, 800)
+    page.screenshot(path=str(GALLERY / 'studio-stats.png'))
+    page.evaluate('equationStudio.setView("final")')
+    page.evaluate('equationStudio.closePlayground()')
+    page.wait_for_function('!equationStudio.isPlaygroundOpen()')
+    page.set_viewport_size({'width': 1600, 'height': 1030})
+    # A point cloud and its credited equation.
+    open_scene(page, 'point-jellyfish')
+    page.mouse.move(5, 5)
+    settle(page, 1200)
+    page.screenshot(path=str(GALLERY / 'studio-points.png'))
+    # Trails of the swimming creature.
+    open_scene(page, 'point-creature')
+    page.evaluate('equationStudio.setView("motion")')
+    page.locator('#motionStyle').select_option('trails')
+    page.mouse.move(5, 5)
+    settle(page, 1000)
+    page.screenshot(path=str(GALLERY / 'studio-motion.png'))
+    page.evaluate('equationStudio.setView("final")')
+    # Reuse: the Vortex added to Living mineral with Add light.
+    open_scene(page, 'marble')
+    page.locator('#addComponent').click()
+    page.locator('[data-add-work="vortex"]').click()
+    page.evaluate('''()=>{const p=equationStudio.getProject();p.nodes.push({id:'mix',type:'add',label:'Mineral + vortex',inputs:{a:'final',b:'code1'},params:{gain:0.6},enabled:true});p.output='mix';equationStudio.loadProject(p);}''')
+    page.mouse.move(5, 5)
+    settle(page, 1500)
+    page.screenshot(path=str(GALLERY / 'studio-reuse.png'))
+    # High contrast.
+    open_scene(page, 'vortex')
+    page.evaluate('equationStudio.cycleContrast()')
+    page.mouse.move(5, 5)
+    settle(page, 800)
+    assert page.evaluate('document.documentElement.dataset.contrast') == 'more'
+    page.screenshot(path=str(GALLERY / 'studio-contrast.png'))
+    page.evaluate('equationStudio.cycleContrast()')
+    page.evaluate('equationStudio.cycleContrast()')
+    hide_toast(page)
     print('desktop errors', errors, flush=True)
     assert not errors
     page.close()

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Serve Equation Studio on loopback only. No third-party Python packages needed.
 
-Double-clicking 'Equation Studio.html' is the simpler standalone path. This
-launcher is useful when editing ES modules or when local-file policies differ.
-It never exposes the project to other machines on your network.
+Double-clicking 'index.html' is the simpler standalone path. This launcher is
+useful when local-file policies differ, and with --dev it opens src/index.html,
+which loads the ES modules directly, so edits need no rebuild. It never exposes
+the project to other machines on your network.
 """
 from __future__ import annotations
 import argparse
@@ -35,6 +36,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--no-open', action='store_true', help='Do not open a browser')
+    parser.add_argument('--dev', action='store_true', help='Open src/index.html, which runs the source modules (no rebuild needed)')
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error('port must be between 1 and 65535')
@@ -44,7 +46,7 @@ def main() -> int:
     except OSError as exc:
         print(f'Cannot start local server: {exc}\nTry --port {args.port + 1 if args.port < 65535 else 8765}', file=sys.stderr)
         return 1
-    url = f'http://127.0.0.1:{args.port}/'
+    url = f'http://127.0.0.1:{args.port}/' + ('src/index.html' if args.dev else '')
     print(f'Equation Studio: {url}\nServing only {ROOT}\nPress Ctrl+C to stop.', flush=True)
     if not args.no_open:
         timer = threading.Timer(.3, lambda: webbrowser.open(url))

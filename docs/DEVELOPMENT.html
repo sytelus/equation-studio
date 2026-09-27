@@ -92,7 +92,7 @@
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#development-guide" id="toc-development-guide">Development
@@ -112,6 +112,8 @@ bundler</a></li>
 <li><a href="#regeneration-checklist"
 id="toc-regeneration-checklist">Regeneration checklist</a></li>
 <li><a href="#tools" id="toc-tools">Tools</a></li>
+<li><a href="#adding-a-work" id="toc-adding-a-work">Adding a
+work</a></li>
 <li><a href="#releasing" id="toc-releasing">Releasing</a></li>
 </ul></li>
 </ul>
@@ -141,26 +143,42 @@ packages).</li>
 </ul>
 <h2 id="run-from-source">Run from source</h2>
 <div class="sourceCode" id="cb1"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> start.py          <span class="co"># serves the repository on http://127.0.0.1:8765/ (loopback only)</span></span></code></pre></div>
-<p><code>index.html</code> loads <code>src/app.js</code> as an ES
-module, so edits to any module are live after a reload.
-<code>Equation Studio.html</code> is a generated bundle of the same code
-and must be rebuilt after changes (see the checklist).</p>
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> start.py <span class="at">--dev</span>    <span class="co"># serves the repository on http://127.0.0.1:8765/ (loopback only) and opens src/index.html</span></span></code></pre></div>
+<p><code>src/index.html</code> loads <code>src/style.css</code> and
+<code>src/app.js</code> as an ES module, so edits to any module or style
+are live after a reload. The root <code>index.html</code> is the
+generated single-file app (markup, styles and a bundle of the modules)
+and must be rebuilt after changes (see the checklist);
+<code>python3 start.py</code> without <code>--dev</code> serves it.</p>
 <h2 id="module-map">Module map</h2>
 <pre class="text"><code>src/
   Model and math (no DOM; covered by the Node unit tests)
-  catalog.js          43 component definitions: sockets, parameters with symbols and help, steps with
-                      captions, symbols, ideas, key-function curves, roles and bypass sockets, GLSL emitters
-  concepts.js         the 30 recurring ideas behind the equations: formula, explanation, plot with a knob
+  catalog.js          45 component definitions: sockets, parameters with symbols and help, steps with
+                      captions, symbols, ideas, key-function curves, roles and bypass sockets, GLSL emitters;
+                      loopStepSpecs() for the loops of shader code
+  concepts.js         the 47 recurring ideas behind the equations: formula, explanation, plot with a knob
+  works.js            the 18 studied animations: credit, original and readable code, tour, ideas, tags
+  glsl.js             the shader-code language: tokens, parser, scope and type checker, loop-length
+                      simulation (float32), printer with renamed/hoisted variables, loop counters, a step
+                      budget, uniform numbers and a shown-value selector; formatter; number editing
+  twigl-glsl.js       twigl&#39;s helpers (noise, hsv, rotations) and the code frame (codeFragCoord, codeColor)
+  shader-link.js      keeps only the library items a program reaches (functions, overloads, constants)
+  stats.js            measurements of raw renders: channels, histograms, loop verdicts, GPU cost shares
+  encoders.js         GIF (median cut, dithering, LZW), animated PNG, MP4 (ISO BMFF) and sprite sheets
+  standalone.js       a scene as a self-contained web page; shader code as a twigl file
   graph.js            project schema, validation, traversal (bypass-aware topological order, evaluation
                       order, upstream/downstream, consumers), edits, history
-  expression.js       the custom equation language: parser, type checker, GLSL printer, library table
+  expression.js       the custom equation language: parser, type checker, GLSL printer, library table;
+                      the point-cloud kind (locals i, n, t)
   fork.js             components as equations: the equation of a built-in component (from the catalog&#39;s
-                      source), and withEquation(), the project with a component running a given equation
-  compiler.js         typed DAG → one fragment program per graph structure; view state; compare pass
+                      source), withEquation() and withCode(): the project with a component running a given
+                      equation or code
+  compiler.js         typed DAG → one fragment program per graph structure; code functions, point passes,
+                      linked libraries, time sampling, shown values; view state; compare pass; parameter packing
   looks.js            how values without colors are shown: colormaps, statistics, look pass, CPU twin
-  renderer.js         WebGL 2: program cache and background compilation, views and passes, offscreen
-                      snapshots / thumbnail atlas / line and point probes, asynchronous readbacks, timers
+  renderer.js         WebGL 2: program cache and background compilation, views and passes (look, compare,
+                      copy, motion), point passes, offscreen snapshots / thumbnail and time atlases / line,
+                      point and time probes, measure(), asynchronous readbacks, timers
   gpu-info.js         renderer-string classification (hardware / software), software-fallback probe
   math-render.js      TeX subset → MathML with symbol roles; custom equations → MathML
   formula.js          the construction as a formula sheet (how the image is composed)
@@ -170,7 +188,7 @@ and must be rebuilt after changes (see the checklist).</p>
   explore.js          parameter sweeps, seeded variations, original values for reset
   graph-layout.js     deterministic layered layout and socket geometry for the graph panel
   export.js           ZIP writer, PNG metadata, frame times, downloads
-  presets.js          the twelve editable scenes
+  presets.js          the thirty editable scenes (twelve constructions, and a scene per work)
   snapshots.js        snapshot list management and thumbnails
   math-glsl.js        shared GLSL atoms (noise, shapes, composition, display curves)
   source-constants.js float64 constant folding for the source nebula
@@ -188,6 +206,12 @@ and must be rebuilt after changes (see the checklist).</p>
                       steps with colored symbols, ✎ Edit in place, parameters, key function), In &amp; out,
                       Ideas and More (code, tracks, replace/duplicate/delete); for the component panel
                       or a pop-out window; two columns by container width
+  ui-code-view.js     shader code in the component view: highlighted code with tooltips, draggable numbers,
+                      the work&#39;s credit, tour and original, loops (sliders, build-up), time and freeze,
+                      Look inside (values on the canvas and at a pin)
+  ui-stats.js         the Stats tab: values and histogram, points, over the loop, inside the code, GPU time
+  ui-filmstrip.js     frames across the timeline under the transport
+  ui-settings.js      high contrast, playback speed, exact numbers
   ui-inspector.js     the component panel: a ComponentView on the right
   ui-playground.js    the panel&#39;s width: resizing, and the Equation Playground (the panel made wide,
                       with the step and profile on the canvas and the pipeline as a compact strip)
@@ -206,7 +230,8 @@ and must be rebuilt after changes (see the checklist).</p>
   ui-performance.js   GPU labels and the GPU &amp; performance dialog
   ui-mobile.js        the phone tab bar; touch-screen policies
   ui-tooltip.js       rich hover and long-press tips for every control (data-tip, data-key, data-toggle)
-  ui-library.js       the library drawer (or docked column): scenes, components, snapshots, drag sources
+  ui-library.js       the library drawer (or docked column): the scene gallery with filters and live hover
+                      previews, the component palette (works first, previews in the tips), snapshots
   ui-timeline.js      transport and key lanes
   ui-export.js        export dialog
   ui-toolbar.js       top bar, dialogs, keyboard shortcuts
@@ -244,14 +269,20 @@ width</td>
 </tr>
 <tr>
 <td><code>view</code></td>
-<td>the canvas view (final / stage / effect), its lock or style
-changed</td>
-<td>graph, pipeline, canvas, legend</td>
+<td>the canvas view (final / stage / effect / motion), its lock, its
+style or the shown variable changed</td>
+<td>graph, pipeline, canvas, legend, filmstrip</td>
 </tr>
 <tr>
 <td><code>draft</code></td>
-<td>an equation draft started, changed, was applied or discarded</td>
+<td>an equation or code draft started, changed, was applied or
+discarded</td>
 <td>component views, pipeline, panel width</td>
+</tr>
+<tr>
+<td><code>pin</code></td>
+<td>the pinned reading on the canvas was set or cleared</td>
+<td>Look inside (values at the pin)</td>
 </tr>
 <tr>
 <td><code>values</code></td>
@@ -325,13 +356,14 @@ generated content such as the palette’s equations, and
 over <code>title</code> so tips are immediate, styled and
 consistent.</p>
 <h3 id="layouts">Layouts</h3>
-<p><code>style.css</code> is organized from the desktop layout down. The
-app is a column (top bar, layout, timeline, footer) filling the window;
-the layout is a grid of the work area (canvas over the bottom panel) and
-the component panel, whose width is the <code>--panel-width</code>
-variable set by <code>ui-playground.js</code> (the remembered normal or
-wide width, or about a quarter or half of the window). The library is a
-fixed drawer unless <code>.library-docked</code> adds its column
+<p><code>src/style.css</code> is organized from the desktop layout down.
+The app is a column (top bar, layout, timeline, footer) filling the
+window; the layout is a grid of the work area (canvas over the bottom
+panel) and the component panel, whose width is the
+<code>--panel-width</code> variable set by <code>ui-playground.js</code>
+(the remembered normal or wide width, or about a quarter or half of the
+window). The library is a fixed drawer unless
+<code>.library-docked</code> adds its column
 (<code>--library-width</code> by breakpoint). ≤ 1100 px hides the dock
 option; tablets held upright (701–1100 px, portrait) put the canvas
 across the full width with the pipeline and panel below; phones (≤ 700
@@ -363,6 +395,11 @@ included by importing one of its names (see <code>app.js</code>).</li>
 are not resolved.</li>
 <li>Do not create import cycles; modules are emitted in dependency order
 and evaluated once.</li>
+<li><code>src/index.html</code> keeps exactly one
+<code>&lt;link rel="stylesheet" href="style.css"&gt;</code> and one
+<code>&lt;script type="module" src="app.js"&gt;&lt;/script&gt;</code>;
+the build replaces them with the inlined styles and bundle (and stops if
+either is missing).</li>
 </ul>
 <p>Style: four-space indentation, one statement per line, a doc comment
 on every exported function and module that explains intent or
@@ -373,16 +410,21 @@ LF line endings (<code>.gitattributes</code>).</p>
 <h2 id="tests">Tests</h2>
 <div class="sourceCode" id="cb3"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> <span class="at">--test</span> tests/<span class="pp">*</span>.test.js                 <span class="co"># unit tests: catalog, compiler, expression, fork, formula, looks,</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># math, gpu-info, graph, explore, timeline, export, view</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/workflow_check.py             <span class="co"># editor workflows in Chromium: views, bypass without recompiling,</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># playground, pop-out, equations, fork, wiring, exports…</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/browser_check.py              <span class="co"># UI and layout checks, and the gallery screenshots</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_validate.py               <span class="co"># every preset, component and view on the GPU; raw fields against</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># the CPU reference; fork equivalence; program reuse</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_smoke.py                  <span class="co"># quick render of every preset to gallery/*.png</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="kw">(</span><span class="bu">cd</span> reference/nebula_rewrite <span class="kw">&amp;&amp;</span> <span class="ex">python3</span> <span class="at">-m</span> unittest discover <span class="at">-s</span> tests <span class="at">-v</span><span class="kw">)</span></span></code></pre></div>
-<p>The browser suites load the built <code>Equation Studio.html</code>
-into an in-memory page, so rebuild first. By default they use Chromium’s
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># math, gpu-info, graph, explore, timeline, export, view, glsl</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># (shader code), encoders (GIF/APNG/MP4, stats, web page)</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/workflow_check.py             <span class="co"># editor workflows in Chromium: views, bypass without recompiling,</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># playground, pop-out, equations, fork, wiring, exports…</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/browser_check.py              <span class="co"># UI and layout checks, and the gallery screenshots</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_validate.py               <span class="co"># every preset, component and view on the GPU; raw fields against</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># the CPU reference; fork equivalence; program reuse</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_smoke.py                  <span class="co"># quick render of every preset to gallery/*.png</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/works_check.py <span class="at">--exact</span>        <span class="co"># every work: original vs twigl-style shader vs readable version,</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># p5 sketches vs a p5.js stand-in (bit-exact on SwiftShader)</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/compare_versions.py HEAD      <span class="co"># the twelve 1.x scenes rendered by a git revision and by the tree</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/perf_report.py                <span class="co"># docs/PERFORMANCE.json: compile, number drags, points, frame times</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="kw">(</span><span class="bu">cd</span> reference/nebula_rewrite <span class="kw">&amp;&amp;</span> <span class="ex">python3</span> <span class="at">-m</span> unittest discover <span class="at">-s</span> tests <span class="at">-v</span><span class="kw">)</span></span></code></pre></div>
+<p>The browser suites load the built <code>index.html</code> into an
+in-memory page, so rebuild first. By default they use Chromium’s
 ANGLE/SwiftShader <strong>software</strong> backend, for measurements
 that are comparable between machines; that is slow (minutes per suite).
 Set <code>EQUATION_STUDIO_HARDWARE_GPU=1</code> to render with the
@@ -400,17 +442,20 @@ events.</p>
 <p>Run in this order after changing source, documentation or assets:</p>
 <div class="sourceCode" id="cb4"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> tools/generate_catalog.js           <span class="co"># docs/COMPONENTS.md and examples/projects/*.json from the catalog, ideas and presets</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/build.py                   <span class="co"># studio.js and Equation Studio.html</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> <span class="at">--test</span> <span class="at">--test-reporter</span><span class="op">=</span>tap tests/<span class="pp">*</span>.test.js <span class="op">&gt;</span> docs/NODE_TEST_RESULTS.txt <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">(</span><span class="bu">cd</span> reference/nebula_rewrite <span class="kw">&amp;&amp;</span> <span class="ex">python3</span> <span class="at">-m</span> unittest discover <span class="at">-s</span> tests <span class="at">-v</span> <span class="op">&gt;</span> ../../docs/CPU_TEST_RESULTS.txt <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span><span class="kw">)</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/workflow_check.py          <span class="co"># docs/WORKFLOW_VALIDATION.json, tests/artifacts/*</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/browser_check.py           <span class="co"># gallery/studio-*.png</span></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_validate.py            <span class="co"># docs/GPU_VALIDATION.json, gallery/*.png</span></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/thumbnails.py              <span class="co"># src/thumbnails.js from gallery/*.png, then rebuild once more</span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/build.py</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/write_validation_report.py <span class="co"># docs/VALIDATION.md from the captured results</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/build_docs.py              <span class="co"># README.html, docs/*.html</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/write_manifest.py          <span class="co"># MANIFEST.json, always last</span></span></code></pre></div>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/works_check.py <span class="at">--exact</span>     <span class="co"># docs/WORKS_VALIDATION.json (software backend: bit-exact comparison)</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> tools/generate_works.js             <span class="co"># docs/WORKS.md from src/works.js and the verification</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/build.py                   <span class="co"># studio.js and index.html</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> <span class="at">--test</span> <span class="at">--test-reporter</span><span class="op">=</span>tap tests/<span class="pp">*</span>.test.js <span class="op">&gt;</span> docs/NODE_TEST_RESULTS.txt <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="kw">(</span><span class="bu">cd</span> reference/nebula_rewrite <span class="kw">&amp;&amp;</span> <span class="ex">python3</span> <span class="at">-m</span> unittest discover <span class="at">-s</span> tests <span class="at">-v</span> <span class="op">&gt;</span> ../../docs/CPU_TEST_RESULTS.txt <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span><span class="kw">)</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/workflow_check.py          <span class="co"># docs/WORKFLOW_VALIDATION.json, tests/artifacts/*</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/browser_check.py           <span class="co"># gallery/studio-*.png</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_validate.py            <span class="co"># docs/GPU_VALIDATION.json, gallery/*.png (works at their thumbnail time)</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="va">EQUATION_STUDIO_HARDWARE_GPU</span><span class="op">=</span>1 <span class="ex">python3</span> tools/perf_report.py   <span class="co"># docs/PERFORMANCE.json on the GPU</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/thumbnails.py              <span class="co"># src/thumbnails.js from gallery/*.png, then rebuild once more</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/build.py</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/write_validation_report.py <span class="co"># docs/VALIDATION.md from the captured results</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/build_docs.py              <span class="co"># README.html, docs/*.html</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/write_manifest.py          <span class="co"># MANIFEST.json, always last</span></span></code></pre></div>
 <p><code>docs/FAILURE_VALIDATION.json</code> and
 <code>docs/HTTP_VALIDATION.json</code> record two manual checks: the app
 with WebGL deliberately unavailable, and the loopback server’s headers
@@ -431,7 +476,8 @@ and port handling.</p>
 <tr>
 <td><code>tools/build.py</code></td>
 <td>Bundle <code>src/</code> into <code>studio.js</code> and inline it
-with the CSS into <code>Equation Studio.html</code></td>
+with <code>src/style.css</code> into <code>src/index.html</code>, giving
+the single-file <code>index.html</code></td>
 </tr>
 <tr>
 <td><code>tools/generate_catalog.js</code></td>
@@ -454,7 +500,26 @@ hardware GPU)</td>
 </tr>
 <tr>
 <td><code>tools/thumbnails.py</code></td>
-<td>Small JPEG thumbnails for the scene list from the gallery PNGs</td>
+<td>Small JPEG thumbnails for the gallery (constructions and works) from
+the gallery PNGs</td>
+</tr>
+<tr>
+<td><code>tools/works_check.py</code></td>
+<td>Verify every work against its original code (see Tests)</td>
+</tr>
+<tr>
+<td><code>tools/generate_works.js</code></td>
+<td>Write <code>docs/WORKS.md</code> from <code>src/works.js</code></td>
+</tr>
+<tr>
+<td><code>tools/compare_versions.py</code></td>
+<td>Render scenes with a git revision’s engine and the working tree;
+exit 1 on any difference</td>
+</tr>
+<tr>
+<td><code>tools/perf_report.py</code></td>
+<td>Measure compile times with and without linking, number drags, point
+passes and frame times</td>
 </tr>
 <tr>
 <td><code>tools/write_validation_report.py</code></td>
@@ -470,6 +535,32 @@ hardware GPU)</td>
 </tr>
 </tbody>
 </table>
+<h2 id="adding-a-work">Adding a work</h2>
+<ol type="1">
+<li>Add an entry to <code>works</code> in <code>src/works.js</code>:
+credit (<code>author</code>, <code>handle</code>, <code>url</code>,
+<code>posted</code>), <code>platform</code> (<code>twigl</code>,
+<code>p5</code> or <code>study</code>), the clip (<code>video</code>),
+the loop (<code>duration</code>, a period of the motion when there is
+one), the code exactly as posted (<code>original</code>), a
+<code>readable</code> version (twigl: same operations in the same order,
+named variables, a <code>//</code> caption on every line; p5: the point
+formula in the equation language), the p5 <code>points</code> settings,
+a <code>summary</code>, a <code>tour</code> (<code>at</code> snippets of
+the readable code to highlight, optional <code>show</code> and
+<code>steps</code>), <code>concepts</code> and <code>tags</code>. A new
+idea goes into <code>src/concepts.js</code>.</li>
+<li><code>node --test tests/*.test.js</code> checks that both versions
+parse and that their loops have the same lengths.</li>
+<li><code>python3 tools/works_check.py --exact --only ID</code> must
+report 0 differences for a twigl work on the software backend; look at
+the side-by-side PNG it writes for a p5 work.</li>
+<li>Render its gallery picture (<code>tools/gpu_validate.py</code>, or a
+quick hardware render), run <code>tools/thumbnails.py</code>,
+<code>node tools/generate_works.js</code>, and add it to
+<code>ATTRIBUTION.md</code> and the research ledger’s notes if its
+status differs.</li>
+</ol>
 <h2 id="releasing">Releasing</h2>
 <p>Bump <code>version</code> in <code>package.json</code>, add a section
 to <a href="../CHANGELOG.html">CHANGELOG.md</a>, run the regeneration

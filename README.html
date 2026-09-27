@@ -92,7 +92,7 @@
   <link rel="stylesheet" href="docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="Equation%20Studio.html">Open studio</a> <a href="README.html">Start here</a> <a href="docs/EDITOR_GUIDE.html">Editor guide</a> <a href="docs/RECIPES.html">Recipes</a> <a href="docs/ARCHITECTURE.html">Architecture</a> <a href="docs/COMPONENTS.html">Components</a> <a href="docs/DEVELOPMENT.html">Development</a> <a href="docs/RESEARCH.html">Research</a> <a href="docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="index.html">Open studio</a> <a href="README.html">Start here</a> <a href="docs/EDITOR_GUIDE.html">Editor guide</a> <a href="docs/RECIPES.html">Recipes</a> <a href="docs/ANIMATION.html">Animation</a> <a href="docs/WORKS.html">Works</a> <a href="docs/ARCHITECTURE.html">Architecture</a> <a href="docs/COMPONENTS.html">Components</a> <a href="docs/DEVELOPMENT.html">Development</a> <a href="docs/RESEARCH.html">Research</a> <a href="docs/VALIDATION.html">Validation</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#equation-studio" id="toc-equation-studio">Equation
@@ -147,7 +147,7 @@ line computes and why. Symbols are colored by role (inputs, parameters,
 output, time); hover one to find it everywhere, click an input to follow
 it upstream, drag a parameter symbol to change it. <em>In &amp; out</em>
 shows where each input comes from and where the output goes, down to the
-equation that uses it. <em>Ideas</em> explains the 30 recurring ideas
+equation that uses it. <em>Ideas</em> explains the 47 recurring ideas
 (double-exponential gates, folding with arccos cos, backward mapping,
 fractal noise, front-to-back selection…) with small interactive plots,
 and a live plot shows each component’s key function. The
@@ -192,21 +192,62 @@ alt="Editing a built-in component: its equation written out as text, changed, an
 equation written out as text, changed, and previewed on the canvas as a
 draft</figcaption>
 </figure>
-<p>It then animates parameters with keyframes and exports stills, frame
-sequences or video with the full project embedded. It works on wide
-screens, laptops, tablets and phones. The <a
-href="docs/EDITOR_GUIDE.html">editor guide</a> covers every control, and
-every control in the app explains itself when hovered (or pressed and
-held on a touch screen).</p>
+<h3 id="new-in-2.0-animations-you-can-take-apart">New in 2.0: animations
+you can take apart</h3>
+<figure>
+<img src="gallery/studio-code.png"
+alt="A twigl shader by yonatan (@zozuar), its readable code with a guided explanation: step 4 stops the inner loop after one step, and the canvas shows the bare domes that the loop turns into jellyfish" />
+<figcaption aria-hidden="true">A twigl shader by yonatan (<span
+class="citation" data-cites="zozuar">@zozuar</span>), its readable code
+with a guided explanation: step 4 stops the inner loop after one step,
+and the canvas shows the bare domes that the loop turns into
+jellyfish</figcaption>
+</figure>
+<ul>
+<li><strong>Eighteen animations by their artists</strong>, in a
+browsable gallery: thirteen <a href="https://twigl.app">twigl.app</a>
+shader one-liners, four p5.js point sketches and one study. Each runs
+its <strong>original code</strong>, credited and linked, and opens a
+<strong>readable version</strong> with named variables and a caption on
+every line. On a deterministic GPU the original and the readable version
+render <strong>bit-identical</strong> frames to the code in a
+twigl-style shader (<a href="docs/WORKS.html">works and
+verification</a>).</li>
+<li><strong>Shader code is a component</strong>: paste any twigl code.
+Hover anything for what it is; <strong>drag any number</strong> and the
+picture follows without recompiling; stop each <strong>loop</strong>
+after N steps or watch it <strong>build up</strong>; put any
+<strong>variable</strong> on the canvas with a colormap (the depth a
+raymarcher reached, the scale of a fractal); follow <strong>How it
+works</strong> step by step.</li>
+<li><strong>Point clouds</strong>: thousands of points placed by one
+equation of their index and time, drawn on the GPU, composited like any
+layer.</li>
+<li><strong>Time</strong>: <em>What moves</em> and <em>Trails</em>
+views, a filmstrip of the whole loop, playback speed, a profile of one
+pixel over time, per-component time speed and ❄ Freeze.</li>
+<li><strong>Measure</strong>: a Stats tab with values, histograms,
+whether a loop is seamless, and where the GPU time goes.</li>
+<li><strong>Reuse and export</strong>: add any animation to another
+scene; export MP4 (exact frames), GIF, animated PNG, stills, sprite
+sheets, a web page that plays the scene, or code for twigl. <strong>High
+contrast</strong> mode throughout.</li>
+</ul>
+<p>It animates parameters with keyframes and exports stills, animations,
+videos with exact frames, web pages and code, with the full project
+embedded where the format allows. It works on wide screens, laptops,
+tablets and phones. The <a href="docs/EDITOR_GUIDE.html">editor guide</a>
+covers every control, and every control in the app explains itself when
+hovered (or pressed and held on a touch screen).</p>
 <h2 id="open-the-app">Open the app</h2>
-<p><strong>Open <code>Equation Studio.html</code> in a browser with
-WebGL 2 enabled.</strong> This single file includes the application,
-styles, and small gallery thumbnails. It needs no npm installation,
-account, API key, network connection, or Python. The thumbnails are
-navigation aids; the artwork canvas is computed live from equations and
-never samples them.</p>
-<p>For development, or when the browser restricts local files, use the
-included loopback-only server:</p>
+<p><strong>Open <code>index.html</code> in a browser with WebGL 2
+enabled.</strong> This single file includes the application, styles, and
+small gallery thumbnails. It needs no npm installation, account, API
+key, network connection, or Python. The thumbnails are navigation aids;
+the artwork canvas is computed live from equations and never samples
+them.</p>
+<p>When the browser restricts local files, use the included
+loopback-only server:</p>
 <div class="sourceCode" id="cb1"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># macOS / Linux; Python 3.10+; no packages to install</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> start.py</span>
@@ -215,10 +256,13 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">py</span> <span class="at">-3</span> start.py</span></code></pre></div>
 <p>The launcher opens <code>http://127.0.0.1:8765/</code>. Press Ctrl+C
 to stop. Use <code>--port 8766</code> if needed; <code>--no-open</code>
-only prints the address. Windows and macOS launchers are also included.
-macOS may require launching downloaded scripts from Terminal rather than
-double-clicking them. Do not override an organization’s browser or
-device policies; use an authorized browser/environment.</p>
+only prints the address; <code>--dev</code> opens
+<code>src/index.html</code>, which runs the source modules directly (see
+<a href="docs/DEVELOPMENT.html">Development</a>). Windows and macOS
+launchers are also included. macOS may require launching downloaded
+scripts from Terminal rather than double-clicking them. Do not override
+an organization’s browser or device policies; use an authorized
+browser/environment.</p>
 <p>Only Python’s static server is involved in this second route.
 <strong>Rendering remains in the browser</strong>, not in Python. The
 supplied Python nebula renderer is an independent reference, not a
@@ -288,15 +332,34 @@ unavailable videos</strong></td>
 <td>Additional remix/teaching scenes</td>
 <td>Original demonstrations of component reuse</td>
 </tr>
+<tr>
+<td>13 twigl shaders (yonatan, Xor, Yohei Nishitsuji)</td>
+<td>The posted code, unchanged, plus a readable version</td>
+<td>Code published in the posts; bit-identical frames on SwiftShader (<a
+href="docs/WORKS.html">WORKS</a>)</td>
+</tr>
+<tr>
+<td>4 p5.js point sketches (ア <span class="citation"
+data-cites="yuruyurau">@yuruyurau</span>)</td>
+<td>The sketch’s point formula in a Point cloud</td>
+<td>Code published in the posts; compared with the sketch drawn at pixel
+density 2</td>
+</tr>
+<tr>
+<td>Fluffy anemone (after Jae <span class="citation"
+data-cites="Jaenam97">@Jaenam97</span>)</td>
+<td>Our own volumetric study of the look</td>
+<td>No code was published; labelled a study</td>
+</tr>
 </tbody>
 </table>
-<p>There are <strong>12 editable scenes and 43 typed component
-kinds</strong>. The interface and the <a
-href="docs/RESEARCH.html">research report</a> preserve the distinction
-between source reconstruction and interpretation. We did not recover the
-complete new formula sheets, video frames/transcripts, 2023 thread, or
-two third-party exchanges. No exact reconstruction of those inaccessible
-materials is claimed.</p>
+<p>There are <strong>30 editable scenes (12 constructions and 18
+animation works) and 45 typed component kinds</strong>. The interface
+and the <a href="docs/RESEARCH.html">research report</a> preserve the
+distinction between source reconstruction and interpretation. We did not
+recover the complete new formula sheets, video frames/transcripts, 2023
+thread, or two third-party exchanges. No exact reconstruction of those
+inaccessible materials is claimed.</p>
 <h2 id="first-fifteen-minutes">First fifteen minutes</h2>
 <ol type="1">
 <li>The <strong>Bipolar Nebula</strong> opens first. The
@@ -432,9 +495,43 @@ JSON, and manifest; at most 240 frames, 1280 pixels per side, and 150 MB
 of compressed frame bytes</td>
 </tr>
 <tr>
+<td>JPEG, WebP</td>
+<td>Current playhead, smaller files</td>
+</tr>
+<tr>
+<td>MP4</td>
+<td>Every frame at its exact time i/FPS, encoded on the device (H.264
+through WebCodecs); faster than real time</td>
+</tr>
+<tr>
+<td>GIF</td>
+<td>The whole timeline, looping, one 256-color palette with light
+dithering; at most 800 pixels and 300 frames</td>
+</tr>
+<tr>
+<td>Animated PNG</td>
+<td>Looping, full color, lossless; at most 1280 pixels and 240
+frames</td>
+</tr>
+<tr>
+<td>Sprite sheet</td>
+<td>Frames across the loop in one PNG grid, with a JSON of times and
+positions</td>
+</tr>
+<tr>
+<td>Web page</td>
+<td>One HTML file that plays the scene live on any WebGL 2 device, with
+its credits</td>
+</tr>
+<tr>
+<td>Shader code</td>
+<td>The selected component’s code for twigl.app, with its author’s
+credit</td>
+</tr>
+<tr>
 <td>Browser video</td>
-<td>One real-time timeline pass using a supported MediaRecorder codec;
-may drop frames on a slow device; exact frame count is not promised</td>
+<td>One real-time timeline pass using a supported MediaRecorder codec
+(WebM); may drop frames on a slow device</td>
 </tr>
 </tbody>
 </table>
@@ -443,19 +540,27 @@ Video support depends on browser codecs. A looping playhead does
 <strong>not</strong> guarantee a seamless visual loop: endpoint keys and
 procedural phases must also agree. See <a
 href="docs/ANIMATION.html">Animation and export</a>.</p>
-<p>The preview has a 5:3 aspect ratio. Exporting another aspect ratio
-preserves horizontal world-space scale and reveals/crops the vertical
-extent; it does not stretch the scene. Preview resolution changes sample
-locations, not the number of original formula terms. Fine lines and
-stars can alias at low resolutions; there is no hidden temporal
-antialiasing or band removal.</p>
+<p>Each scene has its own aspect ratio (5:3 for the constructions, the
+clip’s ratio for the works). Exporting another aspect ratio preserves
+horizontal world-space scale and reveals/crops the vertical extent; it
+does not stretch the scene. Preview resolution changes sample locations,
+not the number of original formula terms. Fine lines and stars can alias
+at low resolutions; there is no hidden temporal antialiasing or band
+removal.</p>
 <h2 id="project-structure">Project structure</h2>
-<pre class="text"><code>Equation Studio.html       Self-contained application, ready to open
-index.html / style.css     Editable application shell and styling
+<pre class="text"><code>index.html                 Self-contained application, ready to open (built from src/ by tools/build.py)
+studio.js                  The same application code as one script (built)
 src/
-  catalog.js               43 component definitions: sockets, parameters, captioned steps, symbols, ideas,
+  index.html, style.css    Page markup and styles; src/index.html runs the modules directly (start.py --dev)
+  catalog.js               45 component definitions: sockets, parameters, captioned steps, symbols, ideas,
                            key-function curves, GLSL emitters
-  concepts.js              The 30 ideas behind the equations, with formulas and interactive plots
+  concepts.js              The 47 ideas behind the equations, with formulas and interactive plots
+  works.js                 The 18 studied animations: credits, original and readable code, explanations
+  glsl.js                  The shader-code language: parser, checker, loop analysis, printer, formatter
+  twigl-glsl.js            twigl&#39;s helper library (noise, hsv, rotations)
+  shader-link.js           Keeps only the library functions a program uses
+  stats.js, encoders.js    Measurements; GIF, animated PNG, MP4 and sprite-sheet encoders
+  standalone.js            A scene as a self-contained web page; code for twigl
   graph.js                 Project schema, validation, graph traversal, history
   expression.js            The custom equation language: parser, type checker, GLSL printer
   fork.js                  Components as equations: what ✎ Edit opens, and applying an edited equation
@@ -478,6 +583,8 @@ src/
   snapshots.js             Session bookmarks
   editor.js                Shared editor state, event bus and model operations
   ui-component-view.js     The component panel: header, tabs, steps, in-place equation editing (panel, pop-out)
+  ui-code-view.js          Shader code: highlighted code, draggable numbers, loops, tour, Look inside
+  ui-stats.js, ui-filmstrip.js, ui-settings.js   The Stats tab, the filmstrip, contrast and playback settings
   ui-*.js                  One module per panel or tool: library, canvas, looks and legend, profile,
                            pipeline, graph, formulas, previews, inspector, playground, pop-out, explorer,
                            performance, phone layout, tooltips, timeline, export, toolbar
@@ -503,15 +610,17 @@ href="reference/nebula_rewrite/docs/FORMULA_REFERENCE.md">original
 formula reference</a> maps every source symbol to its purpose. Changes
 are listed in the <a href="CHANGELOG.html">changelog</a>.</p>
 <h2 id="development-and-verification">Development and verification</h2>
-<p>No installation is needed to edit the source modules and serve them
-with <code>start.py</code>. Node 20+ is only needed for development
+<p>No installation is needed to edit the source modules and run them
+with <code>python3 start.py --dev</code> (it opens
+<code>src/index.html</code>). Node 20+ is only needed for development
 tests and generating example JSON; Python 3.10+ builds the standalone
-file:</p>
+<code>index.html</code>:</p>
 <div class="sourceCode" id="cb3"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> <span class="at">--test</span> tests/<span class="pp">*</span>.test.js</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> tools/generate_catalog.js</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/build.py</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> start.py</span></code></pre></div>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> tools/generate_works.js</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/build.py</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> start.py <span class="at">--dev</span></span></code></pre></div>
 <p>Optional browser tests need Python Playwright, NumPy and Pillow, and
 a Chromium (Playwright’s bundled one works:
 <code>python3 -m playwright install chromium</code>). CPU reference
@@ -520,8 +629,9 @@ tests additionally need the requirements in
 measurements, and known gaps are in <a
 href="docs/VALIDATION.html">Validation</a>; the full regeneration
 checklist is in the <a href="docs/DEVELOPMENT.html">Development guide</a>.
-The single-file distribution should be rebuilt after modifying any
-runtime source module, HTML, CSS, or thumbnail.</p>
+The single-file <code>index.html</code> should be rebuilt after
+modifying any source module, <code>src/index.html</code>,
+<code>src/style.css</code>, or thumbnail.</p>
 <h2 id="performance-and-portability">Performance and portability</h2>
 <p>This is WebGL 2, not WebGPU. All per-pixel math runs in fragment
 shaders on the GPU; there are no remote services or CPU-rendered preview
@@ -568,7 +678,20 @@ modeller, or a recovery of the artist’s private design process.</p>
 credited to <strong>Hamid Naderi Yeganeh</strong>. This project is
 independent and is not affiliated with or endorsed by the artist. New
 scene studies and software must not be represented as his original
-equations. See <a href="ATTRIBUTION.html">Attribution</a> and <a
+equations.</p>
+<p>The animation works are by <strong>yonatan (<span class="citation"
+data-cites="zozuar">@zozuar</span>)</strong>, <strong>Xor (<span
+class="citation" data-cites="XorDev">@XorDev</span>)</strong>,
+<strong>Yohei Nishitsuji (<span class="citation"
+data-cites="YoheiNishitsuji">@YoheiNishitsuji</span>)</strong> and
+<strong>ア (<span class="citation"
+data-cites="yuruyurau">@yuruyurau</span>)</strong>, who published their
+code in the linked posts, and the anemone study is after <strong>Jae
+(<span class="citation"
+data-cites="Jaenam97">@Jaenam97</span>)</strong>. Their code is
+reproduced with credit for study; the readable versions and explanations
+are ours. See <a href="ATTRIBUTION.html">Attribution</a>, <a
+href="docs/WORKS.html">Works</a> and <a
 href="docs/RESEARCH.html">Research</a>.</p>
 </body>
 </html>

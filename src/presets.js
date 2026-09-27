@@ -1,4 +1,5 @@
 import { makeNode, clone, validateProject } from './graph.js';
+import { works, P5_CANVAS } from './works.js';
 const N = makeNode;
 /** A node with its own label (custom equations otherwise show their component name). */
 const named = (label, node) => ({ ...node, label });
@@ -59,6 +60,24 @@ export const presets = [
         N('coordinates', 'space'), N('solid', 'background', {}, { color: '#010305' }), N('transform', 'local', { p: 'space' }, { x: 0, y: -1.08, scale: 2.1 }), N('feather', 'feather', { p: 'local' }, { width: 0.19 }), N('over', 'final', { front: 'feather', back: 'background' })
     ], 'final', { exposure: 1.8 })
 ];
+/** The scene of a work (works.js): its readable code in a Shader code component,
+ * or its point formula in a Point cloud over the sketch's background. Colors are
+ * shown as the code computes them (linear output, exposure 1), in the clip's
+ * aspect ratio.
+ */
+function workScene(w) {
+    const options = { tone: 'linear', exposure: 1, aspect: w.video.width / w.video.height, duration: w.duration, work: w.id, thumbTime: w.thumbTime ?? 1.3 };
+    const status = w.platform === 'study' ? 'Interpretive study' : 'Reproduction · original code';
+    const description = `${w.summary.split('. ')[0]}. By ${w.author} (@${w.handle}).`;
+    // The component carries the work's id, so its credit and explanation travel with it into other scenes.
+    if (w.platform === 'p5') {
+        const cloud = { ...named(w.title, N('points', 'cloud', { p: 'space' }, { expression: w.readable, canvas: P5_CANVAS, size: 1, color: '#ffffff', ...w.points })), work: w.id };
+        return base(w.id, w.title, description, status, [N('coordinates', 'space'), N('solid', 'background', {}, { color: '#090909' }), cloud, N('over', 'final', { front: 'cloud', back: 'background' })], 'final', options);
+    }
+    const shader = { ...named(w.title, N('code', 'shader', { p: 'space' }, { code: w.readable })), work: w.id };
+    return base(w.id, w.title, description, status, [N('coordinates', 'space'), shader], 'shader', options);
+}
+presets.push(...works.map(workScene));
 // A saved keyframe track demonstrates the animation model without changing t=0.
 presets.find(p => p.id === 'lensing').tracks = [{ node: 'lens', param: 'strength', interpolation: 'smooth', keys: [{ time: 0, value: 1.45 }, { time: 4, value: 0.05 }, { time: 8, value: 1.45 }] }];
 for (const p of presets) {

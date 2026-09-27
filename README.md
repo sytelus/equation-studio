@@ -7,7 +7,7 @@
 Every image is a typed graph of small equations evaluated live, per pixel, on your GPU. The editor is built for understanding, exploring, decomposing and composing them:
 
 - **Always know where you are.** The pipeline under the canvas is the map of the construction: every step in order with a live picture of its output. The panel on the right explains the step you select (*Step 7 of 9*), and a label on the canvas says what it shows: the final image, the selected step's own output, what that step changes, or a draft you are editing.
-- **Understand the math.** Each component's equation is shown as numbered, typeset steps, each with a caption saying what the line computes and why. Symbols are colored by role (inputs, parameters, output, time); hover one to find it everywhere, click an input to follow it upstream, drag a parameter symbol to change it. *In & out* shows where each input comes from and where the output goes, down to the equation that uses it. *Ideas* explains the 30 recurring ideas (double-exponential gates, folding with arccos cos, backward mapping, fractal noise, front-to-back selection…) with small interactive plots, and a live plot shows each component's key function. The **Formulas** tab writes the whole construction as a formula sheet.
+- **Understand the math.** Each component's equation is shown as numbered, typeset steps, each with a caption saying what the line computes and why. Symbols are colored by role (inputs, parameters, output, time); hover one to find it everywhere, click an input to follow it upstream, drag a parameter symbol to change it. *In & out* shows where each input comes from and where the output goes, down to the equation that uses it. *Ideas* explains the 47 recurring ideas (double-exponential gates, folding with arccos cos, backward mapping, fractal noise, front-to-back selection…) with small interactive plots, and a live plot shows each component's key function. The **Formulas** tab writes the whole construction as a formula sheet.
 - **Edit the equation you are reading.** **✎ Edit** on any equation opens it as text, one line per step; a built-in component opens as its own math written out. Parameters are `param` lines that become sliders, definitions name intermediate values and `//` captions explain each line. The canvas previews your edit as a draft until you apply it, and mistakes are reported in words.
 - **Study one equation in depth.** The **Equation Playground** (double-click any component) widens the panel: the equation beside its controls and plots, the step on the canvas with a profile of its actual values. **↗** pops the panel into its own window, e.g. on a second screen.
 - **See every step.** The canvas shows the final image, any single step, or exactly which pixels a component changes. Values that have no color of their own (numbers, coordinates, geometry) get automatic colormaps with contour lines and a legend.
@@ -17,13 +17,24 @@ Every image is a typed graph of small equations evaluated live, per pixel, on yo
 
 ![Editing a built-in component: its equation written out as text, changed, and previewed on the canvas as a draft](gallery/studio-equation.png)
 
-It then animates parameters with keyframes and exports stills, frame sequences or video with the full project embedded. It works on wide screens, laptops, tablets and phones. The [editor guide](docs/EDITOR_GUIDE.md) covers every control, and every control in the app explains itself when hovered (or pressed and held on a touch screen).
+### New in 2.0: animations you can take apart
+
+![A twigl shader by yonatan (@zozuar), its readable code with a guided explanation: step 4 stops the inner loop after one step, and the canvas shows the bare domes that the loop turns into jellyfish](gallery/studio-code.png)
+
+- **Eighteen animations by their artists**, in a browsable gallery: thirteen [twigl.app](https://twigl.app) shader one-liners, four p5.js point sketches and one study. Each runs its **original code**, credited and linked, and opens a **readable version** with named variables and a caption on every line. On a deterministic GPU the original and the readable version render **bit-identical** frames to the code in a twigl-style shader ([works and verification](docs/WORKS.md)).
+- **Shader code is a component**: paste any twigl code. Hover anything for what it is; **drag any number** and the picture follows without recompiling; stop each **loop** after N steps or watch it **build up**; put any **variable** on the canvas with a colormap (the depth a raymarcher reached, the scale of a fractal); follow **How it works** step by step.
+- **Point clouds**: thousands of points placed by one equation of their index and time, drawn on the GPU, composited like any layer.
+- **Time**: *What moves* and *Trails* views, a filmstrip of the whole loop, playback speed, a profile of one pixel over time, per-component time speed and ❄ Freeze.
+- **Measure**: a Stats tab with values, histograms, whether a loop is seamless, and where the GPU time goes.
+- **Reuse and export**: add any animation to another scene; export MP4 (exact frames), GIF, animated PNG, stills, sprite sheets, a web page that plays the scene, or code for twigl. **High contrast** mode throughout.
+
+It animates parameters with keyframes and exports stills, animations, videos with exact frames, web pages and code, with the full project embedded where the format allows. It works on wide screens, laptops, tablets and phones. The [editor guide](docs/EDITOR_GUIDE.md) covers every control, and every control in the app explains itself when hovered (or pressed and held on a touch screen).
 
 ## Open the app
 
-**Open `Equation Studio.html` in a browser with WebGL 2 enabled.** This single file includes the application, styles, and small gallery thumbnails. It needs no npm installation, account, API key, network connection, or Python. The thumbnails are navigation aids; the artwork canvas is computed live from equations and never samples them.
+**Open `index.html` in a browser with WebGL 2 enabled.** This single file includes the application, styles, and small gallery thumbnails. It needs no npm installation, account, API key, network connection, or Python. The thumbnails are navigation aids; the artwork canvas is computed live from equations and never samples them.
 
-For development, or when the browser restricts local files, use the included loopback-only server:
+When the browser restricts local files, use the included loopback-only server:
 
 ```bash
 # macOS / Linux; Python 3.10+; no packages to install
@@ -33,7 +44,7 @@ python3 start.py
 py -3 start.py
 ```
 
-The launcher opens `http://127.0.0.1:8765/`. Press Ctrl+C to stop. Use `--port 8766` if needed; `--no-open` only prints the address. Windows and macOS launchers are also included. macOS may require launching downloaded scripts from Terminal rather than double-clicking them. Do not override an organization's browser or device policies; use an authorized browser/environment.
+The launcher opens `http://127.0.0.1:8765/`. Press Ctrl+C to stop. Use `--port 8766` if needed; `--no-open` only prints the address; `--dev` opens `src/index.html`, which runs the source modules directly (see [Development](docs/DEVELOPMENT.md)). Windows and macOS launchers are also included. macOS may require launching downloaded scripts from Terminal rather than double-clicking them. Do not override an organization's browser or device policies; use an authorized browser/environment.
 
 Only Python's static server is involved in this second route. **Rendering remains in the browser**, not in Python. The supplied Python nebula renderer is an independent reference, not a hidden backend.
 
@@ -49,8 +60,11 @@ Only Python's static server is involved in this second route. **Rendering remain
 | Peacock in full display | Reusable eye-feather stamp, four ordered fan rows, independent body/head | New construction; not an exact transcription of the linked artwork |
 | Hedgehog and Fire | Quill-stamp/ellipse assembly; advected tapered flame field | Original teaching examples, **not transcriptions of the unavailable videos** |
 | Ring Nebula, Marble, Kaleidoscope, One Feather | Additional remix/teaching scenes | Original demonstrations of component reuse |
+| 13 twigl shaders (yonatan, Xor, Yohei Nishitsuji) | The posted code, unchanged, plus a readable version | Code published in the posts; bit-identical frames on SwiftShader ([WORKS](docs/WORKS.md)) |
+| 4 p5.js point sketches (ア @yuruyurau) | The sketch’s point formula in a Point cloud | Code published in the posts; compared with the sketch drawn at pixel density 2 |
+| Fluffy anemone (after Jae @Jaenam97) | Our own volumetric study of the look | No code was published; labelled a study |
 
-There are **12 editable scenes and 43 typed component kinds**. The interface and the [research report](docs/RESEARCH.md) preserve the distinction between source reconstruction and interpretation. We did not recover the complete new formula sheets, video frames/transcripts, 2023 thread, or two third-party exchanges. No exact reconstruction of those inaccessible materials is claimed.
+There are **30 editable scenes (12 constructions and 18 animation works) and 45 typed component kinds**. The interface and the [research report](docs/RESEARCH.md) preserve the distinction between source reconstruction and interpretation. We did not recover the complete new formula sheets, video frames/transcripts, 2023 thread, or two third-party exchanges. No exact reconstruction of those inaccessible materials is claimed.
 
 ## First fifteen minutes
 
@@ -84,21 +98,35 @@ Projects autosave opportunistically to browser storage. Browser storage can be u
 |---|---|
 | PNG | Current playhead; opaque displayed RGB; up to the lower of GPU limits and 4096 pixels per side; embedded project/settings metadata |
 | PNG sequence ZIP | Explicit times `i/FPS`, end point excluded; PNGs, project JSON, and manifest; at most 240 frames, 1280 pixels per side, and 150 MB of compressed frame bytes |
-| Browser video | One real-time timeline pass using a supported MediaRecorder codec; may drop frames on a slow device; exact frame count is not promised |
+| JPEG, WebP | Current playhead, smaller files |
+| MP4 | Every frame at its exact time i/FPS, encoded on the device (H.264 through WebCodecs); faster than real time |
+| GIF | The whole timeline, looping, one 256-color palette with light dithering; at most 800 pixels and 300 frames |
+| Animated PNG | Looping, full color, lossless; at most 1280 pixels and 240 frames |
+| Sprite sheet | Frames across the loop in one PNG grid, with a JSON of times and positions |
+| Web page | One HTML file that plays the scene live on any WebGL 2 device, with its credits |
+| Shader code | The selected component’s code for twigl.app, with its author’s credit |
+| Browser video | One real-time timeline pass using a supported MediaRecorder codec (WebM); may drop frames on a slow device |
 
 Use PNG sequences for reproducible frame times and lossless stills. Video support depends on browser codecs. A looping playhead does **not** guarantee a seamless visual loop: endpoint keys and procedural phases must also agree. See [Animation and export](docs/ANIMATION.md).
 
-The preview has a 5:3 aspect ratio. Exporting another aspect ratio preserves horizontal world-space scale and reveals/crops the vertical extent; it does not stretch the scene. Preview resolution changes sample locations, not the number of original formula terms. Fine lines and stars can alias at low resolutions; there is no hidden temporal antialiasing or band removal.
+Each scene has its own aspect ratio (5:3 for the constructions, the clip’s ratio for the works). Exporting another aspect ratio preserves horizontal world-space scale and reveals/crops the vertical extent; it does not stretch the scene. Preview resolution changes sample locations, not the number of original formula terms. Fine lines and stars can alias at low resolutions; there is no hidden temporal antialiasing or band removal.
 
 ## Project structure
 
 ```text
-Equation Studio.html       Self-contained application, ready to open
-index.html / style.css     Editable application shell and styling
+index.html                 Self-contained application, ready to open (built from src/ by tools/build.py)
+studio.js                  The same application code as one script (built)
 src/
-  catalog.js               43 component definitions: sockets, parameters, captioned steps, symbols, ideas,
+  index.html, style.css    Page markup and styles; src/index.html runs the modules directly (start.py --dev)
+  catalog.js               45 component definitions: sockets, parameters, captioned steps, symbols, ideas,
                            key-function curves, GLSL emitters
-  concepts.js              The 30 ideas behind the equations, with formulas and interactive plots
+  concepts.js              The 47 ideas behind the equations, with formulas and interactive plots
+  works.js                 The 18 studied animations: credits, original and readable code, explanations
+  glsl.js                  The shader-code language: parser, checker, loop analysis, printer, formatter
+  twigl-glsl.js            twigl's helper library (noise, hsv, rotations)
+  shader-link.js           Keeps only the library functions a program uses
+  stats.js, encoders.js    Measurements; GIF, animated PNG, MP4 and sprite-sheet encoders
+  standalone.js            A scene as a self-contained web page; code for twigl
   graph.js                 Project schema, validation, graph traversal, history
   expression.js            The custom equation language: parser, type checker, GLSL printer
   fork.js                  Components as equations: what ✎ Edit opens, and applying an edited equation
@@ -121,6 +149,8 @@ src/
   snapshots.js             Session bookmarks
   editor.js                Shared editor state, event bus and model operations
   ui-component-view.js     The component panel: header, tabs, steps, in-place equation editing (panel, pop-out)
+  ui-code-view.js          Shader code: highlighted code, draggable numbers, loops, tour, Look inside
+  ui-stats.js, ui-filmstrip.js, ui-settings.js   The Stats tab, the filmstrip, contrast and playback settings
   ui-*.js                  One module per panel or tool: library, canvas, looks and legend, profile,
                            pipeline, graph, formulas, previews, inspector, playground, pop-out, explorer,
                            performance, phone layout, tooltips, timeline, export, toolbar
@@ -139,16 +169,17 @@ Read the [Editor guide](docs/EDITOR_GUIDE.md), [Architecture and API](docs/ARCHI
 
 ## Development and verification
 
-No installation is needed to edit the source modules and serve them with `start.py`. Node 20+ is only needed for development tests and generating example JSON; Python 3.10+ builds the standalone file:
+No installation is needed to edit the source modules and run them with `python3 start.py --dev` (it opens `src/index.html`). Node 20+ is only needed for development tests and generating example JSON; Python 3.10+ builds the standalone `index.html`:
 
 ```bash
 node --test tests/*.test.js
 node tools/generate_catalog.js
+node tools/generate_works.js
 python3 tools/build.py
-python3 start.py
+python3 start.py --dev
 ```
 
-Optional browser tests need Python Playwright, NumPy and Pillow, and a Chromium (Playwright's bundled one works: `python3 -m playwright install chromium`). CPU reference tests additionally need the requirements in `reference/nebula_rewrite/`. Detailed commands, environment, measurements, and known gaps are in [Validation](docs/VALIDATION.md); the full regeneration checklist is in the [Development guide](docs/DEVELOPMENT.md). The single-file distribution should be rebuilt after modifying any runtime source module, HTML, CSS, or thumbnail.
+Optional browser tests need Python Playwright, NumPy and Pillow, and a Chromium (Playwright's bundled one works: `python3 -m playwright install chromium`). CPU reference tests additionally need the requirements in `reference/nebula_rewrite/`. Detailed commands, environment, measurements, and known gaps are in [Validation](docs/VALIDATION.md); the full regeneration checklist is in the [Development guide](docs/DEVELOPMENT.md). The single-file `index.html` should be rebuilt after modifying any source module, `src/index.html`, `src/style.css`, or thumbnail.
 
 ## Performance and portability
 
@@ -162,4 +193,6 @@ This is a procedural-art tool, not a physical astronomical/weather simulator, an
 
 ## Attribution
 
-The original **Bipolar Nebula** mathematical artwork is credited to **Hamid Naderi Yeganeh**. This project is independent and is not affiliated with or endorsed by the artist. New scene studies and software must not be represented as his original equations. See [Attribution](ATTRIBUTION.md) and [Research](docs/RESEARCH.md).
+The original **Bipolar Nebula** mathematical artwork is credited to **Hamid Naderi Yeganeh**. This project is independent and is not affiliated with or endorsed by the artist. New scene studies and software must not be represented as his original equations.
+
+The animation works are by **yonatan (@zozuar)**, **Xor (@XorDev)**, **Yohei Nishitsuji (@YoheiNishitsuji)** and **ア (@yuruyurau)**, who published their code in the linked posts, and the anemone study is after **Jae (@Jaenam97)**. Their code is reproduced with credit for study; the readable versions and explanations are ours. See [Attribution](ATTRIBUTION.md), [Works](docs/WORKS.md) and [Research](docs/RESEARCH.md).

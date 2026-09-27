@@ -1,0 +1,47 @@
+{
+  "id": "smoke-tunnel",
+  "title": "Smoke tunnel",
+  "description": "The same log-spherical flight as the Cloud cave, with a different turbulence (a sine of a dot product of shuffled sines and cosines) that folds into thin wisps, and a camera that sways with cos(t). By Yohei Nishitsuji (@YoheiNishitsuji).",
+  "status": "Reproduction · original code",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "shader",
+      "type": "code",
+      "label": "Smoke tunnel",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "code": "// Smoke tunnel · Yohei Nishitsuji (@YoheiNishitsuji), 8 Mar 2025 · readable version, same image\nfloat dist, R, freq;\nvec3 ray, p, dir = vec3(FC.xy/r - vec2(.6, .5), .7);   // the ray of this pixel, looking a little to the left\nray.zx--;                             // the camera stands at x = −1, z = −1\nfor (float i = 0.; i++ < 99.;) {      // march 99 steps\n  o.rgb += hsv(.1, .2, min(dist*freq, .7 - dist)/35.);   // warm white rim light from the last step\n  freq = 1.;\n  p = ray += dir*dist*R*.1;           // step forward, growing with the distance R from the center\n  // log-spherical coordinates: flying in by one octave of R per second, the angle swaying with cos t\n  p = vec3(log2(R = length(p)) - t, exp(1. - p.z/R), atan(p.y, p.x) + cos(t)*.2);\n  for (dist = --p.y; freq < 3e2; freq += freq)   // the smoke surface …\n    dist += sin(dot(sin(p.zxy*freq) - .5, 1. - cos(p.yxz*freq)))/freq;   // … with 9 octaves of swirling turbulence\n}",
+        "speed": 1,
+        "phase": 0,
+        "steps1": 99,
+        "steps2": 9
+      },
+      "enabled": true,
+      "work": "smoke-tunnel"
+    }
+  ],
+  "output": "shader",
+  "duration": 6.283,
+  "exposure": 1,
+  "tone": "linear",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": [],
+  "aspect": 1.3333333333333333,
+  "work": "smoke-tunnel",
+  "thumbTime": 1.3
+}

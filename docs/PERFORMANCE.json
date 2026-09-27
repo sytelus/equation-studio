@@ -1,0 +1,239 @@
+{
+  "date": "2026-09-26",
+  "backend": "Chromium 153.0.8010.12 / hardware GPU (ANGLE)",
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 (0x00002F04) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "compile": {
+    "bipolar": {
+      "linked_ms": 498,
+      "all_libraries_ms": 499,
+      "linked_chars": 40468,
+      "all_libraries_chars": 61405
+    },
+    "water": {
+      "linked_ms": 453,
+      "all_libraries_ms": 437,
+      "linked_chars": 9376,
+      "all_libraries_chars": 60793
+    },
+    "lensing": {
+      "linked_ms": 379,
+      "all_libraries_ms": 435,
+      "linked_chars": 9620,
+      "all_libraries_chars": 61518
+    },
+    "aurora": {
+      "linked_ms": 318,
+      "all_libraries_ms": 239,
+      "linked_chars": 7585,
+      "all_libraries_chars": 60362
+    },
+    "tidal": {
+      "linked_ms": 239,
+      "all_libraries_ms": 349,
+      "linked_chars": 9861,
+      "all_libraries_chars": 62038
+    },
+    "peacock": {
+      "linked_ms": 227,
+      "all_libraries_ms": 209,
+      "linked_chars": 8503,
+      "all_libraries_chars": 60570
+    },
+    "fire": {
+      "linked_ms": 329,
+      "all_libraries_ms": 487,
+      "linked_chars": 6354,
+      "all_libraries_chars": 59853
+    },
+    "hedgehog": {
+      "linked_ms": 223,
+      "all_libraries_ms": 190,
+      "linked_chars": 7772,
+      "all_libraries_chars": 60191
+    },
+    "ring": {
+      "linked_ms": 555,
+      "all_libraries_ms": 551,
+      "linked_chars": 37834,
+      "all_libraries_chars": 61406
+    },
+    "marble": {
+      "linked_ms": 194,
+      "all_libraries_ms": 176,
+      "linked_chars": 5913,
+      "all_libraries_chars": 60493
+    },
+    "kaleidoscope": {
+      "linked_ms": 184,
+      "all_libraries_ms": 195,
+      "linked_chars": 7012,
+      "all_libraries_chars": 61189
+    },
+    "feather": {
+      "linked_ms": 78,
+      "all_libraries_ms": 83,
+      "linked_chars": 6518,
+      "all_libraries_chars": 60559
+    },
+    "jellyfish-lattice": {
+      "linked_ms": 162,
+      "all_libraries_ms": 161,
+      "linked_chars": 6826,
+      "all_libraries_chars": 61664
+    },
+    "stormy-sea": {
+      "linked_ms": 181,
+      "all_libraries_ms": 225,
+      "linked_chars": 6685,
+      "all_libraries_chars": 61699
+    },
+    "vortex": {
+      "linked_ms": 98,
+      "all_libraries_ms": 116,
+      "linked_chars": 6060,
+      "all_libraries_chars": 61086
+    },
+    "blossom-tree": {
+      "linked_ms": 205,
+      "all_libraries_ms": 201,
+      "linked_chars": 6720,
+      "all_libraries_chars": 61734
+    },
+    "jewel-box": {
+      "linked_ms": 184,
+      "all_libraries_ms": 193,
+      "linked_chars": 6591,
+      "all_libraries_chars": 61605
+    },
+    "lace-garden": {
+      "linked_ms": 202,
+      "all_libraries_ms": 201,
+      "linked_chars": 6629,
+      "all_libraries_chars": 61643
+    },
+    "stone-kaleidoscope": {
+      "linked_ms": 245,
+      "all_libraries_ms": 198,
+      "linked_chars": 6669,
+      "all_libraries_chars": 61647
+    },
+    "underwater-reef": {
+      "linked_ms": 290,
+      "all_libraries_ms": 292,
+      "linked_chars": 9095,
+      "all_libraries_chars": 61750
+    },
+    "golden-spiral": {
+      "linked_ms": 308,
+      "all_libraries_ms": 334,
+      "linked_chars": 6460,
+      "all_libraries_chars": 61438
+    },
+    "cloud-cave": {
+      "linked_ms": 232,
+      "all_libraries_ms": 183,
+      "linked_chars": 6684,
+      "all_libraries_chars": 61558
+    },
+    "smoke-tunnel": {
+      "linked_ms": 167,
+      "all_libraries_ms": 185,
+      "linked_chars": 6621,
+      "all_libraries_chars": 61495
+    },
+    "cloud-mountains": {
+      "linked_ms": 220,
+      "all_libraries_ms": 169,
+      "linked_chars": 6653,
+      "all_libraries_chars": 61527
+    },
+    "rainbow-trefoil": {
+      "linked_ms": 108,
+      "all_libraries_ms": 147,
+      "linked_chars": 7103,
+      "all_libraries_chars": 61401
+    },
+    "point-jellyfish": {
+      "linked_ms": 88,
+      "all_libraries_ms": 68,
+      "linked_chars": 5314,
+      "all_libraries_chars": 60542
+    },
+    "point-creature": {
+      "linked_ms": 56,
+      "all_libraries_ms": 89,
+      "linked_chars": 5314,
+      "all_libraries_chars": 60542
+    },
+    "point-twins": {
+      "linked_ms": 54,
+      "all_libraries_ms": 70,
+      "linked_chars": 5314,
+      "all_libraries_chars": 60542
+    },
+    "point-twins-hairy": {
+      "linked_ms": 55,
+      "all_libraries_ms": 85,
+      "linked_chars": 5314,
+      "all_libraries_chars": 60542
+    },
+    "fluffy-anemone": {
+      "linked_ms": 998,
+      "all_libraries_ms": 744,
+      "linked_chars": 11640,
+      "all_libraries_chars": 66190
+    }
+  },
+  "numbers": {
+    "vortex": {
+      "uniform_ms_per_change": 2.43,
+      "constant_ms_per_change": 159.4
+    },
+    "jellyfish-lattice": {
+      "uniform_ms_per_change": 7.09,
+      "constant_ms_per_change": 204.0
+    },
+    "cloud-cave": {
+      "uniform_ms_per_change": 4.82,
+      "constant_ms_per_change": 220.3
+    }
+  },
+  "points": {
+    "point-jellyfish": {
+      "gpu_frame_ms": 0.13,
+      "canvas2d_frame_ms": 136.6
+    },
+    "point-creature": {
+      "gpu_frame_ms": 0.16,
+      "canvas2d_frame_ms": 126.8
+    },
+    "point-twins": {
+      "gpu_frame_ms": 0.12,
+      "canvas2d_frame_ms": 129.7
+    },
+    "point-twins-hairy": {
+      "gpu_frame_ms": 0.14,
+      "canvas2d_frame_ms": 119.9
+    }
+  },
+  "frames_1024": {
+    "jellyfish-lattice": 4.5,
+    "stormy-sea": 8,
+    "vortex": 0.9,
+    "blossom-tree": 9.4,
+    "jewel-box": 2.8,
+    "lace-garden": 3.6,
+    "stone-kaleidoscope": 2.7,
+    "underwater-reef": 7.5,
+    "golden-spiral": 2.5,
+    "cloud-cave": 2.4,
+    "smoke-tunnel": 3.8,
+    "cloud-mountains": 2.3,
+    "rainbow-trefoil": 7,
+    "point-jellyfish": 0.6,
+    "point-creature": 0.5,
+    "point-twins": 0.4,
+    "point-twins-hairy": 0.5,
+    "fluffy-anemone": 2.3
+  }
+}

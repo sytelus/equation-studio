@@ -1,0 +1,47 @@
+{
+  "id": "blossom-tree",
+  "title": "Blossoming tree",
+  "description": "A tree grown by sphere inversion. By yonatan (@zozuar).",
+  "status": "Reproduction · original code",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "shader",
+      "type": "code",
+      "label": "Blossoming tree",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "code": "// Blossoming tree · yonatan (@zozuar), 2 Mar 2024 · readable version, same image\nvec3 p, ray = vec3(-.1, .65, -.6);    // the camera; ray walks along the ray of this pixel\nfor (float level, i, dist, scale, r2; i++ < 130.;) {   // march 130 steps\n  p = ray += vec3((FC.xy - .5*r)/r.y, 1)*dist;   // step forward by the last distance\n  for (level = dist = scale = 7.; level++ < 21.;) {   // 14 levels of branching (level 7 to 20)\n    scale /= r2 = dot(p, p);          // sphere inversion: divide by |p|² …\n    p /= r2 + .01;                    // … so every level holds smaller copies of the tree (scale tracks their size)\n    p.xz = abs(p.xz*rotate2D(level + sin(1./r2 + t)/scale)) - .53;   // turn (swaying with time) and mirror into four branches\n    float twig = length(p.xz) - .02/r2;   // distance to a thin twig along y\n    p.y = 1.8 - p.y;                  // mirror across y = 0.9\n    dist = min(dist, max(twig, p.y)/scale);   // the twig, cut by the mirror plane, at this level's size; keep the nearest\n  }\n  o += .007/exp(3e3/(scale*vec4(9, 5, 4, 4) + dist*4e6));   // light: pink-white where the ray grazes tiny twigs (blossoms), dark along thick branches\n}",
+        "speed": 1,
+        "phase": 0,
+        "steps1": 130,
+        "steps2": 14
+      },
+      "enabled": true,
+      "work": "blossom-tree"
+    }
+  ],
+  "output": "shader",
+  "duration": 6.283,
+  "exposure": 1,
+  "tone": "linear",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": [],
+  "aspect": 1,
+  "work": "blossom-tree",
+  "thumbTime": 1.3
+}

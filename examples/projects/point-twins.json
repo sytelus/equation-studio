@@ -1,0 +1,72 @@
+{
+  "id": "point-twins",
+  "title": "Circling twins",
+  "description": "The same polar construction, with a twist: (i % 2)·9 adds 9 radians to every odd point, so the even and odd points form two copies of the creature, about 1.4 turns apart, circling together. By ア (@yuruyurau).",
+  "status": "Reproduction · original code",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "background",
+      "type": "solid",
+      "label": "Solid color",
+      "inputs": {},
+      "params": {
+        "color": "#090909",
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "cloud",
+      "type": "points",
+      "label": "Circling twins",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "expression": "// Circling twins · ア (@yuruyurau), 18 Sep 2026 · the point formula of the p5.js sketch\ny = i/638                             // a slow second index: 0 to 31 over the 20000 points\nk = (3 + cos(y))*sin(i/7) + 1e-4      // across the body: a fast swing every 44 points (never exactly 0)\ne = y/5 - 9                           // along the body\nd = length(vec2(k, e)) - 3            // where along the body the point is\nq = 99 + 3*sin(k*3) - d*d*sin(t - d) + y/13*k*(e + sin(d*d - t*3))   // distance from the center: ripples, a wave along the body, frills\nc = d/3 - t/4 + (i % 2)*9 + k*k/89    // angle: odd points are turned by 9 radians, so two twins circle together\nvec2(q*sin(c) + 200, q*cos(c) + 200)  // polar to sketch pixels around the center",
+        "count": 20000,
+        "size": 1,
+        "color": "#ffffff",
+        "alpha": 0.3764705882352941,
+        "canvas": 400,
+        "speed": 3.141592653589793,
+        "phase": 0.05235987755982988
+      },
+      "enabled": true,
+      "work": "point-twins"
+    },
+    {
+      "id": "final",
+      "type": "over",
+      "label": "Front over back",
+      "inputs": {
+        "front": "cloud",
+        "back": "background"
+      },
+      "params": {},
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1,
+  "tone": "linear",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": [],
+  "aspect": 1,
+  "work": "point-twins",
+  "thumbTime": 1.3
+}

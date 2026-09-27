@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../Equation%20Studio.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#editor-guide" id="toc-editor-guide">Editor guide</a>
@@ -44,15 +44,26 @@ component panel</a></li>
 id="toc-the-equation-playground">The Equation Playground</a></li>
 <li><a href="#editing-equations" id="toc-editing-equations">Editing
 equations</a></li>
+<li><a href="#animations-shader-code-and-point-clouds"
+id="toc-animations-shader-code-and-point-clouds">Animations: shader code
+and point clouds</a></li>
+<li><a href="#measuring-the-stats-tab"
+id="toc-measuring-the-stats-tab">Measuring: the Stats tab</a></li>
 <li><a href="#experimenting-safely"
 id="toc-experimenting-safely">Experimenting safely</a></li>
 <li><a href="#including-and-bypassing-components"
 id="toc-including-and-bypassing-components">Including and bypassing
 components</a></li>
 <li><a href="#composing" id="toc-composing">Composing</a></li>
+<li><a href="#seeing-motion" id="toc-seeing-motion">Seeing
+motion</a></li>
 <li><a href="#animation-and-the-timeline"
 id="toc-animation-and-the-timeline">Animation and the timeline</a></li>
+<li><a href="#browsing-the-gallery"
+id="toc-browsing-the-gallery">Browsing: the gallery</a></li>
 <li><a href="#export" id="toc-export">Export</a></li>
+<li><a href="#high-contrast" id="toc-high-contrast">High
+contrast</a></li>
 <li><a href="#screens-tablets-and-phones"
 id="toc-screens-tablets-and-phones">Screens, tablets and phones</a></li>
 <li><a href="#keyboard-shortcuts" id="toc-keyboard-shortcuts">Keyboard
@@ -127,7 +138,7 @@ Export</td>
 <td>center</td>
 <td>The live image; above it, what it shows (<strong>Final
 image</strong>, <strong>This step</strong>, <strong>What it
-changes</strong>) and its tools</td>
+changes</strong>, <strong>What moves</strong>) and its tools</td>
 </tr>
 <tr>
 <td>Pipeline</td>
@@ -145,8 +156,15 @@ ideas behind it, and every control</td>
 <tr>
 <td>Timeline</td>
 <td>bottom</td>
-<td>Play, scrub, duration, output conversion and exposure; a lane for
-every animated parameter</td>
+<td>Play, scrub, duration, playback speed, output conversion and
+exposure; the <strong>🎞 Frames</strong> filmstrip of the whole loop; a
+lane for every animated parameter</td>
+</tr>
+<tr>
+<td>Footer</td>
+<td>very bottom</td>
+<td>The GPU doing the work (click for details and settings), <strong>◐
+Contrast</strong>, save status and counts</td>
 </tr>
 </tbody>
 </table>
@@ -542,6 +560,129 @@ JavaScript.</p>
 <strong>Custom coordinate</strong> or <strong>Custom color</strong>
 equation (＋ Component); each starts from a short example with a slider,
 a definition and captions.</p>
+<h2 id="animations-shader-code-and-point-clouds">Animations: shader code
+and point clouds</h2>
+<figure>
+<img src="../gallery/studio-code.png"
+alt="The Code view of a twigl shader: its credit, the verified readable code, a guided explanation and the loop sliders" />
+<figcaption aria-hidden="true">The Code view of a twigl shader: its
+credit, the verified readable code, a guided explanation and the loop
+sliders</figcaption>
+</figure>
+<p>The gallery’s first sections hold animations whose artists published
+their code: twigl.app shaders and p5.js point sketches. Opening one
+selects its component (a <strong>Shader code</strong> or a <strong>Point
+cloud</strong>), whose panel starts with <strong>the work</strong>: its
+title, the artist and date, a link to the post and what was verified (✓
+<em>same image as the original</em>, or <em>our own study</em> for the
+anemone, whose code was not published), then a summary of what it
+does.</p>
+<h3 id="the-code-view">The Code view</h3>
+<p>A Shader code component’s first tab, <strong>Code</strong>, shows the
+code highlighted, one line per row. Hover anything to learn what it is:
+the inputs (<code>FC</code>, <code>r</code>, <code>t</code>,
+<code>o</code>, underlined), the twigl helpers (<code>hsv</code>,
+<code>rotate2D</code>, …), the GLSL built-ins, every variable (with the
+caption of the line that declares it). Loops are marked
+<strong>⟳1</strong>, <strong>⟳2</strong> in the margin. In a narrow
+panel long lines wrap and each line’s caption moves under it; the
+Playground (<code>E</code>) gives the code room.</p>
+<ul>
+<li><strong>Drag a number</strong> sideways to change it (Shift for
+finer steps), or focus it and use the arrow keys. The picture follows at
+once: numbers are live and nothing recompiles. One drag is one undo
+step.</li>
+<li><strong>Click a variable</strong> to put it on the canvas instead of
+the color (<em>This step</em>, labelled VARIABLE, with a colormap and
+legend). <code>Esc</code> returns to the color.</li>
+<li><strong>Readable / As posted</strong> switches between the readable
+version the scene opens with and the code exactly as posted; both render
+the same image. <strong>⇥ Lay out</strong> rewrites a one-liner one
+statement per line (without comments); <strong>⧉ Copy</strong> copies
+the code.</li>
+<li><strong>✎ Edit</strong> opens the code as text. The canvas previews
+your edit (DRAFT) while it checks; an error names its line (<em>Line 3:
+Cannot multiply a vec3 and a int. GLSL does not turn whole numbers into
+floats: write 2. or 2.0</em>). <strong>Apply</strong> (Ctrl/⌘ Enter)
+puts it into the scene, <strong>Cancel</strong> discards it. <em>How to
+write code</em> beside the editor lists the inputs, helpers and
+rules.</li>
+</ul>
+<p><strong>How it works</strong> is the work’s explanation as numbered
+steps. A step highlights the lines it explains and may show a variable
+or stop a loop early; click it again, or <strong>✕ End</strong>, to
+return to the full picture.</p>
+<p><strong>Loops</strong> has a slider for every loop: stop it after
+that many steps. The range ends at the loop’s real length (<em>march 200
+steps along the ray</em>, <em>6 steps each time it runs</em>).
+<strong>▶</strong> sweeps the loop from 0 steps to all of them in four
+seconds so you watch the picture form (press it again or
+<code>Esc</code> to stop); <strong>↺</strong> runs it in full again.</p>
+<p><strong>Time</strong> has the component’s own <strong>Time
+speed</strong> and <strong>Time offset</strong>:
+<code>t = speed × studio time + offset</code>. <strong>❄ Freeze
+here</strong> turns the animation into a still of the moment under the
+playhead.</p>
+<p><strong>As posted</strong> shows the original code with ⧉ Copy.</p>
+<h3 id="look-inside">Look inside</h3>
+<figure>
+<img src="../gallery/studio-variable.png"
+alt="The depth a raymarcher reached, shown on the canvas with a colormap, and every variable of the code listed in Look inside" />
+<figcaption aria-hidden="true">The depth a raymarcher reached, shown on
+the canvas with a colormap, and every variable of the code listed in
+Look inside</figcaption>
+</figure>
+<p>The second tab lists every value the code computes: the color
+<code>o</code>, each variable with its type and the line that declares
+it, and the number of steps each loop took. Click one to show it on the
+canvas with its own colormap: a raymarcher’s <code>depth</code> is a
+depth map, its last distance shows how close each ray came to a surface,
+a fractal’s <code>scale</code> how deep it went. Values are shown after
+the code has run, with loops stopped where their sliders say, so combine
+this with <strong>Loops</strong> to look at a value part-way. Pin a
+point on the canvas (click it) and the value of every variable there
+appears next to its name.</p>
+<h3 id="point-clouds">Point clouds</h3>
+<p>A Point cloud’s <strong>Equation</strong> tab shows its point formula
+as typeset steps with captions, like any equation, with <strong>✎
+Edit</strong>; its parameters are the number of points, their size,
+color and opacity, the sketch size and the time. Its own view (<em>This
+step</em>) shows the dots over black; the scene puts them over a
+background with <em>Front over back</em>. For a p5.js work, <strong>As
+posted</strong> shows the original sketch.</p>
+<h3 id="reusing-an-animation">Reusing an animation</h3>
+<p><strong>＋ Component</strong> opens the palette, which starts with
+the works: click one to add it to the current scene as a credited color
+layer (combine it with <em>Add light</em> or <em>Front over back</em>,
+or warp it through its input p). With <strong>❄ Freeze here</strong> it
+becomes a still. The palette’s tips show every component rendered on its
+own.</p>
+<h2 id="measuring-the-stats-tab">Measuring: the Stats tab</h2>
+<figure>
+<img src="../gallery/studio-stats.png"
+alt="Stats: the values of a component with a histogram, and the loop measured over the timeline" />
+<figcaption aria-hidden="true">Stats: the values of a component with a
+histogram, and the loop measured over the timeline</figcaption>
+</figure>
+<p>Every component has a <strong>Stats</strong> tab:</p>
+<ul>
+<li><strong>Values</strong>: the minimum, mean, maximum and spread of
+each channel of what the canvas shows for this component (or the shown
+variable), the share of clipped, black and not-finite pixels, and a
+histogram. It is measured at once and again with ↻.</li>
+<li><strong>Points</strong> (point clouds): how much of the image the
+points cover and how dense they get.</li>
+<li><strong>Over the loop</strong> (▶ Measure): 25 frames across the
+timeline; the mean brightness through time, the change between
+neighbouring frames, and whether the loop is seamless (the end leads
+into the beginning like any other frame) or jumps.</li>
+<li><strong>Inside the code</strong> (▶ Measure, shader code): the range
+of every variable over the image, and how many steps each loop really
+took per pixel.</li>
+<li><strong>GPU time</strong> (⏱ Measure): how long each component’s
+view takes to draw at the canvas size, and its own share without its
+inputs: where the time of a frame goes.</li>
+</ul>
 <h2 id="experimenting-safely">Experimenting safely</h2>
 <p>Nothing you try is hard to take back:</p>
 <ul>
@@ -634,6 +775,28 @@ scrolls to the selected card; with the graph focused,
 current view, with each component’s statement labelled by its id and its
 parameters named <code>n3_radius</code>. <strong>Copy GLSL</strong>
 copies it.</p>
+<h2 id="seeing-motion">Seeing motion</h2>
+<ul>
+<li><strong>What moves</strong> (<code>M</code>, above the canvas): the
+image now and a tenth of a second later; pixels that change keep their
+color, still ones turn gray. The menu next to it switches to
+<strong>Trails</strong>: the last half second averaged, like a long
+exposure.</li>
+<li><strong>🎞 Frames</strong> (timeline): twelve frames across the whole
+timeline, in the colors of the current view; click one to go there.
+Toggle it with the button.</li>
+<li><strong>Playback speed</strong> (¼× to 2×, timeline): slow motion
+for fast details.</li>
+<li><strong>Profile ▸ Over time</strong>: the Profile under the canvas
+follows one point (the cursor or the pinned reading, marked with a
+circle) through the whole timeline, with the playhead marked.</li>
+</ul>
+<figure>
+<img src="../gallery/studio-motion.png"
+alt="Trails of the swimming creature: the last half second of 20,000 points at once" />
+<figcaption aria-hidden="true">Trails of the swimming creature: the last
+half second of 20,000 points at once</figcaption>
+</figure>
 <h2 id="animation-and-the-timeline">Animation and the timeline</h2>
 <p>Space plays and pauses; ↤ rewinds; <code>,</code> and <code>.</code>
 step one frame at 24 fps; <code>Home</code> and <code>End</code> jump to
@@ -648,15 +811,44 @@ linear or hold interpolation, or delete keys and tracks. Parameters
 declared in an equation animate the same way. See <a
 href="ANIMATION.html">Animation</a> for the interpolation rules and export
 determinism.</p>
+<h2 id="browsing-the-gallery">Browsing: the gallery</h2>
+<figure>
+<img src="../gallery/studio-gallery.png"
+alt="The Scenes gallery: animations in sections, filters by kind and artist, and a card that comes alive under the pointer" />
+<figcaption aria-hidden="true">The Scenes gallery: animations in
+sections, filters by kind and artist, and a card that comes alive under
+the pointer</figcaption>
+</figure>
+<p><strong>☰ Scenes</strong> opens the gallery: scenes in sections
+(<em>shader code</em>, <em>point clouds</em>, <em>studies</em>,
+<em>constructions</em>) with filters by kind and by artist, and the
+search box finds titles, artists, tags and descriptions. Each card shows
+a saved thumbnail; hold the pointer over it (or focus it with the
+keyboard) and it comes alive, rendered small and live from its
+equations. Click to open it.</p>
 <h2 id="export">Export</h2>
-<p><strong>Export</strong> renders a still PNG at any size up to the GPU
-limit (with the full project embedded as metadata), a deterministic PNG
-sequence in a ZIP with the project and a manifest, or a real-time
-browser video. When the canvas shows a step or a “what it changes” view,
-a checkbox exports that view instead of the final image, in the colors
-the canvas shows (a step keeps the color range it has on the canvas for
-every frame). Details and limits are in <a href="ANIMATION.html">Animation
-and export</a>.</p>
+<p><strong>Export</strong> renders a still (PNG with the full project
+embedded as metadata, JPEG or WebP), an animation of the whole timeline
+(MP4 with every frame at its exact time, a looping GIF or animated PNG,
+a sprite sheet, a deterministic PNG sequence with the project and a
+manifest, or a real-time WebM recording), a <strong>web page</strong>
+that plays the scene live, or the selected shader code for twigl.app
+with its credit. When the canvas shows a step or a “what it changes”
+view, a checkbox exports that view instead of the final image, in the
+colors the canvas shows (a step keeps the color range it has on the
+canvas for every frame). Details and limits are in <a
+href="ANIMATION.html">Animation and export</a>.</p>
+<h2 id="high-contrast">High contrast</h2>
+<p><strong>◐ Contrast</strong> in the footer (or <code>K</code>) cycles
+<em>auto</em>, <em>high</em> and <em>normal</em>. <em>Auto</em> follows
+the system setting (prefers-contrast: more). High contrast uses a black
+background, white text and borders, brighter code colors and a strong
+yellow focus ring on the element that has keyboard focus; every control
+stays usable with the keyboard.</p>
+<figure>
+<img src="../gallery/studio-contrast.png" alt="High contrast" />
+<figcaption aria-hidden="true">High contrast</figcaption>
+</figure>
 <h2 id="screens-tablets-and-phones">Screens, tablets and phones</h2>
 <ul>
 <li><strong>Wide screens</strong>: the panel takes about a quarter of
@@ -733,6 +925,15 @@ final image)</td>
 <td>Show what the selected component changes</td>
 </tr>
 <tr>
+<td><code>M</code></td>
+<td>What moves: the canvas shows the pixels that change (again: back to
+the final image)</td>
+</tr>
+<tr>
+<td><code>K</code></td>
+<td>Cycle the contrast: auto, high, normal</td>
+</tr>
+<tr>
 <td><code>E</code></td>
 <td>Open or close the Equation Playground</td>
 </tr>
@@ -743,8 +944,13 @@ final image)</td>
 <tr>
 <td><code>Esc</code></td>
 <td>Back out one level: close the library, cancel a connection, close
-the explorer, unpin a reading, leave an unchanged edit, return to the
-final image, close the Playground</td>
+the explorer, stop a loop’s build-up, unpin a reading, show a code
+component’s color instead of a variable, leave an unchanged edit, return
+to the final image, close the Playground</td>
+</tr>
+<tr>
+<td>arrow keys on a code number</td>
+<td>Change the number (Shift: ten times more)</td>
 </tr>
 <tr>
 <td>hold <code>O</code></td>
@@ -801,10 +1007,11 @@ final image, close the Playground</td>
 edit, together with the scene as it was opened (so Original, reset and
 Revert still work after a reload). Preferences are stored the same way:
 quality, rulers, grid, previews, profile, step colors, the bottom tab,
-the pipeline height, the panel widths, the Playground and whether the
-library is docked. So are snapshots. Unapplied equation edits are not
-saved. Browser storage can be unavailable or cleared, so <strong>Save
-project</strong> remains the portable backup. Reference images are never
-stored.</p>
+the pipeline height, the panel widths, the Playground, whether the
+library is docked, the contrast, the playback speed, the filmstrip and
+whether shader numbers are compiled as constants. So are snapshots.
+Unapplied equation and code edits are not saved. Browser storage can be
+unavailable or cleared, so <strong>Save project</strong> remains the
+portable backup. Reference images are never stored.</p>
 </body>
 </html>

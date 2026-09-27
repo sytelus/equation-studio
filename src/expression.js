@@ -22,7 +22,7 @@ import { motifsGLSL } from './motifs-glsl.js';
  * text is ever pasted into the shader. Pure: no DOM, no WebGL.
  */
 export const LIMITS = { length: 3000, params: 8, definitions: 24, name: 24 };
-export const RESULT_TYPES = { expression: ['float'], vectorExpression: ['vec2'], colorExpression: ['vec3', 'vec4'] };
+export const RESULT_TYPES = { expression: ['float'], vectorExpression: ['vec2'], colorExpression: ['vec3', 'vec4'], points: ['vec2'] };
 /** A language error with the 1-based line (and character) where it was found. */
 export class EquationError extends Error {
     constructor(message, line = null, column = null) {
@@ -35,6 +35,10 @@ export class EquationError extends Error {
 }
 // ---- Names --------------------------------------------------------------------
 const LOCALS = { p: 'vec2', x: 'float', y: 'float', r: 'float', theta: 'float', a: 'float', b: 'float', t: 'float' };
+/** A point cloud's equation places point number i of n at time t (points component). */
+const POINT_LOCALS = { i: 'float', n: 'float', t: 'float' };
+/** The names an equation of this kind reads. */
+export const localsFor = kind => kind === 'points' ? POINT_LOCALS : LOCALS;
 const CONSTANTS = { PI: 'float', TAU: 'float' };
 const RESERVED = new Set(('attribute const uniform varying layout centroid flat smooth break continue do for while switch case default if else in out inout float int void bool true false '
     + 'invariant discard return mat2 mat3 mat4 vec2 vec3 vec4 ivec2 ivec3 ivec4 bvec2 bvec3 bvec4 uint uvec2 uvec3 uvec4 lowp mediump highp precision sampler2D sampler3D samplerCube struct '
@@ -317,6 +321,17 @@ function parseParam(tokens, line, comment) {
     return { name: name.value, kind: 'number', value, min, max, step, label: name.value, help: comment, line };
 }
 /** Parse a program into {params, definitions, result}. Throws EquationError. */
+/** One `param` line on its own (shared with the shader-code language of glsl.js):
+ * `param name = value [min, max] step s   // help` → the parameter spec.
+ */
+export function parseParamLine(text, line) {
+    const cut = text.indexOf('//'), code = cut >= 0 ? text.slice(0, cut) : text, comment = cut >= 0 ? text.slice(cut + 2).trim() : '';
+    const tokens = tokenize(code.replace(/;\s*$/, ''), line);
+    if (tokens[0]?.value !== 'param') {
+        throw new EquationError('Write a parameter as: param name = value [min, max].', line);
+    }
+    return parseParam(tokens, line, comment);
+}
 export function parseProgram(source) {
     const text = String(source ?? '');
     if (!text.trim() || text.length > LIMITS.length) {
@@ -357,11 +372,11 @@ export function parseProgram(source) {
     return program;
 }
 // ---- Types --------------------------------------------------------------------
-function checkName(name, line, taken) {
+function checkName(name, line, taken, locals = LOCALS) {
     if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(name) || name.length > LIMITS.name || name.includes('__') || /^gl_/i.test(name)) {
         throw new EquationError(`“${name}” is not a valid name: use letters, digits and single underscores, up to ${LIMITS.name} characters.`, line);
     }
-    if (RESERVED.has(name) || Object.hasOwn(LOCALS, name) || Object.hasOwn(CONSTANTS, name) || Object.hasOwn(BUILTINS, name) || Object.hasOwn(LIBRARY, name) || name === 'expression') {
+    if (RESERVED.has(name) || Object.hasOwn(locals, name) || Object.hasOwn(CONSTANTS, name) || Object.hasOwn(BUILTINS, name) || Object.hasOwn(LIBRARY, name) || name === 'expression') {
         throw new EquationError(`“${name}” is already taken by the language; choose another name.`, line);
     }
     if (taken.has(name)) {
@@ -495,14 +510,14 @@ function typeOf(node, scope, line) {
  * with {resultType, types: name → type}. Throws EquationError.
  */
 export function checkProgram(source, kind) {
-    const program = parseProgram(source), scope = new Map(Object.entries({ ...LOCALS, ...CONSTANTS })), taken = new Set();
+    const locals = localsFor(kind), program = parseProgram(source), scope = new Map(Object.entries({ ...locals, ...CONSTANTS })), taken = new Set();
     for (const param of program.params) {
-        checkName(param.name, param.line, taken);
+        checkName(param.name, param.line, taken, locals);
         taken.add(param.name);
         scope.set(param.name, param.kind === 'color' ? 'vec3' : 'float');
     }
     for (const d of program.definitions) {
-        checkName(d.name, d.line, taken);
+        checkName(d.name, d.line, taken, locals);
         const type = typeOf(d.expr, scope, d.line);
         if (type === 'bool') {
             throw new EquationError(`${d.name} is a condition (true/false); use it inside “? :” instead.`, d.line);
@@ -513,11 +528,12 @@ export function checkProgram(source, kind) {
     }
     const resultType = typeOf(program.result.expr, scope, program.result.line), allowed = RESULT_TYPES[kind];
     if (allowed && !allowed.includes(resultType)) {
-        const want = { expression: 'a number (float)', vectorExpression: 'a coordinate pair (vec2)', colorExpression: 'a color (vec3, or vec4 with coverage)' }[kind];
-        const hint = kind === 'colorExpression' && resultType === 'float' ? ' For gray, write vec3(v).' : kind === 'vectorExpression' && resultType === 'float' ? ' Build a pair with vec2(x, y).' : '';
+        const want = { expression: 'a number (float)', vectorExpression: 'a coordinate pair (vec2)', colorExpression: 'a color (vec3, or vec4 with coverage)', points: 'the position of the point, vec2(x, y) in sketch pixels' }[kind];
+        const hint = kind === 'colorExpression' && resultType === 'float' ? ' For gray, write vec3(v).' : (kind === 'vectorExpression' || kind === 'points') && resultType === 'float' ? ' Build a pair with vec2(x, y).' : '';
         throw new EquationError(`The result must be ${want}, but it is a ${resultType}.${hint}`, program.result.line);
     }
     program.resultType = resultType;
+    program.kind = kind;
     program.types = Object.fromEntries(scope);
     return program;
 }
@@ -653,6 +669,7 @@ export function programGLSL(program, functionName, params = {}) {
         lines.push(`${d.valueType} d_${d.name}=${toGLSL(d.expr, names)};`);
     }
     const returns = program.resultType;
-    const code = `${returns} ${functionName}(vec2 p,float a,float b,float t){float x=p.x,y=p.y,r=length(p),theta=angleOf(p);${lines.join('')}return ${toGLSL(program.result.expr, names)};}`;
+    const head = program.kind === 'points' ? `${returns} ${functionName}(float i,float n,float t){` : `${returns} ${functionName}(vec2 p,float a,float b,float t){float x=p.x,y=p.y,r=length(p),theta=angleOf(p);`;
+    const code = `${head}${lines.join('')}return ${toGLSL(program.result.expr, names)};}`;
     return { code, returns };
 }

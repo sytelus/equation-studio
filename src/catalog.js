@@ -30,6 +30,7 @@
  * `tex` (the list of step equations) is derived for compatibility.
  */
 import { equationParams } from './expression.js';
+import { analyzeCode, codeParams, CODE_LIMITS } from './glsl.js';
 const num = (label, value, min, max, step, symbol, help) => ({ kind: 'number', label, value, min, max, step, symbol, help });
 const rgb = (label, value, symbol, help) => ({ kind: 'color', label, value, symbol, help: `${help} A linear radiance multiplier; display conversion happens only after composition.` });
 const expr = value => ({ kind: 'expression', label: 'Equation', value, help: 'Use p, x, y, r, theta, t, a and b, parameters (param name = value [min, max]) and definitions (name = …), one per line; the last line is the result. No loops or JavaScript.' });
@@ -44,6 +45,21 @@ const smooth = (a, b, x) => {
     const u = Math.max(0, Math.min(1, (x - a) / (b - a)));
     return u * u * (3 - 2 * u);
 };
+/** The code a new Shader code component starts with: short, commented, twigl style. */
+const STARTER_CODE = [
+    '// Rings of color moving outward. Drag any number to change it.',
+    'vec2 p = (FC.xy - .5*r)/r.y;   // this pixel as a point: the center is 0, the image height is 1',
+    'float d = length(p);           // distance from the center',
+    'for (float i = 0.; i < 3.; i++)   // three layers of rings, each a little larger',
+    '  o.rgb += hsv(d - t*.1 + i*.2, .6, .02/abs(sin(d*12. - t - i) + .001))*.1;   // bright where the sine crosses zero'
+].join('\n');
+/** The equation a new Point cloud starts with: a closed curve that wobbles in petals. */
+const STARTER_POINTS = [
+    'param petals = 5 [1, 12] step 1   // lobes of the curve',
+    'k = i/n*TAU                        // where point i sits along the curve: 0 to 2π',
+    'd = 120 + 50*sin(petals*k + t)     // its distance from the center, wobbling in petals',
+    'vec2(200 + d*cos(k), 200 + d*sin(k))   // the point, around the center of a 400-pixel sketch'
+].join('\n');
 const customNotes = [['p = (x, y)', 'input coordinates'], ['r, \\theta', 'polar radius and angle of p'], ['a, b', 'optional scalar inputs'], ['t', 'time in seconds']];
 export const catalog = {
     coordinates: component({
@@ -335,6 +351,49 @@ export const catalog = {
         notes: customNotes,
         concepts: ['radiance'],
         description: 'Your own color layer: the last line is a radiance vec3(…), opaque, or vec4(…) with coverage. Written like the other custom equations; combine with a mask for transparency.',
+        emit: () => ''
+    }),
+    code: component({
+        name: 'Shader code', category: 'Code & points', output: 'layer', inputs: { p: 'coord' }, inputSymbols: { p: 'p' }, code: true,
+        params: {
+            code: { kind: 'code', label: 'Code', value: STARTER_CODE, help: 'GLSL as on twigl.app (geekest mode): read the pixel FC, the resolution r and the time t, and add light to the color o. Every number can be dragged; loops, variables and helpers are explained in the Code view.' },
+            speed: num('Time speed', 1, -4, 4, 0.01, '\\sigma', 'How fast the code’s time t runs: 1 is real time, 0 freezes the picture, negative values play it backwards.'),
+            phase: num('Time offset', 0, -60, 60, 0.01, '\\tau_0', 'Added to the code’s time: the moment of the animation this component shows at time 0. With speed 0 it chooses a still frame.')
+        },
+        equation: 'o = code(FC, r, t)',
+        steps: [
+            step('\\mathrm{FC} = \\text{pixel of } p, \\quad t = \\sigma\\,\\tau + \\tau_0', 'Each point p of the plane becomes the pixel position FC of the code’s own canvas (r pixels wide), and the studio time τ becomes the code’s time t.'),
+            step('o = \\operatorname{code}(\\mathrm{FC}, r, t)', 'The code runs once for every pixel, on its own: it starts with o = 0 and adds light to it. The final o is the color of this layer.')
+        ],
+        outputSymbols: ['o'],
+        notes: [['\\mathrm{FC}', 'pixel position of the point, as on twigl'], ['r', 'resolution in pixels'], ['\\tau', 'studio time in seconds'], ['o', 'output color']],
+        concepts: ['shader-code', 'per-pixel'],
+        description: 'Shader code in the style of twigl.app: the whole program for one pixel, written as GLSL. Paste a twigl “geekest” one-liner and it runs unchanged; then drag its numbers, stop its loops after a few steps and look at any of its variables on the canvas. The input p lets you warp or zoom it like any other layer.',
+        emit: () => ''
+    }),
+    points: component({
+        name: 'Point cloud', category: 'Code & points', output: 'layer', inputs: { p: 'coord' }, inputSymbols: { p: 'p' }, custom: true, points: true,
+        params: {
+            expression: { kind: 'expression', label: 'Equation', value: STARTER_POINTS, help: 'Where point number i (of n) is drawn at time t, as vec2(x, y) in sketch pixels: x to the right, y down, the sketch S pixels wide. Parameters (param name = value [min, max]) and definitions (name = …), one per line; the last line is the position.' },
+            count: num('Points', 20000, 1, 200000, 1, 'n', 'How many points are drawn: i runs from 0 to n − 1.'),
+            size: num('Point size', 1, 0.1, 24, 0.05, 'w', 'Diameter of one point in sketch pixels (the strokeWeight of p5.js).'),
+            color: rgb('Color', '#ffffff', 'C', 'Color of the points.'),
+            alpha: num('Opacity', 0.26, 0, 1, 0.005, '\\alpha', 'Opacity of one point. Overlapping points build up brightness, so dense places glow (p5.js stroke alpha 66 is 66/255 ≈ 0.26).'),
+            canvas: num('Sketch size', 400, 50, 4000, 1, 'S', 'Width of the sketch in its own pixels (createCanvas in p5.js). The sketch fills the width of the image; its center is (S/2, S/2).'),
+            speed: num('Time speed', 1, -8, 8, 0.001, '\\sigma', 'Sketch time per second: t = σ τ + τ₀. A p5.js sketch that adds Δ to t every frame at 60 frames per second has σ = 60 Δ.'),
+            phase: num('Time offset', 0, -200, 200, 0.01, '\\tau_0', 'Added to the sketch time. With speed 0 it chooses a still frame.')
+        },
+        equation: 'point i at position(i, n, t), drawn with opacity α',
+        steps: [
+            step('t = \\sigma\\,\\tau + \\tau_0', 'The studio time τ (seconds) becomes the sketch time t.'),
+            step('\\mathbf{x}_i = \\operatorname{position}(i, n, t), \\quad i = 0, 1, \\ldots, n - 1', 'Your equation places each point: the same formula, evaluated n times with a different index i. Structure appears because nearby i land on nearby places.'),
+            step('\\mathbf{x}_i \\in [0, S] \\times [0, S] \\to \\text{the image}', 'Positions are in sketch pixels, as in p5.js: x to the right, y down, (S/2, S/2) at the center. The S-pixel-wide sketch fills the width of the image.'),
+            step('L \\leftarrow \\operatorname{over}\\left(\\alpha\\, C\\, \\text{disc}(\\mathbf{x}_i, w),\\ L\\right)', 'Every point is a small round dot of diameter w, blended over the ones before it. Where many points overlap the light accumulates, so density becomes brightness.')
+        ],
+        outputSymbols: ['L'],
+        notes: [['i, n', 'index of the point and number of points'], ['S', 'sketch width in its own pixels'], ['\\tau', 'studio time in seconds']],
+        concepts: ['point-cloud', 'density'],
+        description: 'Thousands of points placed by one equation of their index i and the time t, like a p5.js sketch that calls point() in a loop. The dots are drawn on the GPU and become a layer: put it over a background, tint it, mask it or warp it through its input p.',
         emit: () => ''
     }),
     palette: component({
@@ -832,6 +891,14 @@ export function parameterDefaults(type) {
  */
 export function paramSpecs(node) {
     const def = catalog[node.type];
+    if (def?.code) {
+        try {
+            return { ...def.params, ...codeParams(node.params.code), ...loopStepSpecs(analyzeCode(node.params.code)) };
+        }
+        catch (e) {
+            return def.params;
+        }
+    }
     if (!def?.custom) {
         return def?.params || {};
     }
@@ -841,6 +908,20 @@ export function paramSpecs(node) {
     catch (e) {
         return def.params;
     }
+}
+/** One slider per loop of shader code, `steps1`, `steps2`, …: stop the loop after
+ * that many steps to see how the picture builds up. The range ends at the number
+ * of steps the loop really takes (glsl.js measures it), or at the safety budget
+ * when that depends on the pixel.
+ */
+export function loopStepSpecs(analysis) {
+    return Object.fromEntries(analysis.loops.map(l => {
+        const n = l.index + 1, max = l.steps ?? CODE_LIMITS.budget, where = l.caption || l.name;
+        const help = l.steps === null
+            ? `Stop loop ${n} (${where}, line ${l.line}) after this many steps. It runs until its condition fails, so the full value means “no limit”.`
+            : `Stop loop ${n} (${where}, line ${l.line}) after this many steps; it normally takes ${l.steps}${l.depth ? ' each time it runs' : ''}. Fewer steps show how the picture builds up.`;
+        return [`steps${n}`, { kind: 'number', label: `Loop ${n} steps`, value: max, min: 0, max, step: 1, symbol: `N_{${n}}`, help, loop: l.index, custom: true }];
+    }));
 }
 /** Socket passed through when a node of this type is disabled, or null. */
 export function bypassSocket(type) {

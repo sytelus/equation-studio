@@ -31,7 +31,7 @@ with sync_playwright() as pw:
     page.set_default_timeout(120000)
     errors = []
     page.on('pageerror', lambda error: errors.append(str(error)))
-    page.set_content((ROOT / 'Equation Studio.html').read_text(encoding='utf-8'), wait_until='load')
+    page.set_content((ROOT / 'index.html').read_text(encoding='utf-8'), wait_until='load')
     page.wait_for_function('window.equationStudio?.getRenderer()?.current', timeout=300000)
     page.locator('#quality').select_option('480')
     project = lambda: page.evaluate('equationStudio.getProject()')
@@ -222,7 +222,9 @@ with sync_playwright() as pw:
     page.locator('#applyEquation').click()
     assert node('expression1')['params']['expression'] == 'pow(x, 2.0) / (1.0 + r)'
     assert '<mfrac>' in page.locator('#expressionPreview').inner_html(), 'the steps show the applied equation'
-    assert 'DRAFT' not in canvas_mode() and page.locator('#equationEditor').count() == 0
+    # The label follows on the next drawn frame.
+    page.wait_for_function('!document.getElementById("canvasMode").textContent.includes("DRAFT")', timeout=10000)
+    assert page.locator('#equationEditor').count() == 0, (canvas_mode(), page.locator('#toast').text_content(), errors)
     page.locator('#editEquation').click()
     page.locator('#equationEditor').fill('unknown_function(p)')
     page.locator('#equationEditor').dispatch_event('input')
@@ -506,7 +508,8 @@ with sync_playwright() as pw:
         with page.expect_download(timeout=120000) as dl:
             page.locator('#startExport').click()
     except Exception:
-        print('video export did not download; dialog says:', page.locator('#exportMessage').text_content(), 'errors:', errors, flush=True)
+        print('video export did not download; dialog says:', page.locator('#exportMessage').text_content(), 'errors:', errors,
+              'page:', page.evaluate('({visibility: document.visibilityState, focus: document.hasFocus()})'), 'open pages:', len(page.context.pages), flush=True)
         raise
     video = OUT / 'workflow.webm'
     dl.value.save_as(str(video))
@@ -532,6 +535,186 @@ with sync_playwright() as pw:
     page.locator('[data-close="exportDialog"]').click()
     page.keyboard.press('Escape')
     record('Exporting a stage uses the canvas colors (colormap, not the gray diagnostic)', {'mean_saturation': round(saturation, 1)})
+    # ---- 2.0: animations as code, point clouds, time tools, measures and exports ----
+    # The gallery: filter chips, sections, a live preview on hover, then open a work.
+    page.locator('#libraryButton').click()
+    page.locator('[data-library="scenes"]').click()
+    page.locator('[data-gallery-kind="code"]').click()
+    kinds = page.evaluate('[...document.querySelectorAll("#libraryContent .gallery-card")].map(c=>c.dataset.kind)')
+    assert kinds and set(kinds) == {'code'}, kinds
+    page.locator('[data-preset="vortex"]').hover()
+    page.wait_for_function('!document.querySelector("[data-preset=vortex] .gallery-live").hidden', timeout=120000)
+    page.locator('[data-gallery-kind="all"]').click()
+    page.locator('[data-preset="vortex"]').click()
+    page.wait_for_function('equationStudio.getProject().id==="vortex" && document.getElementById("compileStatus").hidden', timeout=300000)
+    assert view()['selected'] == 'shader', view()
+    assert page.locator('#inspectorContent .work-credit').text_content().count('Xor (@XorDev)') == 1
+    assert page.locator('#inspectorContent .work-badge').count() == 1
+    record('Gallery: kind filter, live hover preview, a work opens on its credited code component', {'shader cards': len(kinds)})
+    # Dragging a number changes the code without recompiling; one undo step restores it.
+    renderer_key = lambda: page.evaluate('equationStudio.getRenderer().current.key')
+    code = lambda: node('shader')['params']['code']
+    key_before, code_before = renderer_key(), code()
+    number = page.locator('#codeView .c-num').nth(2)
+    box = number.bounding_box()
+    page.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+    page.mouse.down()
+    page.mouse.move(box['x'] + box['width'] / 2 + 40, box['y'] + box['height'] / 2, steps=5)
+    page.mouse.up()
+    page.wait_for_timeout(200)
+    assert code() != code_before, 'the number changed in the code'
+    assert renderer_key() == key_before, 'no new program: numbers are uniforms'
+    page.keyboard.press('Control+z')
+    assert code() == code_before
+    record('Dragging a code number edits the text, redraws without recompiling, and undoes in one step')
+    # A variable on the canvas, its legend, and back to the color with Escape.
+    page.locator('#codeView .c-var', has_text='angle').first.click()
+    page.wait_for_function('document.getElementById("canvasMode").textContent.includes("VARIABLE")')
+    assert view()['mode'] == 'stage' and 'angle' in canvas_mode(), canvas_mode()
+    page.wait_for_function('document.querySelector("#legend .legend-bar")')
+    page.mouse.move(5, 5)
+    page.keyboard.press('Escape')
+    page.wait_for_function('!document.getElementById("canvasMode").textContent.includes("VARIABLE")')
+    record('Clicking a variable shows it on the canvas with a colormap legend; Escape returns to the color')
+    # Loops: stop after fewer steps (a new image), run in full again.
+    full_steps = node('shader')['params']['steps1']
+    page.evaluate('equationStudio.setView("final")')
+    before = page.evaluate('Array.from(equationStudio.getRenderer().pixels().slice(0,4000))')
+    page.locator('#param-steps1').fill('3')
+    page.locator('#param-steps1').dispatch_event('change')
+    page.wait_for_timeout(300)
+    assert node('shader')['params']['steps1'] == 3
+    page.evaluate('equationStudio.renderNow()')
+    after = page.evaluate('Array.from(equationStudio.getRenderer().pixels().slice(0,4000))')
+    assert before != after, 'three rings look different from sixteen'
+    page.locator('#inspectorContent [data-action="full-loop"]').click()
+    assert node('shader')['params']['steps1'] == full_steps == 16
+    record('A loop slider stops the loop early (the image changes); ↺ runs it in full', {'steps': full_steps})
+    # The guided tour highlights lines and shows the variable a step is about.
+    page.locator('#inspectorContent [data-tour="1"]').click()
+    assert page.locator('#codeView .c-line.hl').count() >= 1
+    assert 'v' in canvas_mode() and 'VARIABLE' in canvas_mode(), canvas_mode()
+    page.locator('#inspectorContent [data-action="tour-end"]').click()
+    assert view()['mode'] == 'final'
+    record('How it works: a tour step highlights its lines and shows its variable; End returns to the final image')
+    # Look inside: every value at a pinned point.
+    panel_tab('inside')
+    box = page.locator('#artCanvas').bounding_box()
+    page.mouse.click(round(box['x'] + box['width'] * .3), round(box['y'] + box['height'] * .4))
+    page.wait_for_function('[...document.querySelectorAll("#inspectorContent .inside-value")].some(e=>e.textContent.trim())', timeout=60000)
+    values = page.evaluate('[...document.querySelectorAll("#inspectorContent .inside-row")].map(r=>r.querySelector(".inside-name").textContent+"="+r.querySelector(".inside-value").textContent)')
+    page.keyboard.press('Escape')
+    record('Look inside reads every variable at the pinned point', values[:4])
+    # Stats: values table, histogram, and the loop verdict.
+    panel_tab('stats')
+    page.wait_for_function('document.querySelector("#inspectorContent .stats-table")', timeout=60000)
+    page.locator('#inspectorContent [data-action="measure-loop"]').click()
+    page.wait_for_function('document.querySelector("#inspectorContent .stats-verdict")', timeout=300000)
+    verdict = page.locator('#inspectorContent .stats-verdict').text_content()
+    record('Stats: per-channel values with a histogram, and a loop measurement with a verdict', verdict[:60])
+    # What moves: the motion view and trails.
+    page.mouse.move(5, 5)
+    page.keyboard.press('m')
+    assert view()['mode'] == 'motion' and 'WHAT MOVES' in canvas_mode()
+    page.locator('#motionStyle').select_option('trails')
+    assert 'TRAILS' in canvas_mode()
+    page.evaluate('equationStudio.renderNow()')
+    page.keyboard.press('m')
+    assert view()['mode'] == 'final'
+    record('What moves (M): changing pixels, and trails averaging the last half second')
+    # A time profile: one point through the whole timeline.
+    page.locator('#scopeButton').click()
+    page.locator('#scopeAxis').select_option('t')
+    page.wait_for_function('document.querySelector("#scopePlot svg") && document.getElementById("scopePlot").textContent.includes("time t (s)")', timeout=120000)
+    page.locator('#scopeClose').click()
+    record('Profile over time: one pixel plotted through the whole loop')
+    # The filmstrip: frames across the timeline; a click moves the playhead.
+    page.wait_for_function('document.querySelectorAll("#filmstrip .film-frame").length===12', timeout=120000)
+    page.locator('#filmstrip .film-frame').nth(6).click()
+    assert abs(page.evaluate('equationStudio.getTime()') - 10) < 1e-6
+    record('Filmstrip of 12 frames; clicking one seeks there', {'time': 10})
+    # Freeze: speed 0 at the playhead's moment.
+    panel_tab('code')
+    page.locator('#inspectorContent [data-action="freeze"]').click()
+    assert node('shader')['params']['speed'] == 0 and abs(node('shader')['params']['phase'] - 10) < 1e-6
+    page.keyboard.press('Control+z')
+    record('❄ Freeze here: speed 0 and the time offset of the playhead (undoable)')
+    # Editing code: an error names its line; a valid edit applies and recompiles.
+    page.locator('#editCode').click()
+    editor = page.locator('#equationEditor')
+    original = editor.input_value()
+    editor.fill(original + '\no.rgb += vec3(1);\nfloat broken = ;')
+    editor.dispatch_event('input')
+    page.wait_for_function('document.getElementById("equationError").textContent.includes("Line")')
+    assert 'Line' in page.locator('#equationError').text_content()
+    editor.fill(original.replace('o = tanh(o);', 'o = tanh(o*1.5);'))
+    editor.dispatch_event('input')
+    page.locator('#applyEquation').click()
+    page.wait_for_function('equationStudio.getProject().nodes.find(n=>n.id==="shader").params.code.includes("tanh(o*1.5)")')
+    page.keyboard.press('Control+z')
+    record('Code editing: errors point at their line; Apply puts valid code into the scene; undo restores it')
+    # Point clouds: a scene, its credited equation, and its own view shows dots, not a blob.
+    load('point-jellyfish')
+    page.wait_for_function('document.getElementById("compileStatus").hidden', timeout=300000)
+    assert view()['selected'] == 'cloud'
+    assert page.locator('#editEquation').get_attribute('aria-disabled') is None, 'the equation of a point cloud is editable'
+    page.evaluate('equationStudio.setView("stage","cloud")')
+    page.evaluate('equationStudio.renderNow()')
+    mean = page.evaluate('(()=>{const a=equationStudio.getRenderer().pixels();let s=0;for(let i=0;i<a.length;i+=4)s+=a[i];return s/(a.length/4)/255})()')
+    assert 0.001 < mean < 0.3, mean
+    page.keyboard.press('Escape')
+    record('Point cloud scene: editable credited equation; its own view shows the dots over black', {'mean_brightness': round(mean, 4)})
+    # Reuse: a work's component added to another scene, credited.
+    load('marble')
+    page.locator('#addComponent').click()
+    page.locator('[data-add-work="vortex"]').click()
+    added = project()['nodes'][-1]
+    assert added['type'] == 'code' and added['work'] == 'vortex', added
+    record('Components tab: a work added to another scene keeps its credit', {'node': added['id']})
+    # Exports of 2.0 on a quick scene: GIF, animated PNG, JPEG, sprite sheet, web page, code.
+    page.evaluate('''()=>{const p=__modules['presets.js'].getPreset('vortex');p.duration=0.5;equationStudio.loadProject(p);}''')
+    page.wait_for_function('document.getElementById("compileStatus").hidden', timeout=300000)
+    def export(fmt, width=64, fps=4, suffix=None):
+        page.locator('#exportButton').click()
+        page.locator('#exportFormat').select_option(fmt)
+        if not page.locator('#exportWidth').is_disabled():
+            page.locator('#exportWidth').fill(str(width))
+            page.locator('#exportHeight').fill(str(width))
+        if not page.locator('#exportFPS').is_disabled():
+            page.locator('#exportFPS').fill(str(fps))
+        with page.expect_download(timeout=300000) as dl:
+            page.locator('#startExport').click()
+        path = OUT / f'workflow-{fmt}.{suffix or fmt}'
+        dl.value.save_as(str(path))
+        page.locator('[data-close="exportDialog"]').click()
+        return path
+    gif = Image.open(export('gif'))
+    assert gif.format == 'GIF' and gif.n_frames == 2 and gif.info.get('loop') == 0, (gif.format, gif.n_frames)
+    apng = Image.open(export('apng', suffix='png'))
+    assert apng.is_animated and apng.n_frames == 2
+    jpeg = Image.open(export('jpeg', suffix='jpg'))
+    assert jpeg.format == 'JPEG' and jpeg.size == (64, 64)
+    with zipfile.ZipFile(export('sheet', suffix='zip')) as archive:
+        sheet = json.loads(archive.read('vortex-sheet.json'))
+        assert len(sheet['frames']) == 16
+    html = export('html').read_text(encoding='utf-8')
+    assert 'const S=' in html and 'Vortex by Xor' in html
+    page.evaluate('equationStudio.setView("final","shader")')
+    glsl = export('code', suffix='glsl').read_text(encoding='utf-8')
+    assert glsl.startswith('// Vortex: Xor (@XorDev)')
+    record('Exports: looping GIF and animated PNG, JPEG, sprite sheet with JSON, a web page that plays the scene, twigl code', {'gif frames': gif.n_frames, 'sheet frames': len(sheet['frames'])})
+    # High contrast and exact numbers are preferences.
+    page.mouse.move(5, 5)
+    page.keyboard.press('k')
+    assert page.evaluate('document.documentElement.dataset.contrast') == 'more'
+    page.keyboard.press('k')
+    page.keyboard.press('k')
+    assert page.evaluate('equationStudio.getView().prefs.contrast') == 'auto'
+    page.evaluate('equationStudio.setExactNumbers(true)')
+    page.wait_for_function('equationStudio.getRenderer().current.key.endsWith("#inline")', timeout=300000)
+    page.evaluate('equationStudio.setExactNumbers(false)')
+    page.wait_for_function('!equationStudio.getRenderer().current.key.endsWith("#inline")', timeout=300000)
+    record('High contrast cycles auto → high → normal (K); exact numbers compile a separate program')
     # Context loss and restoration use the standardized test extension.
     supported = page.evaluate('''()=>{window.loseTest=equationStudio.getRenderer().gl.getExtension('WEBGL_lose_context');return !!loseTest;}''')
     if supported:

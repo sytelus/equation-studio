@@ -1,0 +1,47 @@
+{
+  "id": "lace-garden",
+  "title": "Lace garden",
+  "description": "Two fractals marched together. By yonatan (@zozuar).",
+  "status": "Reproduction · original code",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "shader",
+      "type": "code",
+      "label": "Lace garden",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "code": "// Lace garden · yonatan (@zozuar), 26 Nov 2024 · readable version, same image\nfloat level, dist, scale, r2, scale2;\nvec3 w, p, ray;\nray.yz += .6;                         // the camera\nfor (float i = 0.; i < 1e2; i++) {    // march 100 steps\n  p = ray += (FC.rgb/r.y - .5)*dist;  // step forward (FC.z = .5 makes the ray look along −z)\n  dist = scale = 3.;\n  p.xz *= rotate2D(t);                // the garden turns\n  w = p/dist;                         // a second, smaller copy of space: the background\n  for (level = scale2 = .7; level++ < 9.;) {   // 9 levels\n    w.y -= 2.5;                       // background: shift, …\n    scale2 /= r2 = min(dot(w, w), .5) + .02;   // … a clamped inversion …\n    w = abs(w)/r2 - .4;               // … and a mirror\n    scale /= r2 = dot(p, p);          // flowers: sphere inversion\n    p /= r2;\n    dist = min(dist, max(length(p.xz = abs(p.xz) - .4), p.y = 2. - p.y)/scale);   // mirrored stems (cylinders .4 apart), cut by a mirror plane\n  }\n  dist = min(dist, (w.x + w.z)/scale2);   // the background's folded plane\n  o += .01/exp(dist*scale2);          // light where a surface is close\n}",
+        "speed": 1,
+        "phase": 0,
+        "steps1": 100,
+        "steps2": 9
+      },
+      "enabled": true,
+      "work": "lace-garden"
+    }
+  ],
+  "output": "shader",
+  "duration": 1.5708,
+  "exposure": 1,
+  "tone": "linear",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": [],
+  "aspect": 1,
+  "work": "lace-garden",
+  "thumbTime": 1.3
+}

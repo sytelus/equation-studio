@@ -66,11 +66,30 @@ The GPU port adds a further issue: fixed large-angle trigonometric constants eva
 
 These are lessons from this implementation and its reference, **not** asserted explanations of the unrecovered Rust debugging exchange.
 
+## Animation works (research of 25–26 September 2026)
+
+Nineteen links were studied for 2.0. The posts were read through the public fxtwitter mirror (`api.fxtwitter.com`), which returns a post's text, author, date and media; the clips were downloaded only to compare frames and are **not** redistributed. Every conclusion below comes from the posts' own text and code:
+
+| Posts | What they contain | What the studio does |
+|---|---|---|
+| 9 by yonatan (@zozuar), 1 by Xor (@XorDev), 3 by Yohei Nishitsuji (@YoheiNishitsuji) | the complete twigl.app shader (geekest 300 es) in the text of the post, with a clip | runs the code unchanged; a readable version with the same operations; bit-identical frames on SwiftShader against the code in twigl's template (`tools/works_check.py`) |
+| 4 by ア (@yuruyurau) | the complete p5.js sketch in the text of the post, with a clip | the sketch's point formula in a Point cloud with the sketch's count, opacity and speed; compared with the sketch drawn by a p5.js stand-in at pixel density 2 |
+| 1 by Jae (@Jaenam97), “Fluffy Anemone” | a clip and a description (“Volumetric raymarch of a fluffy sea creature. No geometry… multi pass #glsl fragment shader”); no code; a web search found no published source | our own single-pass volumetric study of the look, labelled a study everywhere |
+| 1 Grok conversation (`x.com/i/grok?conversation=2103445614214463548`) | not readable: it redirects to the X login page and no public copy was found | nothing; recorded as inaccessible |
+
+twigl's conventions were taken from its source (doxas/twigl, MIT License): in geekest mode the code is the body of `main()` with `FC` = `gl_FragCoord`, uniforms `r`, `m`, `t`, `f`, `s`, `b` and the output `o`, and a helper library (simplex noise by Ashima Arts / Stefan Gustavson, `hsv`, `rotate2D`, `rotate3D`, `fsnoise`, `PI`, `PI2`) that `src/twigl-glsl.js` reproduces. The p5.js sketches were read as p5.js runs them: `createCanvas(400, 400)` at pixel density 2 (the clips are 800 × 800), `background(9)` every frame, `stroke(400, a)` (white, alpha a/255), `point()` drawing a disc of the stroke weight (1), and `t` advanced by the sketch's increment before each frame at 60 frames per second.
+
+The explanations (titles, summaries, tours, readable variable names) are Equation Studio's reading of the code, checked against its behavior in the studio (showing variables, stopping loops); they are not the artists' words. Only “Vortex” and “Fluffy Anemone” are the artists' titles.
+
 ## Technical primary references
 
 - [Khronos WebGL 2 specification](https://registry.khronos.org/webgl/specs/latest/2.0/) — API, framebuffer, shader, precision, and context behavior. The `latest` document is an editor's draft, not a claim of a newly finalized standard.
 - [Khronos EXT_color_buffer_float](https://registry.khronos.org/webgl/extensions/EXT_color_buffer_float/) — optional floating-point render targets for raw field probes.
 - [W3C Media Capture from DOM Elements](https://www.w3.org/TR/mediacapture-fromelement/) — canvas capture used for real-time video. Browser support is detected rather than assumed.
+- [twigl](https://github.com/doxas/twigl) by doxas — the geekest-mode template and helper library that the Shader code component reproduces.
+- [p5.js reference](https://p5js.org/reference/) — `point()`, `stroke()`, `mag()`, pixel density, as used by the point sketches.
+- [WebCodecs](https://www.w3.org/TR/webcodecs/) and [ISO/IEC 14496-12 (ISO base media file format)](https://www.iso.org/standard/83102.html) — the MP4 export: H.264 samples from `VideoEncoder`, boxes written by `src/encoders.js`.
+- [GIF89a](https://www.w3.org/Graphics/GIF/spec-gif89a.txt) and [APNG](https://wiki.mozilla.org/APNG_Specification) — the GIF and animated-PNG exports.
 - [Bartelmann and Schneider, Weak Gravitational Lensing](https://arxiv.org/abs/astro-ph/9912508) — scientific background for lens mapping. Our dimensionless softened map is an illustrative simplification, not an implementation validated against that review, the artist's formulas, or astronomical observations.
 
 ## What would change the reconstruction status?

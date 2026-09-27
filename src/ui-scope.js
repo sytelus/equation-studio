@@ -1,5 +1,5 @@
 import { $, esc, state, on, setPref, viewedNode, currentNode } from './editor.js';
-import { catalog } from './catalog.js';
+import { shownType } from './compiler.js';
 import { pixelToWorld } from './view-math.js';
 import { plotSVG } from './plot.js';
 import { fieldStats } from './looks.js';
@@ -7,6 +7,8 @@ import { fieldStats } from './looks.js';
  * the horizontal (or vertical) line through the cursor, the pinned reading, or
  * the center of the view. Seeing f(x) as a curve explains a field far better
  * than its colors: a Gaussian's bump, a threshold's step, a fold's zigzag.
+ * "Over time" plots one point instead, through the whole timeline: how a pixel
+ * of an animation flickers, pulses or drifts, with the playhead marked.
  *
  * Values come from the renderer's line probe (raw floats, read back without
  * blocking) and are resampled only when the frame or the line changed.
@@ -41,6 +43,10 @@ export function setScopePoint(world) {
 function scopeNode() {
     return state.viewMode === 'stage' ? viewedNode() : currentNode();
 }
+/** The variable of shader code shown for `node` (0: its output). */
+function shownIndex(node) {
+    return state.viewMode === 'stage' && state.show?.node === node.id ? state.show.index : 0;
+}
 /** The sampled segment in world coordinates: {a: [x, y], b: [x, y], axis, cross}. */
 export function scopeLine() {
     if (!scopeVisible()) {
@@ -50,6 +56,9 @@ export function scopeLine() {
     const low = pixelToWorld(0, 0, w, h, view), high = pixelToWorld(w, h, w, h, view);
     const center = { x: (low.x + high.x) / 2, y: (low.y + high.y) / 2 }, at = (state.probePin && pixelToWorld(state.probePin.px, state.probePin.py, w, h, view)) || point || center;
     const axis = $('scopeAxis').value;
+    if (axis === 't') {
+        return { a: [at.x, at.y], b: [at.x, at.y], axis, cross: state.time, fixed: at };
+    }
     return axis === 'v'
         ? { a: [at.x, low.y], b: [at.x, high.y], axis, cross: at.y, fixed: at.x }
         : { a: [low.x, at.y], b: [high.x, at.y], axis, cross: at.x, fixed: at.y };
@@ -62,8 +71,8 @@ function draw() {
     if (!result) {
         return;
     }
-    const { values, line, node, type } = result, channels = CHANNELS[type];
-    const along = i => line.axis === 'h' ? line.a[0] + (line.b[0] - line.a[0]) * (i + 0.5) / SAMPLES : line.a[1] + (line.b[1] - line.a[1]) * (i + 0.5) / SAMPLES;
+    const { values, line, node, type, duration } = result, channels = CHANNELS[type];
+    const along = i => line.axis === 't' ? duration * (i + 0.5) / SAMPLES : line.axis === 'h' ? line.a[0] + (line.b[0] - line.a[0]) * (i + 0.5) / SAMPLES : line.a[1] + (line.b[1] - line.a[1]) * (i + 0.5) / SAMPLES;
     const domain = [along(0), along(SAMPLES - 1)];
     const plotted = channels.map(([label, color], c) => {
         const points = [];
@@ -75,9 +84,11 @@ function draw() {
         }
         return { label, color, points };
     });
-    const marks = [{ x: line.cross, label: line.axis === 'h' ? `x = ${fmt(line.cross)}` : `y = ${fmt(line.cross)}` }];
+    const time = line.axis === 't';
+    const marks = [{ x: time ? state.time : line.cross, label: time ? `now ${state.time.toFixed(2)} s` : line.axis === 'h' ? `x = ${fmt(line.cross)}` : `y = ${fmt(line.cross)}` }];
     const width = Math.max(320, Math.round($('scopePlot').clientWidth || 640));
-    $('scopePlot').innerHTML = plotSVG({ series: plotted, domain, xLabel: line.axis === 'h' ? `x (along y = ${fmt(line.fixed)})` : `y (along x = ${fmt(line.fixed)})`, yLabel: type === 'layer' ? 'radiance' : 'value', marks, width, height: 150, samples: SAMPLES });
+    const xLabel = time ? `time t (s), at the point (${fmt(line.fixed.x)}, ${fmt(line.fixed.y)})` : line.axis === 'h' ? `x (along y = ${fmt(line.fixed)})` : `y (along x = ${fmt(line.fixed)})`;
+    $('scopePlot').innerHTML = plotSVG({ series: plotted, domain: time ? [0, duration] : domain, xLabel, yLabel: type === 'layer' ? 'radiance' : 'value', marks, width, height: 150, samples: SAMPLES });
     $('scopeTitle').innerHTML = `${esc(node.label)} <span class="muted">· ${esc(type === 'layer' ? 'radiance before exposure and tone mapping' : type === 'coord' ? 'output coordinates' : type === 'geometry' ? 'the three geometry fields' : 'raw values')}</span>`;
     $('scopeStats').innerHTML = channels.map(([label, color], c) => {
         const s = fieldStats(values, { channel: c });
@@ -98,17 +109,22 @@ export function updateScope() {
     if (!node || !line || !project.nodes.some(n => n.id === node.id) || renderer.programFor(project).status !== 'ready') {
         return;
     }
-    const key = `${node.id}|${state.time}|${JSON.stringify(line)}|${JSON.stringify(project.nodes)}|${JSON.stringify(project.tracks)}`;
+    const time = line.axis === 't', show = shownIndex(node);
+    // A time profile covers the whole timeline: moving the playhead only moves its marker.
+    const key = `${node.id}|${show}|${time ? 'all' : state.time}|${JSON.stringify(time ? line.a : line)}|${JSON.stringify(project.nodes)}|${JSON.stringify(project.tracks)}|${project.duration}`;
     if (key === lastKey) {
         return;
     }
     lastKey = key;
     pending = true;
-    const type = catalog[node.type].output;
+    const type = shownType(project, node.id, show) ?? 'layer', duration = project.duration;
     try {
-        renderer.sampleLine(project, state.time, node.id, line.a, line.b, SAMPLES, { async: true }).then(values => {
+        const request = time
+            ? renderer.sampleTimes(project, node.id, line.a[0], line.a[1], 0, duration, SAMPLES, { async: true, show })
+            : renderer.sampleLine(project, state.time, node.id, line.a, line.b, SAMPLES, { async: true, show });
+        request.then(values => {
             pending = false;
-            result = { values, line, node, type };
+            result = { values, line, node, type, duration };
             draw();
         }, () => {
             pending = false;
@@ -128,3 +144,8 @@ $('scopeAxis').onchange = () => {
 setScopeVisible(!!state.prefs.scope, { remember: false });
 new ResizeObserver(() => draw()).observe($('scopePlot'));
 on('refresh', () => lastKey = '');
+on('time', () => {
+    if (result?.line.axis === 't' && scopeVisible()) {
+        draw(); // the playhead marker follows the time
+    }
+});

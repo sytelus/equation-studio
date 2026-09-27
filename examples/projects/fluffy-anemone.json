@@ -1,0 +1,52 @@
+{
+  "id": "fluffy-anemone",
+  "title": "Fluffy anemone (study)",
+  "description": "The post shows a glowing ball of fibers rendered by a multi-pass volumetric raymarcher, without publishing its code. By Jae (@Jaenam97).",
+  "status": "Interpretive study",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "shader",
+      "type": "code",
+      "label": "Fluffy anemone (study)",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "code": "// Fluffy anemone · a study after Jae (@Jaenam97), 29 Jul 2026 · our own code\n// The post (“Volumetric raymarch of a fluffy sea creature… multi pass #glsl fragment shader”) did not publish its shader.\n// This is Equation Studio's single-pass model of the look: a ball of glowing fibers in deep water.\nparam radius = .45 [.2, .7] step .01    // radius of the ball\nparam fibers = 13 [4, 40] step 1        // fibers along each side of the six cube faces (6 × fibers² in all)\nparam width = .13 [.03, .45] step .005  // thickness of a fiber, relative to the spacing of the fibers\nparam sway = .5 [0, 2] step .01         // how strongly the fibers wave in the current\nparam glow = 1 [0, 3] step .01          // brightness of the fibers\nvec2 uv = (FC.xy - .5*r)/r.y;          // this pixel: the center is 0, the image 1 high\nvec3 ray = vec3(0, 0, -2.2), dir = normalize(vec3(uv, 1.8));   // the camera and the direction of this pixel\no.rgb = vec3(.02, .035, .08)*(1.2 - .8*length(uv));   // deep water behind, darker toward the corners\nfloat through = 1.;                    // how much of what lies behind still shows (transmittance)\nfor (float i = 0.; i < 90.; i++) {     // 90 slices through the ball, front to back\n  vec3 p = ray + dir*(2.2 - radius*1.4 + i*radius*2.8/90.);   // the sample point of this slice\n  float R = length(p);                 // distance from the center of the ball\n  if (R > radius*1.3) continue;        // outside the ball: nothing to add\n  vec3 q = p*rotate3D(sway*R*R*sin(t*.333 + R*5.), vec3(sin(t*.667), 1, .4));   // bend: outer parts turn more, swaying with time\n  vec3 n = normalize(q), a = abs(n);   // the direction from the center, and its size on each axis\n  vec2 face = a.x > a.y && a.x > a.z ? n.yz/a.x : a.y > a.z ? n.xz/a.y : n.xy/a.z;   // that direction on the largest face of a cube\n  float side = a.x > a.y && a.x > a.z ? sign(n.x) : a.y > a.z ? 2.*sign(n.y) : 3.*sign(n.z);   // which face\n  vec2 cell = floor(face*fibers), f = face*fibers - cell;   // one fiber per cell of that face\n  float near = 9., seed = 0.;          // distance to the nearest fiber (in cells) and that fiber's random number\n  for (int k = 0; k < 9; k++) {        // this cell and its eight neighbors\n    vec2 c = vec2(k%3 - 1, k/3 - 1), id = cell + c + side*17.;\n    vec2 jitter = vec2(fsnoise(id), fsnoise(id + 5.3));   // where the fiber sits in its cell\n    float d = length(f - c - .15 - .7*jitter);\n    if (d < near) { near = d; seed = fsnoise(id + 9.1); }\n  }\n  float along = R/(radius*(.7 + .45*seed));   // 0 at the center, 1 at this fiber's tip (every fiber has its own length)\n  float fiber = exp(-near*near/(width*width))*(1. - smoothstep(.85, 1.05, along));   // density: high on a fiber, ending at its tip\n  float bead = exp(-near*near/(width*width*2.))*exp(-(along - .95)*(along - .95)*300.);   // a bright bead at the tip\n  float core = exp(-R*R/(radius*radius*.05));   // a soft glowing core\n  vec3 color = mix(vec3(.3, .42, 1.), vec3(.55, .95, 1.), smoothstep(-.3, .8, n.y*.7 + n.x*.5));   // blue, turning cyan toward the upper right …\n  color = mix(color, vec3(1., .42, .72), smoothstep(.4, 1., along)*(1. - smoothstep(-.9, .1, n.x*.8 - n.y*.3)));   // … pink tips on the left …\n  color = mix(color, vec3(.45, .3, 1.), (1. - smoothstep(-.9, -.1, n.y))*.6);   // … violet underneath\n  color = mix(vec3(.8, .95, 1.), color, smoothstep(.05, .35, along));   // white where the fibers meet at the core\n  o.rgb += through*glow*(fiber*.16 + bead*.3 + core*.05)*color;   // emitted light, dimmed by what lies in front\n  through *= 1. - min(fiber*.12, .5);  // fibers hide some of what lies behind them\n}",
+        "speed": 1,
+        "phase": 0,
+        "radius": 0.45,
+        "fibers": 13,
+        "width": 0.13,
+        "sway": 0.5,
+        "glow": 1,
+        "steps1": 90,
+        "steps2": 9
+      },
+      "enabled": true,
+      "work": "fluffy-anemone"
+    }
+  ],
+  "output": "shader",
+  "duration": 18.85,
+  "exposure": 1,
+  "tone": "linear",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": [],
+  "aspect": 1.3333333333333333,
+  "work": "fluffy-anemone",
+  "thumbTime": 1.3
+}

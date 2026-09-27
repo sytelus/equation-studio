@@ -1,4 +1,5 @@
-import { catalog } from './catalog.js';
+import { catalog, paramSpecs } from './catalog.js';
+import { analyzeCode } from './glsl.js';
 import { parseExpression, formatExpression, checkProgram, equationParams, LIBRARY } from './expression.js';
 /** Components as equations you can edit.
  *
@@ -24,7 +25,10 @@ export function forkBlocker(type) {
         return 'Unknown component.';
     }
     if (d.custom) {
-        return null;
+        return null; // an equation already (a point cloud's too)
+    }
+    if (d.code) {
+        return 'It is already code: edit it in its Code view.';
     }
     if (d.role === 'source') {
         return 'It produces the pixel coordinates themselves; every equation starts from them as p.';
@@ -126,7 +130,9 @@ function syncedParams(kind, previousSource, previousParams, source) {
     }
     catch (e) { /* an invalid previous text keeps nothing */
     }
-    const specs = equationParams(source, kind), params = { expression: source };
+    // The component's own parameters (a point cloud's count, size, …) stay as they are.
+    const fixed = Object.fromEntries(Object.entries(previousParams).filter(([key]) => Object.hasOwn(catalog[kind].params, key) && key !== 'expression'));
+    const specs = equationParams(source, kind), params = { ...fixed, expression: source };
     for (const [name, spec] of Object.entries(specs)) {
         const old = previousParams[name], sameDefault = before[name] && before[name].kind === spec.kind && before[name].value === spec.value;
         if (spec.kind === 'number') {
@@ -159,10 +165,61 @@ export function withEquation(project, nodeId, source) {
     checkProgram(source, node.type);
     const { params, specs } = syncedParams(node.type, node.params.expression, node.params, source);
     node.params = params;
+    const all = { ...catalog[node.type].params, ...specs };
+    next.tracks = next.tracks.filter(t => t.node !== nodeId || all[t.param]?.kind === 'number');
+    for (const t of next.tracks.filter(t => t.node === nodeId)) {
+        const s = all[t.param];
+        t.keys = t.keys.map(k => ({ ...k, value: Math.min(s.max, Math.max(s.min, k.value)) }));
+    }
+    return next;
+}
+/** The project with Shader code component `nodeId` running `source` (glsl.js).
+ * Its time speed and offset stay. A `param` line keeps its value while its
+ * default is unchanged, like an equation's. A loop keeps a step limit the user
+ * set; a loop that ran in full runs in full again, whatever its new length.
+ * Tracks of removed parameters are dropped and keys clamped to new ranges.
+ * Throws an EquationError (with the line) when the code does not check.
+ */
+export function withCode(project, nodeId, source) {
+    const next = JSON.parse(JSON.stringify(project)), node = next.nodes.find(n => n.id === nodeId);
+    if (!node) {
+        throw new Error(`Unknown component ${nodeId}.`);
+    }
+    if (!catalog[node.type].code) {
+        throw new Error(`${node.label} is not shader code.`);
+    }
+    analyzeCode(source); // throws with the line of the first problem
+    const before = paramSpecs(node), old = node.params, specs = paramSpecs({ ...node, params: { ...old, code: source } });
+    const params = { code: source };
+    for (const [key, spec] of Object.entries(specs)) {
+        if (spec.kind === 'code') {
+            continue;
+        }
+        const previous = old[key], was = before[key];
+        if (spec.kind === 'color') {
+            params[key] = was?.kind === 'color' && was.value === spec.value && /^#[0-9a-f]{6}$/i.test(previous ?? '') ? previous : spec.value;
+            continue;
+        }
+        const own = Object.hasOwn(catalog[node.type].params, key);
+        const limited = spec.loop !== undefined && was && typeof previous === 'number' && previous < was.max;
+        const keep = typeof previous === 'number' && (own || limited || (spec.loop === undefined && was?.value === spec.value));
+        params[key] = keep ? Math.min(spec.max, Math.max(spec.min, previous)) : spec.value;
+    }
+    node.params = params;
     next.tracks = next.tracks.filter(t => t.node !== nodeId || specs[t.param]?.kind === 'number');
     for (const t of next.tracks.filter(t => t.node === nodeId)) {
         const s = specs[t.param];
         t.keys = t.keys.map(k => ({ ...k, value: Math.min(s.max, Math.max(s.min, k.value)) }));
     }
     return next;
+}
+/** The text an edit of `node` starts from: shader code, an equation, or the
+ * equivalent equation of a built-in component. */
+export function editSource(node) {
+    return catalog[node.type].code ? node.params.code : equationSource(node);
+}
+/** The project with `nodeId` running the edited text `source`: code or an equation. */
+export function withSource(project, nodeId, source) {
+    const node = project.nodes.find(n => n.id === nodeId);
+    return node && catalog[node.type].code ? withCode(project, nodeId, source) : withEquation(project, nodeId, source);
 }

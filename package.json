@@ -1,6 +1,6 @@
 {
   "name": "equation-studio",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "description": "Offline GPU studio for composable mathematical images and animation",
@@ -10,7 +10,8 @@
     "build": "python3 tools/build.py",
     "docs": "python3 tools/build_docs.py",
     "manifest": "python3 tools/write_manifest.py",
-    "start": "python3 start.py"
+    "start": "python3 start.py",
+    "dev": "python3 start.py --dev"
   },
   "engines": {
     "node": ">=20"

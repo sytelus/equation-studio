@@ -199,6 +199,112 @@ export const concepts = {
         title: 'Combining shapes',
         tex: '\\max(a, b), \\quad \\min(a, b), \\quad 1 - a',
         text: 'For 0–1 coverage masks, max is the union, min the intersection and 1 − a the complement. Silhouettes are built from simple pieces this way.'
+    },
+    // ---- Animation: shader code and point clouds -----------------------------------
+    'shader-code': {
+        title: 'A program for one pixel',
+        tex: 'o = \\operatorname{code}(\\mathrm{FC}, r, t)',
+        text: 'Shader code is the recipe for the color of a single pixel. It gets the pixel position FC (in pixels, from the bottom-left corner), the resolution r and the time t, and adds light to the output o, which starts black. The GPU runs the same code for every pixel at once; the pictures differ only because FC differs. On twigl.app this whole program often fits in one tweet.'
+    },
+    'per-pixel': {
+        title: 'Every pixel on its own',
+        text: 'A pixel never sees its neighbors or the previous frame: the code recomputes everything from FC and t, every frame. That is why the animations can be scrubbed to any time, zoomed and paused, and why a frame is exactly reproducible. It also means that everything you see, even a whole 3D scene, is rediscovered from scratch by every pixel.'
+    },
+    raymarching: {
+        title: 'Raymarching',
+        tex: 'p = \\mathbf{c} + g\\,\\mathbf{d}, \\quad g \\leftarrow g + e(p)',
+        text: 'A 3D scene with no triangles. Each pixel shoots a ray from the camera c in its own direction d and walks along it: at the current point p it asks the distance estimate e(p) how far the nearest surface can be, and steps that far. Near a surface the steps become tiny and the ray stops advancing; g is the distance travelled, the depth. Most codes here march a fixed number of steps (the outer loop) and never stop early.',
+        knob: { label: 'surface slant (°)', min: 0, max: 85, step: 5, value: 60 },
+        plot: a => {
+            const c = Math.cos(a * Math.PI / 180);
+            return { series: [{ f: k => 1 - (1 - c) ** Math.floor(k), label: 'depth g after k steps' }], domain: [0, 20], range: [0, 1.05], xLabel: 'step k', yLabel: 'g (surface at 1)', samples: 200 };
+        }
+    },
+    'distance-estimate': {
+        title: 'Distance estimates',
+        tex: 'e(p) \\le \\text{distance from } p \\text{ to the surface}',
+        text: 'The function a raymarcher steps by: zero on the surface, positive outside, and never larger than the true distance, so a step of e cannot jump through anything. Simple shapes have exact ones (a sphere: |p| − R; a cylinder around y: |p.xz| − R); min(a, b) joins two shapes, max(a, −b) cuts one from another. Fractals divide by the total scale of their folds to stay safe.'
+    },
+    glow: {
+        title: 'Glow by accumulation',
+        tex: 'o = \\sum_{i} \\frac{c}{\\exp(k\\, e_i)}',
+        text: 'Instead of shading the surface where a ray stops, many of these codes add a little light at every step: a lot when the step’s distance e is tiny (the ray grazes a surface), almost nothing when it is large. The sum over all steps gives soft glowing edges and a volumetric look for free. A larger k keeps the glow closer to the surfaces.',
+        knob: { label: 'sharpness k', min: 10, max: 2000, step: 10, value: 300 },
+        plot: k => ({ series: [{ f: e => Math.exp(-k * e) }], domain: [0, 0.02], range: [0, 1.05], xLabel: 'distance e at a step', yLabel: 'light added (× c)' })
+    },
+    'domain-repetition': {
+        title: 'Repetition: p − round(p)',
+        tex: 'p \\leftarrow p - \\operatorname{round}(p)',
+        text: 'Subtracting the nearest whole number sends every point into the unit cell around the origin (−½ to ½ on each axis). Whatever is drawn in that one cell appears in every cell: one object becomes an endless lattice at the cost of one line. fract(p) − 0.5 does the same.',
+        plot: () => ({ series: [{ f: x => x - Math.round(x) }], domain: [-3, 3], range: [-0.6, 0.6], xLabel: 'x', yLabel: 'x − round(x)', samples: 600 })
+    },
+    'kaleidoscopic-fold': {
+        title: 'Folding fractals',
+        tex: 'p \\leftarrow |p| - c, \\quad p \\leftarrow s\\,p',
+        text: 'abs(p) mirrors space into one octant; subtracting c shifts the mirror; scaling by s zooms. Repeating the three a dozen times folds space into a crystal of copies of copies: every fold doubles the number of reflected pieces, so detail grows exponentially with the loop count. The scale gained along the way (often called s or S) divides the final distance so the raymarcher can still trust it.'
+    },
+    'sphere-inversion': {
+        title: 'Sphere inversion',
+        tex: 'p \\leftarrow \\frac{p}{|p|^2}',
+        text: 'Turns space inside out through the unit sphere: points near the center fly far away and far points come close, while spheres stay spheres. Alternated with folds (p /= dot(p, p)) it produces the endlessly nested bubbles of Kleinian and Apollonian fractals. The factor dot(p, p) of each inversion is how much that piece was shrunk.',
+        plot: () => ({ series: [{ f: r => 1 / r }], domain: [0.1, 3], range: [0, 10], xLabel: '|p| before', yLabel: '|p| after' })
+    },
+    'log-polar': {
+        title: 'An endless zoom: log R − t',
+        tex: '(u, v) = (\\log R - t,\\ \\theta)',
+        text: 'In logarithmic polar coordinates, zooming into the center is a shift of log R, so subtracting t makes the picture zoom forever without ever running out of detail: each doubling of distance is one more unit of u. Yohei Nishitsuji’s tunnels use this with the angle θ (atan) and a height, so the camera flies through a pattern that repeats at every scale.',
+        plot: () => ({ series: [{ f: r => Math.log(r) }], domain: [0.05, 4], range: [-3, 1.5], xLabel: 'distance R', yLabel: 'log R' })
+    },
+    'octave-doubling': {
+        title: 'Octaves by doubling: s += s',
+        tex: 'e \\leftarrow e + \\sum_{s = 1, 2, 4, \\ldots} \\frac{w(s\\,p)}{s}',
+        text: 'A loop that doubles s each time adds the same wave pattern w at frequencies 1, 2, 4, 8, … with amplitudes 1, ½, ¼, …: large shapes carrying ever finer detail, exactly like fractal noise. The loop ends when s passes a limit, so the limit sets the finest detail (log₂ of it is the number of octaves).',
+        knob: { label: 'octaves', min: 1, max: 9, step: 1, value: 5 },
+        plot: n => ({ series: [{ f: x => { let e = 0; for (let k = 0, s = 1; k < n; k++, s += s) { e += Math.sin(x * s + k) / s; } return e; } }], domain: [0, 6.3], range: [-2, 2], xLabel: 'x', yLabel: 'Σ sin(s x)/s', samples: 500 })
+    },
+    'hsv-color': {
+        title: 'Hue, saturation, value',
+        tex: '\\operatorname{hsv}(h, s, v)',
+        text: 'A color from three numbers: the hue h goes around the color wheel (0 red, ⅓ green, ⅔ blue, 1 red again, so it repeats), s is how colorful it is (0 gray) and v how bright. Codes often compute h from a depth or a distance, so the color labels how far a surface is; v may exceed 1 for light that the display clips to white.',
+        knob: { label: 'saturation s', min: 0, max: 1, step: 0.05, value: 1 },
+        plot: s => {
+            const channel = (h, k) => { const p = Math.abs(((h + k) % 1) * 6 - 3); return 1 + s * (Math.min(Math.max(p - 1, 0), 1) - 1); };
+            return { series: [{ f: h => channel(h, 1), label: 'red' }, { f: h => channel(h, 2 / 3), label: 'green' }, { f: h => channel(h, 1 / 3), label: 'blue' }], domain: [0, 1], range: [0, 1.05], xLabel: 'hue h', yLabel: 'channel (v = 1)' };
+        }
+    },
+    'rotation-matrix': {
+        title: 'Turning with a matrix',
+        tex: 'v\\, R(a), \\quad R(a) = \\operatorname{rotate2D}(a)',
+        text: 'rotate2D(a) is the 2×2 matrix of a rotation, so p.xz *= rotate2D(a) turns the x–z coordinates of p (a turn about the y axis) and p.xy *= rotate2D(a) a turn about z. Rotating p before measuring a shape turns the shape the other way; with a = t it spins, with a depending on p it twists.'
+    },
+    'soft-clip': {
+        title: 'Soft clipping with tanh',
+        tex: '\\tanh(x)',
+        text: 'Squeezes any brightness into the range −1 to 1: small values pass almost unchanged, large ones approach 1 smoothly instead of being cut off. As the last line of a code (o = tanh(o)) it acts as a gentle tone mapping, so bright cores keep their color instead of burning out to white.',
+        knob: { label: 'input gain', min: 0.2, max: 5, step: 0.1, value: 1 },
+        plot: k => ({ series: [{ f: x => Math.tanh(k * x), label: 'tanh' }, { f: x => Math.min(Math.max(k * x, -1), 1), label: 'hard clip' }], domain: [-3, 3], range: [-1.1, 1.1], xLabel: 'x', yLabel: 'output' })
+    },
+    'point-cloud': {
+        title: 'One formula, thousands of points',
+        tex: '\\mathbf{x}_i = f(i, t), \\quad i = 0, \\ldots, n - 1',
+        text: 'A point cloud evaluates the same formula for every index i and draws a dot there. Structure appears because i is secretly a coordinate: consecutive i trace a curve, and expressions like i/7 and i/99 (or cos(i/49)) split the index into several slow and fast parameters, so the dots sweep out a surface. The time t moves every dot a little each frame.'
+    },
+    density: {
+        title: 'Density becomes brightness',
+        tex: 'L = 1 - (1 - \\alpha)^m',
+        text: 'Each dot is faint (opacity α), so a single one barely shows; where m dots overlap, the light builds up as 1 − (1 − α)^m. Dense places glow and sparse places fade, which gives point clouds their soft, volumetric shading without any lighting calculation.',
+        knob: { label: 'opacity α', min: 0.02, max: 1, step: 0.02, value: 0.26 },
+        plot: a => ({ series: [{ f: m => 1 - (1 - a) ** m }], domain: [0, 20], range: [0, 1.05], xLabel: 'dots overlapping m', yLabel: 'brightness' })
+    },
+    'seamless-loop': {
+        title: 'Seamless loops',
+        tex: 'f(t + T) = f(t)',
+        text: 'An animation loops without a jump when everything that depends on the time repeats with the same period T. sin(t) and rotate2D(t) repeat every 2π ≈ 6.283 seconds, which is why many of these clips last exactly 6.283 s, 12.566 s or 25.13 s; a term like t/8 needs 8 × 2π. The Stats tab measures how different the last frame is from the first.'
+    },
+    volumetric: {
+        title: 'Volumes without surfaces',
+        tex: 'L = \\sum_{k} \\rho(p_k)\\, c(p_k)\\, \\Delta',
+        text: 'Soft things such as smoke, fur or glowing gas have no surface to hit. A volumetric raymarcher walks through them in small steps and adds the light emitted at each point, weighted by the density ρ there. Thin bright fibers appear where the density is high in a narrow region.'
     }
 };
 /** The concept with this id, or throw (catalog typos fail the unit tests). */

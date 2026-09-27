@@ -1,0 +1,422 @@
+{
+  "date": "2026-09-26",
+  "size": 128,
+  "time": 1.3,
+  "exact_numbers": true,
+  "works": {
+    "jellyfish-lattice": {
+      "platform": "twigl",
+      "size": [
+        128,
+        128
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 27.3,
+      "mean_level": 49.07
+    },
+    "stormy-sea": {
+      "platform": "twigl",
+      "size": [
+        128,
+        128
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 122.2,
+      "mean_level": 39.97
+    },
+    "vortex": {
+      "platform": "twigl",
+      "size": [
+        128,
+        128
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 5.4,
+      "mean_level": 83.53
+    },
+    "blossom-tree": {
+      "platform": "twigl",
+      "size": [
+        128,
+        128
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 88.9,
+      "mean_level": 164.33
+    },
+    "jewel-box": {
+      "platform": "twigl",
+      "size": [
+        128,
+        128
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 19.1,
+      "mean_level": 85.64
+    },
+    "lace-garden": {
+      "platform": "twigl",
+      "size": [
+        128,
+        128
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 27.3,
+      "mean_level": 57.61
+    },
+    "stone-kaleidoscope": {
+      "platform": "twigl",
+      "size": [
+        128,
+        128
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 19.9,
+      "mean_level": 75.26
+    },
+    "underwater-reef": {
+      "platform": "twigl",
+      "size": [
+        128,
+        128
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 57.8,
+      "mean_level": 77.4
+    },
+    "golden-spiral": {
+      "platform": "twigl",
+      "size": [
+        128,
+        128
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 24.9,
+      "mean_level": 20.05
+    },
+    "cloud-cave": {
+      "platform": "twigl",
+      "size": [
+        128,
+        91
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 27.4,
+      "mean_level": 90.06
+    },
+    "smoke-tunnel": {
+      "platform": "twigl",
+      "size": [
+        128,
+        96
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 24.6,
+      "mean_level": 81.39
+    },
+    "cloud-mountains": {
+      "platform": "twigl",
+      "size": [
+        128,
+        96
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 22.7,
+      "mean_level": 119.42
+    },
+    "rainbow-trefoil": {
+      "platform": "twigl",
+      "size": [
+        128,
+        128
+      ],
+      "original_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_original": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "readable_vs_raw": {
+        "max": 0,
+        "mean": 0.0,
+        "pixels_over_2": 0.0
+      },
+      "render_ms": 67,
+      "mean_level": 66.94
+    },
+    "point-jellyfish": {
+      "platform": "p5",
+      "size": [
+        800,
+        800
+      ],
+      "sketch_time": 3.5343,
+      "studio_time": 1.4833,
+      "per_pixel": {
+        "max": 53,
+        "mean": 0.51649,
+        "pixels_over_2": 0.052323
+      },
+      "blurred_8x": {
+        "max": 9,
+        "mean": 0.3399,
+        "pixels_over_2": 0.0609
+      },
+      "mean_level": [
+        13.46,
+        13.8
+      ]
+    },
+    "point-creature": {
+      "platform": "p5",
+      "size": [
+        800,
+        800
+      ],
+      "sketch_time": 9.4248,
+      "studio_time": 1.4833,
+      "per_pixel": {
+        "max": 62,
+        "mean": 0.62602,
+        "pixels_over_2": 0.048989
+      },
+      "blurred_8x": {
+        "max": 11,
+        "mean": 0.4214,
+        "pixels_over_2": 0.066
+      },
+      "mean_level": [
+        14.82,
+        15.25
+      ]
+    },
+    "point-twins": {
+      "platform": "p5",
+      "size": [
+        800,
+        800
+      ],
+      "sketch_time": 4.7124,
+      "studio_time": 1.4833,
+      "per_pixel": {
+        "max": 94,
+        "mean": 0.60208,
+        "pixels_over_2": 0.047628
+      },
+      "blurred_8x": {
+        "max": 10,
+        "mean": 0.4062,
+        "pixels_over_2": 0.0752
+      },
+      "mean_level": [
+        14.57,
+        14.98
+      ]
+    },
+    "point-twins-hairy": {
+      "platform": "p5",
+      "size": [
+        800,
+        800
+      ],
+      "sketch_time": 4.7124,
+      "studio_time": 1.4833,
+      "per_pixel": {
+        "max": 177,
+        "mean": 0.80785,
+        "pixels_over_2": 0.054894
+      },
+      "blurred_8x": {
+        "max": 12,
+        "mean": 0.459,
+        "pixels_over_2": 0.0872
+      },
+      "mean_level": [
+        14.96,
+        15.41
+      ]
+    },
+    "fluffy-anemone": {
+      "platform": "study",
+      "size": [
+        128,
+        96
+      ],
+      "mean_level": 41.46
+    }
+  },
+  "backend": "Chromium 153.0.8010.12 / ANGLE / SwiftShader software backend",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+}

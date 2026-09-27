@@ -1,0 +1,47 @@
+{
+  "id": "cloud-mountains",
+  "title": "Cloud mountains",
+  "description": "Log-spherical space again, now with the turbulence starting at frequency 5, so the octaves read as ridges and cliffs: a mountain range of cloud. By Yohei Nishitsuji (@YoheiNishitsuji).",
+  "status": "Reproduction · original code",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "shader",
+      "type": "code",
+      "label": "Cloud mountains",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "code": "// Cloud mountains · Yohei Nishitsuji (@YoheiNishitsuji), 27 Feb 2026 · readable version, same image\nfloat dist, R, freq;\nvec3 ray, p, dir = vec3(FC.xy/r*.6 - vec2(.3, -.6), .5);   // the ray of this pixel, looking up\nray.zy--;                             // the camera stands at y = −1, z = −1\nfor (float i = 0.; i++ < 97.;) {      // march 97 steps\n  o.rgb += hsv(.1, dist, min(dist*freq, 1.)/95.);   // sepia light: saturated where far from the surface, white on it\n  freq = 5.;\n  p = ray += dir*dist*R*.4;           // step forward, growing with the distance R from the center\n  // log-spherical coordinates: zooming in slowly, the height breathing with sin t\n  p = vec3(log(R = length(p)) - t*.5, exp(-p.z/R) + sin(t)*.07 + .2, atan(p.y, p.x));\n  for (dist = --p.y; freq < 1e3; freq += freq)   // the mountain surface …\n    dist += dot(sin(p.zxx*freq), .4 - cos(p.yyz*freq))/freq*.3;   // … with 8 octaves (frequency 5 to 640)\n}",
+        "speed": 1,
+        "phase": 0,
+        "steps1": 97,
+        "steps2": 8
+      },
+      "enabled": true,
+      "work": "cloud-mountains"
+    }
+  ],
+  "output": "shader",
+  "duration": 12.566,
+  "exposure": 1,
+  "tone": "linear",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": [],
+  "aspect": 1.3333333333333333,
+  "work": "cloud-mountains",
+  "thumbTime": 1.3
+}

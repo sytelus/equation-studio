@@ -1,10 +1,14 @@
 import { catalog, zeroByType, bypassSocket, paramSpecs } from './catalog.js';
 import { compileEquation, programGLSL } from './expression.js';
-import { validateProject, evaluationOrder, topologicalOrder, upstream, MAX_NODES } from './graph.js';
+import { validateProject, evaluationOrder, topologicalOrder, upstream, MAX_NODES, MAX_POINT_CLOUDS } from './graph.js';
+import { analyzeCode, codeGLSL, codeStructure, showType } from './glsl.js';
+import { twiglGLSL } from './twigl-glsl.js';
+import { linkLibraries } from './shader-link.js';
 import { mathGLSL } from './math-glsl.js';
 import { nebulaGLSL } from './nebula-glsl.js';
 import { motifsGLSL } from './motifs-glsl.js';
 import { presentGLSL } from './looks.js';
+import { animatedParameters } from './timeline.js';
 /** Typed DAG → one GLSL ES 3.00 fragment program per graph STRUCTURE.
  *
  * Every component becomes one local variable inside `evaluate()`. What changes
@@ -69,19 +73,34 @@ function customFunction(node, name, uniforms) {
     return programGLSL(compileEquation(node.params.expression, node.type), `equation_${name}`, uniforms);
 }
 /** GLSL expression of an included node. */
-function nodeExpression(node, name, inputs, uniforms, custom) {
+function nodeExpression(node, name, k, inputs, uniforms, custom) {
+    const d = catalog[node.type];
+    if (d.code) {
+        // The code's own time, and which of its values to return (glsl.js).
+        return `code_${name}(${inputs.p},u_time*${uniforms.speed}+${uniforms.phase},u_target==${k}?u_show:0)`;
+    }
+    if (d.points) {
+        return `pointsLayer(u_points${custom.slot},${inputs.p})`;
+    }
     if (custom) {
         const call = `equation_${name}(${inputs.p},${inputs.a},${inputs.b},u_time)`;
         return custom.returns === 'vec3' ? `vec4(${call},1)` : call;
     }
-    return catalog[node.type].emit(inputs, uniforms);
+    return d.emit(inputs, uniforms);
+}
+/** What decides a node's generated code besides its type and wiring: the text of
+ * an equation, or the structure of shader code (its numbers are uniforms).
+ */
+function structureOf(node, inlineNumbers) {
+    return catalog[node.type].code ? codeStructure(node.params.code, inlineNumbers) : node.params.expression ?? null;
 }
 /** Everything that changes the generated source. Parameter values, enabled
- * flags, the output choice and the view are uniforms and are excluded.
+ * flags, the output choice and the view are uniforms and are excluded; so are
+ * the numbers of shader code, unless `inlineNumbers` compiles them as constants.
  */
-export function programKey(project, subset = null) {
+export function programKey(project, subset = null, inlineNumbers = false) {
     const include = subset ? new Set(subset) : null;
-    return JSON.stringify(evaluationOrder(project).filter(n => !include || include.has(n.id)).map(n => [n.id, n.type, n.inputs, n.params.expression ?? null]));
+    return JSON.stringify(evaluationOrder(project).filter(n => !include || include.has(n.id)).map(n => [n.id, n.type, n.inputs, structureOf(n, inlineNumbers)])) + (inlineNumbers ? '#inline' : '');
 }
 /** The target and everything upstream of it, whatever the enabled flags: the
  * nodes a program for viewing `target` must contain.
@@ -89,14 +108,86 @@ export function programKey(project, subset = null) {
 export function subgraph(project, target) {
     return [...upstream(project, target), target];
 }
+/** The shader libraries, in dependency order. A program links only what it uses. */
+export const LIBRARIES = [mathGLSL, nebulaGLSL, motifsGLSL, twiglGLSL];
+/** The world frame: 2000/420 units wide, with the original scene's half-pixel offset. */
+const FRAME_GLSL = 'const float FRAME_WIDTH=2000.0/420.0;const vec2 FRAME_OFFSET=vec2(0.5/420.0);';
+/** Sample the texture of a point cloud (drawn by its point pass in the pixels of
+ * the frame) at a point of the plane. Its colors are premultiplied by coverage;
+ * layers are straight.
+ */
+const POINTS_LAYER_GLSL = `vec4 pointsLayer(highp sampler2D tex,vec2 p){
+ vec2 pixel=(p-FRAME_OFFSET-u_view.xy)*u_view.z*(u_frame.x/FRAME_WIDTH)+0.5*u_frame;
+ vec4 c=textureLod(tex,pixel/u_frame,0.0);
+ return c.a>1e-6?vec4(c.rgb/c.a,min(c.a,1.0)):vec4(0);
+}`;
+/** The point pass of a point cloud: one vertex per point, placed by its equation,
+ * drawn as a round antialiased dot into a texture the size of the frame.
+ */
+function pointPassSources(cloud, aliases, vectors) {
+    const u = cloud.uniforms, header = `#version 300 es
+precision highp float;
+precision highp int;
+uniform vec4 u_params[${vectors}];
+${aliases.join('\n')}`;
+    const own = `${cloud.equation}
+out float v_radius;
+out float v_size;
+void main(){
+ float n=floor(${u.count}+0.5), S=${u.canvas};
+ vec2 s=points_${cloud.name}(float(gl_VertexID),n,u_clock*${u.speed}+${u.phase});
+ // Sketch pixels (y down, S wide, centered) → world → pixels of the frame.
+ vec2 world=vec2(s.x-0.5*S,0.5*S-s.y)*(FRAME_WIDTH/S);
+ vec2 pixel=(world-u_view.xy)*u_view.z*(u_frame.x/FRAME_WIDTH)+0.5*u_frame;
+ float diameter=${u.size}/S*u_frame.x*u_view.z;
+ v_radius=0.5*diameter;
+ v_size=clamp(ceil(diameter)+2.0,1.0,u_pointMax);
+ gl_PointSize=v_size;
+ bool bad=isnan(pixel.x)||isnan(pixel.y)||isinf(pixel.x)||isinf(pixel.y);
+ gl_Position=bad?vec4(2.0,2.0,2.0,1.0):vec4(pixel/u_frame*2.0-1.0,0.0,1.0);
+}`;
+    return {
+        node: cloud.node,
+        slot: cloud.slot,
+        vertex: `${header}
+uniform vec2 u_frame;
+uniform vec3 u_view;
+uniform float u_clock;
+uniform float u_pointMax;
+${FRAME_GLSL}
+${linkLibraries(own, LIBRARIES)}
+${own}`,
+        fragment: `${header}
+in float v_radius;
+in float v_size;
+out vec4 outputColor;
+void main(){
+ // The area of this pixel inside the dot, from 4 × 4 samples (like a canvas's antialiasing).
+ vec2 at=(gl_PointCoord-0.5)*v_size;
+ float cover=0.0;
+ for(int k=0;k<16;k++) cover+=step(length(at+(vec2(k&3,k>>2)-1.5)*0.25),v_radius);
+ float a=clamp(${u.alpha},0.0,1.0)*cover/16.0;
+ outputColor=vec4(${u.color}*a,a);
+}`
+    };
+}
 /** Compile a project (or the `subset` of its node ids) into one fragment program.
- * Returns {vertex, fragment, key, order, index, types, params, vectors}:
+ * Returns {vertex, fragment, key, order, index, types, params, vectors, points, code}:
  *   order    node ids in evaluation order (index = position)
  *   types    node id → output type
- *   params   [{node, param, kind, vector, component}]: where each numeric or color
- *            parameter lives in u_params
+ *   params   [{node, param, kind, vector, component, literal?}]: where each numeric
+ *            or color parameter lives in u_params; kind 'literal' is number
+ *            `literal` of a node's shader code
+ *   points   [{node, slot, vertex, fragment}]: the point pass of each point cloud,
+ *            whose texture the program reads from sampler u_points<slot>
+ *   code     node id → {start, lines}: the first line (0-based) of the node's code
+ *            function in `fragment` and the code line of each of its lines, to
+ *            point GPU compiler messages at the code (sourceLine())
+ * The numbers of shader code are uniforms, so dragging one never recompiles;
+ * `inlineNumbers` writes them as constants instead, exactly as in the original
+ * code (the GPU compiler may then fold them, as it does on twigl).
  */
-export function compileProgram(project, { subset = null } = {}) {
+export function compileProgram(project, { subset = null, inlineNumbers = false } = {}) {
     validateProject(project);
     const include = subset ? new Set(subset) : null;
     const order = evaluationOrder(project).filter(n => !include || include.has(n.id));
@@ -107,9 +198,10 @@ export function compileProgram(project, { subset = null } = {}) {
         throw new Error(`A program holds at most ${MAX_NODES} components.`);
     }
     const names = new Map(order.map((n, k) => [n.id, `n${k}`]));
-    const params = [], aliases = [], functions = [], statements = [], selects = [];
+    const params = [], aliases = [], functions = [], statements = [], selects = [], clouds = [], codeFunctions = [];
+    const nodeAliases = new Map();
     let vectors = 0, open = null;
-    const allocate = (node, key, kind, alias) => {
+    const allocate = (node, key, kind, alias, extra = {}) => {
         let vector, component = 0, swizzle;
         if (kind === 'color') {
             vector = vectors++;
@@ -123,28 +215,88 @@ export function compileProgram(project, { subset = null } = {}) {
             component = open.next++;
             swizzle = 'xyzw'[component];
         }
-        params.push({ node, param: key, kind, vector, component });
-        aliases.push(`#define ${alias} u_params[${vector}].${swizzle}`);
+        params.push({ node, param: key, kind, vector, component, ...extra });
+        const line = `#define ${alias} u_params[${vector}].${swizzle}`;
+        aliases.push(line);
+        nodeAliases.get(node).push(line);
         return alias;
     };
     order.forEach((n, k) => {
         const d = catalog[n.type], name = names.get(n.id), uniforms = {};
+        nodeAliases.set(n.id, []);
         for (const [key, spec] of Object.entries(paramSpecs(n))) {
-            if (spec.kind !== 'expression') {
+            if (spec.kind !== 'expression' && spec.kind !== 'code') {
                 uniforms[key] = allocate(n.id, key, spec.kind, `${name}_${key}`);
             }
         }
         let custom = null;
-        if (d.custom) {
+        if (d.code) {
+            const analysis = analyzeCode(n.params.code);
+            const numbers = inlineNumbers ? null : analysis.numbers.map((x, i) => allocate(n.id, `#${i}`, 'literal', `${name}_k${i}`, { literal: i }));
+            const fn = codeGLSL(analysis, `code_${name}`, { numbers: numbers && (i => numbers[i]), params: key => uniforms[key], caps: loop => `int(${uniforms[`steps${loop + 1}`]})` });
+            functions.push(fn.code);
+            codeFunctions.push({ node: n.id, name: `code_${name}`, lines: fn.lines });
+        }
+        else if (d.points) {
+            if (clouds.length >= MAX_POINT_CLOUDS) {
+                throw new Error(`A program draws at most ${MAX_POINT_CLOUDS} point clouds.`);
+            }
+            const equation = programGLSL(compileEquation(n.params.expression, 'points'), `points_${name}`, uniforms);
+            custom = { slot: clouds.length };
+            clouds.push({ node: n.id, slot: clouds.length, name, equation: equation.code, uniforms });
+        }
+        else if (d.custom) {
             custom = customFunction(n, name, uniforms);
             functions.push(custom.code);
         }
-        const expression = nodeExpression(n, name, inputExpressions(n, names), uniforms, custom);
+        const expression = nodeExpression(n, name, k, inputExpressions(n, names), uniforms, custom);
         statements.push(`  // ${name}: ${d.name.replace(/\n/g, ' ')} [${n.id}]
   ${glslTypes[d.output]} ${name}=${zeroByType[d.output]};
   if(evaluated(${k})){ if(included(${k})) ${name}=${expression}; else ${name}=${bypassExpression(n, names)}; }`);
         selects.push(`  if(u_target==${k}) return ${rawVec4(d.output, name)};`);
     });
+    vectors = Math.max(vectors, 1);
+    // The program's own code; the libraries contribute only what it uses.
+    const own = `${presentGLSL}
+bool componentBit(uvec4 mask,int i){return ((mask[i>>5]>>uint(i&31))&1u)!=0u;}
+bool evaluated(int i){return componentBit(u_active,i);}
+bool included(int i){return componentBit(u_enabled,i);}
+// Parameters: node variable _ parameter name (_k<i>: number i of shader code)
+${aliases.join('\n')}
+${clouds.length ? POINTS_LAYER_GLSL : ''}
+${functions.join('\n')}
+vec4 evaluate(vec2 p){
+${statements.join('\n')}
+${selects.join('\n')}
+  return vec4(0);
+}
+bool nonfinite(vec4 v){return any(isnan(v))||any(isinf(v));}
+void main(){
+ u_time=u_clock;
+ g_pixel=vec2(-1e9);
+ vec2 p;
+ if(u_sampling==1){
+  // Points along the line u_line (probes and profiles).
+  p=mix(u_line.xy,u_line.zw,(gl_FragCoord.x-u_offset.x)/u_resolution.x);
+ } else if(u_sampling==2){
+  // One point, u_line.xy, at times from u_line.z to u_line.w (time profiles).
+  p=u_line.xy;
+  u_time=mix(u_line.z,u_line.w,(gl_FragCoord.x-u_offset.x)/u_resolution.x);
+ } else {
+  // Fixed horizontal field of view; other aspect ratios crop or extend vertically.
+  p=(gl_FragCoord.xy-u_offset-0.5*u_resolution)*FRAME_WIDTH/u_resolution.x;
+  p=p/u_view.z+u_view.xy+FRAME_OFFSET;
+  if(u_view==vec3(0,0,1)) g_pixel=gl_FragCoord.xy-u_offset;
+ }
+ g_cameraP=p;
+ vec4 field=evaluate(p);
+ if(u_mode==1){outputColor=field;return;}
+ if(nonfinite(field)){outputColor=vec4(1,0,1,1);return;}
+ if(u_debug==1){outputColor=vec4(0,0,0,1);return;}
+ if(u_debug==2){outputColor=vec4(vec3(field.a),1);return;}
+ outputColor=vec4(present(field),1);
+}
+`;
     const fragment = `#version 300 es
 precision highp float;
 precision highp int;
@@ -154,61 +306,95 @@ precision highp int;
 uniform vec2 u_resolution;
 uniform vec2 u_offset;   // framebuffer origin of the current tile (atlas rendering)
 uniform vec3 u_view;     // pan x, pan y, zoom
-uniform int u_sampling;  // 0 camera grid, 1 points along u_line
+uniform int u_sampling;  // 0 camera grid, 1 points along u_line, 2 one point over time
 uniform vec4 u_line;     // line sampling: start (xy) and end (zw) in world units
-uniform float u_time;
+uniform vec2 u_frame;    // size in pixels of the frame the view shows (twigl's r)
+uniform float u_clock;   // studio time in seconds
 uniform float u_exposure;
 uniform int u_tone;
 uniform int u_debug;
 uniform int u_mode;      // 0 display colors, 1 raw values
 uniform int u_target;    // index of the component shown
+uniform int u_show;      // shown value of shader code: 0 its color o, k its k-th variable
 uniform uvec4 u_active;  // one bit per component: evaluate it
 uniform uvec4 u_enabled; // one bit per component: include it (otherwise bypass it)
-uniform vec4 u_params[${Math.max(vectors, 1)}];
+uniform vec4 u_params[${vectors}];
+${clouds.map(c => `uniform highp sampler2D u_points${c.slot};`).join('\n')}
 out vec4 outputColor;
-${mathGLSL}
-${nebulaGLSL}
-${motifsGLSL}
-${presentGLSL}
-bool componentBit(uvec4 mask,int i){return ((mask[i>>5]>>uint(i&31))&1u)!=0u;}
-bool evaluated(int i){return componentBit(u_active,i);}
-bool included(int i){return componentBit(u_enabled,i);}
-// Parameters: node variable _ parameter name
-${aliases.join('\n')}
-${functions.join('\n')}
-vec4 evaluate(vec2 p){
-${statements.join('\n')}
-${selects.join('\n')}
-  return vec4(0);
-}
-bool nonfinite(vec4 v){return any(isnan(v))||any(isinf(v));}
-void main(){
- vec2 p;
- if(u_sampling==1){
-  p=mix(u_line.xy,u_line.zw,(gl_FragCoord.x-u_offset.x)/u_resolution.x);
- } else {
-  // Fixed horizontal field of view; other aspect ratios crop or extend vertically.
-  p=(gl_FragCoord.xy-u_offset-0.5*u_resolution)*(2000.0/420.0)/u_resolution.x;
-  p=p/u_view.z+u_view.xy+vec2(0.5/420.0);
- }
- vec4 field=evaluate(p);
- if(u_mode==1){outputColor=field;return;}
- if(nonfinite(field)){outputColor=vec4(1,0,1,1);return;}
- if(u_debug==1){outputColor=vec4(0,0,0,1);return;}
- if(u_debug==2){outputColor=vec4(vec3(field.a),1);return;}
- outputColor=vec4(present(field),1);
-}
-`;
+float u_time;            // time of this sample: u_clock, or a point of the time line
+vec2 g_cameraP;          // the camera point of this pixel
+vec2 g_pixel;            // its pixel position, when the camera is neither panned nor zoomed
+${FRAME_GLSL}
+${linkLibraries(own, LIBRARIES)}
+${own}`;
+    const fragmentLines = fragment.split('\n');
+    const code = Object.fromEntries(codeFunctions.map(f => [f.node, { start: fragmentLines.findIndex(l => l.startsWith(`vec4 ${f.name}(`)), lines: f.lines }]));
     return {
         vertex: vertexSource,
         fragment,
-        key: programKey(project, subset),
+        key: programKey(project, subset, inlineNumbers),
         order: order.map(n => n.id),
         index: Object.fromEntries(order.map((n, k) => [n.id, k])),
         types: Object.fromEntries(order.map(n => [n.id, catalog[n.type].output])),
         params,
-        vectors: Math.max(vectors, 1)
+        vectors,
+        points: clouds.map(c => pointPassSources(c, nodeAliases.get(c.node), vectors)),
+        code
     };
+}
+/** Parameter values of `project` at `time`, packed as the program's u_params:
+ * four floats per vector (compileProgram's `params` says where each lives). The
+ * numbers of shader code come from the code text itself.
+ */
+export function packParameters(compiled, project, time) {
+    const data = new Float32Array(compiled.vectors * 4), values = new Map();
+    for (const slot of compiled.params) {
+        if (!values.has(slot.node)) {
+            const node = project.nodes.find(n => n.id === slot.node), animated = animatedParameters(project, node, time);
+            values.set(slot.node, catalog[node.type].code ? { ...animated, numbers: analyzeCode(node.params.code).numbers } : animated);
+        }
+        const own = values.get(slot.node), value = slot.kind === 'literal' ? own.numbers[slot.literal].value : own[slot.param], base = slot.vector * 4;
+        if (slot.kind === 'color') {
+            [1, 3, 5].forEach((k, c) => data[base + c] = parseInt(value.slice(k, k + 2), 16) / 255);
+        }
+        else {
+            data[base + slot.component] = value;
+        }
+    }
+    return data;
+}
+/** The code line behind line `glslLine` (1-based, as in compiler messages) of a
+ * compiled fragment program: {node, line}, or null outside shader code.
+ */
+export function sourceLine(compiled, glslLine) {
+    for (const [node, map] of Object.entries(compiled.code || {})) {
+        const k = glslLine - 1 - map.start;
+        if (map.start >= 0 && k >= 0 && k < map.lines.length) {
+            return { node, line: map.lines[k] };
+        }
+    }
+    return null;
+}
+/** Point GPU compiler messages ("ERROR: 0:123: …") at the lines of shader code. */
+export function explainCompileLog(compiled, project, log) {
+    return String(log).replace(/ERROR: \d+:(\d+):/g, (match, line) => {
+        const at = sourceLine(compiled, Number(line));
+        if (!at) {
+            return match;
+        }
+        const node = project.nodes.find(n => n.id === at.node);
+        return at.line ? `${node?.label || at.node}, code line ${at.line}:` : `${node?.label || at.node}:`;
+    });
+}
+/** The type of value a view of `target` shows: the node's output type, or for
+ * shader code with a shown variable (`show` > 0), that variable's type.
+ */
+export function shownType(project, target, show = 0) {
+    const node = project.nodes.find(n => n.id === target), d = node && catalog[node.type];
+    if (!d) {
+        return null;
+    }
+    return d.code && show ? showType(analyzeCode(node.params.code), show) : d.output;
 }
 /** "What it changes": the displayed image with the component (u_with) and with it
  * bypassed (u_without), both drawn by the graph program, compared per pixel.

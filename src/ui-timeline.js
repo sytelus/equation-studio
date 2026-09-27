@@ -7,7 +7,7 @@ import { moveKey } from './timeline.js';
 export function updateClock() {
     $('clock').textContent = state.time.toFixed(3).padStart(6, '0');
     $('scrubber').value = state.time;
-    document.querySelectorAll('.track-playhead').forEach(el => el.style.left = `${state.time / state.project.duration * 100}%`);
+    document.querySelectorAll('.track-playhead, .film-playhead').forEach(el => el.style.left = `${state.time / state.project.duration * 100}%`);
 }
 function refreshTransport() {
     const project = state.project;

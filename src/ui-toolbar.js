@@ -1,7 +1,7 @@
-import { $, esc, state, on, toast, showError, transact, loadProject, undo, redo, revertScene, seek, setView, viewedNode, selectStep, setPref, duplicateNode, deleteNode, history, discardDraft, draftChanged } from './editor.js';
+import { $, esc, state, on, toast, showError, transact, loadProject, undo, redo, revertScene, seek, setView, viewedNode, selectStep, setPref, duplicateNode, deleteNode, history, discardDraft, draftChanged, setShow } from './editor.js';
 import { parseProject } from './graph.js';
 import { getPreset } from './presets.js';
-import { sources, methodNotes } from './research.js';
+import { sources, methodNotes, animationSources } from './research.js';
 import { download, fileStem } from './export.js';
 import { takeSnapshot, libraryOpen, closeLibrary } from './ui-library.js';
 import { togglePlay, stepFrames } from './ui-timeline.js';
@@ -10,6 +10,7 @@ import { hasPin, clearPin, setCompareOriginal } from './ui-canvas.js';
 import { exploreOpen, closeExplore } from './ui-explore.js';
 import { playgroundOpen, closePlayground, togglePlayground } from './ui-playground.js';
 import { scopeVisible, setScopeVisible } from './ui-scope.js';
+import { stopBuildUp } from './ui-code-view.js';
 /** Top bar, dialogs and global keyboard shortcuts. */
 $('projectTitle').onchange = e => transact(p => p.title = e.target.value);
 $('projectTitle').oninput = e => e.target.size = Math.max(8, Math.min(34, e.target.value.length + 1));
@@ -59,7 +60,9 @@ $('projectFile').onchange = async () => {
 };
 $('researchContent').innerHTML = '<p class="research-intro">Prepared 22 September 2026. The original nebula equations were supplied in this conversation and have a retained Python reference. The other requested subjects have executable, editable studies, but their exact equation sheets were not recovered. No original image is used as a render texture.</p>'
     + methodNotes.map(([h, p]) => `<section class="research-method"><h3>${esc(h)}</h3><p>${esc(p)}</p></section>`).join('')
-    + '<h3>Source-by-source evidence ledger</h3>'
+    + '<h3>Animations: posts with their code (2.0)</h3><p class="research-intro">Seventeen of the eighteen animation posts publish their complete code in the post. Each runs here unchanged, with a readable version, an explanation and its author’s credit. One post (the anemone) shows a clip without code: its scene is our own study.</p>'
+    + animationSources.map(s => `<article class="source-entry"><a href="${s.url}" target="_blank" rel="noopener noreferrer">${esc(s.title)} ↗</a><small>${esc(s.status)}</small><p>${esc(s.note)}</p>${s.scene ? `<button data-study="${s.scene}">Open the scene →</button>` : ''}</article>`).join('')
+    + '<h3>Source-by-source evidence ledger (1.x scenes)</h3>'
     + sources.map(s => `<article class="source-entry"><a href="${s.url}" target="_blank" rel="noopener noreferrer">${esc(s.title)} ↗</a><small>${esc(s.status)}</small><p>${esc(s.note)}</p>${s.scene ? `<button data-study="${s.scene}">Open the interpretive study →</button>` : ''}</article>`).join('');
 $('researchContent').onclick = e => {
     const el = e.target.closest('[data-study]');
@@ -103,6 +106,8 @@ export const shortcuts = {
     'p': () => setPreviews(!state.prefs.previews),
     'i': () => toggleView('stage'),
     'c': () => toggleView('effect'),
+    'm': () => setView(state.viewMode === 'motion' ? 'final' : 'motion'),
+    'k': () => $('contrastButton').click(),
     '[': () => selectStep(-1),
     ']': () => selectStep(1),
     'f': () => $('resetView').click(),
@@ -126,8 +131,14 @@ document.addEventListener('keydown', e => {
         else if (!modal && exploreOpen()) {
             closeExplore();
         }
+        else if (!modal && stopBuildUp()) {
+            // a loop's build-up animation stops
+        }
         else if (!modal && hasPin()) {
             clearPin();
+        }
+        else if (!modal && state.show) {
+            setShow(state.show.node, 0); // a shown variable: back to the color
         }
         else if (!modal && state.drafts.has(state.selected)) {
             if (draftChanged(state.selected)) {

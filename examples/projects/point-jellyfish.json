@@ -1,0 +1,72 @@
+{
+  "id": "point-jellyfish",
+  "title": "Point jellyfish",
+  "description": "Twenty thousand faint points drawn by one formula of their index i and the time. By ア (@yuruyurau).",
+  "status": "Reproduction · original code",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "background",
+      "type": "solid",
+      "label": "Solid color",
+      "inputs": {},
+      "params": {
+        "color": "#090909",
+        "gain": 1
+      },
+      "enabled": true
+    },
+    {
+      "id": "cloud",
+      "type": "points",
+      "label": "Point jellyfish",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "expression": "// Point jellyfish · ア (@yuruyurau), 29 Aug 2026 · the point formula of the p5.js sketch\ny = i/99                              // a slow second index: 0 to 202 over the 20000 points\nk = (8 + sin(i/19 + t))*cos(i/49)     // across the bell: swings side to side as i runs; the swing breathes with time\ne = y/8 - 12                          // along the body: −12 at the top to 13 at the tentacle tips\nd = length(vec2(k, e))^2/79 + 1       // squared distance in the (k, e) plane: 1 at the top of the bell, growing downward\nx = k/d*4 - e*sin(k) + k/(d*d)*(12 + d*6*sin(d*d - t + cos(t/3) + .3*sin(e))) + 200   // sideways: the bell narrows with d; the sines make the tentacles wave\nvec2(x, 12*sin(d*2.6 - t) + d*66 + 40)   // down: mostly d (the body hangs from the top), plus a pulse running down it",
+        "count": 20000,
+        "size": 1,
+        "color": "#ffffff",
+        "alpha": 0.25882352941176473,
+        "canvas": 400,
+        "speed": 2.356194490192345,
+        "phase": 0.039269908169872414
+      },
+      "enabled": true,
+      "work": "point-jellyfish"
+    },
+    {
+      "id": "final",
+      "type": "over",
+      "label": "Front over back",
+      "inputs": {
+        "front": "cloud",
+        "back": "background"
+      },
+      "params": {},
+      "enabled": true
+    }
+  ],
+  "output": "final",
+  "duration": 8,
+  "exposure": 1,
+  "tone": "linear",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": [],
+  "aspect": 1,
+  "work": "point-jellyfish",
+  "thumbTime": 1.3
+}

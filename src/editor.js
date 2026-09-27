@@ -4,7 +4,9 @@ import { presets, getPreset } from './presets.js';
 import { CONTRIBUTION_STYLES } from './compiler.js';
 import { originalValue } from './explore.js';
 import { insertKey } from './timeline.js';
-import { withEquation, equationSource } from './fork.js';
+import { withSource, editSource, equationSource } from './fork.js';
+import { analyzeCode, showable, withNumber } from './glsl.js';
+import { getWork, P5_CANVAS } from './works.js';
 /** Shared editor core: transient state, the event bus and every model operation.
  *
  * UI state never enters shader source; numeric values remain uniforms. The
@@ -21,11 +23,16 @@ import { withEquation, equationSource } from './fork.js';
  *   prefs      a persisted preference changed
  *   values     a parameter changed during a continuous edit (nodeId, key, value);
  *              views update numbers without rebuilding
+ *   draft      an unapplied edit of a component's equation or code changed (nodeId)
+ *   pin        the pinned reading on the canvas was set or cleared
  *
- * The canvas shows one of three views of the project:
+ * The canvas shows one of four views of the project:
  *   final   the scene's final output (what exports and saves)
- *   stage   the output of one component: the viewed node alone
+ *   stage   the output of one component: the viewed node alone; for shader code
+ *           optionally one of its variables instead of its color (state.show)
  *   effect  the final output with and without the viewed node (what it changes)
+ *   motion  the final output now and a moment later (what moves), or a short
+ *           exposure over the last half second (trails)
  * The viewed node follows the selection unless the view is locked to a node.
  */
 export const $ = id => document.getElementById(id);
@@ -33,7 +40,8 @@ export const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<':
 export const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 export const STORAGE = { project: 'equation-studio.project.v1', baseline: 'equation-studio.baseline.v1', prefs: 'equation-studio.prefs.v1', snapshots: 'equation-studio.snapshots.v1' };
 export const CUSTOM_STATUS = 'Custom construction';
-export const VIEW_MODES = ['final', 'stage', 'effect'];
+export const VIEW_MODES = ['final', 'stage', 'effect', 'motion'];
+export const MOTION_STYLES = ['change', 'trails'];
 /** Bump when defaults change in a way returning users should receive. */
 const PREFS_VERSION = 3;
 /** Persisted preferences. `quality` is the canvas width in pixels, 0 for Auto
@@ -47,7 +55,12 @@ const defaultPrefs = {
     /** Layout: the Equation Playground (a wide component panel) on or off, the
      * panel's normal and wide widths in pixels (0: automatic, about a quarter and
      * half of the window), and the library docked or a drawer. */
-    playground: false, panelWidth: 0, wideWidth: 0, libraryDocked: false
+    playground: false, panelWidth: 0, wideWidth: 0, libraryDocked: false,
+    /** Accessibility and playback: high contrast ('auto' follows the system's
+     * prefers-contrast, 'more' or 'off' force it), playback speed (1 is real time),
+     * shader numbers compiled as constants (exact, recompiles on every change)
+     * instead of uniforms (live), the filmstrip under the timeline. */
+    contrast: 'auto', playbackRate: 1, exactNumbers: false, filmstrip: true
 };
 /** Preference keys kept when upgrading from an older version. */
 const KEPT_PREFS = ['graphHeight', 'bottomTab', 'previews', 'rulers', 'grid'];
@@ -91,7 +104,12 @@ export const state = {
     drafts: new Map(),
     /** What the canvas previews for the selected component's draft: {node, project}
      * with the last draft text that checked, or null. */
-    draftPreview: null
+    draftPreview: null,
+    /** A variable of shader code shown on the canvas instead of its color:
+     * {node, index} (index into showable() of glsl.js, 1-based), or null. */
+    show: null,
+    /** How the motion view shows movement: 'change' or 'trails'. */
+    motionStyle: 'change'
 };
 export const history = new History();
 const listeners = new Map();
@@ -215,6 +233,9 @@ export function refreshUI() {
             state.drafts.delete(id); // the component was deleted, or undone away
         }
     }
+    if (state.show && !showableCount(state.show.node, state.show.index)) {
+        state.show = null; // the variable no longer exists
+    }
     updateDraftPreview();
     state.time = clamp(state.time, 0, state.project.duration);
     emit('refresh');
@@ -274,7 +295,8 @@ export function loadProject(next, { fromHistory = false, keepBaseline = false, k
         state.viewMode = 'final';
         state.viewLock = null;
         state.probePin = null;
-        state.selected = state.project.nodes.find(n => n.id !== 'space')?.id || state.project.nodes[0].id;
+        // A work's scene opens on its component (the code or point cloud it studies).
+        state.selected = (state.project.nodes.find(n => n.work) || state.project.nodes.find(n => n.id !== 'space') || state.project.nodes[0]).id;
     }
     changed();
     refreshUI();
@@ -355,12 +377,50 @@ export function setContributionStyle(style) {
 export function viewOptions() {
     const project = state.project;
     if (state.viewMode === 'stage') {
-        return { target: viewedNode().id };
+        const target = viewedNode().id;
+        return { target, show: state.show?.node === target ? state.show.index : 0 };
     }
     if (state.viewMode === 'effect') {
         return { target: project.output, contribution: viewedNode().id, contributionStyle: state.contributionStyle };
     }
+    if (state.viewMode === 'motion') {
+        return { target: project.output, motion: { style: state.motionStyle } };
+    }
     return { target: project.output };
+}
+/** True when shader code component `nodeId` has a value number `index` to show. */
+function showableCount(nodeId, index) {
+    const node = nodeById(nodeId);
+    if (!node || !catalog[node.type].code) {
+        return false;
+    }
+    try {
+        return index >= 1 && index <= showable(analyzeCode(node.params.code)).length;
+    }
+    catch (e) {
+        return false;
+    }
+}
+/** Show variable `index` (1-based, see showable() in glsl.js) of shader code
+ * `nodeId` on the canvas, in the This step view; 0 shows its color again.
+ */
+export function setShow(nodeId, index) {
+    state.show = index && showableCount(nodeId, index) ? { node: nodeId, index } : null;
+    if (state.show) {
+        setView('stage', { node: nodeId });
+    }
+    else {
+        markDirty();
+        emit('view');
+    }
+}
+export function setMotionStyle(style) {
+    if (!MOTION_STYLES.includes(style)) {
+        throw new Error(`Unknown motion style ${style}.`);
+    }
+    state.motionStyle = style;
+    markDirty();
+    emit('view');
 }
 /** Position of the selected component in evaluation order: {index, count}. */
 export function selectionPosition() {
@@ -490,12 +550,41 @@ export function endLiveEdit() {
  * nothing, when the equation is invalid. Discards the component's draft.
  */
 export function applyEquation(nodeId, source) {
-    const next = withEquation(state.project, nodeId, source);
+    const next = withSource(state.project, nodeId, source);
     const ok = transact(p => Object.assign(p, { nodes: next.nodes, tracks: next.tracks }), { structural: true });
     if (ok) {
         discardDraft(nodeId);
     }
     return ok;
+}
+/** One step of dragging a number in shader code: the code text changes (so undo,
+ * saving and the Code view see it), but its structure does not, so the compiled
+ * program is reused and the frame is only redrawn. endLiveEdit() records it.
+ */
+export function liveNumber(nodeId, index, text) {
+    const node = nodeById(nodeId);
+    if (state.busy || !node || !catalog[node.type].code) {
+        return false;
+    }
+    pause();
+    if (!liveBefore) {
+        liveBefore = clone(state.project);
+    }
+    node.params.code = withNumber(node.params.code, index, text);
+    noteInteraction();
+    markDirty();
+    emit('values', nodeId, 'code', text);
+    return true;
+}
+/** Freeze an animated component at the playhead: speed 0 and the time offset it
+ * had there, so it keeps showing this moment (undoable). */
+export function freezeTime(nodeId) {
+    return transact(p => {
+        const n = p.nodes.find(v => v.id === nodeId);
+        n.params.phase = clamp(n.params.speed * state.time + n.params.phase, paramSpecs(n).phase.min, paramSpecs(n).phase.max);
+        n.params.speed = 0;
+        p.tracks = p.tracks.filter(t => !(t.node === nodeId && (t.param === 'speed' || t.param === 'phase')));
+    });
 }
 /** Turn a built-in component into its equivalent equation (the image is unchanged). */
 export function forkComponent(nodeId) {
@@ -512,7 +601,7 @@ function updateDraftPreview() {
     let next = null;
     if (source !== undefined) {
         try {
-            const project = withEquation(state.project, id, source);
+            const project = withSource(state.project, id, source);
             validateProject(project);
             next = { node: id, project };
         }
@@ -545,7 +634,7 @@ export function setDraft(nodeId, source) {
  * equivalent equation of a built-in component. */
 export function startEdit(nodeId) {
     if (!state.drafts.has(nodeId)) {
-        setDraft(nodeId, equationSource(nodeById(nodeId)));
+        setDraft(nodeId, editSource(nodeById(nodeId)));
     }
 }
 /** Drop an unapplied edit (Cancel). */
@@ -558,7 +647,7 @@ export function discardDraft(nodeId) {
 /** True when the draft differs from what the component computes now. */
 export function draftChanged(nodeId) {
     const node = nodeById(nodeId), source = state.drafts.get(nodeId);
-    return source !== undefined && !!node && source !== equationSource(node);
+    return source !== undefined && !!node && source !== editSource(node);
 }
 export function resetParam(nodeId, key) {
     return transact(p => {
@@ -590,9 +679,10 @@ export function applyParams(candidate, nodeIds = null) {
 // ---- Graph operations -------------------------------------------------------
 /** Add a component; sockets connect to the selection when types match, else to
  * the first compatible node. `connectTo` = {node, socket} wires the new output
- * into that socket instead (drag-and-drop onto an input).
+ * into that socket instead (drag-and-drop onto an input). `params`, `label` and
+ * `work` (the id of a work in works.js, which credits it) set up the new node.
  */
-export function addComponent(type, { connectTo = null } = {}) {
+export function addComponent(type, { connectTo = null, params = {}, label = null, work = null } = {}) {
     if (!Object.hasOwn(catalog, type)) {
         throw new Error(`Unknown component: ${type}`);
     }
@@ -606,7 +696,14 @@ export function addComponent(type, { connectTo = null } = {}) {
                 inputs[socket] = match.id;
             }
         }
-        p.nodes.push(makeNode(type, id, inputs));
+        const node = makeNode(type, id, inputs, params);
+        if (label) {
+            node.label = label.slice(0, MAX_LABEL);
+        }
+        if (work) {
+            node.work = work;
+        }
+        p.nodes.push(node);
         if (connectTo) {
             const target = p.nodes.find(n => n.id === connectTo.node);
             if (!target || catalog[target.type].inputs[connectTo.socket] !== def.output) {
@@ -624,6 +721,22 @@ export function addComponent(type, { connectTo = null } = {}) {
         toast(connectTo ? 'Component added and connected.' : 'Component added; the canvas shows its output. Wire it downstream, or make it the final output.');
     }
     return ok ? id : null;
+}
+/** Add the component of a work (works.js) to the current scene: its readable code
+ * in a Shader code component, or its formula in a Point cloud, credited to its
+ * author. Reuse any animation as a layer of another construction. */
+export function addWorkComponent(workId, options = {}) {
+    const w = getWork(workId);
+    if (!w) {
+        throw new Error(`Unknown work ${workId}.`);
+    }
+    const id = w.platform === 'p5'
+        ? addComponent('points', { ...options, params: { expression: w.readable, canvas: P5_CANVAS, size: 1, color: '#ffffff', ...w.points }, label: w.title, work: w.id })
+        : addComponent('code', { ...options, params: { code: w.readable }, label: w.title, work: w.id });
+    if (id) {
+        toast(`Added ${w.title} by ${w.author}: a color layer. Combine it with Add light or Front over back; its Code or Equation tab explains it, and ❄ Freeze here makes it a still.`);
+    }
+    return id;
 }
 /** Insert a modifier on an input: target.socket ← new ← previous source. */
 export function insertComponent(type, targetId, socket) {

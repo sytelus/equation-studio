@@ -1,8 +1,8 @@
-import { compileProgram, programKey, subgraph, viewState, withBypassed, comparePassSource, vertexSource, MODES, CONTRIBUTION_STYLES } from './compiler.js';
-import { animatedParameters } from './timeline.js';
+import { compileProgram, programKey, subgraph, viewState, withBypassed, comparePassSource, vertexSource, shownType, explainCompileLog, packParameters, MODES, CONTRIBUTION_STYLES } from './compiler.js';
 import { validateProject } from './graph.js';
 import { lookUniforms, lookPassSource } from './looks.js';
 import { describeRenderer } from './gpu-info.js';
+import { catalog } from './catalog.js';
 /** A single fullscreen triangle evaluates the field graph independently per pixel.
  * No mesh, image texture, off-site requests, runtime dependency or CPU pixel loop.
  *
@@ -32,10 +32,39 @@ import { describeRenderer } from './gpu-info.js';
  *   look                 how non-color values are colored (looks.js); default classic
  *   subgraph             compile only the target's subgraph (smaller, faster to compile)
  *   debug                1: finite values black, nonfinite magenta; 2: alpha
+ *   show                 for shader code: 0 its color, k its k-th variable (glsl.js)
+ *   frameSize            [w, h] of the frame the view represents (twigl's r and the
+ *                        point clouds' texture); default the render size
+ *   motion               {style: 'change' | 'trails'}: what moves. 'change' compares
+ *                        the image now and MOTION.dt later (the pixels that change
+ *                        keep their color); 'trails' averages MOTION.frames frames
+ *                        over the last MOTION.span seconds, like a long exposure
+ *
+ * Point clouds. A point cloud component is drawn by its own small program (one
+ * vertex per point, compiler.js) into a texture the size of the frame, just
+ * before the graph program runs; the graph program samples that texture. So a
+ * point cloud is an ordinary layer: it can be tinted, masked, composited or warped.
+ *
+ * Time. u_clock is the studio time. With `times` ({point, from, to}) a line of
+ * samples shows one point at many times in one draw (time profiles).
  */
 const toneIndex = { source: 0, filmic: 1, linear: 2 };
-const BUILTINS = ['u_resolution', 'u_offset', 'u_view', 'u_sampling', 'u_line', 'u_time', 'u_exposure', 'u_tone', 'u_debug', 'u_mode', 'u_target', 'u_active', 'u_enabled', 'u_params', 'u_type', 'u_look', 'u_gain'];
-const PASS_UNIFORMS = { look: ['u_field', 'u_origin', 'u_type', 'u_channel', 'u_range', 'u_grid'], compare: ['u_with', 'u_without', 'u_origin', 'u_style'] };
+const BUILTINS = ['u_resolution', 'u_offset', 'u_view', 'u_sampling', 'u_line', 'u_frame', 'u_clock', 'u_exposure', 'u_tone', 'u_debug', 'u_mode', 'u_target', 'u_show', 'u_active', 'u_enabled', 'u_params', 'u_type', 'u_look', 'u_gain', 'u_overBlack', 'u_points0', 'u_points1', 'u_points2', 'u_points3'];
+/** Texture unit of the first point cloud (units 0 and 1 belong to the helper passes). */
+const POINTS_UNIT = 4;
+/** Uniforms of a point pass program. */
+const POINT_UNIFORMS = ['u_params', 'u_frame', 'u_view', 'u_clock', 'u_pointMax'];
+const PASS_UNIFORMS = { look: ['u_field', 'u_origin', 'u_type', 'u_channel', 'u_range', 'u_grid'], compare: ['u_with', 'u_without', 'u_origin', 'u_style'], copy: ['u_field', 'u_origin'] };
+/** Copy a texture of display colors to the output (the motion view's trails). */
+const copyPassSource = `#version 300 es
+precision highp float;
+uniform highp sampler2D u_field;
+uniform vec2 u_origin;
+out vec4 outputColor;
+void main(){outputColor=vec4(clamp(texelFetch(u_field,ivec2(gl_FragCoord.xy-u_origin),0).rgb,0.0,1.0),1);}
+`;
+/** The motion view: how far apart its two frames are, and the trails' exposure. */
+export const MOTION = { dt: 0.1, span: 0.5, frames: 8 };
 /** Largest line or point probe, in samples. */
 export const MAX_LINE_SAMPLES = 4096;
 /** readPixels returns the bottom row first; images and ImageData want the top row first. */
@@ -48,9 +77,11 @@ function flipRows(pixels, width, height) {
 }
 const now = () => performance.now();
 export class Renderer {
-    constructor(canvas, { programCacheSize = 12 } = {}) {
+    constructor(canvas, { programCacheSize = 12, inlineNumbers = false } = {}) {
         this.canvas = canvas;
         this.programCacheSize = programCacheSize;
+        /** Compile the numbers of shader code as constants (see compileProgram). */
+        this.inlineNumbers = inlineNumbers;
         this.gl = canvas.getContext('webgl2', { alpha: false, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance', premultipliedAlpha: false });
         if (!this.gl) {
             throw new Error('WebGL 2 is unavailable. Enable browser hardware acceleration and use a browser with WebGL 2 support. The Python reference remains available.');
@@ -101,7 +132,8 @@ export class Renderer {
             parallelCompile: !!this.parallel,
             gpuTimer: !!this.timerExt,
             maxSize: Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), gl.getParameter(gl.MAX_TEXTURE_SIZE), 4096),
-            maxUniformVectors: gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS)
+            maxUniformVectors: gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS),
+            maxPointSize: gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)?.[1] || 64
         };
     }
     /** Fixed-function state and extensions; repeated after a context restoration. */
@@ -130,14 +162,14 @@ export class Renderer {
      * 'warming', 'ready' or 'failed'.
      */
     programFor(project, { subset = null, wait = false } = {}) {
-        const key = programKey(project, subset);
+        const key = programKey(project, subset, this.inlineNumbers);
         let entry = this.cache.get(key);
         if (entry) {
             this.cache.delete(key);
             this.cache.set(key, entry); // most recently used goes last
         }
         else {
-            entry = { key, compiled: compileProgram(project, { subset }), status: 'queued', program: null, shaders: [], error: null, started: now(), finished: null, fence: null, locations: null, waiters: [] };
+            entry = { key, compiled: compileProgram(project, { subset, inlineNumbers: this.inlineNumbers }), project, status: 'queued', program: null, shaders: [], error: null, started: now(), finished: null, fence: null, locations: null, waiters: [] };
             this.cache.set(key, entry);
             this.evict();
             if (this.parallel) {
@@ -188,6 +220,10 @@ export class Renderer {
             gl.deleteSync(entry.fence);
             entry.fence = null;
         }
+        for (const pass of entry.pointPrograms || []) {
+            gl.deleteProgram(pass.program);
+        }
+        entry.pointPrograms = null;
     }
     startCompile(entry) {
         const gl = this.gl, shader = (kind, source) => {
@@ -214,7 +250,7 @@ export class Renderer {
             gl.deleteProgram(entry.program);
             entry.program = null;
             entry.status = 'failed';
-            entry.error = new Error(`Shader compilation failed:\n${log}`);
+            entry.error = new Error(`Shader compilation failed:\n${entry.project ? explainCompileLog(entry.compiled, entry.project, log) : log}`);
         }
         else {
             entry.locations = Object.fromEntries(BUILTINS.map(n => [n, gl.getUniformLocation(entry.program, n)]));
@@ -256,6 +292,7 @@ export class Renderer {
         gl.useProgram(entry.program);
         gl.bindVertexArray(this.vao);
         gl.uniform2f(loc.u_resolution, 1, 1);
+        gl.uniform2f(loc.u_frame, 1, 1);
         gl.uniform3f(loc.u_view, 0, 0, 1);
         gl.uniform4ui(loc.u_active, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff);
         gl.uniform4ui(loc.u_enabled, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff);
@@ -358,20 +395,7 @@ export class Renderer {
     }
     /** Parameter values at `time`, packed as the program's u_params array. */
     packParams(compiled, project, time) {
-        const data = new Float32Array(compiled.vectors * 4), values = new Map();
-        for (const slot of compiled.params) {
-            if (!values.has(slot.node)) {
-                values.set(slot.node, animatedParameters(project, project.nodes.find(n => n.id === slot.node), time));
-            }
-            const value = values.get(slot.node)[slot.param], base = slot.vector * 4;
-            if (slot.kind === 'color') {
-                [1, 3, 5].forEach((k, c) => data[base + c] = parseInt(value.slice(k, k + 2), 16) / 255);
-            }
-            else {
-                data[base + slot.component] = value;
-            }
-        }
-        return data;
+        return packParameters(compiled, project, time);
     }
     /** Upload uniforms and issue the draw call into the currently bound framebuffer
      * and viewport. `offset` is the tile origin inside that framebuffer.
@@ -379,15 +403,27 @@ export class Renderer {
     execute(entry, project, time, width, height, frame = {}, offset = [0, 0], params = null) {
         const gl = this.gl, loc = entry.locations, compiled = entry.compiled;
         const target = frame.target ?? project.output, state = viewState(compiled, project, target, frame.contribution);
-        const look = lookUniforms(compiled.types[target], frame.look);
+        const look = lookUniforms(frame.show ? shownType(project, target, frame.show) : compiled.types[target], frame.look);
+        const size = frame.frameSize || [width, height], times = frame.times;
         gl.useProgram(entry.program);
         gl.bindVertexArray(this.vao);
         gl.uniform2f(loc.u_resolution, width, height);
         gl.uniform2f(loc.u_offset, offset[0], offset[1]);
+        gl.uniform2f(loc.u_frame, size[0], size[1]);
         gl.uniform3f(loc.u_view, project.view.x, project.view.y, project.view.zoom);
-        gl.uniform1i(loc.u_sampling, frame.line ? 1 : 0);
-        gl.uniform4fv(loc.u_line, frame.line || [0, 0, 0, 0]);
-        gl.uniform1f(loc.u_time, time);
+        gl.uniform1i(loc.u_sampling, times ? 2 : frame.line ? 1 : 0);
+        gl.uniform4fv(loc.u_line, times ? [...times.point, times.from, times.to] : frame.line || [0, 0, 0, 0]);
+        gl.uniform1f(loc.u_clock, time);
+        gl.uniform1i(loc.u_show, frame.show || 0);
+        for (const cloud of compiled.points) {
+            const texture = this.pointTextures?.get(cloud.slot);
+            if (texture) {
+                gl.activeTexture(gl.TEXTURE0 + POINTS_UNIT + cloud.slot);
+                gl.bindTexture(gl.TEXTURE_2D, texture.texture);
+                gl.uniform1i(loc[`u_points${cloud.slot}`], POINTS_UNIT + cloud.slot);
+            }
+        }
+        gl.activeTexture(gl.TEXTURE0);
         gl.uniform1f(loc.u_exposure, project.exposure);
         gl.uniform1i(loc.u_tone, toneIndex[project.tone]);
         gl.uniform1i(loc.u_debug, frame.debug || 0);
@@ -398,9 +434,78 @@ export class Renderer {
         gl.uniform1i(loc.u_type, look.type);
         gl.uniform1i(loc.u_look, look.look);
         gl.uniform1f(loc.u_gain, look.gain);
+        // A point cloud's own view: its dots over black (as a straight-alpha layer its
+        // color is set wherever a point touches, so shown alone it would be a blob).
+        gl.uniform1i(loc.u_overBlack, catalog[project.nodes.find(n => n.id === target)?.type]?.points && !frame.show ? 1 : 0);
         gl.uniform4fv(loc.u_params, params || this.packParams(compiled, project, time));
         gl.drawArrays(gl.TRIANGLES, 0, 3);
         return state;
+    }
+    // ---- Point clouds ---------------------------------------------------------------
+    /** The linked point pass programs of a graph program, built on first use. */
+    pointPrograms(entry) {
+        if (entry.pointPrograms) {
+            return entry.pointPrograms;
+        }
+        const gl = this.gl;
+        entry.pointPrograms = entry.compiled.points.map(pass => {
+            const shader = (type, source) => {
+                const s = gl.createShader(type);
+                gl.shaderSource(s, source);
+                gl.compileShader(s);
+                return s;
+            };
+            const vs = shader(gl.VERTEX_SHADER, pass.vertex), fs = shader(gl.FRAGMENT_SHADER, pass.fragment), program = gl.createProgram();
+            gl.attachShader(program, vs);
+            gl.attachShader(program, fs);
+            gl.linkProgram(program);
+            const ok = gl.getProgramParameter(program, gl.LINK_STATUS), log = ok ? '' : [gl.getShaderInfoLog(vs), gl.getShaderInfoLog(fs)].filter(Boolean).join('\n') || gl.getProgramInfoLog(program);
+            gl.deleteShader(vs);
+            gl.deleteShader(fs);
+            if (!ok) {
+                gl.deleteProgram(program);
+                throw new Error(`The point cloud ${pass.node} failed to compile:\n${log}`);
+            }
+            return { ...pass, program, locations: Object.fromEntries(POINT_UNIFORMS.map(n => [n, gl.getUniformLocation(program, n)])) };
+        });
+        return entry.pointPrograms;
+    }
+    /** Draw the point clouds of a graph program into their textures, `width` ×
+     * `height` pixels (the frame of the coming draw), at `time`. `purpose` keeps
+     * separate textures for views of different sizes. Leaves no framebuffer bound.
+     */
+    drawPoints(entry, project, time, width, height, params, purpose = 'view') {
+        const compiled = entry.compiled;
+        this.pointTextures = new Map();
+        if (!compiled.points.length) {
+            return;
+        }
+        const gl = this.gl, format = this.info.rawFields ? 'rgba16f' : 'rgba8';
+        const enabled = new Set(project.nodes.filter(n => n.enabled).map(n => n.id));
+        for (const pass of this.pointPrograms(entry)) {
+            const node = project.nodes.find(n => n.id === pass.node), t = this.renderTarget(`points${pass.slot}-${purpose}`, width, height, format, true);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, t.framebuffer);
+            gl.viewport(0, 0, width, height);
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            this.pointTextures.set(pass.slot, t);
+            if (!node || !enabled.has(node.id)) {
+                continue;
+            }
+            const loc = pass.locations, count = Math.max(0, Math.round(node.params.count));
+            gl.useProgram(pass.program);
+            gl.bindVertexArray(this.vao);
+            gl.uniform4fv(loc.u_params, params);
+            gl.uniform2f(loc.u_frame, width, height);
+            gl.uniform3f(loc.u_view, project.view.x, project.view.y, project.view.zoom);
+            gl.uniform1f(loc.u_clock, time);
+            gl.uniform1f(loc.u_pointMax, this.info.maxPointSize);
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+            gl.drawArrays(gl.POINTS, 0, count);
+            gl.disable(gl.BLEND);
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
     describe(entry, project, target, frame, state) {
         return {
@@ -462,7 +567,7 @@ export class Renderer {
     /** A texture and framebuffer of the given size and format ('rgba8', 'rgba16f'
      * or 'rgba32f'), reused across frames.
      */
-    renderTarget(name, width, height, format) {
+    renderTarget(name, width, height, format, linear = false) {
         const gl = this.gl, formats = { rgba8: [gl.RGBA8, gl.UNSIGNED_BYTE], rgba16f: [gl.RGBA16F, gl.HALF_FLOAT], rgba32f: [gl.RGBA32F, gl.FLOAT] };
         let t = this.targets.get(name);
         if (t && (t.width !== width || t.height !== height || t.format !== format)) {
@@ -473,8 +578,10 @@ export class Renderer {
         if (!t) {
             const texture = gl.createTexture(), framebuffer = gl.createFramebuffer();
             gl.bindTexture(gl.TEXTURE_2D, texture);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, linear ? gl.LINEAR : gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, linear ? gl.LINEAR : gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             gl.texImage2D(gl.TEXTURE_2D, 0, formats[format][0], width, height, 0, gl.RGBA, formats[format][1], null);
             gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
             gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
@@ -495,7 +602,8 @@ export class Renderer {
             gl.compileShader(s);
             return s;
         };
-        const vs = shader(gl.VERTEX_SHADER, vertexSource), fs = shader(gl.FRAGMENT_SHADER, kind === 'look' ? lookPassSource : comparePassSource), program = gl.createProgram();
+        const sources = { look: lookPassSource, compare: comparePassSource, copy: copyPassSource };
+        const vs = shader(gl.VERTEX_SHADER, vertexSource), fs = shader(gl.FRAGMENT_SHADER, sources[kind]), program = gl.createProgram();
         gl.attachShader(program, vs);
         gl.attachShader(program, fs);
         gl.linkProgram(program);
@@ -521,7 +629,9 @@ export class Renderer {
      */
     renderView(entry, project, time, width, height, frame, output) {
         const gl = this.gl, out = output || { framebuffer: null, x: 0, y: 0 };
-        const target = frame.target ?? project.output, type = entry.compiled.types[target];
+        const target = frame.target ?? project.output, type = frame.show ? shownType(project, target, frame.show) : entry.compiled.types[target];
+        const size = frame.frameSize || [width, height];
+        this.drawPoints(entry, project, time, size[0], size[1], this.packParams(entry.compiled, project, time), frame.purpose || 'view');
         const into = t => {
             gl.bindFramebuffer(gl.FRAMEBUFFER, t.framebuffer);
             gl.viewport(0, 0, width, height);
@@ -530,6 +640,9 @@ export class Renderer {
             gl.bindFramebuffer(gl.FRAMEBUFFER, out.framebuffer);
             gl.viewport(out.x, out.y, width, height);
         };
+        if (frame.motion && !frame.raw) {
+            return this.renderMotion(entry, project, time, width, height, frame, out, into, finish);
+        }
         if (frame.contribution && !frame.raw) {
             // Float images keep the comparison unquantized (small differences near the
             // highlight threshold survive); bytes where float targets are unavailable.
@@ -571,6 +684,58 @@ export class Renderer {
         }
         finish();
         return this.execute(entry, project, time, width, height, frame, [out.x, out.y]);
+    }
+    /** The motion view (see the frame options): two frames compared, or trails. */
+    renderMotion(entry, project, time, width, height, frame, out, into, finish) {
+        const gl = this.gl, plain = { target: frame.target ?? project.output, debug: frame.debug, frameSize: frame.frameSize, purpose: frame.purpose };
+        const size = frame.frameSize || [width, height], params = t => this.packParams(entry.compiled, project, t);
+        const wrap = t => t < 0 ? t + project.duration : t;
+        let state;
+        if (frame.motion.style === 'trails') {
+            const format = this.info.rawFields ? 'rgba16f' : 'rgba8', sum = this.renderTarget('trails', width, height, format);
+            into(sum);
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            for (let k = 0; k < MOTION.frames; k++) {
+                const t = wrap(time - MOTION.span * k / (MOTION.frames - 1));
+                this.drawPoints(entry, project, t, size[0], size[1], params(t), plain.purpose || 'view');
+                into(sum);
+                gl.enable(gl.BLEND);
+                gl.blendColor(0, 0, 0, 1 / MOTION.frames);
+                gl.blendFunc(gl.CONSTANT_ALPHA, gl.ONE);
+                const s = this.execute(entry, project, t, width, height, plain);
+                state ??= s;
+                gl.disable(gl.BLEND);
+            }
+            finish();
+            const pass = this.passProgram('copy');
+            gl.useProgram(pass.program);
+            this.bindTexture(0, sum, pass.locations.u_field);
+            gl.uniform2f(pass.locations.u_origin, out.x, out.y);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+            return state;
+        }
+        const format = this.info.rawFields ? 'rgba32f' : 'rgba8';
+        const later = this.renderTarget('with', width, height, format), now = this.renderTarget('without', width, height, format);
+        const next = time + MOTION.dt;
+        this.drawPoints(entry, project, next, size[0], size[1], params(next), plain.purpose || 'view');
+        into(later);
+        state = this.execute(entry, project, next, width, height, plain);
+        this.drawPoints(entry, project, time, size[0], size[1], params(time), plain.purpose || 'view');
+        into(now);
+        this.execute(entry, project, time, width, height, plain);
+        finish();
+        const pass = this.passProgram('compare');
+        gl.useProgram(pass.program);
+        this.bindTexture(0, later, pass.locations.u_with);
+        this.bindTexture(1, now, pass.locations.u_without);
+        gl.uniform2f(pass.locations.u_origin, out.x, out.y);
+        gl.uniform1i(pass.locations.u_style, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.activeTexture(gl.TEXTURE0);
+        return state;
     }
     /** Run `body` with a temporary color attachment bound, then read it back
      * (bottom row first). Float attachments need EXT_color_buffer_float. With
@@ -669,7 +834,10 @@ export class Renderer {
             throw new Error('Too many previews for one atlas.');
         }
         const params = this.packParams(entry.compiled, project, time);
-        const result = this.offscreen(width, height, float, () => {
+        const result = this.offscreen(width, height, float, framebuffer => {
+            // Every tile shows the same camera at the same size: one point pass serves them all.
+            this.drawPoints(entry, project, time, tileWidth, tileHeight, params, 'atlas');
+            gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
             gl.enable(gl.SCISSOR_TEST);
             ids.forEach((id, i) => {
                 const x = (i % columns) * tileWidth, y = Math.floor(i / columns) * tileHeight;
@@ -694,12 +862,40 @@ export class Renderer {
         };
         return options.async ? result.then(split) : split(result);
     }
+    /** Display images of one view at several `times`, drawn into one atlas and read
+     * back once, without blocking: a Promise of an array of {width, height, data}
+     * (ImageData layout), one per time. For the filmstrip and sprite sheets.
+     */
+    timeAtlas(project, times, tileWidth, tileHeight, options = {}) {
+        this.checkArguments(project, times[0] ?? 0, tileWidth, tileHeight);
+        const target = this.checkOptions(project, options), gl = this.gl;
+        const entry = this.programFor(project, { subset: this.subsetFor(project, options), wait: true });
+        const columns = Math.max(1, Math.min(times.length, Math.floor(this.info.maxSize / tileWidth)));
+        const rows = Math.ceil(times.length / columns), width = columns * tileWidth, height = rows * tileHeight;
+        if (height > this.info.maxSize) {
+            throw new Error('Too many frames for one atlas.');
+        }
+        const result = this.offscreen(width, height, false, framebuffer => {
+            times.forEach((time, i) => {
+                const x = (i % columns) * tileWidth, y = Math.floor(i / columns) * tileHeight;
+                this.renderView(entry, project, time, tileWidth, tileHeight, { ...options, target, purpose: 'atlas' }, { framebuffer, x, y });
+            });
+        }, true);
+        return result.then(pixels => times.map((_, i) => {
+            const x0 = (i % columns) * tileWidth, y0 = Math.floor(i / columns) * tileHeight, data = new Uint8ClampedArray(tileWidth * tileHeight * 4);
+            for (let y = 0; y < tileHeight; y++) {
+                const source = ((y0 + y) * width + x0) * 4;
+                data.set(pixels.subarray(source, source + tileWidth * 4), (tileHeight - 1 - y) * tileWidth * 4);
+            }
+            return { width: tileWidth, height: tileHeight, data };
+        }));
+    }
     /** Raw values of `target` at `count` points evenly spaced along the segment from
      * `a` to `b` (world coordinates; sample i sits at (i + ½)/count). Returns a
      * Float32Array of count × RGBA, or a Promise of one with `async`. The values are
      * those before diagnostic mapping, exposure, tone mapping and quantization.
      */
-    sampleLine(project, time, target, a, b, count, { async = false } = {}) {
+    sampleLine(project, time, target, a, b, count, { async = false, frameSize = null, show = 0 } = {}) {
         if (!this.info.rawFields) {
             throw new Error('Raw field probes need EXT_color_buffer_float, unavailable on this browser/GPU.');
         }
@@ -712,10 +908,52 @@ export class Renderer {
         }
         this.checkArguments(project, time, count, 1);
         this.checkOptions(project, { target });
-        const entry = this.programFor(project, { wait: true }), gl = this.gl;
-        return this.offscreen(count, 1, true, () => {
+        const entry = this.programFor(project, { wait: true }), gl = this.gl, size = frameSize || this.frameSize();
+        return this.offscreen(count, 1, true, framebuffer => {
+            this.drawPoints(entry, project, time, size[0], size[1], this.packParams(entry.compiled, project, time), 'probe');
+            gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
             gl.viewport(0, 0, count, 1);
-            this.execute(entry, project, time, count, 1, { target, raw: true, line: points });
+            this.execute(entry, project, time, count, 1, { target, raw: true, line: points, frameSize: size, show });
+        }, async);
+    }
+    /** The size of the frame probes refer to: the visible canvas. */
+    frameSize() {
+        return [this.canvas.width, this.canvas.height];
+    }
+    /** Raw values of `target` at one world point (x, y) at `count` times evenly
+     * spaced from `from` to `to` seconds (sample i at from + (to − from)(i + ½)/count):
+     * a time profile. Returns a Float32Array of count × RGBA, or a Promise with
+     * `async`. Graphs with point clouds draw one sample at a time (each time needs
+     * its own point pass); others take a single draw.
+     */
+    sampleTimes(project, target, x, y, from, to, count, { async = false, frameSize = null, show = 0 } = {}) {
+        if (!this.info.rawFields) {
+            throw new Error('Raw field probes need EXT_color_buffer_float, unavailable on this browser/GPU.');
+        }
+        if (![x, y, from, to].every(v => Number.isFinite(v) && Math.abs(v) <= 1e6)) {
+            throw new Error('A time profile needs a finite point and time range.');
+        }
+        if (!Number.isInteger(count) || count < 1 || count > MAX_LINE_SAMPLES) {
+            throw new Error(`A time profile takes 1–${MAX_LINE_SAMPLES} samples.`);
+        }
+        this.checkArguments(project, from, count, 1);
+        this.checkOptions(project, { target });
+        const entry = this.programFor(project, { wait: true }), gl = this.gl, size = frameSize || this.frameSize();
+        return this.offscreen(count, 1, true, framebuffer => {
+            // Point passes and animated parameters depend on the time: one draw per sample.
+            if (!entry.compiled.points.length && !project.tracks.length) {
+                gl.viewport(0, 0, count, 1);
+                this.execute(entry, project, from, count, 1, { target, raw: true, times: { point: [x, y], from, to }, frameSize: size, show });
+                return;
+            }
+            const step = (to - from) / count;
+            for (let i = 0; i < count; i++) {
+                const time = from + step * (i + 0.5);
+                this.drawPoints(entry, project, time, size[0], size[1], this.packParams(entry.compiled, project, time), 'probe');
+                gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+                gl.viewport(i, 0, 1, 1);
+                this.execute(entry, project, time, 1, 1, { target, raw: true, line: [x, y, x, y], frameSize: size, show }, [i, 0]);
+            }
         }, async);
     }
     /** Actual field values at one world coordinate: [4 numbers]. */
@@ -725,15 +963,39 @@ export class Renderer {
     /** Raw values of `target` over the camera view at a small size (top row first),
      * for statistics. Returns a Float32Array, or a Promise of one with `async`.
      */
-    rawImage(project, time, target, width, height, { async = false } = {}) {
+    rawImage(project, time, target, width, height, { async = false, show = 0 } = {}) {
         this.checkArguments(project, time, width, height);
         this.checkOptions(project, { target });
         const entry = this.programFor(project, { wait: true }), gl = this.gl;
-        const result = this.offscreen(width, height, true, () => {
+        const result = this.offscreen(width, height, true, framebuffer => {
+            this.drawPoints(entry, project, time, width, height, this.packParams(entry.compiled, project, time), 'stats');
+            gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
             gl.viewport(0, 0, width, height);
-            this.execute(entry, project, time, width, height, { target, raw: true });
+            this.execute(entry, project, time, width, height, { target, raw: true, show });
         }, async);
         return async ? result.then(p => flipRows(p, width, height)) : flipRows(result, width, height);
+    }
+    /** Time the drawing of a view at width × height, in milliseconds: the median of
+     * `repeats` draws after one warm-up, each waited for with a one-pixel readback
+     * (so it includes the GPU work). Blocks the page; for the Stats tab's cost table.
+     */
+    measure(project, time, width, height, options = {}, repeats = 3) {
+        this.checkArguments(project, time, width, height);
+        const target = this.checkOptions(project, options), gl = this.gl;
+        const entry = this.programFor(project, { subset: this.subsetFor(project, options), wait: true });
+        const t = this.renderTarget('measure', width, height, 'rgba8'), pixel = new Uint8Array(4), times = [];
+        for (let k = 0; k <= repeats; k++) {
+            const start = now();
+            this.renderView(entry, project, time, width, height, { ...options, target }, { framebuffer: t.framebuffer, x: 0, y: 0 });
+            gl.bindFramebuffer(gl.FRAMEBUFFER, t.framebuffer);
+            gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+            if (k) {
+                times.push(now() - start);
+            }
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        times.sort((a, b) => a - b);
+        return times[Math.floor(times.length / 2)];
     }
     // ---- GPU timing ---------------------------------------------------------------
     /** Measure the next draw: an exact timer query when EXT_disjoint_timer_query_webgl2

@@ -17,10 +17,11 @@ When you change the wiring, add a component or apply an equation, the scene’s 
 | Area | Where | What it is for |
 |---|---|---|
 | Top bar | top | **☰ Scenes** opens the library; the scene’s title and its provenance label; undo and redo, Revert, Open, Save, help and Export |
-| Canvas | center | The live image; above it, what it shows (**Final image**, **This step**, **What it changes**) and its tools |
+| Canvas | center | The live image; above it, what it shows (**Final image**, **This step**, **What it changes**, **What moves**) and its tools |
 | Pipeline | under the canvas | The construction step by step, with a live picture of every step’s output; tabs switch to the **Function graph**, the **Formulas** and the **Shader** |
 | Component panel | right | The selected component: its equation, what goes in and out, the ideas behind it, and every control |
-| Timeline | bottom | Play, scrub, duration, output conversion and exposure; a lane for every animated parameter |
+| Timeline | bottom | Play, scrub, duration, playback speed, output conversion and exposure; the **🎞 Frames** filmstrip of the whole loop; a lane for every animated parameter |
+| Footer | very bottom | The GPU doing the work (click for details and settings), **◐ Contrast**, save status and counts |
 
 The library is a drawer: **☰ Scenes** (or **＋ Component** in the pipeline bar) opens it over the left of the window, and it closes when you choose something, click elsewhere or press `Esc`. **⇥ Dock** keeps it open as a column instead. Drag the component panel’s left edge to make it wider or narrower, and the bar above the pipeline to give it more height; double-click either to reset.
 
@@ -155,6 +156,55 @@ Available names: `p` = (`x`, `y`), its polar radius `r` and angle `theta`, the o
 
 To start from scratch, add a **Custom scalar**, **Custom coordinate** or **Custom color** equation (＋ Component); each starts from a short example with a slider, a definition and captions.
 
+## Animations: shader code and point clouds
+
+![The Code view of a twigl shader: its credit, the verified readable code, a guided explanation and the loop sliders](../gallery/studio-code.png)
+
+The gallery's first sections hold animations whose artists published their code: twigl.app shaders and p5.js point sketches. Opening one selects its component (a **Shader code** or a **Point cloud**), whose panel starts with **the work**: its title, the artist and date, a link to the post and what was verified (✓ *same image as the original*, or *our own study* for the anemone, whose code was not published), then a summary of what it does.
+
+### The Code view
+
+A Shader code component's first tab, **Code**, shows the code highlighted, one line per row. Hover anything to learn what it is: the inputs (`FC`, `r`, `t`, `o`, underlined), the twigl helpers (`hsv`, `rotate2D`, …), the GLSL built-ins, every variable (with the caption of the line that declares it). Loops are marked **⟳1**, **⟳2** in the margin. In a narrow panel long lines wrap and each line's caption moves under it; the Playground (`E`) gives the code room.
+
+- **Drag a number** sideways to change it (Shift for finer steps), or focus it and use the arrow keys. The picture follows at once: numbers are live and nothing recompiles. One drag is one undo step.
+- **Click a variable** to put it on the canvas instead of the color (*This step*, labelled VARIABLE, with a colormap and legend). `Esc` returns to the color.
+- **Readable / As posted** switches between the readable version the scene opens with and the code exactly as posted; both render the same image. **⇥ Lay out** rewrites a one-liner one statement per line (without comments); **⧉ Copy** copies the code.
+- **✎ Edit** opens the code as text. The canvas previews your edit (DRAFT) while it checks; an error names its line (*Line 3: Cannot multiply a vec3 and a int. GLSL does not turn whole numbers into floats: write 2. or 2.0*). **Apply** (Ctrl/⌘ Enter) puts it into the scene, **Cancel** discards it. *How to write code* beside the editor lists the inputs, helpers and rules.
+
+**How it works** is the work's explanation as numbered steps. A step highlights the lines it explains and may show a variable or stop a loop early; click it again, or **✕ End**, to return to the full picture.
+
+**Loops** has a slider for every loop: stop it after that many steps. The range ends at the loop's real length (*march 200 steps along the ray*, *6 steps each time it runs*). **▶** sweeps the loop from 0 steps to all of them in four seconds so you watch the picture form (press it again or `Esc` to stop); **↺** runs it in full again.
+
+**Time** has the component's own **Time speed** and **Time offset**: `t = speed × studio time + offset`. **❄ Freeze here** turns the animation into a still of the moment under the playhead.
+
+**As posted** shows the original code with ⧉ Copy.
+
+### Look inside
+
+![The depth a raymarcher reached, shown on the canvas with a colormap, and every variable of the code listed in Look inside](../gallery/studio-variable.png)
+
+The second tab lists every value the code computes: the color `o`, each variable with its type and the line that declares it, and the number of steps each loop took. Click one to show it on the canvas with its own colormap: a raymarcher's `depth` is a depth map, its last distance shows how close each ray came to a surface, a fractal's `scale` how deep it went. Values are shown after the code has run, with loops stopped where their sliders say, so combine this with **Loops** to look at a value part-way. Pin a point on the canvas (click it) and the value of every variable there appears next to its name.
+
+### Point clouds
+
+A Point cloud's **Equation** tab shows its point formula as typeset steps with captions, like any equation, with **✎ Edit**; its parameters are the number of points, their size, color and opacity, the sketch size and the time. Its own view (*This step*) shows the dots over black; the scene puts them over a background with *Front over back*. For a p5.js work, **As posted** shows the original sketch.
+
+### Reusing an animation
+
+**＋ Component** opens the palette, which starts with the works: click one to add it to the current scene as a credited color layer (combine it with *Add light* or *Front over back*, or warp it through its input p). With **❄ Freeze here** it becomes a still. The palette's tips show every component rendered on its own.
+
+## Measuring: the Stats tab
+
+![Stats: the values of a component with a histogram, and the loop measured over the timeline](../gallery/studio-stats.png)
+
+Every component has a **Stats** tab:
+
+- **Values**: the minimum, mean, maximum and spread of each channel of what the canvas shows for this component (or the shown variable), the share of clipped, black and not-finite pixels, and a histogram. It is measured at once and again with ↻.
+- **Points** (point clouds): how much of the image the points cover and how dense they get.
+- **Over the loop** (▶ Measure): 25 frames across the timeline; the mean brightness through time, the change between neighbouring frames, and whether the loop is seamless (the end leads into the beginning like any other frame) or jumps.
+- **Inside the code** (▶ Measure, shader code): the range of every variable over the image, and how many steps each loop really took per pixel.
+- **GPU time** (⏱ Measure): how long each component's view takes to draw at the canvas size, and its own share without its inputs: where the time of a frame goes.
+
 ## Experimenting safely
 
 Nothing you try is hard to take back:
@@ -191,15 +241,36 @@ The **Function graph** tab shows the wiring, laid out automatically by dependenc
 
 The **Shader** tab shows the fragment shader for the current view, with each component’s statement labelled by its id and its parameters named `n3_radius`. **Copy GLSL** copies it.
 
+## Seeing motion
+
+- **What moves** (`M`, above the canvas): the image now and a tenth of a second later; pixels that change keep their color, still ones turn gray. The menu next to it switches to **Trails**: the last half second averaged, like a long exposure.
+- **🎞 Frames** (timeline): twelve frames across the whole timeline, in the colors of the current view; click one to go there. Toggle it with the button.
+- **Playback speed** (¼× to 2×, timeline): slow motion for fast details.
+- **Profile ▸ Over time**: the Profile under the canvas follows one point (the cursor or the pinned reading, marked with a circle) through the whole timeline, with the playhead marked.
+
+![Trails of the swimming creature: the last half second of 20,000 points at once](../gallery/studio-motion.png)
+
 ## Animation and the timeline
 
 Space plays and pauses; ↤ rewinds; `,` and `.` step one frame at 24 fps; `Home` and `End` jump to the ends. The duration, **Loop**, output conversion (Source, Filmic, Linear) and exposure are project settings.
 
 Click **◆** next to a parameter to add a key at the playhead. After that, changing the parameter at another time adds or updates a key there. Each keyed parameter gets a lane in the timeline: click the lane to seek, click a key to jump to it, and drag a key to retime it. In the panel’s **More** tab, choose smooth, linear or hold interpolation, or delete keys and tracks. Parameters declared in an equation animate the same way. See [Animation](ANIMATION.md) for the interpolation rules and export determinism.
 
+## Browsing: the gallery
+
+![The Scenes gallery: animations in sections, filters by kind and artist, and a card that comes alive under the pointer](../gallery/studio-gallery.png)
+
+**☰ Scenes** opens the gallery: scenes in sections (*shader code*, *point clouds*, *studies*, *constructions*) with filters by kind and by artist, and the search box finds titles, artists, tags and descriptions. Each card shows a saved thumbnail; hold the pointer over it (or focus it with the keyboard) and it comes alive, rendered small and live from its equations. Click to open it.
+
 ## Export
 
-**Export** renders a still PNG at any size up to the GPU limit (with the full project embedded as metadata), a deterministic PNG sequence in a ZIP with the project and a manifest, or a real-time browser video. When the canvas shows a step or a “what it changes” view, a checkbox exports that view instead of the final image, in the colors the canvas shows (a step keeps the color range it has on the canvas for every frame). Details and limits are in [Animation and export](ANIMATION.md).
+**Export** renders a still (PNG with the full project embedded as metadata, JPEG or WebP), an animation of the whole timeline (MP4 with every frame at its exact time, a looping GIF or animated PNG, a sprite sheet, a deterministic PNG sequence with the project and a manifest, or a real-time WebM recording), a **web page** that plays the scene live, or the selected shader code for twigl.app with its credit. When the canvas shows a step or a “what it changes” view, a checkbox exports that view instead of the final image, in the colors the canvas shows (a step keeps the color range it has on the canvas for every frame). Details and limits are in [Animation and export](ANIMATION.md).
+
+## High contrast
+
+**◐ Contrast** in the footer (or `K`) cycles *auto*, *high* and *normal*. *Auto* follows the system setting (prefers-contrast: more). High contrast uses a black background, white text and borders, brighter code colors and a strong yellow focus ring on the element that has keyboard focus; every control stays usable with the keyboard.
+
+![High contrast](../gallery/studio-contrast.png)
 
 ## Screens, tablets and phones
 
@@ -226,9 +297,12 @@ Single-key shortcuts apply when no text field or dialog has focus.
 | `[` / `]` | Select the previous / next component (the canvas keeps its view) |
 | `I` | Show the selected component’s own output, This step (again: the final image) |
 | `C` | Show what the selected component changes |
+| `M` | What moves: the canvas shows the pixels that change (again: back to the final image) |
+| `K` | Cycle the contrast: auto, high, normal |
 | `E` | Open or close the Equation Playground |
 | `V` | Show or hide the profile |
-| `Esc` | Back out one level: close the library, cancel a connection, close the explorer, unpin a reading, leave an unchanged edit, return to the final image, close the Playground |
+| `Esc` | Back out one level: close the library, cancel a connection, close the explorer, stop a loop's build-up, unpin a reading, show a code component's color instead of a variable, leave an unchanged edit, return to the final image, close the Playground |
+| arrow keys on a code number | Change the number (Shift: ten times more) |
 | hold `O` | Compare with the original scene |
 | `P` | Toggle live previews |
 | `R` / `G` | Toggle rulers / grid |
@@ -244,4 +318,4 @@ Single-key shortcuts apply when no text field or dialog has focus.
 
 ## What is remembered
 
-The project autosaves to this browser’s storage a moment after every edit, together with the scene as it was opened (so Original, reset and Revert still work after a reload). Preferences are stored the same way: quality, rulers, grid, previews, profile, step colors, the bottom tab, the pipeline height, the panel widths, the Playground and whether the library is docked. So are snapshots. Unapplied equation edits are not saved. Browser storage can be unavailable or cleared, so **Save project** remains the portable backup. Reference images are never stored.
+The project autosaves to this browser’s storage a moment after every edit, together with the scene as it was opened (so Original, reset and Revert still work after a reload). Preferences are stored the same way: quality, rulers, grid, previews, profile, step colors, the bottom tab, the pipeline height, the panel widths, the Playground, whether the library is docked, the contrast, the playback speed, the filmstrip and whether shader numbers are compiled as constants. So are snapshots. Unapplied equation and code edits are not saved. Browser storage can be unavailable or cleared, so **Save project** remains the portable backup. Reference images are never stored.

@@ -1,12 +1,12 @@
 {
-  "date": "2026-09-25",
+  "date": "2026-09-26",
   "checks": [
     {
       "name": "render + finite values: bipolar",
       "passed": true,
       "detail": {
         "energy": 46154596,
-        "ms": 287.5,
+        "ms": 477.2000000178814,
         "nonfinite": 0
       }
     },
@@ -15,7 +15,7 @@
       "passed": true,
       "detail": {
         "energy": 32974668,
-        "ms": 94.7000000178814,
+        "ms": 195.40000000596046,
         "nonfinite": 0
       }
     },
@@ -24,7 +24,7 @@
       "passed": true,
       "detail": {
         "energy": 14586200,
-        "ms": 104.59999999403954,
+        "ms": 203.7999999821186,
         "nonfinite": 0
       }
     },
@@ -33,7 +33,7 @@
       "passed": true,
       "detail": {
         "energy": 17042890,
-        "ms": 80.40000000596046,
+        "ms": 159.59999999403954,
         "nonfinite": 0
       }
     },
@@ -42,7 +42,7 @@
       "passed": true,
       "detail": {
         "energy": 12446071,
-        "ms": 95.80000001192093,
+        "ms": 193.60000002384186,
         "nonfinite": 0
       }
     },
@@ -51,7 +51,7 @@
       "passed": true,
       "detail": {
         "energy": 65157576,
-        "ms": 114.60000002384186,
+        "ms": 243.89999997615814,
         "nonfinite": 0
       }
     },
@@ -60,7 +60,7 @@
       "passed": true,
       "detail": {
         "energy": 22149873,
-        "ms": 50.69999998807907,
+        "ms": 98.09999999403954,
         "nonfinite": 0
       }
     },
@@ -69,7 +69,7 @@
       "passed": true,
       "detail": {
         "energy": 49076753,
-        "ms": 104,
+        "ms": 218,
         "nonfinite": 0
       }
     },
@@ -78,7 +78,7 @@
       "passed": true,
       "detail": {
         "energy": 31766386,
-        "ms": 230.80000001192093,
+        "ms": 462.90000000596046,
         "nonfinite": 0
       }
     },
@@ -87,7 +87,7 @@
       "passed": true,
       "detail": {
         "energy": 92314020,
-        "ms": 44.69999998807907,
+        "ms": 85.90000000596046,
         "nonfinite": 0
       }
     },
@@ -96,7 +96,7 @@
       "passed": true,
       "detail": {
         "energy": 45280692,
-        "ms": 47.5,
+        "ms": 144.59999999403954,
         "nonfinite": 0
       }
     },
@@ -105,14 +105,176 @@
       "passed": true,
       "detail": {
         "energy": 38052353,
-        "ms": 42.29999998211861,
+        "ms": 128.09999999403954,
         "nonfinite": 0
       }
     },
     {
-      "name": "all 43 component types compile and render finite defaults",
+      "name": "render + finite values: jellyfish-lattice",
       "passed": true,
-      "detail": 43
+      "detail": {
+        "energy": 60503289,
+        "ms": 1815.2999999821186,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: stormy-sea",
+      "passed": true,
+      "detail": {
+        "energy": 49109748,
+        "ms": 5353.899999976158,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: vortex",
+      "passed": true,
+      "detail": {
+        "energy": 102636632,
+        "ms": 177.09999999403954,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: blossom-tree",
+      "passed": true,
+      "detail": {
+        "energy": 201912868,
+        "ms": 3313.5999999940395,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: jewel-box",
+      "passed": true,
+      "detail": {
+        "energy": 105363512,
+        "ms": 909,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: lace-garden",
+      "passed": true,
+      "detail": {
+        "energy": 71175390,
+        "ms": 1556.7000000178814,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: stone-kaleidoscope",
+      "passed": true,
+      "detail": {
+        "energy": 92324397,
+        "ms": 1170.0999999940395,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: underwater-reef",
+      "passed": true,
+      "detail": {
+        "energy": 95125365,
+        "ms": 2714.199999988079,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: golden-spiral",
+      "passed": true,
+      "detail": {
+        "energy": 38497308,
+        "ms": 790.1999999880791,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: cloud-cave",
+      "passed": true,
+      "detail": {
+        "energy": 78915855,
+        "ms": 972,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: smoke-tunnel",
+      "passed": true,
+      "detail": {
+        "energy": 75075214,
+        "ms": 1118.699999988079,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: cloud-mountains",
+      "passed": true,
+      "detail": {
+        "energy": 110075691,
+        "ms": 785.1999999880791,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: rainbow-trefoil",
+      "passed": true,
+      "detail": {
+        "energy": 83217761,
+        "ms": 2026.2000000178814,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: point-jellyfish",
+      "passed": true,
+      "detail": {
+        "energy": 16992195,
+        "ms": 226.69999998807907,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: point-creature",
+      "passed": true,
+      "detail": {
+        "energy": 18783294,
+        "ms": 205,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: point-twins",
+      "passed": true,
+      "detail": {
+        "energy": 18591954,
+        "ms": 188,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: point-twins-hairy",
+      "passed": true,
+      "detail": {
+        "energy": 19116033,
+        "ms": 199.19999998807907,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "render + finite values: fluffy-anemone",
+      "passed": true,
+      "detail": {
+        "energy": 38117360,
+        "ms": 1738.2000000178814,
+        "nonfinite": 0
+      }
+    },
+    {
+      "name": "all 45 component types compile and render finite defaults",
+      "passed": true,
+      "detail": 45
     },
     {
       "name": "stateless visible animation: water",
@@ -183,6 +345,150 @@
       "passed": true,
       "detail": {
         "change": 1664291,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: jellyfish-lattice",
+      "passed": true,
+      "detail": {
+        "change": 1225197,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: stormy-sea",
+      "passed": true,
+      "detail": {
+        "change": 380505,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: vortex",
+      "passed": true,
+      "detail": {
+        "change": 2212074,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: blossom-tree",
+      "passed": true,
+      "detail": {
+        "change": 1643331,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: jewel-box",
+      "passed": true,
+      "detail": {
+        "change": 2269719,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: lace-garden",
+      "passed": true,
+      "detail": {
+        "change": 1837674,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: stone-kaleidoscope",
+      "passed": true,
+      "detail": {
+        "change": 2096766,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: underwater-reef",
+      "passed": true,
+      "detail": {
+        "change": 418745,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: golden-spiral",
+      "passed": true,
+      "detail": {
+        "change": 1466602,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: cloud-cave",
+      "passed": true,
+      "detail": {
+        "change": 1951163,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: smoke-tunnel",
+      "passed": true,
+      "detail": {
+        "change": 2797924,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: cloud-mountains",
+      "passed": true,
+      "detail": {
+        "change": 1722610,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: rainbow-trefoil",
+      "passed": true,
+      "detail": {
+        "change": 1171558,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: point-jellyfish",
+      "passed": true,
+      "detail": {
+        "change": 209343,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: point-creature",
+      "passed": true,
+      "detail": {
+        "change": 531864,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: point-twins",
+      "passed": true,
+      "detail": {
+        "change": 580950,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: point-twins-hairy",
+      "passed": true,
+      "detail": {
+        "change": 599043,
+        "repeat": 0
+      }
+    },
+    {
+      "name": "stateless visible animation: fluffy-anemone",
+      "passed": true,
+      "detail": {
+        "change": 393735,
         "repeat": 0
       }
     },
@@ -396,6 +702,186 @@
       }
     },
     {
+      "name": "preview atlas renders every node: jellyfish-lattice",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: stormy-sea",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: vortex",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: blossom-tree",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: jewel-box",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: lace-garden",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: stone-kaleidoscope",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: underwater-reef",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: golden-spiral",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: cloud-cave",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: smoke-tunnel",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: cloud-mountains",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: rainbow-trefoil",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: point-jellyfish",
+      "passed": true,
+      "detail": {
+        "tiles": 4,
+        "nodes": 4,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: point-creature",
+      "passed": true,
+      "detail": {
+        "tiles": 4,
+        "nodes": 4,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: point-twins",
+      "passed": true,
+      "detail": {
+        "tiles": 4,
+        "nodes": 4,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: point-twins-hairy",
+      "passed": true,
+      "detail": {
+        "tiles": 4,
+        "nodes": 4,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
+      "name": "preview atlas renders every node: fluffy-anemone",
+      "passed": true,
+      "detail": {
+        "tiles": 2,
+        "nodes": 2,
+        "empty": 0,
+        "magenta": 0
+      }
+    },
+    {
       "name": "contribution view marks only pixels the node changes",
       "passed": true,
       "detail": {
@@ -472,7 +958,7 @@
         "p99_absolute_error": 4.0,
         "rgb_pearson_correlation": 0.9994216237510924,
         "psnr_db": 40.62656420376929,
-        "render_plus_readback_ms": 1278.7000000178814
+        "render_plus_readback_ms": 3417.300000011921
       }
     }
   ],
@@ -492,7 +978,8 @@
     "parallelCompile": false,
     "gpuTimer": true,
     "maxSize": 4096,
-    "maxUniformVectors": 4096
+    "maxUniformVectors": 4096,
+    "maxPointSize": 1023
   },
   "raw_field_comparison": {
     "sample_count": 32,
@@ -684,6 +1171,6 @@
     "p99_absolute_error": 4.0,
     "rgb_pearson_correlation": 0.9994216237510924,
     "psnr_db": 40.62656420376929,
-    "render_plus_readback_ms": 1278.7000000178814
+    "render_plus_readback_ms": 3417.300000011921
   }
 }

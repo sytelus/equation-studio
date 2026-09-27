@@ -1,5 +1,6 @@
-import { $, esc, state, on, toast, showError, transact, history, changed, markDirty, pause, currentNode, viewedNode, viewOptions, setView, setContributionStyle, setPref, clamp, noteInteraction } from './editor.js';
-import { evaluationOrder } from './graph.js';
+import { $, esc, state, on, emit, toast, showError, transact, history, changed, markDirty, pause, currentNode, viewedNode, viewOptions, setView, setContributionStyle, setMotionStyle, setPref, clamp, noteInteraction } from './editor.js';
+import { evaluationOrder, aspectOf } from './graph.js';
+import { analyzeCode, showable } from './glsl.js';
 import { catalog } from './catalog.js';
 import { clone } from './graph.js';
 import { pixelToWorld, worldToPixel, clientToPixel, zoomAbout, panBy, unitsPerPixel, tickSpacing, formatTick } from './view-math.js';
@@ -35,9 +36,25 @@ function canvasModeHTML(mode) {
             const edited = currentNode();
             return `<b>DRAFT</b> your edit of ${esc(edited.label)} · not applied`;
         }
-        case 'stage': return `<b>THIS STEP</b> ${dot(node)}${esc(stepName(node))}`;
+        case 'stage': {
+            const variable = shownVariable(node);
+            return variable ? `<b>VARIABLE</b> <span class="mono">${esc(variable.name)}</span> of ${dot(node)}${esc(stepName(node))}` : `<b>THIS STEP</b> ${dot(node)}${esc(stepName(node))}`;
+        }
         case 'effect': return `<b>WHAT IT CHANGES</b> ${dot(node)}${esc(stepName(node))}`;
+        case 'motion': return state.motionStyle === 'trails' ? '<b>TRAILS</b> the last half second at once' : '<b>WHAT MOVES</b> pixels that change in the next 0.1 s';
         default: return '<b>FINAL IMAGE</b>';
+    }
+}
+/** The variable of shader code `node` shown on the canvas, or null. */
+function shownVariable(node) {
+    if (state.show?.node !== node.id) {
+        return null;
+    }
+    try {
+        return showable(analyzeCode(node.params.code))[state.show.index - 1] || null;
+    }
+    catch (e) {
+        return null;
     }
 }
 let shownMode = null;
@@ -60,12 +77,14 @@ export function refreshView() {
     step.innerHTML = `<span class="view-step">${esc(stepName(node))}</span>`;
     step.setAttribute('aria-label', `This step: ${stepName(node)}`);
     showCanvasMode(frameSource().mode);
-    $('viewLock').hidden = mode === 'final';
     $('viewLock').classList.toggle('active', !!state.viewLock);
     $('viewLock').setAttribute('aria-pressed', String(!!state.viewLock));
     $('viewLock').textContent = state.viewLock ? '🔒' : '🔓';
     $('effectStyle').hidden = mode !== 'effect';
     $('effectStyle').value = state.contributionStyle;
+    $('motionStyle').hidden = mode !== 'motion';
+    $('motionStyle').value = state.motionStyle;
+    $('viewLock').hidden = mode === 'final' || mode === 'motion';
     $('sceneStatus').textContent = project.status || 'Custom construction';
     $('sceneStatus').classList.toggle('study', project.status === 'Interpretive study');
     refreshLegend();
@@ -78,9 +97,10 @@ export function refreshView() {
     refreshTip();
 }
 export function resizeImage() {
-    const stage = $('stage'), pad = innerWidth < 650 ? 24 : innerWidth < 1200 ? 36 : 56;
-    const width = Math.max(10, Math.min(stage.clientWidth - pad, (stage.clientHeight - 42) * 5 / 3));
+    const stage = $('stage'), pad = innerWidth < 650 ? 24 : innerWidth < 1200 ? 36 : 56, aspect = aspectOf(state.project);
+    const width = Math.max(10, Math.min(stage.clientWidth - pad, (stage.clientHeight - 42) * aspect));
     $('imageWrap').style.width = `${width}px`;
+    $('imageWrap').style.aspectRatio = String(aspect);
     displayWidth = width;
     state.overlayDirty = true;
     if (!state.prefs.quality) {
@@ -165,12 +185,12 @@ export function renderFrame() {
             return;
         }
         const look = frameLook(project, target);
-        const full = frameWidth({ settled: true }), width = frameWidth(), height = Math.round(width * .6);
+        const aspect = aspectOf(project), full = frameWidth({ settled: true }), width = frameWidth(), height = Math.max(1, Math.round(width / aspect));
         renderer.drawIfReady(project, state.time, width, height, { ...options, look, timed: true });
         showCompiling(false);
         drawn = { project, target: options.contribution ? null : options.target };
         state.frameCount++;
-        adaptResolution(full * Math.round(full * .6));
+        adaptResolution(full * Math.round(full / aspect));
         updateBadge(width, height, full);
         $('liveBadge').dataset.pulse = $('liveBadge').dataset.pulse === 'a' ? 'b' : 'a'; // restart the pulse
         if (state.probePin) {
@@ -271,7 +291,7 @@ function drawLabel(ctx, lines, x, y, width, height) {
 export function drawOverlay() {
     // The displayed size is known from resizeImage(); reading it back from the
     // layout here would force a synchronous layout on every frame of playback.
-    const W = Math.round(displayWidth || canvas.getBoundingClientRect().width), H = Math.round(W * 0.6);
+    const W = Math.round(displayWidth || canvas.getBoundingClientRect().width), H = Math.round(W / aspectOf(state.project));
     if (!W || !H) {
         return;
     }
@@ -358,7 +378,15 @@ export function drawOverlay() {
         }
     }
     const profile = scopeLine();
-    if (profile) { // where the profile under the canvas is sampled
+    if (profile?.axis === 't') { // the point a time profile follows
+        const [ax, ay] = toCss(...profile.a);
+        ctx.strokeStyle = 'rgba(255,201,143,0.9)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(ax, ay, 7, 0, 2 * Math.PI);
+        ctx.stroke();
+    }
+    else if (profile) { // where the profile under the canvas is sampled
         const [ax, ay] = toCss(...profile.a), [bx, by] = toCss(...profile.b);
         ctx.strokeStyle = 'rgba(255,201,143,0.75)';
         ctx.lineWidth = 1;
@@ -402,6 +430,7 @@ export function clearPin() {
     pinReadout = null;
     $('clearPin').hidden = true;
     state.overlayDirty = true;
+    emit('pin');
 }
 export function hasPin() {
     return !!state.probePin;
@@ -500,6 +529,7 @@ function endPointer(e) {
         pinReadout = readout(px, py, true);
         $('clearPin').hidden = false;
         state.overlayDirty = true;
+        emit('pin');
     }
 }
 canvas.addEventListener('pointerup', endPointer);
@@ -534,6 +564,7 @@ $('resetView').onclick = () => transact(p => p.view = { x: 0, y: 0, zoom: 1 });
 document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => setView(b.dataset.view));
 $('viewLock').onclick = () => setView(state.viewMode, { lock: !state.viewLock });
 $('effectStyle').onchange = e => setContributionStyle(e.target.value);
+$('motionStyle').onchange = e => setMotionStyle(e.target.value);
 /** While held, the canvas shows the scene exactly as it was opened. */
 export function setCompareOriginal(on) {
     if (state.compareOriginal === on) {

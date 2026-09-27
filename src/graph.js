@@ -1,5 +1,6 @@
 import { catalog, parameterDefaults, bypassSocket, paramSpecs } from './catalog.js';
 import { compileEquation, EquationError } from './expression.js';
+import { analyzeCode } from './glsl.js';
 /** JSON-only graph model; imported projects are data, never executable JavaScript. */
 export const SCHEMA_VERSION = 1;
 export const MAX_NODES = 80;
@@ -10,6 +11,11 @@ export const MAX_LABEL = 160;
 export const VIEW_LIMITS = { zoom: [0.1, 12], pan: [-20, 20] };
 export const DURATION_LIMITS = [0.1, 120];
 export const EXPOSURE_LIMITS = [0, 8];
+/** Width / height of the image. Projects without `aspect` use DEFAULT_ASPECT. */
+export const ASPECT_LIMITS = [0.25, 4];
+export const DEFAULT_ASPECT = 5 / 3;
+/** Point cloud components one program can draw (one texture unit each). */
+export const MAX_POINT_CLOUDS = 4;
 const validId = /^[a-zA-Z][a-zA-Z0-9_-]{0,47}$/;
 export function clone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -53,6 +59,12 @@ export function validateProject(project) {
     }
     finiteRange(project.duration, ...DURATION_LIMITS, 'Duration');
     finiteRange(project.exposure, ...EXPOSURE_LIMITS, 'Exposure');
+    if (project.aspect !== undefined) {
+        finiteRange(project.aspect, ...ASPECT_LIMITS, 'Aspect ratio');
+    }
+    if (project.thumbTime !== undefined) {
+        finiteRange(project.thumbTime, 0, DURATION_LIMITS[1], 'Thumbnail time');
+    }
     if (!['source', 'filmic', 'linear'].includes(project.tone)) {
         throw new Error('Unknown output conversion.');
     }
@@ -76,10 +88,24 @@ export function validateProject(project) {
         if (typeof n.enabled !== 'boolean') {
             throw new Error(`${n.id}: enabled must be boolean.`);
         }
+        if (n.work !== undefined && (typeof n.work !== 'string' || !validId.test(n.work))) {
+            throw new Error(`${n.id}: the work it credits must be a work id.`);
+        }
         if (!n.params || typeof n.params !== 'object' || Array.isArray(n.params) || !n.inputs || typeof n.inputs !== 'object' || Array.isArray(n.inputs)) {
             throw new Error(`Invalid inputs or params for ${n.id}.`);
         }
         const def = catalog[n.type];
+        if (def.code) {
+            if (typeof n.params.code !== 'string') {
+                throw new Error(`${n.label || n.id}: the code must be text.`);
+            }
+            try {
+                analyzeCode(n.params.code);
+            }
+            catch (e) {
+                throw new Error(`${n.label || n.id}: ${e.message}`);
+            }
+        }
         if (def.custom) {
             try {
                 validateExpression(n.params.expression, n.type);
@@ -102,8 +128,8 @@ export function validateProject(project) {
             else if (s.kind === 'color' && (typeof v !== 'string' || !/^#[0-9a-f]{6}$/i.test(v))) {
                 throw new Error(`Invalid RGB color at ${n.id}.${k}.`);
             }
-            else if (s.kind === 'expression' && typeof v !== 'string') {
-                throw new Error(`Invalid equation at ${n.id}.${k}.`);
+            else if ((s.kind === 'expression' || s.kind === 'code') && typeof v !== 'string') {
+                throw new Error(`Invalid ${s.kind === 'code' ? 'code' : 'equation'} at ${n.id}.${k}.`);
             }
         }
         for (const k of Object.keys(n.inputs)) {
@@ -126,6 +152,9 @@ export function validateProject(project) {
                 throw new Error(`${n.id}.${key} expects ${expected}, not ${actual}.`);
             }
         }
+    }
+    if (project.nodes.filter(n => catalog[n.type].points).length > MAX_POINT_CLOUDS) {
+        throw new Error(`A project can have at most ${MAX_POINT_CLOUDS} point clouds.`);
     }
     if (!byId.has(project.output)) {
         throw new Error('The output component does not exist.');
@@ -177,6 +206,10 @@ export function validateProject(project) {
         }
     }
     return project;
+}
+/** Width / height of the project's image. */
+export function aspectOf(project) {
+    return project.aspect ?? DEFAULT_ASPECT;
 }
 /** Inputs a node actually evaluates. A disabled node is bypassed: it evaluates only
  * its pass-through socket (catalog `bypass`), or nothing when it has none.

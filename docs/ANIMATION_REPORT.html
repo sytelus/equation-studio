@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Enable animations: report for Equation Studio 2.0</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="../docs/reading.css" />
+</head>
+<body>
+<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#enable-animations-report-for-equation-studio-2.0"
+id="toc-enable-animations-report-for-equation-studio-2.0">Enable
+animations: report for Equation Studio 2.0</a>
+<ul>
+<li><a href="#checklist-of-the-brief" id="toc-checklist-of-the-brief">1.
+Checklist of the brief</a></li>
+<li><a href="#the-posts" id="toc-the-posts">2. The posts</a></li>
+<li><a href="#what-was-built" id="toc-what-was-built">3. What was
+built</a></li>
+<li><a href="#exports" id="toc-exports">4. Exports</a></li>
+<li><a href="#performance" id="toc-performance">5. Performance</a></li>
+<li><a href="#tests" id="toc-tests">6. Tests</a></li>
+<li><a href="#known-limits" id="toc-known-limits">7. Known
+limits</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="enable-animations-report-for-equation-studio-2.0">Enable
+animations: report for Equation Studio 2.0</h1>
+<p>This report answers the brief <em>Enable animations</em> item by
+item: what was asked, what was built, and the evidence for each claim.
+The works are described in <a href="WORKS.html">WORKS</a>, the features in
+the <a href="EDITOR_GUIDE.html">editor guide</a> and <a
+href="ANIMATION.html">Animation</a>, the code in <a
+href="ARCHITECTURE.html">Architecture</a>, the measurements in <a
+href="VALIDATION.html">Validation</a>.</p>
+<h2 id="checklist-of-the-brief">1. Checklist of the brief</h2>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>The brief asked</th>
+<th>Status</th>
+<th>What was done</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Study all of the posts; extract the equations from the image, the
+post, quoted tweets or threads</td>
+<td><strong>Done</strong> (18 of 19 links; 1 inaccessible)</td>
+<td>Every post was read with its text, author, date and clip. Seventeen
+publish their complete code in the post (13 twigl shaders, 4 p5.js
+sketches); none has quoted tweets or threads with more code. The anemone
+post has only a clip and a description; a web search found no published
+source. The Grok conversation link redirects to the X login page and has
+no public copy.</td>
+<td><a
+href="RESEARCH.md#animation-works-research-of-2526-september-2026">Research</a>,
+<code>src/works.js</code>, the in-app research ledger</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Implement each in Equation Studio so the animation reproduces</td>
+<td><strong>Done</strong></td>
+<td>Thirteen Shader code scenes run the posted code unchanged; four
+Point cloud scenes run the sketches’ formulas; the anemone is our own
+study, labelled as such.</td>
+<td><a href="WORKS.html">WORKS</a>: bit-identical frames on SwiftShader
+for all 13 shaders; the 4 sketches within 0.81/255 mean of the originals
+drawn by a p5.js stand-in</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Enhance the code base while still supporting existing renders</td>
+<td><strong>Done</strong></td>
+<td>The compiler, renderer, catalog, editor and UI were extended; 1.x
+projects open unchanged.</td>
+<td><code>tools/compare_versions.py HEAD</code>: the twelve 1.x scenes
+(final images and every component’s raw values, at two times) are
+<strong>identical</strong> under 2.0 and 1.4.0 (<a
+href="REGRESSION_VALIDATION.json">regression report</a>)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Enable animations in keeping with the repository’s principles:
+exploration, analysis, composition and decomposition, understanding</td>
+<td><strong>Done</strong></td>
+<td>Code is decomposed into loops (each with a step slider), variables
+(each viewable on the canvas) and numbers (each draggable); composition:
+a code or point layer is a component that can be warped, masked, tinted
+and combined; understanding: readable versions, captions, guided tours,
+ideas</td>
+<td>Code view, Look inside, Stats; <a
+href="EDITOR_GUIDE.md#animations-shader-code-and-point-clouds">editor
+guide</a></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Design an interface language for animations that enables
+exploration, analysis and understanding with decent performance</td>
+<td><strong>Done</strong></td>
+<td>(a) the <strong>shader-code language</strong>
+(<code>glsl.js</code>): twigl’s GLSL, checked and re-printed with loop
+counters, a step budget, uniform numbers and a shown-value selector; (b)
+<strong>point equations</strong> of index, count and time; (c) a
+<strong>time mapping</strong> per component (<code>t = σ τ + τ₀</code>,
+freeze); (d) <strong>loop step limits</strong> and <strong>shown
+values</strong> as uniforms</td>
+<td><a
+href="ARCHITECTURE.md#shader-code-the-language-of-the-code-component">Architecture</a>,
+<a href="ANIMATION.html">Animation</a></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Extend the UI so users can play with animations along many axes of
+freedom and edit them</td>
+<td><strong>Done</strong></td>
+<td>Drag any number (live, no recompilation); <code>param</code>
+sliders; loop steps and ▶ build-up; time speed, offset and freeze; any
+variable on the canvas; edit the code with a checked draft; warp through
+the input p; keyframe any of these; reuse in other scenes</td>
+<td>The 2.0 workflow checks (number drag, variables, loops, tour,
+freeze, code editing…) in the <a
+href="WORKFLOW_VALIDATION.json">Workflow report</a></td>
+</tr>
+<tr>
+<td>7</td>
+<td>Popup hints and small explanations so no documentation or questions
+are needed</td>
+<td><strong>Done</strong></td>
+<td>Every token of the code explains itself on hover (inputs, helpers,
+38 built-ins, each variable with its declaring line’s caption, numbers,
+loops); every new control has a tip; the work’s summary and tour; the
+Help dialog covers the new panels and keys</td>
+<td><code>ui-code-view.js</code> (<code>highlightCode</code>), Help
+dialog sections 05–06</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Compute and display statistics that throw light on compositions and
+their parts</td>
+<td><strong>Done</strong></td>
+<td>Stats tab for every component: values, histogram,
+clipped/black/nonfinite shares; point coverage; over the loop
+(brightness, motion, seamless verdict); inside the code (every
+variable’s range, real loop steps); GPU time per component and own
+share</td>
+<td><code>stats.js</code> (unit-tested), <code>ui-stats.js</code>; <a
+href="EDITOR_GUIDE.md#measuring-the-stats-tab">editor guide</a></td>
+</tr>
+<tr>
+<td>9</td>
+<td>Export in various formats</td>
+<td><strong>Done</strong></td>
+<td>PNG (with project), JPEG, WebP, MP4 (exact frames), GIF, animated
+PNG, WebM, PNG sequence, sprite sheet, web page, twigl code</td>
+<td>Unit tests (GIF LZW round trip, APNG chunks and CRCs, MP4 boxes);
+the workflow’s export check; MP4 decoded by OpenCV, GIF/APNG by
+Pillow</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Browse, explore and preview a growing number of built-ins in a
+scalable way</td>
+<td><strong>Done</strong></td>
+<td>Gallery with sections, kind and artist filters, search over titles,
+artists, tags and descriptions, cards that come alive on hover; palette
+previews of every component; the works first in the palette</td>
+<td>The workflow’s gallery check; <code>studio-gallery.png</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td>Reuse components from animation to static and vice versa</td>
+<td><strong>Done</strong></td>
+<td>Any work can be added to another scene as a credited layer; ❄ Freeze
+turns an animated component into a still; static components can be added
+to animated scenes and animated with keyframes or their speed
+parameters</td>
+<td>The workflow’s reuse and freeze checks;
+<code>studio-reuse.png</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td>Analyze every example so explanations, annotations, visualizations
+and views such as graphs prove understanding</td>
+<td><strong>Done</strong></td>
+<td>For each work: a summary, 2–5 tour steps tied to code lines (some
+showing a variable or stopping a loop), a readable version with a
+caption on every line, 3–7 ideas; 17 new idea cards with interactive
+plots (raymarching convergence, glow falloff, repetition, inversion, log
+R, octaves, hsv channels, tanh, density…); variable views with
+colormaps; stats plots; profile over time</td>
+<td><a href="WORKS.html">WORKS</a>, <code>concepts.js</code></td>
+</tr>
+<tr>
+<td>13</td>
+<td>Usable for people who need high contrast</td>
+<td><strong>Done</strong></td>
+<td>High-contrast theme (system setting or forced): black background,
+white text and borders, strong focus ring, no faint gray; every control
+keyboard-reachable; numbers adjustable with arrow keys; reduced motion
+respected</td>
+<td>The workflow’s contrast check; <code>studio-contrast.png</code></td>
+</tr>
+<tr>
+<td>14</td>
+<td>Highly readable, well documented, maintainable code</td>
+<td><strong>Done</strong></td>
+<td>Eleven new modules, each with a module comment and doc comments on
+exports; pure logic separated from the DOM and unit-tested; the bundler
+conventions kept; the works are data in one registry</td>
+<td><a href="DEVELOPMENT.html">Development</a>, <code>src/*.js</code></td>
+</tr>
+<tr>
+<td>15</td>
+<td>Thorough, readable, complete documentation</td>
+<td><strong>Done</strong></td>
+<td>README, CHANGELOG, WORKS (generated), Animation (rewritten), editor
+guide, architecture, development (including adding a work), research,
+attribution, this report</td>
+<td><code>docs/</code></td>
+</tr>
+<tr>
+<td>16</td>
+<td>Significantly improve performance</td>
+<td><strong>Done</strong></td>
+<td>Numbers as uniforms (30–65× faster edits), GPU point clouds (~1000×
+faster than Canvas 2D), exact-frame MP4 export faster than real time,
+linked libraries (programs about 7× smaller), non-blocking multi-frame
+atlases</td>
+<td>Section 5, <a href="PERFORMANCE.json">PERFORMANCE.json</a></td>
+</tr>
+<tr>
+<td>17</td>
+<td>Maintain a checklist and a tabular report</td>
+<td><strong>Done</strong></td>
+<td>This document</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-posts">2. The posts</h2>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Post</th>
+<th>Artist</th>
+<th>What the post contains</th>
+<th>Scene</th>
+<th>Verification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><a
+href="https://x.com/zozuar/status/1430657958329917450">1430657958329917450</a></td>
+<td>yonatan (<span class="citation"
+data-cites="zozuar">@zozuar</span>)</td>
+<td>twigl code + clip</td>
+<td>Jellyfish lattice</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>2</td>
+<td><a
+href="https://x.com/zozuar/status/1632160439944478721">1632160439944478721</a></td>
+<td>yonatan</td>
+<td>twigl code + clip</td>
+<td>Stormy sea</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>3</td>
+<td><a
+href="https://x.com/XorDev/status/1726103550986469869">1726103550986469869</a></td>
+<td>Xor (<span class="citation" data-cites="XorDev">@XorDev</span>)</td>
+<td>twigl code “Vortex” + clip</td>
+<td>Vortex</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>4</td>
+<td><a
+href="https://x.com/zozuar/status/1763906851337326736">1763906851337326736</a></td>
+<td>yonatan</td>
+<td>twigl code + clip</td>
+<td>Blossoming tree</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>5</td>
+<td><a
+href="https://x.com/zozuar/status/1786335843700912160">1786335843700912160</a></td>
+<td>yonatan</td>
+<td>twigl code + clip</td>
+<td>Folded jewel box</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>6</td>
+<td><a
+href="https://x.com/zozuar/status/1861521606390018548">1861521606390018548</a></td>
+<td>yonatan</td>
+<td>twigl code + clip</td>
+<td>Lace garden</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>7</td>
+<td><a
+href="https://x.com/zozuar/status/1862325652013097042">1862325652013097042</a></td>
+<td>yonatan</td>
+<td>twigl code + clip</td>
+<td>Carved stone kaleidoscope</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>8</td>
+<td><a
+href="https://x.com/zozuar/status/1865850795822104948">1865850795822104948</a></td>
+<td>yonatan</td>
+<td>twigl code + clip</td>
+<td>Underwater reef</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>9</td>
+<td><a
+href="https://x.com/zozuar/status/1875945664070475933">1875945664070475933</a></td>
+<td>yonatan</td>
+<td>twigl code + clip</td>
+<td>Golden spiral</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>10</td>
+<td><a
+href="https://x.com/YoheiNishitsuji/status/1880163156741275732">1880163156741275732</a></td>
+<td>Yohei Nishitsuji</td>
+<td>twigl code + clip</td>
+<td>Cloud cave</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>11</td>
+<td><a
+href="https://x.com/YoheiNishitsuji/status/1898392319386366065">1898392319386366065</a></td>
+<td>Yohei Nishitsuji</td>
+<td>twigl code + clip</td>
+<td>Smoke tunnel</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>12</td>
+<td><a
+href="https://x.com/YoheiNishitsuji/status/2027368118130000146">2027368118130000146</a></td>
+<td>Yohei Nishitsuji</td>
+<td>twigl code + clip</td>
+<td>Cloud mountains</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>13</td>
+<td><a
+href="https://x.com/zozuar/status/2094068054590190033">2094068054590190033</a></td>
+<td>yonatan</td>
+<td>twigl code + clip</td>
+<td>Rainbow trefoil</td>
+<td>bit-identical</td>
+</tr>
+<tr>
+<td>14</td>
+<td><a
+href="https://x.com/yuruyurau/status/2093710258120331463">2093710258120331463</a></td>
+<td>ア (<span class="citation"
+data-cites="yuruyurau">@yuruyurau</span>)</td>
+<td>p5.js sketch + clip</td>
+<td>Point jellyfish</td>
+<td>mean 0.52/255 vs the sketch</td>
+</tr>
+<tr>
+<td>15</td>
+<td><a
+href="https://x.com/yuruyurau/status/2100230050063024467">2100230050063024467</a></td>
+<td>ア</td>
+<td>p5.js sketch + clip</td>
+<td>Swimming creature</td>
+<td>mean 0.63/255</td>
+</tr>
+<tr>
+<td>16</td>
+<td><a
+href="https://x.com/yuruyurau/status/2100956346057392137">2100956346057392137</a></td>
+<td>ア</td>
+<td>p5.js sketch + clip</td>
+<td>Circling twins</td>
+<td>mean 0.60/255</td>
+</tr>
+<tr>
+<td>17</td>
+<td><a
+href="https://x.com/yuruyurau/status/2101319815772397831">2101319815772397831</a></td>
+<td>ア</td>
+<td>p5.js sketch (one term changed from #16) + clip</td>
+<td>Circling twins, bristled</td>
+<td>mean 0.81/255 (the chaotic <code>sin(9/k)</code> term differs
+between float32 and float64)</td>
+</tr>
+<tr>
+<td>18</td>
+<td><a
+href="https://x.com/Jaenam97/status/2082449968548159779">2082449968548159779</a></td>
+<td>Jae (<span class="citation"
+data-cites="Jaenam97">@Jaenam97</span>)</td>
+<td>a clip and a description; <strong>no code</strong></td>
+<td>Fluffy anemone (study)</td>
+<td>our own construction, compared by eye with the clip</td>
+</tr>
+<tr>
+<td>19</td>
+<td><a href="https://x.com/i/grok?conversation=2103445614214463548">Grok
+conversation 2103445614214463548</a></td>
+<td>—</td>
+<td><strong>not accessible</strong> (login required, no public
+copy)</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>“Bit-identical” means: on Chromium’s deterministic SwiftShader
+backend, the original code in twigl’s geekest template, the same code in
+a Shader code component and the readable version render identical bytes
+(with numbers compiled as constants, as twigl does). Hardware GPUs may
+differ from one another in the last bits of chaotic fractals, as twigl
+itself does between browsers. The sketch comparisons are for the numbers
+at the time of writing; see <a href="WORKS.html">WORKS</a> for the current
+table.</p>
+<h2 id="what-was-built">3. What was built</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Area</th>
+<th>New</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Components</td>
+<td><strong>Shader code</strong> (twigl GLSL), <strong>Point
+cloud</strong> (p5.js-style point formula)</td>
+<td><code>catalog.js</code></td>
+</tr>
+<tr>
+<td>Languages</td>
+<td>the shader-code language (parser, checker with explanations,
+loop-length simulation, printer, formatter); point equations (kind
+<code>points</code> of the equation language)</td>
+<td><code>glsl.js</code>, <code>expression.js</code></td>
+</tr>
+<tr>
+<td>Engine</td>
+<td>code functions with loop counters, a 30,000-step budget, uniform
+numbers and shown values; point passes; global time with time sampling;
+linked libraries; per-scene aspect ratio</td>
+<td><code>compiler.js</code>, <code>renderer.js</code>,
+<code>shader-link.js</code>, <code>twigl-glsl.js</code></td>
+</tr>
+<tr>
+<td>Works</td>
+<td>18 works with credit, original and readable code, summary, tour,
+ideas; 17 new ideas</td>
+<td><code>works.js</code>, <code>concepts.js</code>,
+<code>presets.js</code></td>
+</tr>
+<tr>
+<td>Understanding</td>
+<td>Code view (hover explanations, draggable numbers, click-to-show
+variables), How it works, Loops with ▶ build-up, Look inside with values
+at a pin</td>
+<td><code>ui-code-view.js</code></td>
+</tr>
+<tr>
+<td>Time</td>
+<td>What moves and Trails views, filmstrip, playback speed, profile over
+time, time speed/offset per component, ❄ Freeze</td>
+<td><code>renderer.js</code>, <code>ui-filmstrip.js</code>,
+<code>ui-scope.js</code></td>
+</tr>
+<tr>
+<td>Measures</td>
+<td>Stats tab: values, histogram, points, over the loop, inside the
+code, GPU time</td>
+<td><code>stats.js</code>, <code>ui-stats.js</code></td>
+</tr>
+<tr>
+<td>Browsing and reuse</td>
+<td>gallery with filters, search and live previews; works in the
+palette; palette previews</td>
+<td><code>ui-library.js</code></td>
+</tr>
+<tr>
+<td>Export</td>
+<td>JPEG, WebP, MP4, GIF, APNG, sprite sheet, web page, twigl code (plus
+PNG, sequence, WebM)</td>
+<td><code>encoders.js</code>, <code>standalone.js</code>,
+<code>ui-export.js</code></td>
+</tr>
+<tr>
+<td>Accessibility</td>
+<td>high contrast (auto/high/normal), keyboard-adjustable numbers,
+reduced motion</td>
+<td><code>ui-settings.js</code>, <code>style.css</code></td>
+</tr>
+<tr>
+<td>Tools</td>
+<td>works verification, version regression, performance report, WORKS
+generator</td>
+<td><code>tools/</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="exports">4. Exports</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Format</th>
+<th>How</th>
+<th>Verified by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PNG</td>
+<td>canvas PNG + <code>iTXt</code> project metadata</td>
+<td>workflow (Pillow reads the metadata)</td>
+</tr>
+<tr>
+<td>JPEG, WebP</td>
+<td>canvas encoder with quality</td>
+<td>workflow (JPEG size and format)</td>
+</tr>
+<tr>
+<td>MP4</td>
+<td>WebCodecs H.264, exact frames, muxed by <code>muxMP4()</code></td>
+<td>unit test (box structure, offsets); OpenCV decoded 480 frames at 24
+FPS from a 20 s export</td>
+</tr>
+<tr>
+<td>GIF</td>
+<td>median cut, ordered dithering, LZW, Netscape loop</td>
+<td>unit test (LZW decoded back exactly); workflow (Pillow: frames,
+loop)</td>
+</tr>
+<tr>
+<td>Animated PNG</td>
+<td>browser PNG frames re-chunked (acTL, fcTL, fdAT)</td>
+<td>unit test (chunk order, sequence numbers, CRCs); workflow (Pillow:
+animated, frames)</td>
+</tr>
+<tr>
+<td>Sprite sheet</td>
+<td>2D canvas grid + JSON + project in a ZIP</td>
+<td>workflow (16 frames in the JSON)</td>
+</tr>
+<tr>
+<td>Web page</td>
+<td>compiled shaders, point passes, parameters, credits in one HTML
+file</td>
+<td>unit test (scene JSON); workflow (credit present); opened and played
+in Chromium</td>
+</tr>
+<tr>
+<td>twigl code</td>
+<td>the component’s code, <code>param</code> lines as declarations,
+credit</td>
+<td>unit test; workflow</td>
+</tr>
+<tr>
+<td>PNG sequence, WebM</td>
+<td>unchanged from 1.x</td>
+<td>workflow</td>
+</tr>
+</tbody>
+</table>
+<h2 id="performance">5. Performance</h2>
+<p>Measured on an NVIDIA GeForce RTX 5070 through Direct3D 11 (ANGLE)
+with <code>tools/perf_report.py</code>; see <a
+href="PERFORMANCE.json">PERFORMANCE.json</a> for every number.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Improvement</th>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Changing a number of shader code</td>
+<td>a recompile per change: 160–220 ms</td>
+<td>a redraw: 2–7 ms</td>
+</tr>
+<tr>
+<td>Drawing 20,000 points of a p5.js sketch</td>
+<td>Canvas 2D: 120–137 ms per frame</td>
+<td>GPU point pass: 0.12–0.16 ms per frame</td>
+</tr>
+<tr>
+<td>Exporting a 20 s animation with every frame</td>
+<td>real-time recording (20 s, frames may drop)</td>
+<td>exact-frame MP4: about 4 s at 640 × 640</td>
+</tr>
+<tr>
+<td>Program source per scene</td>
+<td>about 60 KB (every library)</td>
+<td>5–12 KB for most scenes (linked)</td>
+</tr>
+<tr>
+<td>Filmstrip, gallery and palette previews</td>
+<td>—</td>
+<td>several moments per draw, one non-blocking readback</td>
+</tr>
+<tr>
+<td>Frame time of the works at 1024 px</td>
+<td>—</td>
+<td>0.4–9.4 ms (60 frames per second and more)</td>
+</tr>
+</tbody>
+</table>
+<p>Honest notes: linking the libraries shrinks programs about 7× but, on
+this Direct3D 11 driver, hardly changes compile time (the functions
+actually used dominate). Adding shader code to the large nebula scene
+compiles slowly on a cold driver cache (seconds); the previous image
+stays up meanwhile.</p>
+<h2 id="tests">6. Tests</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Suite</th>
+<th>2.0 additions</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unit tests (<code>node --test</code>)</td>
+<td><code>glsl.test.js</code> (parsing all works, loop lengths, more
+than twenty error messages, printing, formatting invariance, structure
+keys, number editing, linking, point clouds, limits),
+<code>encoders.test.js</code> (GIF, APNG, MP4, sheets, stats, web page,
+code), catalog and concept checks for the new entries</td>
+<td>328 passed, 0 failed</td>
+</tr>
+<tr>
+<td>Workflow (<code>workflow_check.py</code>)</td>
+<td>16 new checks: gallery, live preview, number drag without
+recompiling, variables, loops, tour, Look inside at a pin, Stats, What
+moves and Trails, profile over time, filmstrip, freeze, code editing,
+point clouds, reuse, six exports, contrast and exact numbers</td>
+<td>51 passed (see <a href="VALIDATION.html">Validation</a>)</td>
+</tr>
+<tr>
+<td>Screenshots (<code>browser_check.py</code>)</td>
+<td>gallery, code with a tour step, a variable, stats, point cloud,
+trails, reuse, high contrast</td>
+<td>passed, no page errors; tablet and phone without sideways
+scrolling</td>
+</tr>
+<tr>
+<td>Works (<code>works_check.py</code>)</td>
+<td>new</td>
+<td>13/13 shaders bit-identical; 4/4 sketches within 0.81/255 mean</td>
+</tr>
+<tr>
+<td>Regression (<code>compare_versions.py</code>)</td>
+<td>new</td>
+<td>24/24 renders of the 1.x scenes identical to 1.4.0</td>
+</tr>
+<tr>
+<td>GPU validation (<code>gpu_validate.py</code>)</td>
+<td>all 30 scenes, all 45 component kinds</td>
+<td>see <a href="VALIDATION.html">Validation</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="known-limits">7. Known limits</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Limit</th>
+<th>Why</th>
+<th>Workaround</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The Grok conversation was not studied</td>
+<td>it requires a signed-in X account and has no public copy</td>
+<td>none; recorded in the research ledger</td>
+</tr>
+<tr>
+<td>The anemone is not a reproduction</td>
+<td>its multi-pass shader was not published</td>
+<td>it is labelled a study everywhere</td>
+</tr>
+<tr>
+<td>twigl’s backbuffer <code>b</code>, function definitions, arrays,
+textures are not supported</td>
+<td>frames are stateless by design; the checker keeps code safe and
+explainable</td>
+<td>write the code inline; each case has an explanatory error</td>
+</tr>
+<tr>
+<td>Hardware GPUs can differ in the grain of chaotic fractals</td>
+<td>float rounding differs between drivers</td>
+<td><em>Compile numbers as constants</em> matches twigl on the same
+driver; SwiftShader is bit-exact</td>
+</tr>
+<tr>
+<td>A warped point cloud shows only what is inside the frame</td>
+<td>points are drawn into a frame-sized texture</td>
+<td>warp before placing the points in the equation, or zoom out</td>
+</tr>
+<tr>
+<td>MP4 export needs WebCodecs</td>
+<td>browsers offer it in secure contexts</td>
+<td>open the file from disk or through <code>start.py</code>; otherwise
+use WebM, GIF or the PNG sequence</td>
+</tr>
+<tr>
+<td>Safari, Firefox and physical phones were not tested</td>
+<td>test environment</td>
+<td>Chromium desktop, tablet and phone emulation were tested</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

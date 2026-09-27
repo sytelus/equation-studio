@@ -1,5 +1,74 @@
 # Changelog
 
+## 2.0.0 — 26 September 2026
+
+Animation release: eighteen animations by their artists (twigl shader one-liners, p5.js point sketches, and one study) run in the studio, verified against their original code and explained step by step; shader code and point clouds become components you can take apart, measure, reuse in other scenes and export. Projects from 1.x open unchanged and render identically.
+
+### Animations as code, credited and verified
+
+- **Eighteen works** (`src/works.js`, [WORKS](docs/WORKS.md)): thirteen twigl.app shaders by yonatan (@zozuar), Xor (@XorDev) and Yohei Nishitsuji, four p5.js sketches by ア (@yuruyurau), and a study after Jae (@Jaenam97)’s anemone, whose code was not published. Each is a scene with its author’s credit, a link to the post, a summary, a guided explanation and the ideas it uses.
+- **Faithful**: the original code runs unchanged. On a deterministic GPU (SwiftShader) the original code in a twigl-style shader, the same code in the studio and the **readable version** the scene opens with render **bit-identical frames** for all thirteen shaders (`tools/works_check.py`). The point clouds match the original sketches drawn by a p5.js stand-in (the points land in the same places; mean difference under 1 of 255 levels).
+- **Readable versions**: the same computation with named variables (`depth`, `dist`, `scale` instead of `g`, `e`, `s`), one step per line and a caption on every line; switch to the code as posted with one click.
+
+### Shader code: a component you can take apart
+
+- **Shader code** component (`code`): paste any twigl “geekest” code. It is parsed, type-checked and re-printed (`src/glsl.js`), never pasted into the shader: errors are explained in words with their line (“Cannot multiply a vec3 and a int. GLSL does not turn whole numbers into floats: write 2. or 2.0”), and a safety budget of 30,000 loop steps per pixel means a mistake cannot freeze the GPU.
+- **The Code view** highlights the code; every input, helper, built-in and variable explains itself on hover. **Drag any number** to change it: numbers are uniforms, so the picture updates without recompiling (2–7 ms per change instead of 160–220 ms). Click a variable to see it on the canvas.
+- **Loops**: every loop gets a slider “stop after N steps” (its natural length is computed from the code, in float32 like the GPU) and **▶ Build up** sweeps it from 0 to all steps: watch a raymarcher find its surfaces, or a fractal grow its detail.
+- **How it works**: each work’s explanation as numbered steps; a step highlights its lines, shows the variable it is about and stops loops where that helps.
+- **Look inside**: every value the code computes (each variable, the step count of each loop) can be put on the canvas with a colormap and legend, and read at a pinned point.
+- **Time**: every code or point component has its own time speed and offset; **❄ Freeze here** makes it a still.
+- `param` lines work in code as in equations; **⇥ Lay out** rewrites a one-liner one statement per line.
+
+### Point clouds
+
+- **Point cloud** component (`points`): thousands of points placed by one equation of their index i, their count n and the time t, like a p5.js sketch calling `point()` in a loop; drawn on the GPU (0.13 ms for 20,000 points against about 130 ms in Canvas 2D) with antialiased round dots, and composited like any other layer.
+
+### Time and motion
+
+- **What moves** (`M`): the pixels that change in the next tenth of a second keep their color; **Trails** averages the last half second like a long exposure.
+- **Filmstrip** (🎞 Frames): twelve frames across the timeline; click one to go there.
+- **Playback speed** ¼× to 2×; scenes keep their own **aspect ratio** (the works are square or 4:3).
+- **Profile over time**: the Profile can follow one point through the whole loop.
+
+### Measure
+
+- **Stats** tab for every component: per-channel minimum, mean, maximum and spread, clipped, black and nonfinite pixels, a histogram; **over the loop**: mean brightness through time, motion between frames and a verdict on whether the loop is seamless; **GPU time** of every component’s view and its own share; for shader code the range of every variable and how many steps each loop really takes.
+
+### Browse and reuse
+
+- **Gallery**: scenes in sections (shader code, point clouds, studies, constructions) with filters by kind and artist, search over titles, authors and tags, and cards that **come alive on hover** (rendered live, small).
+- **Reuse**: the Components tab starts with the works; add any of them to another scene as a credited color layer (e.g. the Vortex added into Living mineral).
+- **Component previews**: the palette’s tips show each component rendered on its own.
+
+### Export
+
+- **MP4** with exact frames (H.264 through WebCodecs, muxed in `src/encoders.js`): a 20 s clip renders in about 4 s instead of 20 s of real-time recording, with every frame at its exact time.
+- **GIF** (median-cut palette, ordered dithering, looping), **animated PNG**, **JPEG** and **WebP** stills, a **sprite sheet** with its JSON, a **web page** that plays the scene live (one HTML file with its compiled shaders and credits), and **shader code** for twigl.app with its credit.
+
+### Accessibility and hints
+
+- **High contrast** (◐ Contrast in the footer, `K`): follows the system’s prefers-contrast setting or can be forced; black background, white text and borders, strong focus rings.
+- Help describes the new views and keys; every new control has a tip.
+
+### Performance
+
+- Programs link only the library functions they use (`src/shader-link.js`): the source of most scenes shrinks from about 60 KB to 6–11 KB. (On the tested Direct3D 11 driver compile time was already dominated by the functions used, so it changes little there.)
+- Number drags never recompile (above); point clouds on the GPU (above); exact-frame MP4 export five times faster than real time; the filmstrip and gallery previews draw several moments with one non-blocking readback (`Renderer.timeAtlas`).
+- Measured with `tools/perf_report.py` ([PERFORMANCE.json](docs/PERFORMANCE.json)): every work renders a 1024-pixel frame in 0.4–9.4 ms on an RTX 5070.
+
+### Fixes
+
+- **WebM recording** waits for the browser's recorder to start before playing the timeline. On a slow device (or a software GPU) the recorder can take a second to start; the frames drawn meanwhile were lost, so the first second of a recording was missing and a clip of about a second could come out empty (also in 1.x). The export message now counts the frames actually drawn.
+- The workflow test waits for the canvas label after applying an equation instead of reading it in the same instant (it follows on the next drawn frame).
+
+### Code, tests and documentation
+
+- **Familiar file names**: the ready-to-open app is now `index.html` (it was `Equation Studio.html`), so it is what a web server or a folder listing shows first. The page that runs the source modules moved with its styles to `src/index.html` and `src/style.css`; `python3 start.py --dev` (or `npm run dev`) opens it. `tools/build.py` refuses a page without its style and script tags.
+- New modules: `glsl.js` (the shader-code language), `twigl-glsl.js`, `shader-link.js`, `works.js`, `stats.js`, `encoders.js`, `standalone.js`, `ui-code-view.js`, `ui-stats.js`, `ui-filmstrip.js`, `ui-settings.js`. The compiler gained code functions, point passes, a time-sampling mode and a shown-variable uniform; the renderer point passes, the motion view, `timeAtlas`, `sampleTimes` and `measure`.
+- Unit tests grow from 259 to 328 (parser and checker, loop lengths, printing, linking, point clouds, encoders with a GIF decoder, statistics, exports). The workflow suite adds 16 checks (51 in all); the screenshot suite adds 8 screenshots. New tools: `works_check.py`, `perf_report.py`, `generate_works.js`, `compare_versions.py` (renders a git revision and the working tree and compares them).
+- New documents: [WORKS](docs/WORKS.md) (generated), the [2.0 report](docs/ANIMATION_REPORT.md); rewritten [Animation](docs/ANIMATION.md); updated editor guide, architecture, development guide, research and README.
+
 ## 1.4.0 — 25 September 2026
 
 Clarity release: editing an equation is one obvious action on the equation itself, and the layout is calmer, with the screen always saying where you are. Projects from earlier versions open unchanged and render identically.

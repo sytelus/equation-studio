@@ -21,7 +21,11 @@
         "playground": false,
         "panelWidth": 0,
         "wideWidth": 0,
-        "libraryDocked": false
+        "libraryDocked": false,
+        "contrast": "auto",
+        "playbackRate": 1,
+        "exactNumbers": false,
+        "filmstrip": true
       }
     },
     {
@@ -232,7 +236,7 @@
       "name": "Actual MediaRecorder video download",
       "passed": true,
       "details": {
-        "bytes": 1997,
+        "bytes": 1653,
         "format": "WebM EBML container"
       }
     },
@@ -242,6 +246,104 @@
       "details": {
         "mean_saturation": 67.3
       }
+    },
+    {
+      "name": "Gallery: kind filter, live hover preview, a work opens on its credited code component",
+      "passed": true,
+      "details": {
+        "shader cards": 13
+      }
+    },
+    {
+      "name": "Dragging a code number edits the text, redraws without recompiling, and undoes in one step",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Clicking a variable shows it on the canvas with a colormap legend; Escape returns to the color",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "A loop slider stops the loop early (the image changes); \u21ba runs it in full",
+      "passed": true,
+      "details": {
+        "steps": 16
+      }
+    },
+    {
+      "name": "How it works: a tour step highlights its lines and shows its variable; End returns to the final image",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Look inside reads every variable at the pinned point",
+      "passed": true,
+      "details": [
+        "o=(0.6861, 0.1537, 0.8829, 1)",
+        "p=(-0.3986, 0.205)",
+        "v=(0, -0.5017)",
+        "i=1"
+      ]
+    },
+    {
+      "name": "Stats: per-channel values with a histogram, and a loop measurement with a verdict",
+      "passed": true,
+      "details": "\u26a0 The loop jumps: the end differs from the beginning 2.235\u00d7 "
+    },
+    {
+      "name": "What moves (M): changing pixels, and trails averaging the last half second",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Profile over time: one pixel plotted through the whole loop",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Filmstrip of 12 frames; clicking one seeks there",
+      "passed": true,
+      "details": {
+        "time": 10
+      }
+    },
+    {
+      "name": "\u2744 Freeze here: speed 0 and the time offset of the playhead (undoable)",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Code editing: errors point at their line; Apply puts valid code into the scene; undo restores it",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Point cloud scene: editable credited equation; its own view shows the dots over black",
+      "passed": true,
+      "details": {
+        "mean_brightness": 0.0197
+      }
+    },
+    {
+      "name": "Components tab: a work added to another scene keeps its credit",
+      "passed": true,
+      "details": {
+        "node": "code1"
+      }
+    },
+    {
+      "name": "Exports: looping GIF and animated PNG, JPEG, sprite sheet with JSON, a web page that plays the scene, twigl code",
+      "passed": true,
+      "details": {
+        "gif frames": 2,
+        "sheet frames": 16
+      }
+    },
+    {
+      "name": "High contrast cycles auto \u2192 high \u2192 normal (K); exact numbers compile a separate program",
+      "passed": true,
+      "details": null
     },
     {
       "name": "Context loss/recovery and float extension re-enablement",

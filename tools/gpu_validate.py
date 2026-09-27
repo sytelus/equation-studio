@@ -37,7 +37,8 @@ with sync_playwright() as pw:
     report['gpu'] = page.evaluate('renderer.info')
     preset_ids = page.evaluate('testLibrary.presets.map(p=>p.id)')
     for id in preset_ids:
-        r = page.evaluate('''id=>{const p=testLibrary.getPreset(id),start=performance.now();renderer.draw(p,0,640,384);const rgba=renderer.pixels();let energy=0;for(let i=0;i<rgba.length;i+=4)energy+=rgba[i]+rgba[i+1]+rgba[i+2];const ms=performance.now()-start;const png=renderer.canvas.toDataURL('image/png').split(',')[1];renderer.draw(p,0,160,96,{debug:1});const check=renderer.pixels();let nonfinite=0;for(let i=0;i<check.length;i+=4)if(check[i]||check[i+1]||check[i+2])nonfinite++;return {energy,ms,nonfinite,png};}''', id)
+        # Scenes render in their own aspect ratio, at their thumbnail time (works: a moment of their loop).
+        r = page.evaluate('''id=>{const p=testLibrary.getPreset(id),h=Math.round(640/(p.aspect??5/3)),t=p.thumbTime??0,start=performance.now();renderer.draw(p,t,640,h);const rgba=renderer.pixels();let energy=0;for(let i=0;i<rgba.length;i+=4)energy+=rgba[i]+rgba[i+1]+rgba[i+2];const ms=performance.now()-start;const png=renderer.canvas.toDataURL('image/png').split(',')[1];renderer.draw(p,t,160,Math.round(160/(p.aspect??5/3)),{debug:1});const check=renderer.pixels();let nonfinite=0;for(let i=0;i<check.length;i+=4)if(check[i]||check[i+1]||check[i+2])nonfinite++;return {energy,ms,nonfinite,png};}''', id)
         assert r['energy'] > 0 and r['nonfinite'] == 0, (id, r['nonfinite'])
         (ROOT / 'gallery' / f'{id}.png').write_bytes(base64.b64decode(r.pop('png')))
         record('render + finite values: ' + id, r)
@@ -48,7 +49,7 @@ with sync_playwright() as pw:
         assert result, type
     record(f'all {len(all_types)} component types compile and render finite defaults', len(all_types))
     # Animation must be state independent and produce visible change.
-    moving = ['water', 'lensing', 'aurora', 'tidal', 'peacock', 'fire', 'hedgehog', 'marble', 'kaleidoscope']
+    moving = ['water', 'lensing', 'aurora', 'tidal', 'peacock', 'fire', 'hedgehog', 'marble', 'kaleidoscope'] + page.evaluate('testLibrary.presets.filter(p=>p.work).map(p=>p.id)')
     for id in moving:
         stats = page.evaluate('''id=>{const p=testLibrary.getPreset(id);renderer.draw(p,0,128,80);const a=renderer.pixels();renderer.draw(p,2.3,128,80);const b=renderer.pixels();renderer.draw(p,0,128,80);const c=renderer.pixels();let change=0,repeat=0;for(let i=0;i<a.length;i++){change+=Math.abs(a[i]-b[i]);repeat+=Math.abs(a[i]-c[i]);}return {change,repeat};}''', id)
         assert stats['change'] > 0 and stats['repeat'] == 0, (id, stats)

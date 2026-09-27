@@ -1,0 +1,46 @@
+{
+  "id": "rainbow-trefoil",
+  "title": "Rainbow trefoil",
+  "description": "A raymarcher without a distance formula. By yonatan (@zozuar).",
+  "status": "Reproduction · original code",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "shader",
+      "type": "code",
+      "label": "Rainbow trefoil",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "code": "// Rainbow trefoil · yonatan (@zozuar), 30 Aug 2026 · readable version, same image\nvec3 p;                               // the point marching along the ray\nfloat d, best, knot, u;               // a sample's distance, the best distance found, its place on the knot, a random number\np.z = 5.;                             // the camera stands at z = 5\nfor (float i = 0.; i++ < 6e2;) {      // 600 samples: 24 steps along the ray × 25 random guesses each\n  u = fsnoise(p.xy*i + t)*2. - 1.;    // a random number in −1 … 1, different for every pixel, sample and moment\n  // distance to a random point of a trefoil knot near the best guess, minus a tube radius that changes along the knot and with time\n  d = length(p*rotate3D(t, p + i) - vec3(sin(u = knot + u*u*u*PI) + 2.*sin(u + u), cos(u) - 2.*cos(u + u), -sin(3.*u)))\n      - fract((u/6. - t)/PI*3.);\n  if (d < best) { best = d; knot = u; }   // keep the nearest guess\n  if (mod(i, 25.) == 0.) {            // after every 25 guesses:\n    o.rgb += hsv(knot/6., .7, .1/exp(best < 0. ? 0. : best*i));   // color by the place on the knot, brightness by the distance\n    p -= (.5 - FC.rgb/r.y)*best++;    // step along the ray by the best distance; + 1 lets the next search start over\n  }\n}",
+        "speed": 1,
+        "phase": 0,
+        "steps1": 600
+      },
+      "enabled": true,
+      "work": "rainbow-trefoil"
+    }
+  ],
+  "output": "shader",
+  "duration": 6.283,
+  "exposure": 1,
+  "tone": "linear",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": [],
+  "aspect": 1,
+  "work": "rainbow-trefoil",
+  "thumbTime": 1.3
+}

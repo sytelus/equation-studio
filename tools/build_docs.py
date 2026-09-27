@@ -16,8 +16,9 @@ import sys
 import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 NAV = [
-    ('Equation%20Studio.html', 'Open studio'), ('README.html', 'Start here'), ('docs/EDITOR_GUIDE.html', 'Editor guide'),
-    ('docs/RECIPES.html', 'Recipes'), ('docs/ARCHITECTURE.html', 'Architecture'), ('docs/COMPONENTS.html', 'Components'),
+    ('index.html', 'Open studio'), ('README.html', 'Start here'), ('docs/EDITOR_GUIDE.html', 'Editor guide'),
+    ('docs/RECIPES.html', 'Recipes'), ('docs/ANIMATION.html', 'Animation'), ('docs/WORKS.html', 'Works'),
+    ('docs/ARCHITECTURE.html', 'Architecture'), ('docs/COMPONENTS.html', 'Components'),
     ('docs/DEVELOPMENT.html', 'Development'), ('docs/RESEARCH.html', 'Research'), ('docs/VALIDATION.html', 'Validation')
 ]
 

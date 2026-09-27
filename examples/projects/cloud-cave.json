@@ -1,0 +1,47 @@
+{
+  "id": "cloud-cave",
+  "title": "Cloud cave",
+  "description": "Yohei Nishitsuji’s signature construction: the ray lives in log-spherical coordinates (log R, a height made from the angle to the z axis, the angle around it), so the scene repeats at every scale and subtracting t flies into it forever. By Yohei Nishitsuji (@YoheiNishitsuji).",
+  "status": "Reproduction · original code",
+  "schemaVersion": 1,
+  "nodes": [
+    {
+      "id": "space",
+      "type": "coordinates",
+      "label": "Image coordinates",
+      "inputs": {},
+      "params": {},
+      "enabled": true
+    },
+    {
+      "id": "shader",
+      "type": "code",
+      "label": "Cloud cave",
+      "inputs": {
+        "p": "space"
+      },
+      "params": {
+        "code": "// Cloud cave · Yohei Nishitsuji (@YoheiNishitsuji), 17 Jan 2025 · readable version, same image\nfloat dist, R, freq;\nvec3 ray, p, dir = vec3(FC.xy/r - vec2(.5, -.3), 1);   // the ray of this pixel, tilted up\nray.zy--;                             // the camera stands at y = −1, z = −1\nfor (float i = 0.; i++ < 99.;) {      // march 99 steps\n  o.rgb += hsv(.1, .2, min(dist*freq, .65 - dist)/45.);   // warm white light, strongest at a middle distance from the cloud (from the last step)\n  freq = 1.;\n  p = ray += dir*dist*R*.3;           // step forward; steps grow with the distance R from the center\n  // log-spherical coordinates: log₂R − 0.8t (flying inward forever), a height from the angle to z, the angle around z (turning)\n  p = vec3(log2(R = length(p)) - t*.8, exp2(-p.z/R + .9), atan(p.y, p.x) - t*.4);\n  for (dist = --p.y; freq < 3e2; freq += freq)   // the cloud: the height minus one …\n    dist += (dot(sin(p.xy*freq) - .5, .5 - sin(p.zy*freq)))/freq*.3;   // … plus 9 octaves of sine turbulence (frequency 1, 2, 4, …, 256)\n}",
+        "speed": 1,
+        "phase": 0,
+        "steps1": 99,
+        "steps2": 9
+      },
+      "enabled": true,
+      "work": "cloud-cave"
+    }
+  ],
+  "output": "shader",
+  "duration": 15.708,
+  "exposure": 1,
+  "tone": "linear",
+  "view": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "tracks": [],
+  "aspect": 1.4,
+  "work": "cloud-cave",
+  "thumbTime": 1.3
+}

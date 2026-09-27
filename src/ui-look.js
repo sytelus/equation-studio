@@ -1,5 +1,5 @@
 import { $, esc, state, on, setPref, viewedNode } from './editor.js';
-import { catalog } from './catalog.js';
+import { shownType } from './compiler.js';
 import { lookForStats, colormapCSS, COLORMAPS, GEOMETRY_CHANNELS } from './looks.js';
 import { refreshTip } from './ui-tooltip.js';
 /** How the canvas colors the stage it shows, and the legend that explains it.
@@ -14,8 +14,15 @@ import { refreshTip } from './ui-tooltip.js';
  */
 const STATS_WIDTH = 120, STATS_HEIGHT = 72, REFRESH_MS = 220;
 const CHANNEL_INDEX = Object.fromEntries(GEOMETRY_CHANNELS.map((name, i) => [name, i])); // S 0, A 1, coverage 2
-/** The look in use: {target, type, optionsKey, sourceKey, look}. */
+/** The look in use: {target, type, optionsKey, sourceKey, look}; `target` is the
+ * stage's key (lookKey), since a variable of shader code has its own range. */
 let current = null, inFlight = false, lastRequest = 0, retry = null;
+/** The variable of shader code shown for `target` (see state.show), or 0 for its color. */
+const shownIndex = target => state.viewMode === 'stage' && state.show?.node === target ? state.show.index : 0;
+/** What a stage shows: the component, or one of its variables. */
+const lookKey = target => `${target}#${shownIndex(target)}`;
+/** The type of the values a stage shows (a variable has its own). */
+const stageType = (project, target) => shownType(project, target, shownIndex(target)) ?? 'layer';
 /** Look preferences for a component of `type`; `natural` for the scene's output. */
 export function lookOptions(type, { natural = false } = {}) {
     const p = state.prefs, classic = p.stageColors === 'classic';
@@ -54,16 +61,17 @@ export function frameLook(project, target) {
     if (!node) {
         return { mode: 'classic' };
     }
-    const type = catalog[node.type].output, options = lookOptions(type, { natural: target === project.output });
+    const show = shownIndex(target), key = lookKey(target), type = stageType(project, target);
+    const options = lookOptions(type, { natural: target === project.output && !show });
     const optionsKey = JSON.stringify(options);
     if (!needsStats(options, type)) {
-        current = { target, type, optionsKey, sourceKey: null, look: { mode: options.mode, channel: options.channel, gain: 1 } };
+        current = { target: key, type, optionsKey, sourceKey: null, look: { mode: options.mode, channel: options.channel, gain: 1 } };
         return current.look;
     }
-    if (state.lookLock?.target === target && state.lookLock.optionsKey === optionsKey) {
+    if (state.lookLock?.target === key && state.lookLock.optionsKey === optionsKey) {
         return state.lookLock.look;
     }
-    if (current?.target === target && current.optionsKey === optionsKey && current.look) {
+    if (current?.target === key && current.optionsKey === optionsKey && current.look) {
         return current.look;
     }
     const renderer = state.renderer;
@@ -71,8 +79,8 @@ export function frameLook(project, target) {
         return { mode: 'classic' };
     }
     try {
-        const values = renderer.rawImage(project, state.time, target, STATS_WIDTH, STATS_HEIGHT);
-        current = { target, type, optionsKey, sourceKey: sourceKey(project, target), look: build(values, type, options) };
+        const values = renderer.rawImage(project, state.time, target, STATS_WIDTH, STATS_HEIGHT, { show });
+        current = { target: key, type, optionsKey, sourceKey: sourceKey(project, target), look: build(values, type, options) };
         refreshLegend();
         return current.look;
     }
@@ -97,11 +105,12 @@ function changedEnough(a, b) {
  * changed. Redraws only when the new range differs noticeably.
  */
 export function afterStageFrame(project, target) {
-    if (!current || current.target !== target || !current.sourceKey || state.lookLock?.target === target || inFlight) {
+    const key = lookKey(target), show = shownIndex(target);
+    if (!current || current.target !== key || !current.sourceKey || state.lookLock?.target === key || inFlight) {
         return;
     }
-    const renderer = state.renderer, key = sourceKey(project, target);
-    if (key === current.sourceKey) {
+    const renderer = state.renderer, source = sourceKey(project, target);
+    if (source === current.sourceKey) {
         return;
     }
     const wait = REFRESH_MS - (performance.now() - lastRequest);
@@ -116,14 +125,14 @@ export function afterStageFrame(project, target) {
     const type = current.type, options = JSON.parse(current.optionsKey), snapshot = JSON.parse(JSON.stringify(project)), time = state.time;
     inFlight = true;
     lastRequest = performance.now();
-    renderer.rawImage(snapshot, time, target, STATS_WIDTH, STATS_HEIGHT, { async: true }).then(values => {
+    renderer.rawImage(snapshot, time, target, STATS_WIDTH, STATS_HEIGHT, { async: true, show }).then(values => {
         inFlight = false;
-        if (current?.target !== target) {
+        if (current?.target !== key) {
             return;
         }
         const look = build(values, type, options);
         const redraw = changedEnough(current.look, look);
-        current = { ...current, sourceKey: key, look: redraw ? look : { ...current.look, stats: look.stats } };
+        current = { ...current, sourceKey: source, look: redraw ? look : { ...current.look, stats: look.stats } };
         refreshLegend();
         if (redraw) {
             state.dirty = true;
@@ -174,7 +183,7 @@ const withControls = (info, controls) => `${info}<span class="legend-controls">$
 const CHANNEL_OPTIONS = [['S', 'S · warp'], ['A', 'A · rim'], ['coverage', 'Coverage'], ['all', 'All three (classic)']];
 const CHANNEL_TIP = 'Geometry channel|Which of the three geometry fields to show: the shell-following texture coordinate S, the emission rim A, or the coverage. All three uses the classic red/green/blue diagnostic.';
 function stageLegend(node) {
-    const type = catalog[node.type].output, look = current?.target === node.id ? current.look : null, locked = state.lookLock?.target === node.id;
+    const key = lookKey(node.id), type = stageType(state.project, node.id), look = current?.target === key ? current.look : null, locked = state.lookLock?.target === key;
     const shown = locked ? state.lookLock.look : look, stats = shown?.stats;
     const colors = select('lookColors', state.prefs.stageColors, [['auto', 'Auto colors'], ['classic', 'Classic']], 'Stage colors|Auto colors use the values in view: a colormap with contour lines for numbers, a warped grid for coordinates, adjusted exposure for clipped layers. Classic is the fixed 1.x diagnostic.');
     const channel = type === 'geometry' ? select('lookChannel', state.prefs.geometryChannel, CHANNEL_OPTIONS, CHANNEL_TIP) : '';
@@ -198,7 +207,7 @@ function stageLegend(node) {
         return withControls(`<span>constant value <b class="mono">${fmt(shown.range.value)}</b></span>`, `${channel}${colors}`);
     }
     const contours = `<label class="legend-check" data-tip="Contour lines|Lines of equal value at round intervals${shown.range?.contour ? ` (every ${fmt(shown.range.contour)})` : ''}; the zero line of a signed field is brighter."><input type="checkbox" id="lookContours" ${state.prefs.contours ? 'checked' : ''}> Contours</label>`;
-    return withControls(colorbar(shown, stats), `${channel}${contours}${lockButton(node.id)}${colors}`);
+    return withControls(colorbar(shown, stats), `${channel}${contours}${lockButton(key)}${colors}`);
 }
 /** Legend HTML for the current canvas view, or '' when there is nothing to explain. */
 function legendHTML() {
@@ -209,6 +218,11 @@ function legendHTML() {
         return state.contributionStyle === 'signed'
             ? '<span class="swatch warm"></span>brighter with it <span class="swatch cool"></span>darker with it <span class="swatch black"></span>no change'
             : '<b>In color:</b> pixels this component changes · <b>gray:</b> unchanged';
+    }
+    if (state.viewMode === 'motion') {
+        return state.motionStyle === 'trails'
+            ? `<b>Trails:</b> the last half second, averaged like a long exposure · still parts stay sharp, moving parts smear`
+            : '<b>In color:</b> pixels that change within the next 0.1 s · <b>gray:</b> still';
     }
     if (state.viewMode !== 'stage') {
         return '';
@@ -254,17 +268,18 @@ $('legend').addEventListener('click', e => {
         return;
     }
     const node = viewedNode();
-    if (state.lookLock?.target === node.id) {
+    const key = lookKey(node.id);
+    if (state.lookLock?.target === key) {
         state.lookLock = null;
     }
-    else if (current?.target === node.id && current.look) {
-        state.lookLock = { target: node.id, optionsKey: current.optionsKey, look: current.look };
+    else if (current?.target === key && current.look) {
+        state.lookLock = { target: key, optionsKey: current.optionsKey, look: current.look };
     }
     state.dirty = true;
     refreshLegend();
 });
 on('view', () => {
-    if (state.lookLock && (state.viewMode !== 'stage' || state.lookLock.target !== viewedNode().id)) {
+    if (state.lookLock && (state.viewMode !== 'stage' || state.lookLock.target !== lookKey(viewedNode().id))) {
         state.lookLock = null;
     }
     refreshLegend();
