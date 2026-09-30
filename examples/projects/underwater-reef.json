@@ -1,7 +1,7 @@
 {
   "id": "underwater-reef",
   "title": "Underwater reef",
-  "description": "A coral reef from a kaleidoscopic fractal: 20 passes of stretch, mirror and shift make branching, porous shapes, marched together with a flat water surface above (y = 30). By yonatan (@zozuar).",
+  "description": "You are diving over a coral reef: lumpy green coral below, the rippling underside of the water surface above, and patches of sunlight flickering over everything. By yonatan (@zozuar).",
   "status": "Reproduction · original code",
   "schemaVersion": 1,
   "nodes": [
@@ -21,7 +21,7 @@
         "p": "space"
       },
       "params": {
-        "code": "// Underwater reef · yonatan (@zozuar), 8 Dec 2024 · readable version, same image\nfloat light, level, depth, stretch, scale, n = 15.;\nfor (float i = 0.; i++ < 1e2;) {      // march 100 steps\n  vec3 q, p = vec3((FC.xy - .5*r)/r.y*depth - 9., depth) + n;   // the point on the ray, seen from (6, 15, 15)\n  p.zx *= rotate2D(t/n);              // the camera turns slowly (a full turn in 94 s)\n  scale = level = 3.;\n  light = scale + snoise3D(vec3(p.xz*.1, t));   // caustics: brightness 3 ± noise that drifts with time\n  for (q = p; level++ < 23.;) {       // 20 folds of a kaleidoscopic fractal: the coral\n    scale *= stretch = n/dot(p, p);   // an inversion-like stretch …\n    p = vec3(0, 4, -1) - abs(abs(p)*stretch - vec3(3, 4, 3));   // … mirror, stretch and shift\n  }\n  depth += min(30. - q.y, p.y/scale); // step: the nearest of the water surface (y = 30) and the coral\n  o.rgb += hsv(scale = log(scale)/n, .5, scale/2e2*light) + FC.zww*depth*light/6e4;   // coral colored by its scale, plus blue-green haze growing with distance\n}",
+        "code": "// Underwater reef · yonatan (@zozuar), 8 Dec 2024 · readable version, same image\nfloat light, level, depth, stretch, scale, n = 15.;   // n = 15 is used several times below.\nfor (float i = 0.; i++ < 1e2;) {      // March 100 steps along the ray\n  vec3 q, p = vec3((FC.xy - .5*r)/r.y*depth - 9., depth) + n;   // The point on the ray; the camera starts at (6, 6, 15).\n  p.zx *= rotate2D(t/n);              // The camera circles slowly, once every 94 seconds.\n  scale = level = 3.;                 // Start both at 3.\n  light = scale + snoise3D(vec3(p.xz*.1, t));   // Flickering sunlight: 3 plus smooth noise that changes with time.\n  for (q = p; level++ < 23.;) {       // Fold 20 times to grow the coral\n    scale *= stretch = n/dot(p, p);   // Stretch by 15 ÷ the squared distance, and keep the total …\n    p = vec3(0, 4, -1) - abs(abs(p)*stretch - vec3(3, 4, 3));   // … then mirror, stretch, shift, mirror and shift again.\n  }\n  depth += min(30. - q.y, p.y/scale); // Step by the nearer of the water surface (y = 30) and the coral.\n  o.rgb += hsv(scale = log(scale)/n, .5, scale/2e2*light) + FC.zww*depth*light/6e4;   // Coral colored by its stretching, plus blue-green haze that grows with distance.\n}",
         "speed": 1,
         "phase": 0,
         "steps1": 100,

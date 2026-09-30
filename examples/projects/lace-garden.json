@@ -1,7 +1,7 @@
 {
   "id": "lace-garden",
   "title": "Lace garden",
-  "description": "Two fractals marched together. By yonatan (@zozuar).",
+  "description": "A gray garden made of lace turns in front of you: delicate flowers on thin stems stand in the middle, and ornate, frilly panels surround them. By yonatan (@zozuar).",
   "status": "Reproduction · original code",
   "schemaVersion": 1,
   "nodes": [
@@ -21,7 +21,7 @@
         "p": "space"
       },
       "params": {
-        "code": "// Lace garden · yonatan (@zozuar), 26 Nov 2024 · readable version, same image\nfloat level, dist, scale, r2, scale2;\nvec3 w, p, ray;\nray.yz += .6;                         // the camera\nfor (float i = 0.; i < 1e2; i++) {    // march 100 steps\n  p = ray += (FC.rgb/r.y - .5)*dist;  // step forward (FC.z = .5 makes the ray look along −z)\n  dist = scale = 3.;\n  p.xz *= rotate2D(t);                // the garden turns\n  w = p/dist;                         // a second, smaller copy of space: the background\n  for (level = scale2 = .7; level++ < 9.;) {   // 9 levels\n    w.y -= 2.5;                       // background: shift, …\n    scale2 /= r2 = min(dot(w, w), .5) + .02;   // … a clamped inversion …\n    w = abs(w)/r2 - .4;               // … and a mirror\n    scale /= r2 = dot(p, p);          // flowers: sphere inversion\n    p /= r2;\n    dist = min(dist, max(length(p.xz = abs(p.xz) - .4), p.y = 2. - p.y)/scale);   // mirrored stems (cylinders .4 apart), cut by a mirror plane\n  }\n  dist = min(dist, (w.x + w.z)/scale2);   // the background's folded plane\n  o += .01/exp(dist*scale2);          // light where a surface is close\n}",
+        "code": "// Lace garden · yonatan (@zozuar), 26 Nov 2024 · readable version, same image\nfloat level, dist, scale, r2, scale2; // Numbers for the two fractals: scale for the flowers, scale2 for the background.\nvec3 w, p, ray;                       // p is the flowers' space, w the background's, and ray the point walking along the ray.\nray.yz += .6;                         // The camera starts at y = 0.6, z = 0.6.\nfor (float i = 0.; i < 1e2; i++) {    // March 100 steps along the ray\n  p = ray += (FC.rgb/r.y - .5)*dist;  // Step forward; the third part is about −0.5, so the ray looks along −z.\n  dist = scale = 3.;                  // Start both at 3.\n  p.xz *= rotate2D(t);                // The garden turns, one full turn every 2π seconds.\n  w = p/dist;                         // The background's space: p divided by 3, so its shapes come out 3 times bigger.\n  for (level = scale2 = .7; level++ < 9.;) {   // 9 levels of both fractals\n    w.y -= 2.5;                       // Background: shift down, …\n    scale2 /= r2 = min(dot(w, w), .5) + .02;   // … divide by the squared distance, but never by more than 0.52, …\n    w = abs(w)/r2 - .4;               // … then mirror and shift.\n    scale /= r2 = dot(p, p);          // Flowers: sphere inversion, keeping track of the stretching …\n    p /= r2;                          // … (turn space inside out around the center).\n    dist = min(dist, max(length(p.xz = abs(p.xz) - .4), p.y = 2. - p.y)/scale);   // Four mirrored stems 0.4 from the middle, only above height 2; keep the nearest.\n  }\n  dist = min(dist, (w.x + w.z)/scale2);   // Add the background, a folded flat plane, if it is nearer.\n  o += .01/exp(dist*scale2);          // Gray light, strong only close to a surface.\n}",
         "speed": 1,
         "phase": 0,
         "steps1": 100,

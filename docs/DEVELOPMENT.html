@@ -92,7 +92,7 @@
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a> <a href="../docs/UX_REVIEW.html">UX review</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#development-guide" id="toc-development-guide">Development
@@ -114,16 +114,21 @@ id="toc-regeneration-checklist">Regeneration checklist</a></li>
 <li><a href="#tools" id="toc-tools">Tools</a></li>
 <li><a href="#adding-a-work" id="toc-adding-a-work">Adding a
 work</a></li>
+<li><a href="#writing-for-the-app" id="toc-writing-for-the-app">Writing
+for the app</a></li>
 <li><a href="#releasing" id="toc-releasing">Releasing</a></li>
 </ul></li>
 </ul>
 </nav>
 <h1 id="development-guide">Development guide</h1>
-<p>How the code is organized, how the pieces talk to each other, and the
-checklist for shipping a change. <a
-href="ARCHITECTURE.html">Architecture</a> explains the rendering model,
+<p>How the code is organized, how the pieces talk to each other, how to
+write the text the app shows, and the checklist for shipping a change.
+<a href="ARCHITECTURE.html">Architecture</a> explains the rendering model,
 the equation language and how to add a component; this document is about
-working in the repository.</p>
+working in the repository. The code keeps the model’s names (component,
+parameter, bypass, playhead); the interface says part, setting,
+switching a part off and the time (see <a
+href="#writing-for-the-app">Writing for the app</a>).</p>
 <h2 id="requirements">Requirements</h2>
 <ul>
 <li><strong>Running the app:</strong> a browser with WebGL 2. Nothing
@@ -157,7 +162,8 @@ and must be rebuilt after changes (see the checklist);
                       captions, symbols, ideas, key-function curves, roles and bypass sockets, GLSL emitters;
                       loopStepSpecs() for the loops of shader code
   concepts.js         the 47 recurring ideas behind the equations: formula, explanation, plot with a knob
-  works.js            the 18 studied animations: credit, original and readable code, tour, ideas, tags
+  works.js            the 18 studied animations: credit, original and readable code, tour, ideas, tags,
+                      difficulty level and Try this challenges (level, try)
   glsl.js             the shader-code language: tokens, parser, scope and type checker, loop-length
                       simulation (float32), printer with renamed/hoisted variables, loop counters, a step
                       budget, uniform numbers and a shown-value selector; formatter; number editing
@@ -182,13 +188,14 @@ and must be rebuilt after changes (see the checklist);
   gpu-info.js         renderer-string classification (hardware / software), software-fallback probe
   math-render.js      TeX subset → MathML with symbol roles; custom equations → MathML
   formula.js          the construction as a formula sheet (how the image is composed)
-  plot.js             small SVG line plots (key functions, idea cards, the profile)
+  plot.js             small SVG line plots (key curves, big-idea cards, Measure along a line)
   timeline.js         keyframe interpolation, key insertion and retiming
   view-math.js        camera arithmetic: pixel ↔ world, zoom about a point, ruler ticks
   explore.js          parameter sweeps, seeded variations, original values for reset
   graph-layout.js     deterministic layered layout and socket geometry for the graph panel
   export.js           ZIP writer, PNG metadata, frame times, downloads
-  presets.js          the thirty editable scenes (twelve constructions, and a scene per work)
+  presets.js          the thirty editable scenes (twelve constructions, and a scene per work); guides:
+                      the story, level and Try this challenges of each construction
   snapshots.js        snapshot list management and thumbnails
   math-glsl.js        shared GLSL atoms (noise, shapes, composition, display curves)
   source-constants.js float64 constant folding for the source nebula
@@ -200,48 +207,67 @@ and must be rebuilt after changes (see the checklist);
   Editor (DOM; covered by the browser suites)
   editor.js           shared editor state, event bus, the canvas view model and every model operation
                       (transact, load, revert, select and step, view, enable/bypass, live parameter edits,
-                      equation drafts and apply, reset, add, insert, replace, connect…)
-  ui-component-view.js ComponentView: one component, explained and edited: a header that stays in view
-                      (◀ step n of N ▶, include switch, title, tabs) and the tabs Equation (captioned
-                      steps with colored symbols, ✎ Edit in place, parameters, key function), In &amp; out,
-                      Ideas and More (code, tracks, replace/duplicate/delete); for the component panel
-                      or a pop-out window; two columns by container width
-  ui-code-view.js     shader code in the component view: highlighted code with tooltips, draggable numbers,
-                      the work&#39;s credit, tour and original, loops (sliders, build-up), time and freeze,
-                      Look inside (values on the canvas and at a pin)
-  ui-stats.js         the Stats tab: values and histogram, points, over the loop, inside the code, GPU time
-  ui-filmstrip.js     frames across the timeline under the transport
+                      equation drafts and apply, reset, add, insert, replace, connect…); what the side
+                      panel shows (state.panel, showScene) and the walk-through step (state.tour, setTour);
+                      plain-word helpers for the UI: firstSentence, sceneOrigin, KIND_LABELS, KIND_NAMES
+  ui-scene-view.js    SceneView: the whole scene in the side panel (About this scene): credit, level and
+                      check badges, welcome note, What you are seeing, Try this, How it works (steps with
+                      code excerpts), How it is built, Big ideas, Where it comes from
+  ui-try.js           the scene&#39;s guide and the Try this engine: sceneGuide (from works.js or presets.js
+                      guides), tryAvailable, applyTry (actions set, code, view, show, build and, for
+                      constructions, hide)
+  ui-component-view.js ComponentView: one part, explained and edited: a header that stays in view
+                      (‹ Whole scene, Part n of N, ◀ ▶, ⤢ Wide, ↗, the on/off switch, name, what it makes,
+                      tabs) and the tabs Math (intro, settings, key curve, the math step by step with
+                      colored symbols, ✎ Edit in place), Big ideas, and in a quieter style Connections,
+                      Measure and More (shader code, keyframes, swap/duplicate/delete); Shader code
+                      parts get Code and Look inside instead of Math (ui-code-view.js); for the side
+                      panel or a pop-out window; two columns by container width
+  ui-code-view.js     shader code in the part view: the Code tab (highlighted code with tooltips, draggable
+                      numbers, loops with sliders and buildUp, time and freeze, as posted) and Look inside
+                      (values on the canvas and at a pin); the walk-through: applyTour, tourBanner,
+                      tourLines; highlightCode (its `only` option prints an excerpt)
+  ui-stats.js         the Measure tab: values and histogram, points, over the loop, inside the code, GPU time
+  ui-filmstrip.js     the frames across the animation, under the time bar (redrawn while playing too)
   ui-settings.js      high contrast, playback speed, exact numbers
-  ui-inspector.js     the component panel: a ComponentView on the right
-  ui-playground.js    the panel&#39;s width: resizing, and the Equation Playground (the panel made wide,
-                      with the step and profile on the canvas and the pipeline as a compact strip)
-  ui-popout.js        the component panel in a separate window (following the selection or pinned)
-  ui-study-link.js    double-click on any component opens the playground
+  ui-inspector.js     the side panel on the right: a SceneView or a ComponentView, as state.panel says
+  ui-playground.js    the panel&#39;s width: resizing, and the wide panel (formerly the Equation Playground:
+                      the panel made wide, with the part and Measure along a line on the canvas and the
+                      parts strip as a compact row)
+  ui-popout.js        the part panel in a separate window (following the selection or pinned)
+  ui-study-link.js    double-click on any part opens the wide panel
   ui-canvas.js        frame rendering (the project, a draft, a preview or the original), compile indicator,
-                      view switch and the label saying what the canvas shows, live badge, adaptive
-                      resolution, camera gestures, rulers and readouts, hold-to-compare, canvas toolbar
+                      view switch and the label saying what the canvas shows (WHOLE PICTURE, JUST THIS
+                      PART…), live badge, adaptive resolution, camera gestures, rulers and readings (a click
+                      always pins one), hold to compare, the View menu
   ui-look.js          the stage&#39;s automatic colors (statistics, refresh, lock) and the legend
-  ui-scope.js         the profile: raw values along a line under the canvas
+  ui-scope.js         Measure along a line: raw values along a line (or at one point over time) under
+                      the canvas
   ui-previews.js      the shared live-thumbnail atlas painted into pipeline and graph cards
-  ui-pipeline.js      the Pipeline tab: stages in evaluation order with include checkboxes
-  ui-graph.js         graph rendering, wiring, drop target, bottom-panel tabs, GLSL tab, splitter
-  ui-formula.js       the Formulas tab
-  ui-explore.js       the explorer tray: sweeps and variations with hover preview
-  ui-performance.js   GPU labels and the GPU &amp; performance dialog
-  ui-mobile.js        the phone tab bar; touch-screen policies
+  ui-pipeline.js      the parts strip (Parts tab): compact cards in evaluation order with on/off checkboxes
+  ui-graph.js         the Wiring view: rendering, wiring, drop target; bottom-panel tabs, Shader code tab,
+                      splitter
+  ui-formula.js       the All the math tab
+  ui-explore.js       the tray of small pictures: sweeps (▦) and Surprise me, with hover preview
+  ui-performance.js   GPU labels and the GPU dialog
+  ui-mobile.js        the phone tab bar (About, Parts, Math, Wiring; starts on About); touch-screen policies
   ui-tooltip.js       rich hover and long-press tips for every control (data-tip, data-key, data-toggle)
-  ui-library.js       the library drawer (or docked column): the scene gallery with filters and live hover
-                      previews, the component palette (works first, previews in the tips), snapshots
-  ui-timeline.js      transport and key lanes
+  ui-library.js       the library drawer (or a column with ⇥ Keep open): the scene gallery (easy scenes
+                      first, then by kind; level badges, filters, live hover previews; opens by itself
+                      until the `welcomed` preference is set; openScene starts playback), the parts
+                      palette (works first, previews in the tips), snapshots
+  ui-timeline.js      the time bar: play, the time in seconds, the ruler of seconds, loop, length, and the
+                      keyframe lanes; Brightness and Light to color (in the View menu)
   ui-export.js        export dialog
-  ui-toolbar.js       top bar, dialogs, keyboard shortcuts
+  ui-toolbar.js       top bar, dialogs (Help, Where these came from), keyboard shortcuts
   app.js              boot: restore the session, create the renderer, frame loop, window.equationStudio
   test-entry.js       minimal bundle entry used by the GPU test harness</code></pre>
 <h2 id="how-the-editor-fits-together">How the editor fits together</h2>
 <p><code>editor.js</code> owns a single <code>state</code> object
-(project, selection, view modes, playhead, preferences, interaction) and
-a tiny event bus. Panels subscribe to events and re-render themselves;
-they never call each other’s render functions directly:</p>
+(project, selection, what the side panel shows, view modes, playhead,
+preferences, interaction) and a tiny event bus. Panels subscribe to
+events and re-render themselves; they never call each other’s render
+functions directly:</p>
 <table>
 <colgroup>
 <col style="width: 33%" />
@@ -263,9 +289,11 @@ they never call each other’s render functions directly:</p>
 </tr>
 <tr>
 <td><code>selection</code></td>
-<td>the selected component changed</td>
-<td>component views, graph, pipeline, canvas, tracks, legend, panel
-width</td>
+<td>the selected component changed, or the side panel switched between
+the scene and a part (<code>setSelected()</code> shows the part,
+<code>showScene()</code> the scene)</td>
+<td>side panel, component views, graph, pipeline, canvas, tracks,
+legend, panel width</td>
 </tr>
 <tr>
 <td><code>view</code></td>
@@ -292,7 +320,7 @@ without a history entry</td>
 </tr>
 <tr>
 <td><code>time</code></td>
-<td>the playhead moved</td>
+<td>the playhead (the time) moved</td>
 <td>clock, lanes, live values</td>
 </tr>
 <tr>
@@ -310,6 +338,17 @@ without a history entry</td>
 <td>a persisted preference changed</td>
 <td>canvas labels, overlay, legend, panels</td>
 </tr>
+<tr>
+<td><code>tour</code></td>
+<td>the active step of a work’s How it works walk-through changed
+(<code>state.tour</code>, <code>setTour()</code>)</td>
+<td>side panel (scene and part views)</td>
+</tr>
+<tr>
+<td><code>playing</code></td>
+<td>playback started or stopped</td>
+<td>the scene panel’s Play button</td>
+</tr>
 </tbody>
 </table>
 <p>Every model change goes through
@@ -326,24 +365,37 @@ when the gesture ends (<code>endLiveEdit()</code>).</p>
 <p>The frame loop in <code>app.js</code> first calls
 <code>renderer.poll()</code> (background compilations, readbacks, GPU
 timers), then renders when <code>state.dirty</code> is set, refreshes
-the thumbnails when <code>state.previewsDirty</code> is set, updates the
-profile, and redraws the ruler overlay when
+the thumbnails when <code>state.previewsDirty</code> is set, updates
+Measure along a line, and redraws the ruler overlay when
 <code>state.overlayDirty</code> is set. <code>markDirty()</code> sets
-all three. The canvas draws <code>state.baseline</code> while the
-Original button is held and <code>state.preview</code> (an explorer
+all three. The canvas draws <code>state.baseline</code> while ◐ Hold to
+compare is held and <code>state.preview</code> (a sweep or Surprise me
 candidate) while one is hovered; otherwise the project in the current
 view. While the program for what is drawn is still compiling,
 <code>renderFrame()</code> keeps the last image and shows the compile
 indicator and progress cursor. <code>state.baseline</code> is the
 project as it was opened; loading a preset, file or snapshot replaces
-it, and undo and revert do not.</p>
+it, and undo and Start over (revert) do not.</p>
+<p>The side panel shows the whole scene or one part, as
+<code>state.panel</code> says (<code>'scene'</code> or
+<code>'part'</code>). Opening a scene with <code>loadProject()</code>
+sets it to <code>'scene'</code> and clears <code>state.tour</code> (undo
+and Start over keep both), <code>setSelected()</code> to
+<code>'part'</code>, and <code>showScene()</code> (the ‹ Whole scene
+button) back to <code>'scene'</code> without changing the selection, so
+the canvas views keep following the selected component.
+<code>SceneView</code> renders the scene from <code>sceneGuide()</code>
+(<code>ui-try.js</code>), the catalog and the works;
+<code>state.tour</code> (<code>{node, index}</code> or null) is the open
+step of a work’s walk-through, which both the scene panel and the part’s
+Code or Math tab show.</p>
 <p><code>ComponentView</code> renders one component from catalog
-metadata and the project; two instances can exist (the component panel,
-and a pop-out window, which has its own document). It renders only the
-active tab. It updates in place for <code>values</code> and
-<code>time</code> (numbers, plot, symbol values) so a drag never loses
-its pointer capture; everything else re-renders the view. Element ids
-used by the tests (<code>#nodeEnabled</code>, <code>#number-KEY</code>,
+metadata and the project; two instances can exist (the side panel, and a
+pop-out window, which has its own document). It renders only the active
+tab. It updates in place for <code>values</code> and <code>time</code>
+(numbers, plot, symbol values) so a drag never loses its pointer
+capture; everything else re-renders the view. Element ids used by the
+tests (<code>#nodeEnabled</code>, <code>#number-KEY</code>,
 <code>#param-KEY</code>, <code>#equationEditor</code>,
 <code>#applyEquation</code>, …) are stable.</p>
 <p>Tooltips are declarative: give an element
@@ -357,26 +409,26 @@ over <code>title</code> so tips are immediate, styled and
 consistent.</p>
 <h3 id="layouts">Layouts</h3>
 <p><code>src/style.css</code> is organized from the desktop layout down.
-The app is a column (top bar, layout, timeline, footer) filling the
+The app is a column (top bar, layout, time bar, footer) filling the
 window; the layout is a grid of the work area (canvas over the bottom
-panel) and the component panel, whose width is the
-<code>--panel-width</code> variable set by <code>ui-playground.js</code>
-(the remembered normal or wide width, or about a quarter or half of the
-window). The library is a fixed drawer unless
-<code>.library-docked</code> adds its column
-(<code>--library-width</code> by breakpoint). ≤ 1100 px hides the dock
-option; tablets held upright (701–1100 px, portrait) put the canvas
-across the full width with the pipeline and panel below; phones (≤ 700
-px) use one column with the canvas pinned on top, a tab bar choosing the
-panel and the transport pinned at the bottom;
-<code>(pointer: coarse)</code> enlarges touch targets and hides the
-pop-out button. The component view, the bottom panel’s bar and the
-canvas legend lay themselves out by their <strong>own</strong> width
-with container queries (<code>cview</code>, <code>graphbar</code>,
-<code>image</code>), so the same markup works in the panel, the
-Playground and a pop-out window. <code>tools/browser_check.py</code>
-checks that neither the tablet nor the phone layout scrolls sideways and
-that the bottom bar ends at the bottom of the screen.</p>
+panel) and the side panel, whose width is the <code>--panel-width</code>
+variable set by <code>ui-playground.js</code> (the remembered normal or
+wide width, or about a quarter or half of the window). The library is a
+fixed drawer unless <code>.library-docked</code> (⇥ Keep open) adds its
+column (<code>--library-width</code> by breakpoint). ≤ 1100 px hides the
+Keep open option; tablets held upright (701–1100 px, portrait) put the
+canvas across the full width with the parts strip and panel below;
+phones (≤ 700 px) use one column with the canvas pinned on top, a tab
+bar choosing the panel (About, Parts, Math, Wiring; it starts on About)
+and the time bar pinned at the bottom; <code>(pointer: coarse)</code>
+enlarges touch targets and hides the pop-out button. The component view,
+the bottom panel’s bar and the canvas legend lay themselves out by their
+<strong>own</strong> width with container queries (<code>cview</code>,
+<code>graphbar</code>, <code>image</code>), so the same markup works in
+the panel, the wide panel and a pop-out window.
+<code>tools/browser_check.py</code> checks that neither the tablet nor
+the phone layout scrolls sideways and that the bottom bar ends at the
+bottom of the screen.</p>
 <h2 id="conventions-for-the-bundler">Conventions for the bundler</h2>
 <p><code>tools/build.py</code> is a deliberately small bundler, not a
 JavaScript parser. Source modules must follow these rules or the
@@ -405,24 +457,27 @@ either is missing).</li>
 on every exported function and module that explains intent or
 non-obvious constraints rather than restating code. Keep the model
 modules free of DOM access so they stay testable in Node. Keep UI
-strings free of claims the research ledger does not support. Files use
-LF line endings (<code>.gitattributes</code>).</p>
+strings free of claims the research ledger does not support, and write
+them by the rules in <a href="#writing-for-the-app">Writing for the
+app</a>. Files use LF line endings (<code>.gitattributes</code>).</p>
 <h2 id="tests">Tests</h2>
 <div class="sourceCode" id="cb3"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> <span class="at">--test</span> tests/<span class="pp">*</span>.test.js                 <span class="co"># unit tests: catalog, compiler, expression, fork, formula, looks,</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># math, gpu-info, graph, explore, timeline, export, view, glsl</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># (shader code), encoders (GIF/APNG/MP4, stats, web page)</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/workflow_check.py             <span class="co"># editor workflows in Chromium: views, bypass without recompiling,</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># playground, pop-out, equations, fork, wiring, exports…</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/browser_check.py              <span class="co"># UI and layout checks, and the gallery screenshots</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_validate.py               <span class="co"># every preset, component and view on the GPU; raw fields against</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># the CPU reference; fork equivalence; program reuse</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_smoke.py                  <span class="co"># quick render of every preset to gallery/*.png</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/works_check.py <span class="at">--exact</span>        <span class="co"># every work: original vs twigl-style shader vs readable version,</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># p5 sketches vs a p5.js stand-in (bit-exact on SwiftShader)</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/compare_versions.py HEAD      <span class="co"># the twelve 1.x scenes rendered by a git revision and by the tree</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/perf_report.py                <span class="co"># docs/PERFORMANCE.json: compile, number drags, points, frame times</span></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="kw">(</span><span class="bu">cd</span> reference/nebula_rewrite <span class="kw">&amp;&amp;</span> <span class="ex">python3</span> <span class="at">-m</span> unittest discover <span class="at">-s</span> tests <span class="at">-v</span><span class="kw">)</span></span></code></pre></div>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># guides (every scene&#39;s story, level and Try this apply to it)</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/workflow_check.py             <span class="co"># editor workflows in Chromium: first visit, scene panel, Try this</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># and undo, views, bypass without recompiling, wide panel,</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># pop-out, equations, fork, wiring, time bar, View menu, exports…</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/browser_check.py              <span class="co"># UI and layout checks, and the screenshots in gallery/</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_validate.py               <span class="co"># every preset, component and view on the GPU; raw fields against</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># the CPU reference; fork equivalence; program reuse</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_smoke.py                  <span class="co"># quick render of every preset to gallery/*.png</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/works_check.py <span class="at">--exact</span>        <span class="co"># every work: original vs twigl-style shader vs readable version,</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>                                            <span class="co"># p5 sketches vs a p5.js stand-in (bit-exact on SwiftShader)</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/compare_versions.py HEAD      <span class="co"># the twelve 1.x scenes rendered by a git revision and by the tree</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/perf_report.py                <span class="co"># docs/PERFORMANCE.json: compile, number drags, points, frame times</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="kw">(</span><span class="bu">cd</span> reference/nebula_rewrite <span class="kw">&amp;&amp;</span> <span class="ex">python3</span> <span class="at">-m</span> unittest discover <span class="at">-s</span> tests <span class="at">-v</span><span class="kw">)</span></span></code></pre></div>
 <p>The browser suites load the built <code>index.html</code> into an
 in-memory page, so rebuild first. By default they use Chromium’s
 ANGLE/SwiftShader <strong>software</strong> backend, for measurements
@@ -437,7 +492,23 @@ text.</p>
 <p>Unit tests must stay dependency-free and fast; put pure logic in a
 DOM-free module so it can be tested there. When adding a UI feature, add
 a check to <code>workflow_check.py</code> that drives it through real
-events.</p>
+events. The suites drive the app through
+<code>window.equationStudio</code> (see <a
+href="ARCHITECTURE.md#reuse-the-renderer-without-the-editor">Architecture</a>):
+<code>openScene(id)</code> opens a scene as the gallery does (it starts
+playing), <code>loadProject(project)</code> opens one without playing,
+<code>showScene()</code> shows the whole scene in the side panel, and
+<code>getView().panel</code> (<code>'scene'</code> or
+<code>'part'</code>) and <code>getView().tour</code> report what the
+panel shows. A new page starts with the <code>welcomed</code> preference
+unset, so the gallery opens by itself; close it
+(<code>#libraryClose</code>) or open a scene first.</p>
+<p><code>browser_check.py</code> writes the screenshots used by the
+documentation, among them <code>studio-welcome.png</code> (the first
+visit), <code>studio-desktop.png</code> (the Vortex with its scene
+panel), <code>studio-scene.png</code> (the scene panel with Try this and
+a step of How it works open) and <code>studio-part.png</code> (a part
+explained).</p>
 <h2 id="regeneration-checklist">Regeneration checklist</h2>
 <p>Run in this order after changing source, documentation or assets:</p>
 <div class="sourceCode" id="cb4"><pre
@@ -448,7 +519,7 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> <span class="at">--test</span> <span class="at">--test-reporter</span><span class="op">=</span>tap tests/<span class="pp">*</span>.test.js <span class="op">&gt;</span> docs/NODE_TEST_RESULTS.txt <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span></span>
 <span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="kw">(</span><span class="bu">cd</span> reference/nebula_rewrite <span class="kw">&amp;&amp;</span> <span class="ex">python3</span> <span class="at">-m</span> unittest discover <span class="at">-s</span> tests <span class="at">-v</span> <span class="op">&gt;</span> ../../docs/CPU_TEST_RESULTS.txt <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span><span class="kw">)</span></span>
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/workflow_check.py          <span class="co"># docs/WORKFLOW_VALIDATION.json, tests/artifacts/*</span></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/browser_check.py           <span class="co"># gallery/studio-*.png</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/browser_check.py           <span class="co"># gallery/studio-*.png (the welcome gallery, scene panel, a part, …)</span></span>
 <span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/gpu_validate.py            <span class="co"># docs/GPU_VALIDATION.json, gallery/*.png (works at their thumbnail time)</span></span>
 <span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="va">EQUATION_STUDIO_HARDWARE_GPU</span><span class="op">=</span>1 <span class="ex">python3</span> tools/perf_report.py   <span class="co"># docs/PERFORMANCE.json on the GPU</span></span>
 <span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> tools/thumbnails.py              <span class="co"># src/thumbnails.js from gallery/*.png, then rebuild once more</span></span>
@@ -548,8 +619,13 @@ named variables, a <code>//</code> caption on every line; p5: the point
 formula in the equation language), the p5 <code>points</code> settings,
 a <code>summary</code>, a <code>tour</code> (<code>at</code> snippets of
 the readable code to highlight, optional <code>show</code> and
-<code>steps</code>), <code>concepts</code> and <code>tags</code>. A new
-idea goes into <code>src/concepts.js</code>.</li>
+<code>steps</code>), <code>concepts</code>, <code>tags</code>, a
+<code>level</code> (<code>easy</code>, <code>medium</code> or
+<code>expert</code>: how much there is to take in) and three to five
+<code>try</code> challenges (the actions are listed at the top of
+<code>works.js</code>). Every sentence follows <a
+href="#writing-for-the-app">Writing for the app</a>. A new idea goes
+into <code>src/concepts.js</code>.</li>
 <li><code>node --test tests/*.test.js</code> checks that both versions
 parse and that their loops have the same lengths.</li>
 <li><code>python3 tools/works_check.py --exact --only ID</code> must
@@ -561,6 +637,155 @@ quick hardware render), run <code>tools/thumbnails.py</code>,
 <code>ATTRIBUTION.md</code> and the research ledger’s notes if its
 status differs.</li>
 </ol>
+<p>A new construction gets its guide in <code>guides</code> in
+<code>src/presets.js</code> (<code>about</code>, <code>level</code>,
+<code>try</code>, with <code>node</code> in each action and
+<code>hide</code> to switch a part off), written by the same rules.</p>
+<h2 id="writing-for-the-app">Writing for the app</h2>
+<p>Every text the app shows is written for one reader: a curious
+thirteen-year-old who likes the animation and wants to know how it
+works. That covers the work summaries, walk-through steps and code
+captions, the parts’ descriptions, step captions and setting help, the
+big ideas, the scene guides, the Try this challenges and the tooltips.
+The reader knows multiplication, negative numbers and what a coordinate
+(x, y) is, and may have heard of sine as “a wave”. They do not know
+words such as shader, GLSL, uniform, fragment, raymarch, distance field,
+radiance, premultiplied, float, vec2/vec3/vec4, index, domain, kernel,
+port, octave, fbm or SDF, and they do not know polar coordinates or what
+tanh, mod, fract and atan do. Explain these in plain words where they
+appear.</p>
+<h3 id="rules">Rules</h3>
+<ol type="1">
+<li>Write full sentences, with a subject, a verb and an object. No
+telegraph style, and no strings of noun phrases joined by colons and
+semicolons.</li>
+<li>Put one idea in each sentence. Short sentences are fine; hurried
+fragments are not.</li>
+<li>Say what you <strong>see</strong> first, then how the math makes it.
+“The bell pulses because…” beats “12·sin(2.6d − t) moves each
+ring”.</li>
+<li>Explain every technical word the first time it is used, in the same
+sentence or the next: “atan gives the angle of the pixel around the
+center (like the hand of a clock)”.</li>
+<li>Use concrete numbers and everyday comparisons: like the hand of a
+clock, like a scan line on an old TV, like stacking tracing paper.</li>
+<li>Give a symbol, then say what it is: “d, the distance from the top of
+the bell”. Keep formulas small, and never put one in a sentence without
+saying what it means.</li>
+<li>Be friendly and direct, in the second person where it is natural:
+“Try dragging…”, “You will see…”.</li>
+<li>No hedging jargon (“interpretive”, “structural”, “decomposed”, “at
+defaults”).</li>
+<li>Use American spelling: color, center.</li>
+<li>Keep the facts exact. Do not invent behavior; when unsure, describe
+literally what the code does.</li>
+<li>Keep to these lengths: a summary has 4–7 sentences and a
+walk-through step 2–5. A code caption is one short sentence, or a clear
+phrase that reads as one (“Count the rows: y goes up by 1 every 99
+dots.”).</li>
+<li>Write numbers for people: 20,000 in prose, not 20000 or 2e4, and
+seconds with “s” or “seconds”.</li>
+</ol>
+<h3 id="examples">Examples</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>a slow second index: 0 to 202 over the 20000 points</td>
+<td>y counts rows: it goes up by 1 every 99 dots, so over all 20,000
+dots it climbs from 0 to about 202.</td>
+</tr>
+<tr>
+<td>Exact structural port at defaults. Ordered soft first-hit selection
+produces S (texture coordinate), A (emission rim), and coverage.</td>
+<td>This part builds the shape of the nebula: a stack of thin, glowing
+shells pinched in the middle like an hourglass. For every pixel it finds
+the first shell in front of it and reports where on that shell the pixel
+lands (S) and how brightly its rim glows (A).</td>
+</tr>
+<tr>
+<td>Light 1/l with l the distance to the arc is huge on the arc and
+fades smoothly, a classic glow.</td>
+<td>The glow comes from one division: brightness = 1 ÷ distance. Right
+on the arc the distance is tiny, so the brightness is huge; a little
+farther away it drops quickly. That is what makes the arcs look like
+neon tubes.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="words-and-colors-in-the-interface">Words and colors in the
+interface</h3>
+<p>The interface uses the same words everywhere: <em>parts</em>
+(components), <em>settings</em> (parameters), <em>the parts strip</em>
+(the pipeline), <em>switching a part off</em> (bypassing), <em>the
+time</em> and <em>the time bar</em> (the playhead and timeline), and the
+views <em>Whole picture</em>, <em>Just this part</em>, <em>What this
+part adds</em> and <em>What moves</em>. Code, ids and file formats keep
+the model’s names; anything a user reads uses these words. A tooltip
+(<code>data-tip="Heading|Body"</code>) names the control as its label
+does and says in a full sentence what it does.</p>
+<p>Colors mean the same thing everywhere, so use them only for their
+meaning when you add UI:</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Color</th>
+<th>CSS</th>
+<th>Means</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>orange</td>
+<td><code>--change</code>, <code>.sym-par</code>,
+<code>.c-num</code></td>
+<td>something you can change</td>
+<td>sliders, draggable numbers in code, setting letters in math, Try
+this</td>
+</tr>
+<tr>
+<td>pink</td>
+<td><code>--time</code>, <code>.sym-tm</code></td>
+<td>time</td>
+<td>t, the play button, the time bar, keyframes ◆ once set, What
+moves</td>
+</tr>
+<tr>
+<td>blue</td>
+<td><code>--where</code>, <code>.sym-in</code></td>
+<td>what comes into a part</td>
+<td>input letters in math, like where the pixel is</td>
+</tr>
+<tr>
+<td>green</td>
+<td><code>--result</code>, <code>.sym-out</code></td>
+<td>what a part makes</td>
+<td>outputs, the final picture, checks that passed</td>
+</tr>
+</tbody>
+</table>
+<p>Selection, tabs and menus stay neutral gray and white
+(<code>--active-bg</code>, <code>--active-line</code>); never use the
+four colors for decoration or for “selected”. The type colors of the
+Wiring view (<code>--coord</code>, <code>--scalar</code>,
+<code>--geometry</code>, <code>--layer</code>) only mark what kind of
+value a socket carries.</p>
 <h2 id="releasing">Releasing</h2>
 <p>Bump <code>version</code> in <code>package.json</code>, add a section
 to <a href="../CHANGELOG.html">CHANGELOG.md</a>, run the regeneration

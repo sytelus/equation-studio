@@ -1,7 +1,7 @@
 {
   "id": "ring",
   "title": "Filament ring",
-  "description": "Replace only the geometry node, then reuse the source nebula’s turbulence, filaments, central glow and stars.",
+  "description": "The bipolar nebula with only its shape part swapped for an oval ring, and every other part reused.",
   "status": "Component remix",
   "schemaVersion": 1,
   "nodes": [

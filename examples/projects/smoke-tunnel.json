@@ -1,7 +1,7 @@
 {
   "id": "smoke-tunnel",
   "title": "Smoke tunnel",
-  "description": "The same log-spherical flight as the Cloud cave, with a different turbulence (a sine of a dot product of shuffled sines and cosines) that folds into thin wisps, and a camera that sways with cos(t). By Yohei Nishitsuji (@YoheiNishitsuji).",
+  "description": "You rush through a tunnel of swirling white smoke, full of thin, twisting wisps, while the whole tunnel sways gently back and forth. By Yohei Nishitsuji (@YoheiNishitsuji).",
   "status": "Reproduction · original code",
   "schemaVersion": 1,
   "nodes": [
@@ -21,7 +21,7 @@
         "p": "space"
       },
       "params": {
-        "code": "// Smoke tunnel · Yohei Nishitsuji (@YoheiNishitsuji), 8 Mar 2025 · readable version, same image\nfloat dist, R, freq;\nvec3 ray, p, dir = vec3(FC.xy/r - vec2(.6, .5), .7);   // the ray of this pixel, looking a little to the left\nray.zx--;                             // the camera stands at x = −1, z = −1\nfor (float i = 0.; i++ < 99.;) {      // march 99 steps\n  o.rgb += hsv(.1, .2, min(dist*freq, .7 - dist)/35.);   // warm white rim light from the last step\n  freq = 1.;\n  p = ray += dir*dist*R*.1;           // step forward, growing with the distance R from the center\n  // log-spherical coordinates: flying in by one octave of R per second, the angle swaying with cos t\n  p = vec3(log2(R = length(p)) - t, exp(1. - p.z/R), atan(p.y, p.x) + cos(t)*.2);\n  for (dist = --p.y; freq < 3e2; freq += freq)   // the smoke surface …\n    dist += sin(dot(sin(p.zxy*freq) - .5, 1. - cos(p.yxz*freq)))/freq;   // … with 9 octaves of swirling turbulence\n}",
+        "code": "// Smoke tunnel · Yohei Nishitsuji (@YoheiNishitsuji), 8 Mar 2025 · readable version, same image\nfloat dist, R, freq;                  // The distance to the smoke, the distance from the center, and a ripple frequency.\nvec3 ray, p, dir = vec3(FC.xy/r - vec2(.6, .5), .7);   // This pixel's ray direction, turned a little to the left.\nray.zx--;                             // The camera starts at x = −1, z = −1.\nfor (float i = 0.; i++ < 99.;) {      // March 99 steps along the ray\n  o.rgb += hsv(.1, .2, min(dist*freq, .7 - dist)/35.);   // Warm white light, strongest just outside the smoke (from the last step).\n  freq = 1.;                          // The ripples start at frequency 1.\n  p = ray += dir*dist*R*.1;           // Step forward; the steps grow with R, the distance from the center.\n  // New coordinates: log₂R − t (flying inward), a height from the angle to the z axis, and the angle around it (swaying with cos t).\n  p = vec3(log2(R = length(p)) - t, exp(1. - p.z/R), atan(p.y, p.x) + cos(t)*.2);\n  for (dist = --p.y; freq < 3e2; freq += freq)   // Add 9 layers of swirling ripples\n    dist += sin(dot(sin(p.zxy*freq) - .5, 1. - cos(p.yxz*freq)))/freq;   // Each layer: twice the frequency, half the height, axes shuffled.\n}",
         "speed": 1,
         "phase": 0,
         "steps1": 99,

@@ -1,7 +1,7 @@
 {
   "id": "point-twins",
   "title": "Circling twins",
-  "description": "The same polar construction, with a twist: (i % 2)·9 adds 9 radians to every odd point, so the even and odd points form two copies of the creature, about 1.4 turns apart, circling together. By ア (@yuruyurau).",
+  "description": "Two lacy creatures chase each other around the center of the picture, their bodies rippling with frills. By ア (@yuruyurau).",
   "status": "Reproduction · original code",
   "schemaVersion": 1,
   "nodes": [
@@ -32,7 +32,7 @@
         "p": "space"
       },
       "params": {
-        "expression": "// Circling twins · ア (@yuruyurau), 18 Sep 2026 · the point formula of the p5.js sketch\ny = i/638                             // a slow second index: 0 to 31 over the 20000 points\nk = (3 + cos(y))*sin(i/7) + 1e-4      // across the body: a fast swing every 44 points (never exactly 0)\ne = y/5 - 9                           // along the body\nd = length(vec2(k, e)) - 3            // where along the body the point is\nq = 99 + 3*sin(k*3) - d*d*sin(t - d) + y/13*k*(e + sin(d*d - t*3))   // distance from the center: ripples, a wave along the body, frills\nc = d/3 - t/4 + (i % 2)*9 + k*k/89    // angle: odd points are turned by 9 radians, so two twins circle together\nvec2(q*sin(c) + 200, q*cos(c) + 200)  // polar to sketch pixels around the center",
+        "expression": "// Circling twins · ア (@yuruyurau), 18 Sep 2026 · where the sketch puts dot number i\ny = i/638                             // y counts slowly: it goes up by 1 every 638 dots, reaching about 31.\nk = (3 + cos(y))*sin(i/7) + 1e-4      // k swings fast from side to side, once every 44 dots; + 0.0001 keeps it from being exactly 0.\ne = y/5 - 9                           // e turns y into a number from −9 to about −2.7.\nd = length(vec2(k, e)) - 3            // d says where along the body the dot sits: from about 0 to 7.\nq = 99 + 3*sin(k*3) - d*d*sin(t - d) + y/13*k*(e + sin(d*d - t*3))   // q is the distance from the center: about 99 pixels, plus ripples, a wave along the body, and frills.\nc = d/3 - t/4 + (i % 2)*9 + k*k/89    // c is the angle: odd dots (i % 2 = 1) are turned 9 radians further, which makes the twin.\nvec2(q*sin(c) + 200, q*cos(c) + 200)  // Turn the distance q and the angle c into a place around the center (200, 200).",
         "count": 20000,
         "size": 1,
         "color": "#ffffff",

@@ -86,8 +86,8 @@ function imageSection(v, n) {
     }
     const h = s.histogram, bins = h.counts.length, label = s.type === 'layer' ? 'brightness' : s.type === 'coord' ? 'length |q|' : s.type === 'geometry' ? 'rim A' : 'value';
     const plot = plotSVG({ series: [{ bars: h.counts.map((c, k) => [h.lo + (k + 0.5) * (h.hi - h.lo) / bins, c / (s.size[0] * s.size[1])]) }], domain: [h.lo, h.hi], xLabel: label, yLabel: 'share of pixels', height: 120 });
-    const body = `<p class="node-caption">Measured on ${s.size[0]} × ${s.size[1]} samples of ${esc(what)} at t = ${s.time.toFixed(2)} s, before display conversion.</p><table class="stats-table"><thead><tr><th></th><th>min</th><th>mean</th><th>max</th><th>spread</th></tr></thead><tbody>${rows}</tbody></table>${notes.length ? `<p class="stats-notes">${notes.join(' · ')}</p>` : ''}<div class="stats-plot">${plot}</div>`;
-    const tools = '<button class="link" data-action="measure-image" data-tip="Measure again|Measure at the current playhead and settings.">↻</button>';
+    const body = `<p class="node-caption">Measured on ${s.size[0]} × ${s.size[1]} samples of ${esc(what)} at t = ${s.time.toFixed(2)} s, before they are turned into screen colors.</p><table class="stats-table"><thead><tr><th></th><th>min</th><th>mean</th><th>max</th><th>spread</th></tr></thead><tbody>${rows}</tbody></table>${notes.length ? `<p class="stats-notes">${notes.join(' · ')}</p>` : ''}<div class="stats-plot">${plot}</div>`;
+    const tools = '<button class="link" data-action="measure-image" data-tip="Measure again|Measure at the current time and settings.">↻</button>';
     return v.section('values', 'VALUES', body, { tools, tip: 'Values|What the numbers are, not just their colors: the range and average of each channel, and how they are distributed (the histogram). “Spread” is the standard deviation.' });
 }
 function pointsSection(v, n) {
@@ -120,7 +120,7 @@ function loopSection(v, n) {
                 : `<p class="stats-verdict warn" data-tip="A jump|The last frame differs from the first ${fmt(r.report.seam / Math.max(r.report.typical, 1e-9))} times as much as neighbouring frames do. Make the duration a whole number of the motion's periods (often 2π s).">⚠ The loop jumps: the end differs from the beginning ${fmt(r.report.seam / Math.max(r.report.typical, 1e-9))}× more than neighbouring frames.</p>`;
         body = `${verdict}<div class="stats-plot">${mean}</div><div class="stats-plot">${motion}</div><p class="node-caption">${LOOP_FRAMES + 1} frames of ${r.size[0]} × ${r.size[1]} samples. Peaks in the change show when things move fastest.</p>`;
     }
-    const tools = `<button class="link" data-action="measure-loop" ${r?.running ? 'disabled' : ''} data-tip="Measure the loop|Renders the component at ${LOOP_FRAMES + 1} moments of the timeline (small, a few seconds at most).">▶ Measure</button>`;
+    const tools = `<button class="link" data-action="measure-loop" ${r?.running ? 'disabled' : ''} data-tip="Measure the loop|Renders the part at ${LOOP_FRAMES + 1} moments of the timeline (small, a few seconds at most).">▶ Measure</button>`;
     return v.section('loopstats', 'OVER THE LOOP', body, { tools, tip: 'Over the loop|How the output evolves through the timeline, and whether the animation loops without a visible jump.' });
 }
 async function measureLoop(v, n) {
@@ -164,7 +164,7 @@ function codeSection(v, n) {
     }
     else {
         const rows = r.rows.map(row => `<tr><th class="mono" data-tip="${esc(row.name)}|${esc(row.where)}">${esc(row.name)}</th>${row.channels.map(c => `<td>${fmt(c.min)} … ${fmt(c.max)}</td>`).join('')}${'<td></td>'.repeat(Math.max(0, 2 - row.channels.length))}<td>${fmt(row.channels[0].mean)}</td></tr>`).join('');
-        body = `<table class="stats-table vars"><thead><tr><th>value</th><th>range (x)</th><th>(y …)</th><th>mean</th></tr></thead><tbody>${rows}</tbody></table><p class="node-caption">Over ${r.size[0]} × ${r.size[1]} samples at t = ${r.time.toFixed(2)} s, after the loops (as far as their sliders let them run). For a vector the columns are its first components.</p>`;
+        body = `<table class="stats-table vars"><thead><tr><th>value</th><th>range (x)</th><th>(y …)</th><th>mean</th></tr></thead><tbody>${rows}</tbody></table><p class="node-caption">Over ${r.size[0]} × ${r.size[1]} samples at t = ${r.time.toFixed(2)} s, after the loops (as far as their sliders let them run). For a vector the columns are its first parts.</p>`;
     }
     const tools = `<button class="link" data-action="measure-vars" ${r?.running ? 'disabled' : ''} data-tip="Measure the variables|One small render per variable (${showable(analysis).length} in all).">▶ Measure</button>`;
     return v.section('varstats', 'INSIDE THE CODE', body, { tools, tip: 'Inside the code|The values the code computes along the way: the depth a raymarcher reached, the distance it ended at, the scale of a fractal, how many steps each loop took.' });
@@ -196,7 +196,7 @@ function costSection(v, n) {
     const r = v.ui.stats?.cost;
     let body;
     if (!r) {
-        body = '<p class="node-caption">Time how long the GPU takes to draw each component’s view at the canvas size. The page pauses for a moment while it measures.</p>';
+        body = '<p class="node-caption">Time how long the graphics chip (GPU) takes to draw each part’s view at the canvas size. The page pauses for a moment while it measures.</p>';
     }
     else {
         const max = Math.max(...Object.values(r.times), 1e-6);
@@ -207,10 +207,10 @@ function costSection(v, n) {
             }
             return `<tr class="${id === n.id ? 'self' : ''}"><th>${esc(node.label)}</th><td>${r.times[id].toFixed(2)} ms</td><td>${r.own[id].toFixed(2)} ms</td><td class="bar-cell"><span class="cost-bar" style="width:${(r.own[id] / max * 100).toFixed(1)}%"></span></td></tr>`;
         }).join('');
-        body = `<table class="stats-table cost"><thead><tr><th>component</th><th data-tip="With its inputs|Drawing this component’s view, which also computes everything it reads.">view</th><th data-tip="Own|The view’s time minus the slowest of its inputs: roughly what this component itself costs.">own</th><th></th></tr></thead><tbody>${rows}</tbody></table><p class="node-caption">At ${r.size[0]} × ${r.size[1]} pixels on ${esc(state.renderer.info.gpu?.name || state.renderer.info.renderer)}. ${r.frameRate}</p>`;
+        body = `<table class="stats-table cost"><thead><tr><th>part</th><th data-tip="With its inputs|Drawing this part’s view, which also computes everything it reads.">view</th><th data-tip="Own|The view’s time minus the slowest of its inputs: roughly what this part itself costs.">own</th><th></th></tr></thead><tbody>${rows}</tbody></table><p class="node-caption">At ${r.size[0]} × ${r.size[1]} pixels on ${esc(state.renderer.info.gpu?.name || state.renderer.info.renderer)}. ${r.frameRate}</p>`;
     }
-    const tools = '<button class="link" data-action="measure-cost" data-tip="Measure GPU time|Draws each component’s view a few times and times it. Blocks the page for a moment.">⏱ Measure</button>';
-    return v.section('cost', 'GPU TIME', body, { tools, tip: 'GPU time|Where the time of a frame goes. The final image costs what all its components cost; a slow component can be sped up by its parameters (fewer loop steps, fewer octaves) or a lower preview resolution.' });
+    const tools = '<button class="link" data-action="measure-cost" data-tip="Measure GPU time|Draws each part’s view a few times and times it. Blocks the page for a moment.">⏱ Measure</button>';
+    return v.section('cost', 'GPU TIME', body, { tools, tip: 'GPU time|Where the time of a frame goes. The final image costs what all its parts cost; a slow part can be sped up by its parameters (fewer loop steps, fewer octaves) or a lower preview resolution.' });
 }
 function measureCost(v, n) {
     const renderer = state.renderer, project = state.project, canvas = renderer.canvas, size = [canvas.width, canvas.height];

@@ -87,7 +87,8 @@ on('refresh', () => {
     $('projectTitle').value = state.project.title;
     document.title = `${state.project.title} · Equation Studio`;
     $('projectTitle').size = Math.max(8, Math.min(34, state.project.title.length + 1)); // the provenance label follows the title
-    $('counts').textContent = `${state.project.nodes.length} components · ${state.project.tracks.length} tracks`;
+    const keys = state.project.tracks.length;
+    $('counts').textContent = `${state.project.nodes.length} parts${keys ? ` · ${keys} setting${keys === 1 ? '' : 's'} with keyframes` : ''}`;
 });
 /** Show the selected component's stage or effect, or return to the final image. */
 function toggleView(mode) {

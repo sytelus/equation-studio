@@ -1,16 +1,30 @@
-import { $, esc, state, on, transact, history, changed, markDirty, pause, seek, setSelected, clamp } from './editor.js';
+import { $, esc, state, on, emit, transact, history, changed, markDirty, pause, seek, setSelected, clamp } from './editor.js';
 import { clone } from './graph.js';
 import { moveKey } from './timeline.js';
 /** Bottom strip: transport, playhead, duration, output conversion and the
  * keyframe lanes (click a lane to seek, drag a key to move it in time).
  */
 export function updateClock() {
-    $('clock').textContent = state.time.toFixed(3).padStart(6, '0');
+    $('clock').textContent = `${state.time.toFixed(2)} s`;
     $('scrubber').value = state.time;
     document.querySelectorAll('.track-playhead, .film-playhead').forEach(el => el.style.left = `${state.time / state.project.duration * 100}%`);
 }
+/** The ruler under the time bar: round seconds (every 1, 2, 5, … s, at most nine
+ * labels), placed where those moments are on the bar and in the frames above it. */
+function renderAxis(duration) {
+    const step = [0.5, 1, 2, 5, 10, 15, 30, 60].find(s => duration / s <= 8) ?? 60;
+    const labels = [];
+    for (let t = 0; t <= duration + 1e-9; t += step) {
+        labels.push(`<span style="left:${(t / duration * 100).toFixed(3)}%">${Number(t.toFixed(1))} s</span>`);
+    }
+    if (duration - (labels.length - 1) * step > step * 0.4) {
+        labels.push(`<span style="left:100%">${Number(duration.toFixed(2))} s</span>`);
+    }
+    $('timeAxis').innerHTML = labels.join('');
+}
 function refreshTransport() {
     const project = state.project;
+    renderAxis(project.duration);
     $('duration').value = project.duration;
     $('scrubber').max = project.duration;
     $('outputTone').value = project.tone;
@@ -41,6 +55,7 @@ export function togglePlay() {
     state.frameStamp = performance.now();
     $('play').textContent = 'Ⅱ';
     $('play').setAttribute('aria-label', 'Pause animation');
+    emit('playing');
 }
 /** Step the playhead by whole frames at the export frame rate. */
 export function stepFrames(count, fps = 24) {

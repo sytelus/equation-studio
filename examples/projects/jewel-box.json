@@ -1,7 +1,7 @@
 {
   "id": "jewel-box",
   "title": "Folded jewel box",
-  "description": "A Mandelbox-style fractal: 20 times, space is folded back into a box (2·clamp(p) − p reflects anything outside it) and inverted through the sphere. By yonatan (@zozuar).",
+  "description": "Ornaments that look like carved beads, gold studs and striped cushions fill the view as the camera slowly circles through them. By yonatan (@zozuar).",
   "status": "Reproduction · original code",
   "schemaVersion": 1,
   "nodes": [
@@ -21,7 +21,7 @@
         "p": "space"
       },
       "params": {
-        "code": "// Folded jewel box · yonatan (@zozuar), 3 May 2024 · readable version, same image\nvec3 box = vec3(.2, .4, 1.5), p;      // half-size of the folding box along x, y and z\nvec2 uv = (FC.xy - .5*r)/r.y;\nfor (float i, dist, depth, scale, r2; i++ < 50.;) {   // march 50 steps\n  p = vec3(uv*depth, depth) - i/3e4;  // the point on the ray (a tiny shift per step softens banding)\n  mat2 M = rotate2D(t/8.);            // a slow turn\n  p.yz *= M*M;                        // turn about x by twice the angle …\n  p--;                                // … move …\n  p.yx *= M;                          // … and turn about z: the camera orbits\n  scale = 5.;\n  for (int j = 0; j++ < 20; p /= r2) {   // 20 folds of a Mandelbox-like fractal\n    p = 2.*clamp(p, -box, box) - p;   // box fold: whatever sticks out of the box is reflected back in\n    scale /= r2 = dot(p, p);          // sphere inversion (p /= r2 after each fold), tracking the total scale\n  }\n  depth -= dist = p.z/scale;          // step by the folded z, corrected by the scale\n  o += exp(dist*5e3 - sin(vec4(4, 3, 2, 0)*p.z - log(scale)))/50.;   // light near the surface, colored by the fold (p.z) and the scale\n}",
+        "code": "// Folded jewel box · yonatan (@zozuar), 3 May 2024 · readable version, same image\nvec3 box = vec3(.2, .4, 1.5), p;      // Half the size of the folding box along x, y and z.\nvec2 uv = (FC.xy - .5*r)/r.y;         // The pixel's direction: 0 in the center, and the image is 1 high.\nfor (float i, dist, depth, scale, r2; i++ < 50.;) {   // March 50 steps along the ray\n  p = vec3(uv*depth, depth) - i/3e4;  // The point on the ray, shifted a tiny bit more at every step.\n  mat2 M = rotate2D(t/8.);            // A slow turn by t/8 radians.\n  p.yz *= M*M;                        // Turn around the x axis by twice that angle, …\n  p--;                                // … shift by 1 along every axis, …\n  p.yx *= M;                          // … and turn around the z axis: the camera circles.\n  scale = 5.;                         // Start at 5, which makes every step 5 times more careful.\n  for (int j = 0; j++ < 20; p /= r2) {   // Fold space 20 times\n    p = 2.*clamp(p, -box, box) - p;   // Box fold: whatever sticks out of the box is mirrored back in.\n    scale /= r2 = dot(p, p);          // Then turn space inside out (p /= r2 ends each pass); scale tracks the stretching.\n  }\n  depth -= dist = p.z/scale;          // Move along the ray by the folded z, divided by the total stretching.\n  o += exp(dist*5e3 - sin(vec4(4, 3, 2, 0)*p.z - log(scale)))/50.;   // Light only near a surface, colored by the folded z and the stretching.\n}",
         "speed": 1,
         "phase": 0,
         "steps1": 50,

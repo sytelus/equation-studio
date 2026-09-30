@@ -1,7 +1,7 @@
 {
   "id": "cloud-mountains",
   "title": "Cloud mountains",
-  "description": "Log-spherical space again, now with the turbulence starting at frequency 5, so the octaves read as ridges and cliffs: a mountain range of cloud. By Yohei Nishitsuji (@YoheiNishitsuji).",
+  "description": "Jagged mountains of cloud tower up in sepia brown and white, slowly rising and sinking as if the landscape were breathing. By Yohei Nishitsuji (@YoheiNishitsuji).",
   "status": "Reproduction · original code",
   "schemaVersion": 1,
   "nodes": [
@@ -21,7 +21,7 @@
         "p": "space"
       },
       "params": {
-        "code": "// Cloud mountains · Yohei Nishitsuji (@YoheiNishitsuji), 27 Feb 2026 · readable version, same image\nfloat dist, R, freq;\nvec3 ray, p, dir = vec3(FC.xy/r*.6 - vec2(.3, -.6), .5);   // the ray of this pixel, looking up\nray.zy--;                             // the camera stands at y = −1, z = −1\nfor (float i = 0.; i++ < 97.;) {      // march 97 steps\n  o.rgb += hsv(.1, dist, min(dist*freq, 1.)/95.);   // sepia light: saturated where far from the surface, white on it\n  freq = 5.;\n  p = ray += dir*dist*R*.4;           // step forward, growing with the distance R from the center\n  // log-spherical coordinates: zooming in slowly, the height breathing with sin t\n  p = vec3(log(R = length(p)) - t*.5, exp(-p.z/R) + sin(t)*.07 + .2, atan(p.y, p.x));\n  for (dist = --p.y; freq < 1e3; freq += freq)   // the mountain surface …\n    dist += dot(sin(p.zxx*freq), .4 - cos(p.yyz*freq))/freq*.3;   // … with 8 octaves (frequency 5 to 640)\n}",
+        "code": "// Cloud mountains · Yohei Nishitsuji (@YoheiNishitsuji), 27 Feb 2026 · readable version, same image\nfloat dist, R, freq;                  // The distance to the mountains, the distance from the center, and a ripple frequency.\nvec3 ray, p, dir = vec3(FC.xy/r*.6 - vec2(.3, -.6), .5);   // This pixel's ray direction, tilted steeply upward.\nray.zy--;                             // The camera starts at y = −1, z = −1.\nfor (float i = 0.; i++ < 97.;) {      // March 97 steps along the ray\n  o.rgb += hsv(.1, dist, min(dist*freq, 1.)/95.);   // Sepia light far from the surface, almost white close to it (from the last step).\n  freq = 5.;                          // The ripples start at frequency 5.\n  p = ray += dir*dist*R*.4;           // Step forward; the steps grow with R, the distance from the center.\n  // New coordinates: log R − 0.5t (flying slowly inward), a height from the angle to the z axis that breathes with sin t, and the angle around the z axis.\n  p = vec3(log(R = length(p)) - t*.5, exp(-p.z/R) + sin(t)*.07 + .2, atan(p.y, p.x));\n  for (dist = --p.y; freq < 1e3; freq += freq)   // Add 8 layers of sharp ridges\n    dist += dot(sin(p.zxx*freq), .4 - cos(p.yyz*freq))/freq*.3;   // Each layer: twice the frequency (5 up to 640), half the height.\n}",
         "speed": 1,
         "phase": 0,
         "steps1": 97,

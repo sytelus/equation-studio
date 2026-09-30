@@ -1,7 +1,7 @@
 {
   "id": "marble",
   "title": "Living mineral",
-  "description": "Coordinate warp → nested wave bands → palette. Five small nodes, no bespoke scene renderer.",
+  "description": "Wavy stripes pushed around by a slow wobble look like polished marble, made from just four parts.",
   "status": "Component remix",
   "schemaVersion": 1,
   "nodes": [

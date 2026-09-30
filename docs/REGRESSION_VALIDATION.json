@@ -1,6 +1,6 @@
 {
-  "date": "2026-09-26",
-  "revision": "056a474 (Equation Studio 1.3.0 and 1.4.0: explained and editable equations, clearer layout)",
+  "date": "2026-09-28",
+  "revision": "d2da1ab (Equation Studio 2.0.0: animations as code, point clouds, index.html)",
   "backend": "ANGLE / SwiftShader software backend",
   "identical": true,
   "renders": [

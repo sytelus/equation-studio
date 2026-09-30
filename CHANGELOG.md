@@ -1,5 +1,39 @@
 # Changelog
 
+## 2.1.0 — 28 September 2026
+
+Clarity release for newcomers: the studio was reviewed through the eyes of a curious thirteen-year-old, and the layout, the colors, the words and every explanation were reworked so that a first visit makes sense without help. Scenes, projects and renders are unchanged; the full review, with a table of every problem found and what was done about it, is in [UX review](docs/UX_REVIEW.md).
+
+### A scene tells its story
+
+- **About this scene**: opening a scene no longer lands on one of its parts ("Step 3 of 4"). The panel shows the whole scene: what you are seeing, who made it, a difficulty badge, **Try this** challenges, **How it works** step by step, the parts it is built from (each with a small picture and one plain line) and the big ideas it uses. Choosing a part opens it, and **‹ Whole scene** goes back.
+- **Try this**: every scene has three to five challenges ("Use only 2,000 dots. Can you still see the jellyfish?"). One click makes the change, the animation plays so it shows, and Undo takes it back. Tried ones are ticked.
+- **How it works** lives in the scene panel: a step opens with its explanation and the lines of code it is about, and the picture shows what the step is about (a value of the code, or a loop stopped early). "See it in the whole code" opens the part with the same lines highlighted.
+- The gallery opens by itself on the first visit, **easy scenes first**, with a difficulty badge on every card (Easy, Medium, Expert) and loop lengths people can read (6.3 s, not 6.283 s loop). A scene opened from the gallery **starts playing**.
+
+### Colors that mean something
+
+- The same four colors mean the same thing everywhere: **orange** is something you can change (sliders, the numbers in code, the letters in math, Try this), **pink** is time (t, the play button, the time bar, keyframes, What moves), **blue** is what comes into a part (like where the pixel is), **green** is what a part makes. Selection, tabs and menus are neutral, so color is never decoration.
+- The math says it in a sentence above the steps ("Reading the colors: blue letters come in…"), instead of a legend of four dots below them.
+
+### Plain words, bigger picture
+
+- Parts, settings, "Whole picture · Just this part · What this part adds · What moves", "Start over", "Hold to compare", "Math", "Big ideas", "Connections", "Measure": every label was renamed to what it does. The Help page is a short "How to use Equation Studio" in six parts.
+- The **time bar** reads in seconds (2.54 s), has the frames directly under it and a ruler in whole seconds (0 s, 5 s, 10 s): the unexplained numbers under the frames are gone.
+- Rulers and grid are off by default; display options (rulers, grid, measuring, brightness, light to color, sharpness, frames, snapshot) moved into one **View ▾** menu above the picture. The parts strip is compact, so the picture gets more room.
+- Every part says what it makes ("makes a picture", "makes numbers"), and settings come before the math in its panel. One line explains the small buttons of a setting (↺ put back, ▦ many values at once, ◆ remember this value now). ✦ Variations is **🎲 Surprise me**.
+- Clicking the picture always pins a reading (it needed the rulers before), so Look inside can read values at any point.
+
+### Every explanation rewritten
+
+- All eighteen works (summaries, walk-through steps and code captions), the 45 parts (descriptions, 87 step captions, 119 setting explanations), the 47 big ideas, the 12 scene guides and the code tooltips were rewritten in full, friendly sentences for a curious thirteen-year-old: what you see first, then how the math makes it, every word explained where it is first used. The rules are in the [Development guide](docs/DEVELOPMENT.md#writing-for-the-app).
+- Facts were checked against the formulas while rewriting, and several old explanations were corrected (for example: in Point jellyfish, d is smallest in the middle of the sheet of dots, which becomes the top of the bell, not "1 at the top"; the zoom card's log R grows by about 0.69 per doubling, not 1). The review lists them all.
+
+### Code and tests
+
+- New modules: `ui-scene-view.js` (the scene panel) and `ui-try.js` (the scene's guide and the Try this engine). `state.panel` ('scene' or 'part') and `state.tour` are shared by the panels; new events `tour` and `playing`; works gain `level` and `try`, and `presets.js` exports `guides` for the constructions.
+- A new unit test (`tests/guides.test.js`) checks that every scene’s story, level and Try this challenges apply to it: each names a part, a setting and a value that exist (it caught three challenges that asked for more than a setting allows). Unit tests: 331. The workflow suite (52 checks) covers the first visit, the scene panel, the breadcrumb, Try this and its undo, autoplay, the time bar and the View menu; the screenshot suite adds the welcome gallery, the scene panel and a part.
+
 ## 2.0.0 — 26 September 2026
 
 Animation release: eighteen animations by their artists (twigl shader one-liners, p5.js point sketches, and one study) run in the studio, verified against their original code and explained step by step; shader code and point clouds become components you can take apart, measure, reuse in other scenes and export. Projects from 1.x open unchanged and render identically.

@@ -6,61 +6,61 @@ Generated from `src/catalog.js` and `src/concepts.js`, the same metadata that dr
 
 | Type ID | Name | Category | Output | Inputs | When bypassed | Editable |
 |---|---|---|---|---|---|---|
-| `coordinates` | [Image coordinates](#image-coordinates) | Coordinates | coordinates | none | outputs zero | no |
-| `transform` | [Translate · rotate · scale](#translate-rotate-scale) | Coordinates | coordinates | p: coord | passes `p` through | yes |
-| `vortex` | [Localized vortex](#localized-vortex) | Coordinates | coordinates | p: coord | passes `p` through | yes |
-| `domainwarp` | [Turbulent coordinate warp](#turbulent-coordinate-warp) | Coordinates | coordinates | p: coord | passes `p` through | yes |
-| `polar` | [Polar coordinates](#polar-coordinates) | Coordinates | coordinates | p: coord | passes `p` through | yes |
-| `kaleidoscope` | [Angular mirror](#angular-mirror) | Coordinates | coordinates | p: coord | passes `p` through | yes |
-| `noise` | [Fractal value noise](#fractal-value-noise) | Scalar fields | scalar field | p: coord | outputs zero | yes |
-| `waves` | [Nested cosine bands](#nested-cosine-bands) | Scalar fields | scalar field | p: coord | outputs zero | yes |
-| `disc` | [Soft disc / sphere mask](#soft-disc-sphere-mask) | Scalar fields | scalar field | p: coord | outputs zero | yes |
-| `ring` | [Gaussian ring](#gaussian-ring) | Scalar fields | scalar field | p: coord | outputs zero | yes |
-| `threshold` | [Soft threshold](#soft-threshold) | Scalar fields | scalar field | field: scalar | passes `field` through | yes |
-| `fieldmath` | [Combine scalar fields](#combine-scalar-fields) | Scalar fields | scalar field | a: scalar, b: scalar | passes `a` through | yes |
-| `expression` | [Custom scalar equation](#custom-scalar-equation) | Authoring | scalar field | p: coord, a: scalar, b: scalar | outputs zero | is an equation |
-| `vectorExpression` | [Custom coordinate equation](#custom-coordinate-equation) | Authoring | coordinates | p: coord, a: scalar, b: scalar | passes `p` through | is an equation |
-| `colorExpression` | [Custom color equation](#custom-color-equation) | Authoring | color layer | p: coord, a: scalar, b: scalar | outputs zero | is an equation |
-| `code` | [Shader code](#shader-code) | Code & points | color layer | p: coord | outputs zero | no |
-| `points` | [Point cloud](#point-cloud) | Code & points | color layer | p: coord | outputs zero | is an equation |
-| `palette` | [Two-color emission](#two-color-emission) | Color & composition | color layer | field: scalar | outputs zero | yes |
-| `solid` | [Solid color](#solid-color) | Color & composition | color layer | none | outputs zero | yes |
-| `tint` | [Tint & gain](#tint-gain) | Color & composition | color layer | layer: layer | passes `layer` through | no |
-| `mask` | [Mask layer](#mask-layer) | Color & composition | color layer | layer: layer, mask: scalar | passes `layer` through | no |
-| `add` | [Add light](#add-light) | Color & composition | color layer | a: layer, b: layer | passes `a` through | no |
-| `over` | [Front over back](#front-over-back) | Color & composition | color layer | front: layer, back: layer | passes `back` through | no |
-| `nebulaGeometry` | [Pinched shell family · S,A](#pinched-shell-family-s-a) | Source nebula | geometry | p: coord | outputs zero | no |
-| `ringGeometry` | [Replacement ring geometry](#replacement-ring-geometry) | Source nebula | geometry | p: coord | outputs zero | no |
-| `geometryField` | [Inspect geometry channel](#inspect-geometry-channel) | Source nebula | scalar field | geometry: geometry | outputs zero | no |
-| `nebulaTurbulence` | [Nested-cosine turbulence · E](#nested-cosine-turbulence-e) | Source nebula | scalar field | p: coord, geometry: geometry | outputs zero | no |
-| `nebulaCloud` | [Filaments & haze · K](#filaments-haze-k) | Source nebula | color layer | p: coord, geometry: geometry, turbulence: scalar | outputs zero | no |
-| `nebulaGas` | [Gas emission · Hgas](#gas-emission-hgas) | Source nebula | color layer | p: coord, geometry: geometry, turbulence: scalar, cloud: layer | outputs zero | no |
-| `nebulaCore` | [Central glow · W](#central-glow-w) | Source nebula | color layer | p: coord, turbulence: scalar | outputs zero | yes |
-| `nebulaStars` | [Folded star lattices · T](#folded-star-lattices-t) | Source nebula | color layer | p: coord | outputs zero | yes |
-| `scatterStars` | [Seeded star field](#seeded-star-field) | Astronomical studies | color layer | p: coord | outputs zero | yes |
-| `planet` | [Cyclonic water planet](#cyclonic-water-planet) | Astronomical studies | color layer | p: coord | outputs zero | yes |
-| `atmosphere` | [Atmospheric rim](#atmospheric-rim) | Astronomical studies | color layer | p: coord | outputs zero | yes |
-| `lens` | [Star-cluster lens map](#star-cluster-lens-map) | Astronomical studies | coordinates | p: coord | passes `p` through | yes |
-| `clusterLights` | [Foreground cluster stars](#foreground-cluster-stars) | Astronomical studies | color layer | p: coord | outputs zero | yes |
-| `galaxy` | [Logarithmic spiral galaxy](#logarithmic-spiral-galaxy) | Astronomical studies | color layer | p: coord | outputs zero | yes |
-| `aurora` | [Spiral auroral curtain](#spiral-auroral-curtain) | Astronomical studies | color layer | p: coord | outputs zero | yes |
-| `disk` | [Accretion disk & shadow](#accretion-disk-shadow) | Astronomical studies | color layer | p: coord | outputs zero | yes |
-| `tidal` | [Stretched star & tidal stream](#stretched-star-tidal-stream) | Astronomical studies | color layer | p: coord | outputs zero | yes |
-| `feather` | [Single eyespot feather](#single-eyespot-feather) | Natural studies | color layer | p: coord | outputs zero | yes |
-| `fan` | [Peacock feather fan](#peacock-feather-fan) | Natural studies | color layer | p: coord | outputs zero | yes |
-| `peacockBody` | [Peacock body & crest](#peacock-body-crest) | Natural studies | color layer | p: coord | outputs zero | yes |
-| `fire` | [Tapered flame field](#tapered-flame-field) | Natural studies | color layer | p: coord | outputs zero | yes |
-| `hedgehog` | [Hedgehog & quill field](#hedgehog-quill-field) | Natural studies | color layer | p: coord | outputs zero | yes |
+| `coordinates` | [Image coordinates](#image-coordinates) | Coordinates | positions | none | outputs zero | no |
+| `transform` | [Translate · rotate · scale](#translate-rotate-scale) | Coordinates | positions | p: coord | passes `p` through | yes |
+| `vortex` | [Localized vortex](#localized-vortex) | Coordinates | positions | p: coord | passes `p` through | yes |
+| `domainwarp` | [Turbulent coordinate warp](#turbulent-coordinate-warp) | Coordinates | positions | p: coord | passes `p` through | yes |
+| `polar` | [Polar coordinates](#polar-coordinates) | Coordinates | positions | p: coord | passes `p` through | yes |
+| `kaleidoscope` | [Angular mirror](#angular-mirror) | Coordinates | positions | p: coord | passes `p` through | yes |
+| `noise` | [Fractal value noise](#fractal-value-noise) | Scalar fields | numbers | p: coord | outputs zero | yes |
+| `waves` | [Nested cosine bands](#nested-cosine-bands) | Scalar fields | numbers | p: coord | outputs zero | yes |
+| `disc` | [Soft disc / sphere mask](#soft-disc-sphere-mask) | Scalar fields | numbers | p: coord | outputs zero | yes |
+| `ring` | [Gaussian ring](#gaussian-ring) | Scalar fields | numbers | p: coord | outputs zero | yes |
+| `threshold` | [Soft threshold](#soft-threshold) | Scalar fields | numbers | field: scalar | passes `field` through | yes |
+| `fieldmath` | [Combine scalar fields](#combine-scalar-fields) | Scalar fields | numbers | a: scalar, b: scalar | passes `a` through | yes |
+| `expression` | [Custom scalar equation](#custom-scalar-equation) | Authoring | numbers | p: coord, a: scalar, b: scalar | outputs zero | is an equation |
+| `vectorExpression` | [Custom coordinate equation](#custom-coordinate-equation) | Authoring | positions | p: coord, a: scalar, b: scalar | passes `p` through | is an equation |
+| `colorExpression` | [Custom color equation](#custom-color-equation) | Authoring | picture | p: coord, a: scalar, b: scalar | outputs zero | is an equation |
+| `code` | [Shader code](#shader-code) | Code & points | picture | p: coord | outputs zero | no |
+| `points` | [Point cloud](#point-cloud) | Code & points | picture | p: coord | outputs zero | is an equation |
+| `palette` | [Two-color emission](#two-color-emission) | Color & composition | picture | field: scalar | outputs zero | yes |
+| `solid` | [Solid color](#solid-color) | Color & composition | picture | none | outputs zero | yes |
+| `tint` | [Tint & gain](#tint-gain) | Color & composition | picture | layer: layer | passes `layer` through | no |
+| `mask` | [Mask layer](#mask-layer) | Color & composition | picture | layer: layer, mask: scalar | passes `layer` through | no |
+| `add` | [Add light](#add-light) | Color & composition | picture | a: layer, b: layer | passes `a` through | no |
+| `over` | [Front over back](#front-over-back) | Color & composition | picture | front: layer, back: layer | passes `back` through | no |
+| `nebulaGeometry` | [Pinched shell family · S,A](#pinched-shell-family-s-a) | Source nebula | shape | p: coord | outputs zero | no |
+| `ringGeometry` | [Replacement ring geometry](#replacement-ring-geometry) | Source nebula | shape | p: coord | outputs zero | no |
+| `geometryField` | [Inspect geometry channel](#inspect-geometry-channel) | Source nebula | numbers | geometry: geometry | outputs zero | no |
+| `nebulaTurbulence` | [Nested-cosine turbulence · E](#nested-cosine-turbulence-e) | Source nebula | numbers | p: coord, geometry: geometry | outputs zero | no |
+| `nebulaCloud` | [Filaments & haze · K](#filaments-haze-k) | Source nebula | picture | p: coord, geometry: geometry, turbulence: scalar | outputs zero | no |
+| `nebulaGas` | [Gas emission · Hgas](#gas-emission-hgas) | Source nebula | picture | p: coord, geometry: geometry, turbulence: scalar, cloud: layer | outputs zero | no |
+| `nebulaCore` | [Central glow · W](#central-glow-w) | Source nebula | picture | p: coord, turbulence: scalar | outputs zero | yes |
+| `nebulaStars` | [Folded star lattices · T](#folded-star-lattices-t) | Source nebula | picture | p: coord | outputs zero | yes |
+| `scatterStars` | [Seeded star field](#seeded-star-field) | Astronomical studies | picture | p: coord | outputs zero | yes |
+| `planet` | [Cyclonic water planet](#cyclonic-water-planet) | Astronomical studies | picture | p: coord | outputs zero | yes |
+| `atmosphere` | [Atmospheric rim](#atmospheric-rim) | Astronomical studies | picture | p: coord | outputs zero | yes |
+| `lens` | [Star-cluster lens map](#star-cluster-lens-map) | Astronomical studies | positions | p: coord | passes `p` through | yes |
+| `clusterLights` | [Foreground cluster stars](#foreground-cluster-stars) | Astronomical studies | picture | p: coord | outputs zero | yes |
+| `galaxy` | [Logarithmic spiral galaxy](#logarithmic-spiral-galaxy) | Astronomical studies | picture | p: coord | outputs zero | yes |
+| `aurora` | [Spiral auroral curtain](#spiral-auroral-curtain) | Astronomical studies | picture | p: coord | outputs zero | yes |
+| `disk` | [Accretion disk & shadow](#accretion-disk-shadow) | Astronomical studies | picture | p: coord | outputs zero | yes |
+| `tidal` | [Stretched star & tidal stream](#stretched-star-tidal-stream) | Astronomical studies | picture | p: coord | outputs zero | yes |
+| `feather` | [Single eyespot feather](#single-eyespot-feather) | Natural studies | picture | p: coord | outputs zero | yes |
+| `fan` | [Peacock feather fan](#peacock-feather-fan) | Natural studies | picture | p: coord | outputs zero | yes |
+| `peacockBody` | [Peacock body & crest](#peacock-body-crest) | Natural studies | picture | p: coord | outputs zero | yes |
+| `fire` | [Tapered flame field](#tapered-flame-field) | Natural studies | picture | p: coord | outputs zero | yes |
+| `hedgehog` | [Hedgehog & quill field](#hedgehog-quill-field) | Natural studies | picture | p: coord | outputs zero | yes |
 
 ## Image coordinates
 
-ID: `coordinates` · output **coordinates** ($p$) · Coordinates · role source · when bypassed it outputs zero
+ID: `coordinates` · output **positions** ($p$) · Coordinates · role source · when bypassed it outputs zero
 
-World-space coordinates of every pixel. Native 2000 × 1200 sampling keeps the original +1/840 offset on each axis. Most scenes feed all their components from this one field.
+Tells every pixel where it is on the picture. Each pixel becomes a point p = (x, y), with (0, 0) at the center, x growing to the right and y growing upward. The picture is about 4.76 units wide, so x runs from about −2.4 on the left edge to +2.4 on the right. Almost every scene starts with this part and feeds p to all the others.
 
 **How it is computed**
 
-1. *Result.* Each pixel x, measured from the image center, becomes a point p of an endless plane: the image is W = 4.76 world units wide at zoom z = 1, and the pan o moves the window. Every other component works with points like p, never with pixels.
+1. *Result.* Each pixel position x is measured from the center of the image and scaled so that the whole picture is W = 4.76 units wide when the zoom z is 1. Zooming in (a larger z) makes the same pixels cover a smaller piece of the plane, and the pan o slides the window around. A tiny extra shift of 1/840 of a unit puts the pixels exactly where the original nebula picture had them. From here on, every part works with points like p, never with pixels.
 
    $$
    p = \frac{W}{w\, z}\left(\mathbf{x} - \frac{\mathbf{s}}{2}\right) + \mathbf{o}
@@ -68,30 +68,30 @@ World-space coordinates of every pixel. Native 2000 × 1200 sampling keeps the o
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $\mathbf{x}$ | | pixel position |
-| $\mathbf{s}, w$ | | image size and width in pixels |
-| $W$ | | world width, 2000/420 units |
-| $z, \mathbf{o}$ | | camera zoom and pan |
+| $\mathbf{x}$ | | where the pixel is on the screen, counted in pixels |
+| $\mathbf{s}, w$ | | the size of the image in pixels, and its width w |
+| $W$ | | the width of the picture in units: 2000/420, about 4.76 |
+| $z, \mathbf{o}$ | | the camera zoom, and the pan: the point of the plane shown at the center of the picture |
 
 No parameters.
 
-*Ideas behind it:* [Pixels become points of a plane](#pixels-become-points-of-a-plane)
+*Ideas behind it:* [From pixels to points on a plane](#from-pixels-to-points-on-a-plane)
 
 ## Translate · rotate · scale
 
-ID: `transform` · output **coordinates** ($q$) · Coordinates · role modifier · when bypassed it passes `p` through
+ID: `transform` · output **positions** ($q$) · Coordinates · role modifier · when bypassed it passes `p` through
 
-Inverse-map world pixels into local object coordinates. This moves the object without stretching a stored picture.
+Moves, turns and resizes any shape drawn through it. Instead of moving a finished picture, it changes where each pixel looks, so shapes stay perfectly sharp at any size. Put it between Image coordinates and a shape to place that shape anywhere, at any angle and size.
 
 **How it is computed**
 
-1. The point where the object’s own origin should land.
+1. This is the spot where the shape’s own center should land. A shape that is normally centered at (0, 0) will be drawn centered at c.
 
    $$
    c = (c_x, c_y)
    $$
 
-2. *Result.* Backward mapping: instead of moving the object, every pixel asks where it came from. Subtract c, turn back by θ and divide by the scale. Whatever reads q is drawn moved to c, turned by θ and scaled by s (and k vertically).
+2. *Result.* This line works backward: instead of moving the shape, each pixel asks “where would I have been before the move?” It subtracts c, turns back by θ, and divides by the size s (and by s·k up and down). So anything drawn with q shows up moved to c, turned by θ and scaled by s.
 
    $$
    q = \operatorname{diag}(s,\ s k)^{-1}\, R(-\theta)\,(p - c)
@@ -99,46 +99,46 @@ Inverse-map world pixels into local object coordinates. This moves the object wi
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $R(\theta)$ | | rotation matrix |
+| $p$ | input `p` | positions |
+| $R(\theta)$ | | a rotation: it turns a point around the center (0, 0) by the angle θ |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Center X `x` | $c_x$ | 0 | -5 to 5 (step 0.01) | Horizontal position of the local origin in world units. Moves whatever is sampled downstream right (+) or left (−). |
-| Center Y `y` | $c_y$ | 0 | -5 to 5 (step 0.01) | Vertical position of the local origin. Moves the downstream object up (+) or down (−). |
-| Rotation `angle` | $\theta$ | 0 | -6.28 to 6.28 (step 0.01) | Counter-clockwise rotation in radians (6.28 is one full turn). |
-| Scale `scale` | $s$ | 1 | 0.05 to 5 (step 0.01) | Uniform size: values above 1 enlarge the downstream object, below 1 shrink it. |
-| Vertical stretch `stretch` | $k$ | 1 | 0.1 to 4 (step 0.01) | Extra vertical scale on top of Scale: above 1 makes the object taller, below 1 flatter. |
+| Center X `x` | $c_x$ | 0 | -5 to 5 (step 0.01) | Where the shape’s own center lands, left to right. Slide right to move the shape right; slide left to move it left. |
+| Center Y `y` | $c_y$ | 0 | -5 to 5 (step 0.01) | Where the shape’s own center lands, up and down. Slide right to move the shape up; slide left to move it down. |
+| Rotation `angle` | $\theta$ | 0 | -6.28 to 6.28 (step 0.01) | How far the shape is turned, in radians (6.28 is one full turn). Positive values turn it counter-clockwise; negative values turn it clockwise. |
+| Scale `scale` | $s$ | 1 | 0.05 to 5 (step 0.01) | How big the shape is drawn. Slide above 1 to enlarge it; slide below 1 to shrink it. |
+| Vertical stretch `stretch` | $k$ | 1 | 0.1 to 4 (step 0.01) | Extra stretching up and down, on top of Scale. Above 1 makes the shape taller; below 1 makes it flatter. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param c_x = 0 [-5, 5] step 0.01  // Center X: Horizontal position of the local origin in world units.
-param c_y = 0 [-5, 5] step 0.01  // Center Y: Vertical position of the local origin.
-param angle = 0 [-6.28, 6.28] step 0.01  // Rotation: Counter-clockwise rotation in radians (6.28 is one full turn).
-param s = 1 [0.05, 5] step 0.01  // Scale: Uniform size: values above 1 enlarge the downstream object, below 1 shrink it.
-param k = 1 [0.1, 4] step 0.01  // Vertical stretch: Extra vertical scale on top of Scale: above 1 makes the object taller, below 1 flatter.
-c = vec2(c_x, c_y)   // the point where the object’s own origin should land
-rotate2(p - c, -angle)/vec2(s, s*k)   // backward mapping: subtract c, turn back by the angle, divide by the scale
+param c_x = 0 [-5, 5] step 0.01  // Center X: Where the shape’s own center lands, left to right.
+param c_y = 0 [-5, 5] step 0.01  // Center Y: Where the shape’s own center lands, up and down.
+param angle = 0 [-6.28, 6.28] step 0.01  // Rotation: How far the shape is turned, in radians (6.28 is one full turn).
+param s = 1 [0.05, 5] step 0.01  // Scale: How big the shape is drawn.
+param k = 1 [0.1, 4] step 0.01  // Vertical stretch: Extra stretching up and down, on top of Scale.
+c = vec2(c_x, c_y)   // The spot where the shape’s own center should land.
+rotate2(p - c, -angle)/vec2(s, s*k)   // Work backward: subtract c, turn back by the angle, then divide by the size.
 ```
 
-*Ideas behind it:* [Backward mapping](#backward-mapping) · [Rotation](#rotation)
+*Ideas behind it:* [Backward mapping: each pixel looks elsewhere](#backward-mapping-each-pixel-looks-elsewhere) · [Rotation: turning points around the center](#rotation-turning-points-around-the-center)
 
 ## Localized vortex
 
-ID: `vortex` · output **coordinates** ($q$) · Coordinates · role modifier · when bypassed it passes `p` through
+ID: `vortex` · output **positions** ($q$) · Coordinates · role modifier · when bypassed it passes `p` through
 
-A smooth local coordinate twist. Send any texture, star field or silhouette through this map.
+Twists the space around the center into a swirl. Points near the center are turned by a large angle and points far away hardly at all, so straight lines bend into a whirlpool. Feed it into any pattern, star field or shape to stir it; the rotation speed makes the whole picture turn as well.
 
 **How it is computed**
 
-1. The twist angle of each point: κ at the center, fading to zero with distance (a Gaussian of width ρ), plus a steady spin ωt.
+1. This is the angle each point will be turned by. At the center it is κ, and farther out it fades smoothly toward zero, like a bell curve of width ρ. The steady spin ωt is added everywhere, so with a speed the whole picture also turns over time.
 
    $$
    \alpha = \kappa\, e^{-|p|^2/\rho^2} + \omega t
    $$
 
-2. *Result.* Rotate each point about the origin by its own angle. Near the center the plane twists; far away it is untouched, so anything drawn with q gets a swirl.
+2. *Result.* Now every point is turned around the center by its own angle α. Points near the middle turn a lot and points far away hardly move, so anything drawn with q gets a swirl.
 
    $$
    q = R(\alpha)\, p
@@ -146,46 +146,46 @@ A smooth local coordinate twist. Send any texture, star field or silhouette thro
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $R(\cdot)$ | | rotation by the given angle |
-| $\alpha$ | | twist angle at this point |
-| $t$ | | time in seconds |
+| $p$ | input `p` | positions |
+| $R(\cdot)$ | | turns a point around the center by the given angle |
+| $\alpha$ | | how far this point is turned (its twist angle) |
+| $t$ | | the time in seconds |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Twist `strength` | $\kappa$ | 4 | -16 to 16 (step 0.1) | Rotation at the center in radians; negative twists the other way. The twist fades to zero away from the center. |
-| Influence radius `radius` | $\rho$ | 1 | 0.02 to 4 (step 0.02) | Distance over which the twist fades (Gaussian falloff). Larger values twist a wider area. |
-| Rotation speed `speed` | $\omega$ | 0 | -2 to 2 (step 0.01) | Extra rotation that grows with time, in radians per second. Zero keeps the twist static. |
+| Twist `strength` | $\kappa$ | 4 | -16 to 16 (step 0.1) | Rotation at the center in radians; 6.28 radians is one full turn. Slide right for a stronger swirl; negative values twist the other way. |
+| Influence radius `radius` | $\rho$ | 1 | 0.02 to 4 (step 0.02) | How far out the swirl reaches: the twist fades away over about this distance. Slide right to swirl a wider area; slide left to keep it small. |
+| Rotation speed `speed` | $\omega$ | 0 | -2 to 2 (step 0.01) | Makes the whole picture turn steadily over time, in radians per second. Zero keeps the swirl still; negative values turn it the other way. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param kappa = 4 [-16, 16] step 0.1  // Twist: Rotation at the center in radians; negative twists the other way.
-param rho = 1 [0.02, 4] step 0.02  // Influence radius: Distance over which the twist fades (Gaussian falloff).
-param omega = 0 [-2, 2] step 0.01  // Rotation speed: Extra rotation that grows with time, in radians per second.
-alpha = kappa*exp(-(r/rho)^2) + omega*t   // the twist angle: κ at the center, fading with distance, plus a steady spin
-rotate2(p, alpha)   // turn each point about the center by its own angle: a swirl in the middle, nothing far away
+param kappa = 4 [-16, 16] step 0.1  // Twist: Rotation at the center in radians; 6.28 radians is one full turn.
+param rho = 1 [0.02, 4] step 0.02  // Influence radius: How far out the swirl reaches: the twist fades away over about this distance.
+param omega = 0 [-2, 2] step 0.01  // Rotation speed: Makes the whole picture turn steadily over time, in radians per second.
+alpha = kappa*exp(-(r/rho)^2) + omega*t   // The twist angle: κ at the center, fading away with distance, plus a steady spin over time.
+rotate2(p, alpha)   // Turn each point around the center by its own angle: a strong swirl in the middle, almost nothing far away.
 ```
 
-*Key function shown in the editor:* twist angle against distance (angle α (rad) against distance |p|).
+*Key function shown in the editor:* how far each point turns, by its distance from the center (angle α (rad) against distance |p|).
 
-*Ideas behind it:* [Rotation](#rotation) · [Gaussian bump](#gaussian-bump) · [Backward mapping](#backward-mapping)
+*Ideas behind it:* [Rotation: turning points around the center](#rotation-turning-points-around-the-center) · [The Gaussian bump: a soft hill](#the-gaussian-bump-a-soft-hill) · [Backward mapping: each pixel looks elsewhere](#backward-mapping-each-pixel-looks-elsewhere)
 
 ## Turbulent coordinate warp
 
-ID: `domainwarp` · output **coordinates** ($q$) · Coordinates · role modifier · when bypassed it passes `p` through
+ID: `domainwarp` · output **positions** ($q$) · Coordinates · role modifier · when bypassed it passes `p` through
 
-Independent smooth fields displace the two coordinate axes. A reusable alternative to drawing complicated boundaries directly.
+Pushes every point a little in a smooth, random-looking direction. Straight stripes turn wavy and round shapes get soft, marbled edges, like ink stirred in water. Feed it into a pattern to make it look natural; with a flow speed the wobble slowly drifts.
 
 **How it is computed**
 
-1. Two independent fractal noise fields, centered on zero, give every point a smooth pseudo-random direction to move in. f sets the size of the wobbles; ω makes them drift.
+1. Two separate noise patterns (smooth, random-looking hills of numbers between 0 and 1) give each point a push in x and a push in y. Subtracting 1/2 lets the pushes go both ways: left or right, and up or down. The frequency f sets how big the wobbles are, and ω makes them drift.
 
    $$
    \mathbf{d} = \left(n_1(f p + \omega t),\ n_2(f p - \omega t)\right) - \frac{1}{2}
    $$
 
-2. *Result.* Push every point by A times that displacement. Straight lines become wavy and shapes drawn with q get organic, marbled edges.
+2. *Result.* Every point is moved by A times its push. Nearby points get similar pushes, so lines bend smoothly instead of breaking, and shapes drawn with q get wavy, marbled edges.
 
    $$
    q = p + A\,\mathbf{d}
@@ -193,44 +193,44 @@ Independent smooth fields displace the two coordinate axes. A reusable alternati
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $n_1, n_2$ | | independent five-octave fractal noise, 0 to 1 |
-| $\mathbf{d}$ | | displacement direction |
-| $t$ | | time in seconds |
+| $p$ | input `p` | positions |
+| $n_1, n_2$ | | two different noise patterns, each made of five layers of smooth noise, with values from 0 to 1 |
+| $\mathbf{d}$ | | the push given to this point |
+| $t$ | | the time in seconds |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Displacement `amplitude` | $A$ | 0.4 | 0 to 2 (step 0.01) | How far coordinates are pushed, in world units. Zero leaves them unchanged. |
-| Frequency `frequency` | $f$ | 2 | 0.1 to 12 (step 0.1) | Spatial frequency of the displacement noise. Higher values give smaller, busier wobbles. |
-| Flow speed `speed` | $\omega$ | 0.1 | -2 to 2 (step 0.01) | How quickly the noise pattern drifts over time. Zero freezes it. |
+| Displacement `amplitude` | $A$ | 0.4 | 0 to 2 (step 0.01) | How far each point is pushed. Slide right for bigger wobbles; zero switches the warp off. |
+| Frequency `frequency` | $f$ | 2 | 0.1 to 12 (step 0.1) | How big the wobbles are. Slide right for smaller, busier wobbles; slide left for big, lazy ones. |
+| Flow speed `speed` | $\omega$ | 0.1 | -2 to 2 (step 0.01) | How fast the wobble pattern drifts over time. Zero freezes it; negative values drift the other way. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param A = 0.4 [0, 2] step 0.01  // Displacement: How far coordinates are pushed, in world units.
-param f = 2 [0.1, 12] step 0.1  // Frequency: Spatial frequency of the displacement noise.
-param omega = 0.1 [-2, 2] step 0.01  // Flow speed: How quickly the noise pattern drifts over time.
-d = vec2(fbm(p*f + vec2(omega*t, 0), 5), fbm(p*f + vec2(9.2, -(omega*t)), 5)) - 0.5   // two independent fractal noises centered on zero: a direction for each point to move in
-p + A*d   // push every point by the displacement: straight lines become wavy
+param A = 0.4 [0, 2] step 0.01  // Displacement: How far each point is pushed.
+param f = 2 [0.1, 12] step 0.1  // Frequency: How big the wobbles are.
+param omega = 0.1 [-2, 2] step 0.01  // Flow speed: How fast the wobble pattern drifts over time.
+d = vec2(fbm(p*f + vec2(omega*t, 0), 5), fbm(p*f + vec2(9.2, -(omega*t)), 5)) - 0.5   // Two different noise patterns, shifted so they push both ways: a push for each point.
+p + A*d   // Move every point by its push, so straight lines become wavy.
 ```
 
-*Ideas behind it:* [Domain warping](#domain-warping) · [Fractal noise (fBm)](#fractal-noise-fbm) · [Backward mapping](#backward-mapping)
+*Ideas behind it:* [Domain warping: bending space before drawing](#domain-warping-bending-space-before-drawing) · [Fractal noise: bumps on bumps](#fractal-noise-bumps-on-bumps) · [Backward mapping: each pixel looks elsewhere](#backward-mapping-each-pixel-looks-elsewhere)
 
 ## Polar coordinates
 
-ID: `polar` · output **coordinates** ($q$) · Coordinates · role modifier · when bypassed it passes `p` through
+ID: `polar` · output **positions** ($q$) · Coordinates · role modifier · when bypassed it passes `p` through
 
-Unroll angles and radii into a texture plane. There is a branch seam at ±π; integer angular repetition can hide it.
+Bends straight stripes into rings and spokes around the center. It replaces each point with two numbers: its angle around the center (like the hand of a clock) and its distance from the center. A pattern drawn after it wraps around the center, so horizontal stripes become rings and vertical stripes become spokes. There is a seam to the left of the center, where the angle jumps from +π back to −π; whole-number angle scales can hide it.
 
 **How it is computed**
 
-1. The angle around the origin (−π to π) and the distance from it.
+1. For each point, atan2 gives its angle θ around the center, like the hand of a clock: 0 points to the right, and the angle runs from −π to π (half a turn each way). The number r is the point’s distance from the center.
 
    $$
    \theta = \operatorname{atan2}(p_y, p_x), \quad r = |p|
    $$
 
-2. *Result.* Use them as the new x and y. Circles around the origin become horizontal lines and rays become vertical ones, so stripes downstream wrap into rings or spokes.
+2. *Result.* The angle becomes the new x and the distance becomes the new y. Circles around the center turn into horizontal lines and rays from the center turn into vertical lines, so any stripes drawn afterward wrap into rings or spokes.
 
    $$
    q = (k_\theta\, \theta,\ k_r\, r)
@@ -238,38 +238,38 @@ Unroll angles and radii into a texture plane. There is a branch seam at ±π; in
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
+| $p$ | input `p` | positions |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Angle scale `angleScale` | $k_\theta$ | 1 | 0.1 to 12 (step 0.1) | Multiplies the angle before it becomes the x coordinate. Integer values tile the pattern around the circle without a seam. |
-| Radius scale `radiusScale` | $k_r$ | 1 | 0.1 to 12 (step 0.1) | Multiplies the distance from the center before it becomes the y coordinate. Higher values repeat the pattern more often outward. |
+| Angle scale `angleScale` | $k_\theta$ | 1 | 0.1 to 12 (step 0.1) | Multiplies the angle before it becomes x. Slide right to fit more copies of the pattern around the circle; whole numbers can hide the seam on the left. |
+| Radius scale `radiusScale` | $k_r$ | 1 | 0.1 to 12 (step 0.1) | Multiplies the distance from the center before it becomes y. Slide right to pack the rings closer together; slide left to spread them out. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param k_theta = 1 [0.1, 12] step 0.1  // Angle scale: Multiplies the angle before it becomes the x coordinate.
-param k_r = 1 [0.1, 12] step 0.1  // Radius scale: Multiplies the distance from the center before it becomes the y coordinate.
-vec2(k_theta*theta, k_r*r)   // the angle θ around the origin and the distance r become the new x and y: circles turn into lines
+param k_theta = 1 [0.1, 12] step 0.1  // Angle scale: Multiplies the angle before it becomes x.
+param k_r = 1 [0.1, 12] step 0.1  // Radius scale: Multiplies the distance from the center before it becomes y.
+vec2(k_theta*theta, k_r*r)   // The angle θ around the center becomes x and the distance r becomes y, so circles turn into straight lines.
 ```
 
-*Ideas behind it:* [Polar coordinates](#polar-coordinates)
+*Ideas behind it:* [Polar coordinates: angle and distance](#polar-coordinates-angle-and-distance)
 
 ## Angular mirror
 
-ID: `kaleidoscope` · output **coordinates** ($q$) · Coordinates · role modifier · when bypassed it passes `p` through
+ID: `kaleidoscope` · output **positions** ($q$) · Coordinates · role modifier · when bypassed it passes `p` through
 
-Fold the angular coordinate into mirrored sectors. Reuse any source pattern to create symmetry.
+Copies one wedge of the picture around the center, like a kaleidoscope. Every point is folded into a single thin slice of the circle and mirrored, so whatever is drawn after it repeats n times around the center with mirror symmetry. It works with any pattern, and the rotation speed makes the whole flower slowly turn.
 
 **How it is computed**
 
-1. Fold the angle θ of p into a single wedge of width 2π/n (mod) and mirror it about the wedge’s center line (abs): all n wedges map onto the same half-wedge.
+1. Start with the angle θ of the point around the center. The mod step (the remainder after dividing, like a clock that starts again after 12) folds every angle into one wedge 2π/n wide, and the absolute value |…| mirrors it about the wedge’s middle line. So all n wedges, and both halves of each, land on the same thin slice.
 
    $$
    \varphi = \left|\left(\theta + \omega t + \frac{\pi}{n}\right) \bmod \frac{2\pi}{n} - \frac{\pi}{n}\right|
    $$
 
-2. *Result.* Rebuild a point at the same distance with the folded angle. Anything drawn with q repeats n times with mirror symmetry, like a kaleidoscope.
+2. *Result.* Build a new point at the same distance from the center, but at the folded angle φ. Anything drawn with q then repeats n times around the center with mirror symmetry, like the view in a kaleidoscope.
 
    $$
    q = |p|\,(\cos\varphi,\ \sin\varphi)
@@ -277,42 +277,42 @@ Fold the angular coordinate into mirrored sectors. Reuse any source pattern to c
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $\theta$ | | angle of p |
-| $t$ | | time in seconds |
+| $p$ | input `p` | positions |
+| $\theta$ | | the angle of p around the center |
+| $t$ | | the time in seconds |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Sectors `sectors` | $n$ | 6 | 2 to 24 (step 1) | Number of mirrored wedges around the center. |
-| Rotation speed `spin` | $\omega$ | 0.1 | -1 to 1 (step 0.01) | Rotates the mirror pattern over time, in radians per second. |
+| Sectors `sectors` | $n$ | 6 | 2 to 24 (step 1) | How many mirrored wedges go around the center. Slide right for more, thinner wedges. |
+| Rotation speed `spin` | $\omega$ | 0.1 | -1 to 1 (step 0.01) | How fast the mirror pattern turns, in radians per second. Zero holds it still; negative values turn it the other way. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param n = 6 [2, 24] step 1  // Sectors: Number of mirrored wedges around the center.
-param omega = 0.1 [-1, 1] step 0.01  // Rotation speed: Rotates the mirror pattern over time, in radians per second.
-w = TAU/n   // the width of one wedge, 2π/n
-phi = abs(mod(theta + omega*t + 0.5*w, w) - 0.5*w)   // fold the angle into one wedge and mirror it about the wedge’s center line
-r*vec2(cos(phi), sin(phi))   // the point at the same distance with the folded angle: n mirrored copies
+param n = 6 [2, 24] step 1  // Sectors: How many mirrored wedges go around the center.
+param omega = 0.1 [-1, 1] step 0.01  // Rotation speed: How fast the mirror pattern turns, in radians per second.
+w = TAU/n   // The width of one wedge: a full turn (2π) divided by the number of wedges.
+phi = abs(mod(theta + omega*t + 0.5*w, w) - 0.5*w)   // Fold the angle into one wedge, then mirror it about the wedge’s middle line.
+r*vec2(cos(phi), sin(phi))   // A point at the same distance with the folded angle, which makes n mirrored copies.
 ```
 
-*Ideas behind it:* [Polar coordinates](#polar-coordinates) · [Folding with arccos(cos t)](#folding-with-arccos-cos-t)
+*Ideas behind it:* [Polar coordinates: angle and distance](#polar-coordinates-angle-and-distance) · [Folding with arccos(cos t)](#folding-with-arccos-cos-t)
 
 ## Fractal value noise
 
-ID: `noise` · output **scalar field** ($f$) · Scalar fields · role content · when bypassed it outputs zero
+ID: `noise` · output **numbers** ($f$) · Scalar fields · role content · when bypassed it outputs zero
 
-Smooth deterministic multiscale noise. Not part of the original nebula formulas; useful for new organic surfaces.
+Makes a soft, cloudy pattern of numbers between 0 and 1. It stacks several layers of smooth noise, each finer and fainter than the one before, which gives it detail at many sizes, like clouds or rock. The same settings always give the same pattern. It is not used in the original nebula, but it is handy for new natural-looking textures; send it through Two-color emission to see it in color.
 
 **How it is computed**
 
-1. Scale the plane by the frequency ν, shift it sideways by the seed σ and upward over time.
+1. First the plane is scaled by the frequency ν, so a larger ν packs more blobs into the picture. The seed σ shifts it sideways to a different part of the pattern, and ωt slides it a little farther every second.
 
    $$
    q = \nu p + (\sigma,\ \omega t)
    $$
 
-2. *Result.* Add N octaves of smooth value noise, each about twice as fine and half as strong as the last, turned slightly (M) so their grids never line up. Z rescales the sum to 0–1.
+2. *Result.* Now N layers of smooth noise n are added up. Each layer is about twice as fine as the one before (×2.03) and half as strong, and it is turned slightly by M so the layers never line up. Dividing by Z keeps the total between 0 and 1.
 
    $$
    f = \frac{1}{Z}\sum_{k=0}^{N-1} 2^{-k}\, n\left(2.03^{k} M^{k} q\right)
@@ -320,48 +320,48 @@ Smooth deterministic multiscale noise. Not part of the original nebula formulas;
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $n$ | | smooth value noise, 0 to 1 |
-| $M$ | | fixed small rotation between octaves |
-| $Z$ | | normalization so f stays in 0 to 1 |
+| $p$ | input `p` | positions |
+| $n$ | | smooth value noise: random-looking numbers from 0 to 1, blended smoothly between the corners of a grid |
+| $M$ | | a small fixed turn between one layer and the next |
+| $Z$ | | a divisor that keeps f between 0 and 1 |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Frequency `frequency` | $\nu$ | 3 | 0.1 to 30 (step 0.1) | Size of the noise features: higher values are finer. |
-| Octaves `octaves` | $N$ | 6 | 1 to 8 (step 1) | Number of noise layers, each about twice as fine and half as strong. More octaves add fine detail. |
-| Flow speed `speed` | $\omega$ | 0.1 | -2 to 2 (step 0.01) | Vertical drift of the pattern per second. |
-| Seed offset `seed` | $\sigma$ | 0 | 0 to 100 (step 1) | Shifts to a different but equally random-looking pattern. |
+| Frequency `frequency` | $\nu$ | 3 | 0.1 to 30 (step 0.1) | How big the blobs are. Slide right for smaller, finer blobs; slide left for big ones. |
+| Octaves `octaves` | $N$ | 6 | 1 to 8 (step 1) | How many layers of noise are stacked, each about twice as fine and half as strong as the last. Slide right to add fine detail; 1 gives plain smooth blobs. |
+| Flow speed `speed` | $\omega$ | 0.1 | -2 to 2 (step 0.01) | How fast the pattern drifts over time: positive values slide it down, negative values slide it up. Zero freezes it. |
+| Seed offset `seed` | $\sigma$ | 0 | 0 to 100 (step 1) | Picks a different pattern that looks just as random. Slide it until you find one you like. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param nu = 3 [0.1, 30] step 0.1  // Frequency: Size of the noise features: higher values are finer.
-param N = 6 [1, 8] step 1  // Octaves: Number of noise layers, each about twice as fine and half as strong.
-param omega = 0.1 [-2, 2] step 0.01  // Flow speed: Vertical drift of the pattern per second.
-param sigma = 0 [0, 100] step 1  // Seed offset: Shifts to a different but equally random-looking pattern.
-q = p*nu + vec2(sigma, omega*t)   // scale the plane by the frequency, shift it by the seed, drift it over time
-fbm(q, N)   // octaves of smooth value noise, each twice as fine and half as strong (the loop is inside fbm: More ▸ Code)
+param nu = 3 [0.1, 30] step 0.1  // Frequency: How big the blobs are.
+param N = 6 [1, 8] step 1  // Octaves: How many layers of noise are stacked, each about twice as fine and half as strong as the last.
+param omega = 0.1 [-2, 2] step 0.01  // Flow speed: How fast the pattern drifts over time: positive values slide it down, negative values slide it up.
+param sigma = 0 [0, 100] step 1  // Seed offset: Picks a different pattern that looks just as random.
+q = p*nu + vec2(sigma, omega*t)   // Scale the plane by the frequency, shift it by the seed, and slide it over time.
+fbm(q, N)   // Add up layers of smooth noise, each twice as fine and half as strong (the loop is inside fbm, whose code is under More).
 ```
 
-*Key function shown in the editor:* weight of each octave (weight 2⁻ᵏ / Z against octave k).
+*Key function shown in the editor:* how strong each layer of noise is (weight 2⁻ᵏ / Z against octave k).
 
-*Ideas behind it:* [Value noise](#value-noise) · [Fractal noise (fBm)](#fractal-noise-fbm)
+*Ideas behind it:* [Value noise: smooth randomness](#value-noise-smooth-randomness) · [Fractal noise: bumps on bumps](#fractal-noise-bumps-on-bumps)
 
 ## Nested cosine bands
 
-ID: `waves` · output **scalar field** ($f$) · Scalar fields · role content · when bypassed it outputs zero
+ID: `waves` · output **numbers** ($f$) · Scalar fields · role content · when bypassed it outputs zero
 
-A compact example of phase modulation: one wave bends another. It becomes marbling under a coordinate warp.
+Draws wavy stripes by letting one wave bend another. Straight stripes run up and down the picture, and a slower wave pushes them sideways, so they snake back and forth. The result is a number from 0 to 1 at every point. Send the coordinates through a warp first and the stripes turn into marble veins, as in the Living mineral scene.
 
 **How it is computed**
 
-1. The phase: vertical stripes, ν per world unit, pushed sideways by a slower wave that runs along y. This inner wave is what bends the stripes.
+1. The phase φ is a number that grows steadily from left to right, which will make up-and-down stripes. A slower sine wave running along y adds or subtracts up to β, pushing each stripe left or right. That inner wave is what bends the stripes, and ωt makes the bends travel.
 
    $$
    \phi = \nu x + \beta \sin(0.65\, \nu y - \omega t)
    $$
 
-2. *Result.* Turn the phase into bands between 0 and 1.
+2. *Result.* The cosine turns the phase into a wave between −1 and 1, and halving it and adding 1/2 moves it to between 0 and 1. So f is 1 in the middle of each bright band and 0 in the middle of each dark one.
 
    $$
    f = \frac{1}{2} + \frac{1}{2}\cos\phi
@@ -369,45 +369,45 @@ A compact example of phase modulation: one wave bends another. It becomes marbli
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $p = (x, y)$ | | input coordinates |
-| $\phi$ | | phase |
+| $p$ | input `p` | positions |
+| $p = (x, y)$ | | the input point and its x and y coordinates |
+| $\phi$ | | the phase: where the point is within the stripe pattern |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Frequency `frequency` | $\nu$ | 9 | 0.1 to 80 (step 0.1) | Bands per world unit: higher values give thinner, denser bands. |
-| Phase bending `bend` | $\beta$ | 4 | 0 to 20 (step 0.1) | How strongly a second wave bends the bands. Zero gives straight parallel stripes. |
-| Phase speed `speed` | $\omega$ | 0.5 | -4 to 4 (step 0.01) | Speed of the bending wave over time. |
+| Frequency `frequency` | $\nu$ | 9 | 0.1 to 80 (step 0.1) | How tightly the stripes are packed. Slide right for thinner, denser stripes; slide left for wider ones. |
+| Phase bending `bend` | $\beta$ | 4 | 0 to 20 (step 0.1) | How strongly the second wave bends the stripes. Zero gives straight stripes; slide right for deeper wiggles. |
+| Phase speed `speed` | $\omega$ | 0.5 | -4 to 4 (step 0.01) | How fast the bends travel up the stripes over time. Zero holds them still; negative values send them down. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param nu = 9 [0.1, 80] step 0.1  // Frequency: Bands per world unit: higher values give thinner, denser bands.
-param beta = 4 [0, 20] step 0.1  // Phase bending: How strongly a second wave bends the bands.
-param omega = 0.5 [-4, 4] step 0.01  // Phase speed: Speed of the bending wave over time.
-phase = x*nu + beta*sin(y*nu*0.65 - omega*t)   // vertical stripes, pushed sideways by a slower wave along y
-0.5 + 0.5*cos(phase)   // bands between 0 and 1
+param nu = 9 [0.1, 80] step 0.1  // Frequency: How tightly the stripes are packed.
+param beta = 4 [0, 20] step 0.1  // Phase bending: How strongly the second wave bends the stripes.
+param omega = 0.5 [-4, 4] step 0.01  // Phase speed: How fast the bends travel up the stripes over time.
+phase = x*nu + beta*sin(y*nu*0.65 - omega*t)   // Up-and-down stripes, pushed sideways by a slower wave that runs along y.
+0.5 + 0.5*cos(phase)   // Turn the phase into bands between 0 and 1.
 ```
 
-*Key function shown in the editor:* one row of the field (y = 0.3) (f against x).
+*Key function shown in the editor:* the pattern along one row (y = 0.3) (f against x).
 
-*Ideas behind it:* [Phase modulation](#phase-modulation)
+*Ideas behind it:* [Phase modulation: a wave inside a wave](#phase-modulation-a-wave-inside-a-wave)
 
 ## Soft disc / sphere mask
 
-ID: `disc` · output **scalar field** ($m$) · Scalar fields · role content · when bypassed it outputs zero
+ID: `disc` · output **numbers** ($m$) · Scalar fields · role content · when bypassed it outputs zero
 
-Coverage mask: 1 inside, 0 outside. Connect it to Mask layer, or use it to modulate another field.
+Draws a filled circle: 1 inside, 0 outside, with a soft edge. It is a number at every point, not a color, so it is used to cut things out: connect it to Mask layer to show a layer only inside the circle, or multiply another pattern by it. The edge softness blurs the rim so it never looks jagged.
 
 **How it is computed**
 
-1. Signed distance to the circle of radius r: negative inside, zero on the rim, positive outside.
+1. First measure how far the point is from the rim of the circle. This signed distance d is negative inside, zero exactly on the rim, and positive outside.
 
    $$
    d = |p| - r
    $$
 
-2. *Result.* 1 inside, 0 outside, with a smooth transition 2ε wide across the rim.
+2. *Result.* The smoothstep function is a smooth ramp: 0 before −ε, 1 after ε, and a gentle S-curve in between. Subtracting it from 1 flips it, so m is 1 inside the circle, 0 outside, and fades across a band 2ε wide at the rim.
 
    $$
    m = 1 - \operatorname{smoothstep}\left(-\epsilon,\ \epsilon,\ d\right)
@@ -415,42 +415,42 @@ Coverage mask: 1 inside, 0 outside. Connect it to Mask layer, or use it to modul
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $d$ | | signed distance to the rim |
+| $p$ | input `p` | positions |
+| $d$ | | the signed distance to the rim: negative inside, positive outside |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Radius `radius` | $r$ | 1 | 0.02 to 3 (step 0.01) | Radius of the disc in world units. |
-| Edge softness `edge` | $\epsilon$ | 0.02 | 0.001 to 0.6 (step 0.001) | Width of the soft transition at the rim. Small values give a crisp edge. |
+| Radius `radius` | $r$ | 1 | 0.02 to 3 (step 0.01) | How big the disc is, measured from its center. Slide right for a bigger disc. |
+| Edge softness `edge` | $\epsilon$ | 0.02 | 0.001 to 0.6 (step 0.001) | How blurry the rim is. Slide left for a crisp edge; slide right for a soft, fuzzy one. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param radius = 1 [0.02, 3] step 0.01  // Radius: Radius of the disc in world units.
-param epsilon = 0.02 [0.001, 0.6] step 0.001  // Edge softness: Width of the soft transition at the rim.
-d = length(p) - radius   // signed distance to the circle: negative inside, positive outside
-1 - smoothstep(-epsilon, epsilon, d)   // 1 inside, 0 outside, with a soft edge 2ε wide
+param radius = 1 [0.02, 3] step 0.01  // Radius: How big the disc is, measured from its center.
+param epsilon = 0.02 [0.001, 0.6] step 0.001  // Edge softness: How blurry the rim is.
+d = length(p) - radius   // Signed distance to the circle: negative inside, positive outside.
+1 - smoothstep(-epsilon, epsilon, d)   // 1 inside, 0 outside, with a soft edge 2ε wide.
 ```
 
-*Key function shown in the editor:* mask across the rim (m against distance |p|).
+*Key function shown in the editor:* the mask across the rim (m against distance |p|).
 
-*Ideas behind it:* [Signed distance](#signed-distance) · [Smoothstep](#smoothstep)
+*Ideas behind it:* [Signed distance: how far from the edge](#signed-distance-how-far-from-the-edge) · [Smoothstep: a soft edge](#smoothstep-a-soft-edge)
 
 ## Gaussian ring
 
-ID: `ring` · output **scalar field** ($f$) · Scalar fields · role content · when bypassed it outputs zero
+ID: `ring` · output **numbers** ($f$) · Scalar fields · role content · when bypassed it outputs zero
 
-A luminous rim with a hollow center. A Gaussian field, not a geometric mesh.
+Draws a glowing ring with a dark middle. The value is 1 right on a circle and fades smoothly to 0 on both sides, like a soft halo. It is a number at every point, so give it a color with Two-color emission or use it to shape another part.
 
 **How it is computed**
 
-1. Signed distance from the circle of radius r.
+1. Measure how far the point is from the circle of radius r. This signed distance d is negative inside the circle and positive outside.
 
    $$
    d = |p| - r
    $$
 
-2. *Result.* A Gaussian bump across that distance: 1 on the circle, 0.37 at distance w from it, fading to 0 beyond.
+2. *Result.* This bell-shaped curve (a Gaussian) is 1 when d is 0, so the circle itself is brightest. At a distance w from the circle it has dropped to 0.37, and a little farther out it is almost 0, which leaves the middle dark.
 
    $$
    f = \exp\left(-\left(\frac{d}{w}\right)^2\right)
@@ -458,36 +458,36 @@ A luminous rim with a hollow center. A Gaussian field, not a geometric mesh.
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $d$ | | signed distance to the circle |
+| $p$ | input `p` | positions |
+| $d$ | | the signed distance to the circle |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Radius `radius` | $r$ | 1 | 0 to 3 (step 0.01) | Distance of the bright rim from the center. |
-| Width `width` | $w$ | 0.1 | 0.005 to 1 (step 0.005) | Thickness of the rim (Gaussian width). |
+| Radius `radius` | $r$ | 1 | 0 to 3 (step 0.01) | How far the bright ring is from the center. Slide right for a bigger ring. |
+| Width `width` | $w$ | 0.1 | 0.005 to 1 (step 0.005) | How thick the ring is. Slide right for a wide, soft ring; slide left for a thin, sharp one. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param radius = 1 [0, 3] step 0.01  // Radius: Distance of the bright rim from the center.
-param w = 0.1 [0.005, 1] step 0.005  // Width: Thickness of the rim (Gaussian width).
-d = length(p) - radius   // signed distance from the circle
-exp(-(d/w)^2)   // a Gaussian bump: 1 on the circle, 0.37 at distance w from it
+param radius = 1 [0, 3] step 0.01  // Radius: How far the bright ring is from the center.
+param w = 0.1 [0.005, 1] step 0.005  // Width: How thick the ring is.
+d = length(p) - radius   // Signed distance from the circle.
+exp(-(d/w)^2)   // A bell-shaped bump: 1 on the circle, 0.37 at distance w from it.
 ```
 
-*Key function shown in the editor:* profile across the ring (f against distance |p|).
+*Key function shown in the editor:* brightness across the ring (f against distance |p|).
 
-*Ideas behind it:* [Signed distance](#signed-distance) · [Gaussian bump](#gaussian-bump)
+*Ideas behind it:* [Signed distance: how far from the edge](#signed-distance-how-far-from-the-edge) · [The Gaussian bump: a soft hill](#the-gaussian-bump-a-soft-hill)
 
 ## Soft threshold
 
-ID: `threshold` · output **scalar field** ($f$) · Scalar fields · role modifier · when bypassed it passes `field` through
+ID: `threshold` · output **numbers** ($f$) · Scalar fields · role modifier · when bypassed it passes `field` through
 
-The same nested-exponential gate used by the source equations. Turns smooth variation into wisps, islands or filaments.
+Keeps only the high parts of a pattern and darkens the rest. Where the input is well below the level it gives almost 0, where it is well above it gives almost 1, and in between it rises smoothly. Used on soft noise, this turns gentle hills into islands, wisps or thin threads. The original nebula equations use this same kind of switch everywhere.
 
 **How it is computed**
 
-1. *Result.* A double-exponential gate: nearly 0 where the input g is well below the level ℓ, nearly 1 well above it, rising smoothly over about 1/s. It crosses 1/e ≈ 0.37 exactly at g = ℓ. Thresholding a smooth field this way turns it into islands, wisps or filaments.
+1. *Result.* This double exponential is a soft on/off switch: nearly 0 where the input g is well below the level ℓ, and nearly 1 where it is well above. It changes over a range of about 1/s, so a large s makes a sharp switch, and exactly at g = ℓ it equals 1/e, about 0.37. Used on a smooth pattern, it carves out islands, wisps or thin threads.
 
    $$
    f = \exp\left(-e^{-s\,(g - \ell)}\right)
@@ -495,34 +495,34 @@ The same nested-exponential gate used by the source equations. Turns smooth vari
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $g$ | input `field` | scalar field |
+| $g$ | input `field` | numbers |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Threshold `level` | $\ell$ | 0.5 | -2 to 2 (step 0.01) | Input value where the output crosses about 0.37. Raise it to keep only the highest parts of the field. |
-| Sharpness `sharpness` | $s$ | 8 | 0.1 to 60 (step 0.1) | Steepness of the transition. High values give hard-edged islands; low values a gentle ramp. |
+| Threshold `level` | $\ell$ | 0.5 | -2 to 2 (step 0.01) | The input value where the output switches from dark to bright (right there it is about 0.37). Slide right to keep only the highest parts of the pattern. |
+| Sharpness `sharpness` | $s$ | 8 | 0.1 to 60 (step 0.1) | How sudden the switch is. Slide right for hard-edged islands; slide left for a gentle ramp. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param ell = 0.5 [-2, 2] step 0.01  // Threshold: Input value where the output crosses about 0.37.
-param s = 8 [0.1, 60] step 0.1  // Sharpness: Steepness of the transition.
-exp(-exp(-s*(a - ell)))   // the double-exponential gate: nearly 0 below the level, nearly 1 above it
+param ell = 0.5 [-2, 2] step 0.01  // Threshold: The input value where the output switches from dark to bright (right there it is about 0.37).
+param s = 8 [0.1, 60] step 0.1  // Sharpness: How sudden the switch is.
+exp(-exp(-s*(a - ell)))   // The soft switch: nearly 0 below the level, nearly 1 above it.
 ```
 
-*Key function shown in the editor:* output against input (f against input g).
+*Key function shown in the editor:* the output for each input value (f against input g).
 
-*Ideas behind it:* [The double-exponential gate](#the-double-exponential-gate)
+*Ideas behind it:* [The double-exponential gate: a soft switch](#the-double-exponential-gate-a-soft-switch)
 
 ## Combine scalar fields
 
-ID: `fieldmath` · output **scalar field** ($f$) · Scalar fields · role combine · when bypassed it passes `a` through
+ID: `fieldmath` · output **numbers** ($f$) · Scalar fields · role combine · when bypassed it passes `a` through
 
-One small arithmetic node supports sums, differences, products and threshold offsets.
+Mixes two number patterns by adding, subtracting or multiplying them. Each input gets its own weight, the product lets one pattern turn the other up or down, and a constant shifts everything. Use it to blend two patterns, to cut one out of another, or to nudge a pattern up or down before a Soft threshold.
 
 **How it is computed**
 
-1. *Result.* A weighted sum of the two fields, plus their product and a constant. Sums blend fields, a negative weight subtracts, the product lets one field modulate the other, and the constant shifts the result, e.g. before a threshold.
+1. *Result.* The result is a weighted sum: w_a times a, plus w_b times b, plus w_p times a × b, plus the constant c. A negative weight subtracts, the product lets one pattern switch the other on and off, and c shifts the whole result up or down, for example just before a threshold.
 
    $$
    f = w_a\, a + w_b\, b + w_p\, a b + c
@@ -530,35 +530,35 @@ One small arithmetic node supports sums, differences, products and threshold off
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $a$ | input `a` | scalar field |
-| $b$ | input `b` | scalar field |
+| $a$ | input `a` | numbers |
+| $b$ | input `b` | numbers |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| A weight `weightA` | $w_a$ | 1 | -5 to 5 (step 0.01) | Multiplier for input a. |
-| B weight `weightB` | $w_b$ | 1 | -5 to 5 (step 0.01) | Multiplier for input b. Use a negative value to subtract b. |
-| Product weight `product` | $w_p$ | 0 | -5 to 5 (step 0.01) | Weight of the product a·b; use it to modulate one field by another. |
-| Bias `bias` | $c$ | 0 | -4 to 4 (step 0.01) | Constant added to the result. |
+| A weight `weightA` | $w_a$ | 1 | -5 to 5 (step 0.01) | How much of input a goes into the result. Slide right for more; negative values subtract it. |
+| B weight `weightB` | $w_b$ | 1 | -5 to 5 (step 0.01) | How much of input b goes into the result. Use a negative value to subtract b from a. |
+| Product weight `product` | $w_p$ | 0 | -5 to 5 (step 0.01) | How much of a × b is added. Use it to let one pattern turn the other up and down; zero leaves it out. |
+| Bias `bias` | $c$ | 0 | -4 to 4 (step 0.01) | A constant added to the result. Slide right to raise everything; slide left to lower it. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param w_a = 1 [-5, 5] step 0.01  // A weight: Multiplier for input a.
-param w_b = 1 [-5, 5] step 0.01  // B weight: Multiplier for input b.
-param w_p = 0 [-5, 5] step 0.01  // Product weight: Weight of the product a·b; use it to modulate one field by another.
-param c = 0 [-4, 4] step 0.01  // Bias: Constant added to the result.
-w_a*a + w_b*b + w_p*a*b + c   // a weighted sum of the two fields, their product and a constant
+param w_a = 1 [-5, 5] step 0.01  // A weight: How much of input a goes into the result.
+param w_b = 1 [-5, 5] step 0.01  // B weight: How much of input b goes into the result.
+param w_p = 0 [-5, 5] step 0.01  // Product weight: How much of a × b is added.
+param c = 0 [-4, 4] step 0.01  // Bias: A constant added to the result.
+w_a*a + w_b*b + w_p*a*b + c   // A weighted sum of the two inputs, plus their product and a constant.
 ```
 
 ## Custom scalar equation
 
-ID: `expression` · output **scalar field** ($f$) · Authoring · role content · when bypassed it outputs zero
+ID: `expression` · output **numbers** ($f$) · Authoring · role content · when bypassed it outputs zero
 
-Your own equation for a number at every point, written line by line: parameters become sliders, definitions name intermediate values, and the last line is the result. It can use p = (x, y), r, θ, the time t, two input fields a and b, and every function of the shader libraries.
+Your own formula that gives a number for every point. Write it one line at a time: a param line makes a slider, a line like d = r − 1 names a value for later lines, and the last line is the result. You can use the point p = (x, y), its distance r and angle θ, the time t, two input patterns a and b, and built-in functions such as sin, smoothstep and fbm.
 
 **How it is computed**
 
-1. *Result.* Any expression of the point p = (x, y), its polar coordinates r and θ, two optional input fields a and b, and the time t.
+1. *Result.* Your formula can use the point p = (x, y), its distance r and angle θ, the two optional inputs a and b, and the time t. Whatever the last line gives is the number for that point.
 
    $$
    f(p, a, b, t) = \text{your expression}
@@ -566,27 +566,27 @@ Your own equation for a number at every point, written line by line: parameters 
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $a$ | input `a` | scalar field |
-| $b$ | input `b` | scalar field |
-| $p = (x, y)$ | | input coordinates |
-| $r, \theta$ | | polar radius and angle of p |
-| $a, b$ | | optional scalar inputs |
-| $t$ | | time in seconds |
+| $p$ | input `p` | positions |
+| $a$ | input `a` | numbers |
+| $b$ | input `b` | numbers |
+| $p = (x, y)$ | | the point being drawn, with its x and y coordinates |
+| $r, \theta$ | | the distance of p from the center, and its angle around the center (like the hand of a clock) |
+| $a, b$ | | two optional input numbers from other parts (0 when nothing is connected) |
+| $t$ | | the time in seconds |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Equation `expression` | — | `param rings = 8 [0, 30] step 0.1   // rings per unit of distance from the center param arms = 3 [-12, 12] step 1    // spiral arms; whole numbers join up without a seam 0.5 + 0.5*cos(rings*r - arms*theta - t)   // a wave between 0 and 1 that spirals out and moves with time` | — | Use p, x, y, r, theta, t, a and b, parameters (param name = value [min, max]) and definitions (name = …), one per line; the last line is the result. No loops or JavaScript. |
+| Equation `expression` | — | `param rings = 8 [0, 30] step 0.1   // How many rings fit in one unit of distance from the center. param arms = 3 [-12, 12] step 1    // How many spiral arms there are; whole numbers join up without a seam. 0.5 + 0.5*cos(rings*r - arms*theta - t)   // A wave between 0 and 1 that spirals outward as time goes on.` | — | Write your formula one line at a time, using the point p = (x, y), its distance r and angle theta, the time t and the inputs a and b. A line “param name = value [min, max]” makes a slider, a line “name = …” names a value for later lines, and the last line is the result (loops and JavaScript are not allowed). |
 
 ## Custom coordinate equation
 
-ID: `vectorExpression` · output **coordinates** ($q$) · Authoring · role modifier · when bypassed it passes `p` through
+ID: `vectorExpression` · output **positions** ($q$) · Authoring · role modifier · when bypassed it passes `p` through
 
-Your own coordinate map: the last line is a new point vec2(…) for every input point p, and everything that reads it is drawn through the map. Written like the other custom equations; bypassed, it passes p through.
+Your own formula that moves every point somewhere new. The last line gives a new point vec2(…) for each input point p, and every part that reads it is drawn through that map, like looking through wavy glass. It is written like the other custom formulas; switched off, it passes p through unchanged.
 
 **How it is computed**
 
-1. *Result.* A new point for every input point: a coordinate map of your own, applied by everything that reads q.
+1. *Result.* Your formula gives a new point q for every input point p. Any part that reads q draws its pattern at the new points, so your formula bends, moves or folds that pattern.
 
    $$
    q(p, a, b, t) = \text{your expression}
@@ -594,29 +594,29 @@ Your own coordinate map: the last line is a new point vec2(…) for every input 
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $a$ | input `a` | scalar field |
-| $b$ | input `b` | scalar field |
-| $p = (x, y)$ | | input coordinates |
-| $r, \theta$ | | polar radius and angle of p |
-| $a, b$ | | optional scalar inputs |
-| $t$ | | time in seconds |
+| $p$ | input `p` | positions |
+| $a$ | input `a` | numbers |
+| $b$ | input `b` | numbers |
+| $p = (x, y)$ | | the point being drawn, with its x and y coordinates |
+| $r, \theta$ | | the distance of p from the center, and its angle around the center (like the hand of a clock) |
+| $a, b$ | | two optional input numbers from other parts (0 when nothing is connected) |
+| $t$ | | the time in seconds |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Equation `expression` | — | `param amount = 0.5 [-3, 3] step 0.01   // largest rotation, in radians param ripple = 3 [0, 20] step 0.1      // how often the rotation reverses with distance angle = amount*sin(ripple*r - t)       // each circle of radius r turns by its own angle rotate2(p, angle)                      // the point turned about the center: a rippling swirl` | — | Use p, x, y, r, theta, t, a and b, parameters (param name = value [min, max]) and definitions (name = …), one per line; the last line is the result. No loops or JavaScript. |
+| Equation `expression` | — | `param amount = 0.5 [-3, 3] step 0.01   // The largest turn, in radians (6.28 is one full turn). param ripple = 3 [0, 20] step 0.1      // How often the turning changes direction as you move out from the center. angle = amount*sin(ripple*r - t)       // Each circle of radius r is turned by its own angle. rotate2(p, angle)                      // The point turned around the center, which makes a rippling swirl.` | — | Write your formula one line at a time, using the point p = (x, y), its distance r and angle theta, the time t and the inputs a and b. A line “param name = value [min, max]” makes a slider, a line “name = …” names a value for later lines, and the last line is the result (loops and JavaScript are not allowed). |
 
-*Ideas behind it:* [Backward mapping](#backward-mapping)
+*Ideas behind it:* [Backward mapping: each pixel looks elsewhere](#backward-mapping-each-pixel-looks-elsewhere)
 
 ## Custom color equation
 
-ID: `colorExpression` · output **color layer** ($\mathrm{RGB}$) · Authoring · role content · when bypassed it outputs zero
+ID: `colorExpression` · output **picture** ($\mathrm{RGB}$) · Authoring · role content · when bypassed it outputs zero
 
-Your own color layer: the last line is a radiance vec3(…), opaque, or vec4(…) with coverage. Written like the other custom equations; combine with a mask for transparency.
+Your own formula that gives a color for every point. The last line is either a color vec3(red, green, blue), which is solid everywhere, or a vec4(red, green, blue, coverage), whose fourth number says how solid the color is (1 solid, 0 see-through). It is written like the other custom formulas; put it over another layer with Front over back to use its see-through parts.
 
 **How it is computed**
 
-1. *Result.* A color (radiance) for every point; a vec4 also sets the coverage, otherwise it is opaque.
+1. *Result.* Your formula gives a color, an amount of red, green and blue light, for every point. If the last line is a vec4, its fourth number is the coverage (how solid the color is); otherwise the color is solid everywhere.
 
    $$
    \mathrm{RGB}(p, a, b, t) = \text{your expression}
@@ -624,35 +624,35 @@ Your own color layer: the last line is a radiance vec3(…), opaque, or vec4(…
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $a$ | input `a` | scalar field |
-| $b$ | input `b` | scalar field |
-| $p = (x, y)$ | | input coordinates |
-| $r, \theta$ | | polar radius and angle of p |
-| $a, b$ | | optional scalar inputs |
-| $t$ | | time in seconds |
+| $p$ | input `p` | positions |
+| $a$ | input `a` | numbers |
+| $b$ | input `b` | numbers |
+| $p = (x, y)$ | | the point being drawn, with its x and y coordinates |
+| $r, \theta$ | | the distance of p from the center, and its angle around the center (like the hand of a clock) |
+| $a, b$ | | two optional input numbers from other parts (0 when nothing is connected) |
+| $t$ | | the time in seconds |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Equation `expression` | — | `param petals = 6 [1, 24] step 1      // bright lobes around the center param flow = 0.1 [-1, 1] step 0.01   // how fast the rainbow moves outward hue = spectrum(r - flow*t, 0)        // a rainbow color for each distance r hue * (0.5 + 0.5*cos(petals*theta))  // brightened in petals around the center` | — | Use p, x, y, r, theta, t, a and b, parameters (param name = value [min, max]) and definitions (name = …), one per line; the last line is the result. No loops or JavaScript. |
+| Equation `expression` | — | `param petals = 6 [1, 24] step 1      // How many bright petals go around the center. param flow = 0.1 [-1, 1] step 0.01   // How fast the rainbow moves outward. hue = spectrum(r - flow*t, 0)        // A rainbow color for each distance r from the center. hue * (0.5 + 0.5*cos(petals*theta))  // The rainbow, bright in petals around the center and dark between them.` | — | Write your formula one line at a time, using the point p = (x, y), its distance r and angle theta, the time t and the inputs a and b. A line “param name = value [min, max]” makes a slider, a line “name = …” names a value for later lines, and the last line is the result (loops and JavaScript are not allowed). |
 
-*Ideas behind it:* [Radiance, not pixels](#radiance-not-pixels)
+*Ideas behind it:* [Radiance: light, not screen colors](#radiance-light-not-screen-colors)
 
 ## Shader code
 
-ID: `code` · output **color layer** ($o$) · Code & points · role content · when bypassed it outputs zero
+ID: `code` · output **picture** ($o$) · Code & points · role content · when bypassed it outputs zero
 
-Shader code in the style of twigl.app: the whole program for one pixel, written as GLSL. Paste a twigl “geekest” one-liner and it runs unchanged; then drag its numbers, stop its loops after a few steps and look at any of its variables on the canvas. The input p lets you warp or zoom it like any other layer.
+Runs a tiny program once for every pixel to color it. This kind of program is called a shader, and it is written in GLSL, the language graphics cards understand. It works as on the website twigl.app: paste a twigl “geekest” one-liner and it runs unchanged. Then drag its numbers, stop its loops early, look at any of its values on the canvas, or warp and zoom it through its input p like any other layer.
 
 **How it is computed**
 
-1. Each point p of the plane becomes the pixel position FC of the code’s own canvas (r pixels wide), and the studio time τ becomes the code’s time t.
+1. Each point p of the plane is turned into a pixel position FC on the code’s own canvas, which is r pixels wide. The studio clock τ becomes the code’s clock t: it runs σ times as fast and starts τ_0 seconds ahead.
 
    $$
    \mathrm{FC} = \text{pixel of } p, \quad t = \sigma\,\tau + \tau_0
    $$
 
-2. *Result.* The code runs once for every pixel, on its own: it starts with o = 0 and adds light to it. The final o is the color of this layer.
+2. *Result.* The code runs once for every pixel, all on its own, without looking at its neighbors. It starts with the color o = 0 (black) and adds light to it, and whatever o holds at the end is the color of this layer.
 
    $$
    o = \operatorname{code}(\mathrm{FC}, r, t)
@@ -660,47 +660,47 @@ Shader code in the style of twigl.app: the whole program for one pixel, written 
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $\mathrm{FC}$ | | pixel position of the point, as on twigl |
-| $r$ | | resolution in pixels |
-| $\tau$ | | studio time in seconds |
-| $o$ | | output color |
+| $p$ | input `p` | positions |
+| $\mathrm{FC}$ | | the pixel position of the point, as on twigl |
+| $r$ | | the width and height of the code’s canvas, in pixels |
+| $\tau$ | | the studio time in seconds |
+| $o$ | | the color the code outputs |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Code `code` | — | // Rings of color moving outward. Drag any number to change it. vec2 p = (FC.xy - .5*r)/r.y;   // this pixel as a point: the center is 0, the image height is 1 float d = length(p);           // distance from the center for (float i = 0.; i < 3.; i++)   // three layers of rings, each a little larger   o.rgb += hsv(d - t*.1 + i*.2, .6, .02/abs(sin(d*12. - t - i) + .001))*.1;   // bright where the sine crosses zero | — | GLSL as on twigl.app (geekest mode): read the pixel FC, the resolution r and the time t, and add light to the color o. Every number can be dragged; loops, variables and helpers are explained in the Code view. |
-| Time speed `speed` | $\sigma$ | 1 | -4 to 4 (step 0.01) | How fast the code’s time t runs: 1 is real time, 0 freezes the picture, negative values play it backwards. |
-| Time offset `phase` | $\tau_0$ | 0 | -60 to 60 (step 0.01) | Added to the code’s time: the moment of the animation this component shows at time 0. With speed 0 it chooses a still frame. |
+| Code `code` | — | // Colored rings that ripple outward. Drag any number to see what it does. vec2 p = (FC.xy - .5*r)/r.y;   // where this pixel is: (0, 0) at the center, and the picture is 1 unit tall float d = length(p);           // how far this pixel is from the center for (float i = 0.; i < 3.; i++)   // three sets of rings, each shifted a little farther out   o.rgb += hsv(d - t*.1 + i*.2, .6, .02/abs(sin(d*12. - t - i) + .001))*.1;   // add colored light, brightest where the sine wave crosses zero: the thin rings | — | Shader code in GLSL, the language graphics cards run, written as on twigl.app in its “geekest” mode: it reads the pixel position FC, the canvas size r and the time t, and adds light to the color o. You can drag any number in it, and the Code tab explains its loops, variables and helper functions. |
+| Time speed `speed` | $\sigma$ | 1 | -4 to 4 (step 0.01) | How fast the code’s clock t runs: 1 is normal speed, 0 freezes the picture, and negative values play it backward. |
+| Time offset `phase` | $\tau_0$ | 0 | -60 to 60 (step 0.01) | Added to the code’s clock, so it picks which moment of the animation you see at time 0. With the speed at 0, slide it to choose a still frame. |
 
-*Ideas behind it:* [A program for one pixel](#a-program-for-one-pixel) · [Every pixel on its own](#every-pixel-on-its-own)
+*Ideas behind it:* [Shader code: a recipe for one pixel](#shader-code-a-recipe-for-one-pixel) · [Every pixel works alone](#every-pixel-works-alone)
 
 ## Point cloud
 
-ID: `points` · output **color layer** ($L$) · Code & points · role content · when bypassed it outputs zero
+ID: `points` · output **picture** ($L$) · Code & points · role content · when bypassed it outputs zero
 
-Thousands of points placed by one equation of their index i and the time t, like a p5.js sketch that calls point() in a loop. The dots are drawn on the GPU and become a layer: put it over a background, tint it, mask it or warp it through its input p.
+Draws thousands of dots, each placed by a formula. The same formula runs once for every dot number i, from 0 up to n − 1, and for the time t, like a p5.js sketch that calls point() in a loop. Where many dots pile up, their light adds up, so crowded places glow. The dots become a layer: put it over a background, tint it, mask it, or warp it through its input p.
 
 **How it is computed**
 
-1. The studio time τ (seconds) becomes the sketch time t.
+1. The studio time τ, in seconds, becomes the sketch’s own clock t. It runs σ times as fast and starts τ_0 ahead.
 
    $$
    t = \sigma\,\tau + \tau_0
    $$
 
-2. Your equation places each point: the same formula, evaluated n times with a different index i. Structure appears because nearby i land on nearby places.
+2. Your formula gives the position x_i of each dot. It is the same formula every time, run n times with a different number i. Shapes appear because the formula changes smoothly from one i to the next, so dots with neighboring numbers often land near each other.
 
    $$
    \mathbf{x}_i = \operatorname{position}(i, n, t), \quad i = 0, 1, \ldots, n - 1
    $$
 
-3. Positions are in sketch pixels, as in p5.js: x to the right, y down, (S/2, S/2) at the center. The S-pixel-wide sketch fills the width of the image.
+3. Positions are measured in sketch pixels, just as in p5.js: x goes to the right, y goes down, and (S/2, S/2) is the center. The sketch, S pixels wide, is stretched to fill the width of the picture.
 
    $$
    \mathbf{x}_i \in [0, S] \times [0, S] \to \text{the image}
    $$
 
-4. *Result.* Every point is a small round dot of diameter w, blended over the ones before it. Where many points overlap the light accumulates, so density becomes brightness.
+4. *Result.* Every dot is a small round spot of diameter w and color C, with opacity α, drawn on top of the dots before it. Where many dots overlap, their light piles up, so the crowded places look brightest.
 
    $$
    L \leftarrow \operatorname{over}\left(\alpha\, C\, \text{disc}(\mathbf{x}_i, w),\ L\right)
@@ -708,39 +708,39 @@ Thousands of points placed by one equation of their index i and the time t, like
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $i, n$ | | index of the point and number of points |
-| $S$ | | sketch width in its own pixels |
-| $\tau$ | | studio time in seconds |
+| $p$ | input `p` | positions |
+| $i, n$ | | the number of this dot, and how many dots there are |
+| $S$ | | the width of the sketch in its own pixels |
+| $\tau$ | | the studio time in seconds |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Equation `expression` | — | `param petals = 5 [1, 12] step 1   // lobes of the curve k = i/n*TAU                        // where point i sits along the curve: 0 to 2π d = 120 + 50*sin(petals*k + t)     // its distance from the center, wobbling in petals vec2(200 + d*cos(k), 200 + d*sin(k))   // the point, around the center of a 400-pixel sketch` | — | Where point number i (of n) is drawn at time t, as vec2(x, y) in sketch pixels: x to the right, y down, the sketch S pixels wide. Parameters (param name = value [min, max]) and definitions (name = …), one per line; the last line is the position. |
-| Points `count` | $n$ | 20000 | 1 to 200000 (step 1) | How many points are drawn: i runs from 0 to n − 1. |
-| Point size `size` | $w$ | 1 | 0.1 to 24 (step 0.05) | Diameter of one point in sketch pixels (the strokeWeight of p5.js). |
-| Color `color` | $C$ | #ffffff | — | Color of the points. A linear radiance multiplier; display conversion happens only after composition. |
-| Opacity `alpha` | $\alpha$ | 0.26 | 0 to 1 (step 0.005) | Opacity of one point. Overlapping points build up brightness, so dense places glow (p5.js stroke alpha 66 is 66/255 ≈ 0.26). |
-| Sketch size `canvas` | $S$ | 400 | 50 to 4000 (step 1) | Width of the sketch in its own pixels (createCanvas in p5.js). The sketch fills the width of the image; its center is (S/2, S/2). |
-| Time speed `speed` | $\sigma$ | 1 | -8 to 8 (step 0.001) | Sketch time per second: t = σ τ + τ₀. A p5.js sketch that adds Δ to t every frame at 60 frames per second has σ = 60 Δ. |
-| Time offset `phase` | $\tau_0$ | 0 | -200 to 200 (step 0.01) | Added to the sketch time. With speed 0 it chooses a still frame. |
+| Equation `expression` | — | `param petals = 5 [1, 12] step 1   // How many petals (bumps) the curve has. k = i/n*TAU                        // Where point i sits along the curve, as an angle from 0 to 2π (one full turn). d = 120 + 50*sin(petals*k + t)     // Its distance from the center: 120 pixels, plus or minus 50, which makes the petals. vec2(200 + d*cos(k), 200 + d*sin(k))   // The point itself, placed around the center (200, 200) of a 400-pixel sketch.` | — | A formula for where dot number i (out of n) goes at time t, written as vec2(x, y) in sketch pixels, with x to the right and y down. A line “param name = value [min, max]” makes a slider, a line “name = …” names a value for later lines, and the last line is the position. |
+| Points `count` | $n$ | 20000 | 1 to 200000 (step 1) | How many dots are drawn; i runs from 0 to n − 1. Slide right for more dots and a denser picture. |
+| Point size `size` | $w$ | 1 | 0.1 to 24 (step 0.05) | How wide each dot is, in sketch pixels (like strokeWeight in p5.js). Slide right for bigger dots. |
+| Color `color` | $C$ | #ffffff | — | The color of the dots. Think of it as colored light: it becomes a screen color only at the very end. |
+| Opacity `alpha` | $\alpha$ | 0.26 | 0 to 1 (step 0.005) | How solid one dot is. Slide left for fainter dots, so only crowded places glow (p5.js stroke alpha 66 is 66/255, about 0.26). |
+| Sketch size `canvas` | $S$ | 400 | 50 to 4000 (step 1) | How many pixels wide the sketch is, like createCanvas in p5.js. The sketch always fills the width of the picture, and its center is at (S/2, S/2). |
+| Time speed `speed` | $\sigma$ | 1 | -8 to 8 (step 0.001) | How fast the sketch’s clock runs: t = σ τ + τ₀. If a p5.js sketch adds Δ to t every frame at 60 frames per second, use σ = 60 Δ. |
+| Time offset `phase` | $\tau_0$ | 0 | -200 to 200 (step 0.01) | Added to the sketch’s clock. With the speed at 0, slide it to choose a still frame. |
 
-*Ideas behind it:* [One formula, thousands of points](#one-formula-thousands-of-points) · [Density becomes brightness](#density-becomes-brightness)
+*Ideas behind it:* [One formula, thousands of points](#one-formula-thousands-of-points) · [Many faint dots make brightness](#many-faint-dots-make-brightness)
 
 ## Two-color emission
 
-ID: `palette` · output **color layer** ($\mathrm{RGB}$) · Color & composition · role content · when bypassed it outputs zero
+ID: `palette` · output **picture** ($\mathrm{RGB}$) · Color & composition · role content · when bypassed it outputs zero
 
-Color a scalar field. This returns straight RGB with full coverage; add a mask when the layer should be transparent.
+Colors a number pattern with a blend of two colors. Where the input is 0 or less you get the low color, where it is 1 or more you get the high color, and in between the two colors mix. The layer is solid everywhere; add a Mask layer if parts of it should be see-through.
 
 **How it is computed**
 
-1. Clamp the field to 0–1, then bend it with the contrast power γ (above 1 favors the low end).
+1. First the input f is clamped, which means it is cut off below 0 and above 1. Then it is raised to the power γ: a γ above 1 pushes middle values down toward the low color, and a γ below 1 lifts them toward the high color.
 
    $$
    u = \operatorname{clamp}(f, 0, 1)^{\gamma}
    $$
 
-2. *Result.* Blend from the low color C₀ (u = 0) to the high color C₁ (u = 1) and multiply by the emission g. The layer is opaque everywhere.
+2. *Result.* The mix function blends from the low color C_0 (when u = 0) to the high color C_1 (when u = 1), and the Emission setting g makes the result brighter or darker. The coverage α is 1, so the layer is solid everywhere.
 
    $$
    \mathrm{RGB} = g\cdot \operatorname{mix}\left(C_0,\ C_1,\ u\right), \quad \alpha = 1
@@ -748,40 +748,40 @@ Color a scalar field. This returns straight RGB with full coverage; add a mask w
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $f$ | input `field` | scalar field |
-| $u$ | | blend position between the two colors |
+| $f$ | input `field` | numbers |
+| $u$ | | how far this point is along the blend from the low color to the high color |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Low color `low` | $C_0$ | #09212e | — | Color where the field is 0 or below. A linear radiance multiplier; display conversion happens only after composition. |
-| High color `high` | $C_1$ | #62edc3 | — | Color where the field is 1 or above. A linear radiance multiplier; display conversion happens only after composition. |
-| Emission `gain` | $g$ | 1 | 0 to 5 (step 0.01) | Overall brightness multiplier, before exposure and tone mapping. |
-| Contrast power `power` | $\gamma$ | 1 | 0.1 to 8 (step 0.05) | Shapes the blend: above 1 keeps more of the low color, below 1 pushes toward the high color. |
+| Low color `low` | $C_0$ | #09212e | — | The color where the input is 0 or below. Think of it as colored light: it becomes a screen color only at the very end. |
+| High color `high` | $C_1$ | #62edc3 | — | The color where the input is 1 or above. Think of it as colored light: it becomes a screen color only at the very end. |
+| Emission `gain` | $g$ | 1 | 0 to 5 (step 0.01) | How brightly the colors glow overall. Slide right to brighten them; 0 turns the layer black. |
+| Contrast power `power` | $\gamma$ | 1 | 0.1 to 8 (step 0.05) | Shapes the blend between the two colors. Slide right to keep more of the low color; slide left to push toward the high color. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param C_0 = #09212e  // Low color: Color where the field is 0 or below.
-param C_1 = #62edc3  // High color: Color where the field is 1 or above.
-param g = 1 [0, 5] step 0.01  // Emission: Overall brightness multiplier, before exposure and tone mapping.
-param gamma = 1 [0.1, 8] step 0.05  // Contrast power: Shapes the blend: above 1 keeps more of the low color, below 1 pushes toward the high color.
-u = clamp(a, 0, 1)^gamma   // the field clipped to 0–1 and bent by the contrast power
-vec4(mix(C_0, C_1, u)*g, 1)   // blend from the low to the high color, times the emission; opaque
+param C_0 = #09212e  // Low color: The color where the input is 0 or below.
+param C_1 = #62edc3  // High color: The color where the input is 1 or above.
+param g = 1 [0, 5] step 0.01  // Emission: How brightly the colors glow overall.
+param gamma = 1 [0.1, 8] step 0.05  // Contrast power: Shapes the blend between the two colors.
+u = clamp(a, 0, 1)^gamma   // The input, cut off to 0–1 and bent by the contrast power.
+vec4(mix(C_0, C_1, u)*g, 1)   // Blend from the low color to the high color, then brighten or dim the result; the layer is solid.
 ```
 
-*Key function shown in the editor:* blend position against the field (u against field f).
+*Key function shown in the editor:* where each input value falls between the two colors (u against field f).
 
-*Ideas behind it:* [Linear interpolation (mix)](#linear-interpolation-mix) · [Radiance, not pixels](#radiance-not-pixels)
+*Ideas behind it:* [Mix: blending two values](#mix-blending-two-values) · [Radiance: light, not screen colors](#radiance-light-not-screen-colors)
 
 ## Solid color
 
-ID: `solid` · output **color layer** ($\mathrm{RGB}$) · Color & composition · role content · when bypassed it outputs zero
+ID: `solid` · output **picture** ($\mathrm{RGB}$) · Color & composition · role content · when bypassed it outputs zero
 
-A background or constant radiance layer.
+Fills the whole picture with one color. Use it as a background behind other layers, or add it to a scene as an even glow. The gain makes it brighter or darker without changing its hue.
 
 **How it is computed**
 
-1. *Result.* The same color C, times the gain g, at every point: a background or a constant light.
+1. *Result.* Every point gets the same color C, multiplied by the gain g. Its coverage α is 1, so it is solid everywhere, which makes a good background or an even glow.
 
    $$
    \mathrm{RGB} = g\, C, \quad \alpha = 1
@@ -790,26 +790,26 @@ A background or constant radiance layer.
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Color `color` | $C$ | #030712 | — | The constant color. A linear radiance multiplier; display conversion happens only after composition. |
-| Gain `gain` | $g$ | 1 | 0 to 4 (step 0.01) | Brightness multiplier. |
+| Color `color` | $C$ | #030712 | — | The color used everywhere. Think of it as colored light: it becomes a screen color only at the very end. |
+| Gain `gain` | $g$ | 1 | 0 to 4 (step 0.01) | How bright the color is. Slide right to brighten it; 0 makes it black. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param C = #030712  // Color: The constant color.
-param g = 1 [0, 4] step 0.01  // Gain: Brightness multiplier.
-vec4(C*g, 1)   // the same color, times the gain, at every point; opaque
+param C = #030712  // Color: The color used everywhere.
+param g = 1 [0, 4] step 0.01  // Gain: How bright the color is.
+vec4(C*g, 1)   // The same color, times the gain, at every point; the layer is solid.
 ```
 
 ## Tint & gain
 
-ID: `tint` · output **color layer** ($\mathrm{RGB}$) · Color & composition · role modifier · when bypassed it passes `layer` through
+ID: `tint` · output **picture** ($\mathrm{RGB}$) · Color & composition · role modifier · when bypassed it passes `layer` through
 
-Multiply floating-point radiance before output conversion. Does not discard highlight detail.
+Changes the color and brightness of a layer. It multiplies the red, green and blue light of the incoming layer by the matching parts of a color, and then by the gain. White leaves the layer as it is, and a colored tint works like colored glass. Very bright spots keep their detail, because nothing is cut off until the very end.
 
 **How it is computed**
 
-1. *Result.* Multiply each channel of the incoming layer L by the matching channel of C (⊙ multiplies channel by channel) and by g. Coverage passes through unchanged.
+1. *Result.* Each color channel of the incoming layer L (red, green and blue) is multiplied by the matching channel of C, which is what ⊙ means, and then by g. The coverage α passes through unchanged, so see-through parts stay see-through.
 
    $$
    \mathrm{RGB} = g\, C \odot L_{\mathrm{rgb}}, \quad \alpha = L_{\alpha}
@@ -817,24 +817,24 @@ Multiply floating-point radiance before output conversion. Does not discard high
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $L$ | input `layer` | color layer |
+| $L$ | input `layer` | picture |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| RGB multiplier `color` | $C$ | #ffffff | — | Per-channel multiplier; white leaves the layer unchanged. A linear radiance multiplier; display conversion happens only after composition. |
-| Gain `gain` | $g$ | 1 | 0 to 5 (step 0.01) | Overall brightness multiplier. |
+| RGB multiplier `color` | $C$ | #ffffff | — | Works like colored glass: each of its red, green and blue parts scales the same part of the layer, and white leaves the layer unchanged. Think of it as colored light: it becomes a screen color only at the very end. |
+| Gain `gain` | $g$ | 1 | 0 to 5 (step 0.01) | How bright the layer is overall. Slide right to brighten it; slide left to dim it. |
 
-*Ideas behind it:* [Radiance, not pixels](#radiance-not-pixels)
+*Ideas behind it:* [Radiance: light, not screen colors](#radiance-light-not-screen-colors)
 
 ## Mask layer
 
-ID: `mask` · output **color layer** ($\alpha$) · Color & composition · role modifier · when bypassed it passes `layer` through
+ID: `mask` · output **picture** ($\alpha$) · Color & composition · role modifier · when bypassed it passes `layer` through
 
-Changes coverage, not straight RGB. Use Over to honor alpha; Add intentionally sums emitted RGB regardless of coverage.
+Makes parts of a layer see-through, using a number pattern. Where the mask is 1 the layer stays as it is, and where it is 0 the layer becomes see-through. The colors themselves do not change: the mask only matters when this layer is put over another with Front over back, because Add light ignores see-through parts.
 
 **How it is computed**
 
-1. *Result.* Scale the layer’s coverage by the mask m (clamped to 0–1), blended in by the strength s. The color is untouched, so the mask hides things only where the layer is composited with Over.
+1. *Result.* The layer’s coverage α (how solid it is) is multiplied by the mask m, after m is cut off to between 0 and 1. The strength s fades the effect in: at 0 nothing changes, and at 1 the mask applies fully. The colors stay the same, so the mask only hides things where this layer is later put over another with Front over back.
 
    $$
    \alpha = L_{\alpha} \cdot \operatorname{mix}\left(1,\ \operatorname{clamp}(m, 0, 1),\ s\right), \quad \mathrm{RGB} = L_{\mathrm{rgb}}
@@ -842,26 +842,26 @@ Changes coverage, not straight RGB. Use Over to honor alpha; Add intentionally s
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $L$ | input `layer` | color layer |
-| $m$ | input `mask` | scalar field |
+| $L$ | input `layer` | picture |
+| $m$ | input `mask` | numbers |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Strength `strength` | $s$ | 1 | 0 to 1 (step 0.01) | How much the mask applies: 0 ignores it, 1 applies it fully. |
+| Strength `strength` | $s$ | 1 | 0 to 1 (step 0.01) | How much the mask counts. At 1 it applies fully; at 0 it is ignored and the layer stays as it was. |
 
-*Key function shown in the editor:* coverage factor against the mask (coverage × … against mask m).
+*Key function shown in the editor:* how much coverage is kept for each mask value (coverage × … against mask m).
 
-*Ideas behind it:* [Coverage (alpha)](#coverage-alpha) · [Linear interpolation (mix)](#linear-interpolation-mix)
+*Ideas behind it:* [Coverage (alpha)](#coverage-alpha) · [Mix: blending two values](#mix-blending-two-values)
 
 ## Add light
 
-ID: `add` · output **color layer** ($\mathrm{RGB}$) · Color & composition · role combine · when bypassed it passes `a` through
+ID: `add` · output **picture** ($\mathrm{RGB}$) · Color & composition · role combine · when bypassed it passes `a` through
 
-Sum radiance before tone mapping. Alpha does not attenuate emission; use Over for opaque objects or alpha-masked layers.
+Adds the light of two layers together. Like two flashlights shining on the same wall, the colors add up and the result gets brighter, and nothing is hidden. Use it for things that give off light, such as glows, stars and gas; to put a solid object in front of something, use Front over back instead.
 
 **How it is computed**
 
-1. *Result.* Light adds up: the result is the light of A plus g times the light of B. Coverage hides nothing here; use Front over back for opaque objects.
+1. *Result.* Light adds up: the result is the light of A plus g times the light of B. Coverage hides nothing here, and the new coverage α is simply the larger of the two. For solid objects that should block what is behind them, use Front over back.
 
    $$
    \mathrm{RGB} = A_{\mathrm{rgb}} + g\, B_{\mathrm{rgb}}, \quad \alpha = \max(A_{\alpha}, B_{\alpha})
@@ -869,30 +869,30 @@ Sum radiance before tone mapping. Alpha does not attenuate emission; use Over fo
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $A$ | input `a` | color layer |
-| $B$ | input `b` | color layer |
+| $A$ | input `a` | picture |
+| $B$ | input `b` | picture |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| B gain `gain` | $g$ | 1 | 0 to 5 (step 0.01) | Brightness of layer B before it is added to A. Zero removes B; 2 doubles it. |
+| B gain `gain` | $g$ | 1 | 0 to 5 (step 0.01) | How bright layer B is before it is added to A. Zero removes B, and 2 doubles it. |
 
 *Ideas behind it:* [Adding light](#adding-light)
 
 ## Front over back
 
-ID: `over` · output **color layer** ($C$, $\alpha$) · Color & composition · role combine · when bypassed it passes `back` through
+ID: `over` · output **picture** ($C$, $\alpha$) · Color & composition · role combine · when bypassed it passes `back` through
 
-Correct straight-alpha composition. Use it to hide background stars behind a planet, feathers, or a silhouette.
+Puts one picture on top of another. Where the front layer is solid it hides the back layer, where it is see-through the back shows through, and partly see-through edges blend the two. Use it to hide background stars behind a planet, or to lay feathers and silhouettes over a background.
 
 **How it is computed**
 
-1. The front covers a fraction α_F of the pixel; the back fills part of what is left.
+1. The front layer covers a fraction α_F of the pixel: 0.7, for example, means it covers 70%. The back layer can only fill part of what is left over, 1 − α_F, and together they make the total coverage α.
 
    $$
    \alpha = \alpha_F + \alpha_B(1 - \alpha_F)
    $$
 
-2. *Result.* The color is the coverage-weighted mix of front and back, divided by the total coverage to stay a straight (unpremultiplied) color.
+2. *Result.* The color is a blend of the front and back colors, each weighted by how much of the pixel it covers. Dividing by the total coverage α keeps C a plain color that is not already dimmed by its coverage.
 
    $$
    C = \frac{\alpha_F C_F + (1 - \alpha_F)\,\alpha_B C_B}{\alpha}
@@ -900,42 +900,42 @@ Correct straight-alpha composition. Use it to hide background stars behind a pla
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $F$ | input `front` | color layer |
-| $B$ | input `back` | color layer |
-| $C_F, \alpha_F$ | | front color and coverage |
-| $C_B, \alpha_B$ | | back color and coverage |
+| $F$ | input `front` | picture |
+| $B$ | input `back` | picture |
+| $C_F, \alpha_F$ | | the color of the front layer, and how much of the pixel it covers |
+| $C_B, \alpha_B$ | | the color of the back layer, and how much of the pixel it covers |
 
 No parameters.
 
-*Ideas behind it:* [Front over back](#front-over-back) · [Coverage (alpha)](#coverage-alpha)
+*Ideas behind it:* [Over: the front covers the back](#over-the-front-covers-the-back) · [Coverage (alpha)](#coverage-alpha)
 
 ## Pinched shell family · S,A
 
-ID: `nebulaGeometry` · output **geometry** ($S$, $A$) · Source nebula · role content · when bypassed it outputs zero
+ID: `nebulaGeometry` · output **shape** ($S$, $A$) · Source nebula · role content · when bypassed it outputs zero
 
-Exact structural port at defaults. Ordered soft first-hit selection produces S (texture coordinate), A (emission rim), and coverage. These are separate meanings.
+Builds the nebula’s shape from 27 nested shells, pinched like hourglasses. The shells are closed outlines, each a little bigger than the last like the layers of an onion, and each is squeezed in the middle, which gives the nebula its two lobes. For every point, the part finds the first shell that contains it and reports where the point lies relative to that shell (S), how brightly the shell’s rim glows there (A), and how much of the point any shell covers. With the settings it starts with, this is the original nebula formula, split into steps.
 
 **How it is computed**
 
-1. For each shell s = 1 … N, shear the plane by its own amounts: σ is shared, c_s and d_s are fixed per shell, so every shell leans its own way.
+1. For each shell s, from 1 up to N, the plane is sheared: slid sideways by an amount that grows with height, and up or down by an amount that grows with x. The shear σ is the same for every shell, while c_s and d_s are fixed for each shell, so every shell leans its own way.
 
    $$
    U_s = x + (\sigma + c_s)\, y, \quad V_s = y - (\sigma + d_s)\, x
    $$
 
-2. An implicit shell of radius R_s: L_s < 0 inside, 0 on the shell, > 0 outside. Dividing V by |U|^η makes the shell very thin near U = 0, pinching it into the two-lobed hourglass; η sets how hard.
+2. L_s tells which side of shell s the point is on: negative inside, zero on the shell, and positive outside, while R_s is the size of the shell. Dividing V_s by |U_s|^η makes the value huge near the line U_s = 0, so the shell is squeezed into a narrow waist there, like an hourglass. The pinch η sets how hard it is squeezed.
 
    $$
    L_s = \sqrt{U_s^2 + \left(\frac{2 R_s^{\eta}\, V_s}{|U_s|^{\eta}}\right)^2} - R_s, \quad s = 1 \ldots N
    $$
 
-3. J_s ≈ 1 inside shell s and ≈ 0 outside (a double-exponential gate of L_s). w_s hands each point to the first shell that contains it, as if looking through stacked sheets front to back.
+3. J_s is a soft on/off switch: about 1 inside shell s and about 0 outside it (its first factor is practically 1 for every shell). The product of (1 − J_u) over all the earlier shells is 1 only if none of them contains the point. So w_s gives each point to the first shell that contains it, like looking down through a stack of tracing paper and seeing the top sheet.
 
    $$
    w_s = J_s \prod_{u<s}(1 - J_u), \quad J_s = e^{-e^{25 - 50 s}}\, e^{-e^{10 L_s}}
    $$
 
-4. *Result.* The two outputs. S is the selected shell’s L: a coordinate that follows the shell surfaces, used to lay the filaments along them. A peaks just inside each shell’s rim: the envelope where the gas glows. Coverage (the sum of the w_s) is a third, diagnostic output.
+4. *Result.* These are the results. S is twice the L of the chosen shell, so it follows the shell outlines, and later parts use it to lay the gas threads along them. A is brightest just inside each shell’s rim, where the gas glows, and the largest shells glow more faintly. The coverage, the sum of all the w_s, is a third result that shows where any shell is.
 
    $$
    S = \sum_s 2 w_s L_s, \quad A = \sum_s \frac{w_s}{4}\, e^{-e^{0.15(s - 23)}}\, e^{-e^{-3 L_s}}
@@ -943,37 +943,37 @@ Exact structural port at defaults. Ordered soft first-hit selection produces S (
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $R_s, c_s, d_s$ | | fixed per-shell radius and shears from the source |
-| $L_s$ | | implicit shell residual of shell s |
-| $J_s$ | | soft membership of shell s |
-| $w_s$ | | ordered first-hit weight of shell s |
+| $p$ | input `p` | positions |
+| $R_s, c_s, d_s$ | | the fixed size and lean of shell s, from the original formula |
+| $L_s$ | | which side of shell s the point is on: negative inside, positive outside |
+| $J_s$ | | a soft switch: about 1 inside shell s and about 0 outside |
+| $w_s$ | | how much of the point belongs to shell s (the first shell that contains it wins) |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Neck pinch `pinch` | $\eta$ | 0.3 | 0.05 to 0.8 (step 0.005) | Exponent that squeezes the shells toward the vertical center line, forming the waist between the two lobes. The source uses 0.3; higher values pinch harder. |
-| Shell shear `shear` | $\sigma$ | 0.15 | -0.5 to 0.6 (step 0.005) | Common tilt added to every shell’s sheared coordinates. The source uses 0.15; changing it leans and skews the lobes. |
-| Shell count `shells` | $N$ | 27 | 1 to 27 (step 1) | How many of the 27 source shells are evaluated, from the first. Fewer shells give fewer overlapping contours. |
+| Neck pinch `pinch` | $\eta$ | 0.3 | 0.05 to 0.8 (step 0.005) | How hard the shells are squeezed toward the up-and-down line through the center, which makes the narrow waist between the two lobes. The original uses 0.3; slide right to pinch harder. |
+| Shell shear `shear` | $\sigma$ | 0.15 | -0.5 to 0.6 (step 0.005) | A tilt shared by all the shells. The original uses 0.15; changing it leans and skews the lobes. |
+| Shell count `shells` | $N$ | 27 | 1 to 27 (step 1) | How many of the 27 original shells are used, starting from the smallest. Slide left for fewer, simpler outlines. |
 
-*Key function shown in the editor:* membership gate of one shell (J against shell residual L).
+*Key function shown in the editor:* the on/off switch of one shell, and its glowing rim (J against shell residual L).
 
-*Ideas behind it:* [Shear](#shear) · [Curves as zero sets](#curves-as-zero-sets) · [The double-exponential gate](#the-double-exponential-gate) · [Front-to-back selection](#front-to-back-selection)
+*Ideas behind it:* [Shear: slanting the plane](#shear-slanting-the-plane) · [Curves where a formula is zero](#curves-where-a-formula-is-zero) · [The double-exponential gate: a soft switch](#the-double-exponential-gate-a-soft-switch) · [Front to back: the first sheet wins](#front-to-back-the-first-sheet-wins)
 
 ## Replacement ring geometry
 
-ID: `ringGeometry` · output **geometry** ($S$, $A$) · Source nebula · role content · when bypassed it outputs zero
+ID: `ringGeometry` · output **shape** ($S$, $A$) · Source nebula · role content · when bypassed it outputs zero
 
-New geometry with the same interface as the pinched shell family. Reuse the entire original cloud machinery unchanged.
+A simple ring shape that can replace the nebula’s shells. It gives the same three results as Pinched shell family (S, A and coverage), so you can swap it in and all the other nebula parts keep working unchanged. The Filament ring scene does exactly that: the same gas threads, glow and stars, wrapped around an oval ring.
 
 **How it is computed**
 
-1. Distance-like value to an ellipse: a circle of radius r squashed vertically by k.
+1. This measures roughly how far the point is from an oval: a circle of radius r squashed up and down by k. It is negative inside the oval and positive outside.
 
    $$
    d = \sqrt{x^2 + (k y)^2} - r
    $$
 
-2. *Result.* The same three outputs as the pinched shells, so it can replace them: S follows the ring, A glows on it with width w.
+2. *Result.* These are the same three results the pinched shells give, so this ring can take their place. S follows the ring, A glows on the ring with a width of about w, and the coverage is 1 on the ring and fades to 0 away from it.
 
    $$
    S = 2 d, \quad A = 0.22\, e^{-(d/w)^2}, \quad \text{coverage} = e^{-(d/w)^2}
@@ -981,25 +981,25 @@ New geometry with the same interface as the pinched shell family. Reuse the enti
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
+| $p$ | input `p` | positions |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Radius `radius` | $r$ | 1.1 | 0.1 to 2 (step 0.01) | Radius of the ring in world units. |
-| Rim width `width` | $w$ | 0.16 | 0.01 to 0.7 (step 0.01) | Thickness of the emitting rim. |
-| Vertical compression `flatten` | $k$ | 1.5 | 0.2 to 3 (step 0.01) | Squashes the ring vertically: 1 is a circle, larger values a flatter ellipse. |
+| Radius `radius` | $r$ | 1.1 | 0.1 to 2 (step 0.01) | How big the ring is. Slide right for a bigger ring. |
+| Rim width `width` | $w$ | 0.16 | 0.01 to 0.7 (step 0.01) | How thick the glowing rim is. Slide right for a wider rim. |
+| Vertical compression `flatten` | $k$ | 1.5 | 0.2 to 3 (step 0.01) | Squashes the ring up and down: 1 is a circle, and larger values make a flatter oval. |
 
-*Ideas behind it:* [Signed distance](#signed-distance) · [Gaussian bump](#gaussian-bump)
+*Ideas behind it:* [Signed distance: how far from the edge](#signed-distance-how-far-from-the-edge) · [The Gaussian bump: a soft hill](#the-gaussian-bump-a-soft-hill)
 
 ## Inspect geometry channel
 
-ID: `geometryField` · output **scalar field** ($f$) · Source nebula · role content · when bypassed it outputs zero
+ID: `geometryField` · output **numbers** ($f$) · Source nebula · role content · when bypassed it outputs zero
 
-Extract one named field for diagnosis, masks or further composition. The rim and coverage are deliberately not interchangeable.
+Turns one result of a shell shape into an ordinary number pattern. A shape part such as Pinched shell family gives three results at once: S, which follows the shells, A, the glowing rim, and the coverage. This part lets you look at one of them on its own, or use it as a mask, a threshold input or a color. The rim and the coverage mean different things, so pick the one you need.
 
 **How it is computed**
 
-1. *Result.* Pick one of the geometry’s three fields and scale it by g, turning it into an ordinary scalar field for masks, thresholds or colors.
+1. *Result.* Pick one of the shape’s three results, S, A or the coverage, and multiply it by g. What comes out is a plain number at every point, which masks, thresholds and colors can use.
 
    $$
    f = g \cdot G_c, \quad G_0 = S,\ G_1 = A,\ G_2 = \text{coverage}
@@ -1007,34 +1007,34 @@ Extract one named field for diagnosis, masks or further composition. The rim and
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $geometry$ | input `geometry` | geometry |
+| $geometry$ | input `geometry` | shape |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| 0=warp · 1=rim · 2=coverage `channel` | $c$ | 1 | 0 to 2 (step 1) | Which geometry channel to output: 0 the shell-following warp coordinate S, 1 the emission rim A, 2 the coverage. |
-| Display gain `gain` | $g$ | 4 | 0.1 to 10 (step 0.1) | Multiplier applied to the extracted channel. |
+| 0=warp · 1=rim · 2=coverage `channel` | $c$ | 1 | 0 to 2 (step 1) | Which result to pass on: 0 is S, the position that follows the shells, 1 is the glowing rim A, and 2 is the coverage. |
+| Display gain `gain` | $g$ | 4 | 0.1 to 10 (step 0.1) | Multiplies the chosen result. Slide right to make faint values easier to see. |
 
 ## Nested-cosine turbulence · E
 
-ID: `nebulaTurbulence` · output **scalar field** ($E$) · Source nebula · role content · when bypassed it outputs zero
+ID: `nebulaTurbulence` · output **numbers** ($E$) · Source nebula · role content · when bypassed it outputs zero
 
-Original 50-band signed modulation. It perturbs the filament threshold and central glow. Motion is an optional new phase shift, zero in source mode.
+Makes a rough, swirling pattern that roughens the nebula’s gas. It adds up 50 layers of curly waves, each finer and a little weaker than the one before, and because the waves are laid along the shells, the roughness follows the nebula’s shape. The result E is a number that can be positive or negative, and it ruffles the edges of the gas threads and of the central glow. This is the original formula, which does not move; the phase speed is an extra you can add.
 
 **How it is computed**
 
-1. For band s, the position measured along its own direction: every band runs a different way.
+1. For layer s, Q_s measures how far the point is along a fixed direction that belongs to that layer. Every layer uses a different direction, so the waves run every which way.
 
    $$
    Q_s = p \cdot (\cos 15 s^2,\ \sin 15 s^2)
    $$
 
-2. Four fixed mixtures of the shell coordinate S and Q_s, scaled by the band frequency 1.25^s. Because S enters, the waves follow the shells.
+2. Four fixed mixtures of S and Q_s are made, then multiplied by 1.25^s, so each layer’s waves are 25% tighter than the last. Because S follows the shells, the waves follow the shells too.
 
    $$
    a_s, b_s, c_s, d_s = 1.25^{s} \times \text{fixed rotations of } (S, Q_s)
    $$
 
-3. *Result.* Sum N bands of nested cosines (a cosine inside a cosine bends the waves), each finer and 5% weaker than the last: a signed, turbulent field. Downstream it roughens the filament threshold and the edge of the central glow.
+3. *Result.* Now N layers of nested cosines are added up; a cosine inside a cosine bends the waves into curls. Each layer is finer and 5% weaker than the last, and the sum E is a rough, swirly pattern that can be positive or negative. Later parts use it to roughen the gas threads and the edge of the central glow.
 
    $$
    E = \sum_{s=1}^{N} 0.95^{s} \cos\left(a_s + 4\cos b_s + \phi_s + \omega t\right)\cos\left(c_s + 4\cos d_s + \psi_s - \omega t\right)
@@ -1042,42 +1042,42 @@ Original 50-band signed modulation. It perturbs the filament threshold and centr
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $S$ | input `geometry` | geometry |
-| $S$ | | warp coordinate from the geometry |
-| $Q_s$ | | position along band s’s direction |
-| $\phi_s, \psi_s$ | | fixed phases from the source |
+| $p$ | input `p` | positions |
+| $S$ | input `geometry` | shape |
+| $S$ | | the position that follows the shells, from the shape part |
+| $Q_s$ | | the point’s position along the direction of layer s |
+| $\phi_s, \psi_s$ | | fixed shifts of the waves, from the original formula |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Bands `bands` | $N$ | 50 | 1 to 50 (step 1) | Number of the 50 source cosine terms summed, from the largest scale. Fewer bands give smoother, blobbier turbulence. |
-| Phase speed `speed` | $\omega$ | 0 | -1 to 1 (step 0.01) | Optional animation that shifts the cosine phases over time. The source is static (0). |
+| Bands `bands` | $N$ | 50 | 1 to 50 (step 1) | How many of the 50 original wave layers are added, starting with the biggest. Slide left for smoother, blobbier turbulence. |
+| Phase speed `speed` | $\omega$ | 0 | -1 to 1 (step 0.01) | An extra you can add: it makes the waves shift over time. The original is still, which is 0. |
 
-*Key function shown in the editor:* frequency and weight of each band (weight 0.95ˢ against band s).
+*Key function shown in the editor:* how strong each wave layer is (weight 0.95ˢ against band s).
 
-*Ideas behind it:* [Sums of bands](#sums-of-bands) · [Phase modulation](#phase-modulation)
+*Ideas behind it:* [Sums of bands: turbulence from many waves](#sums-of-bands-turbulence-from-many-waves) · [Phase modulation: a wave inside a wave](#phase-modulation-a-wave-inside-a-wave)
 
 ## Filaments & haze · K
 
-ID: `nebulaCloud` · output **color layer** ($K$) · Source nebula · role content · when bypassed it outputs zero
+ID: `nebulaCloud` · output **picture** ($K$) · Source nebula · role content · when bypassed it outputs zero
 
-Original RGB field before the geometry rim and core cutout are applied. Preview looks over-bright because masking happens downstream.
+Paints the nebula’s glowing threads and soft haze in color. It adds up 50 layers of wave patterns laid along the shells and keeps mostly their peaks, which become thin bright threads (filaments), plus a softer haze; each layer has its own color. On its own it looks far too bright and fills the whole picture, because the next part, Gas emission, keeps it only along the shell rims and removes it at the center. This is the original formula, split into steps.
 
 **How it is computed**
 
-1. For band s: a cosine pattern C_s laid along the shells (it is built from S), lifted where the rim A is bright and roughened by the turbulence E.
+1. For layer s, C_s is a wave pattern laid along the shells, because it is built from S. It is lifted where the rim A is bright, lowered overall by 1.25, and roughened by the turbulence E.
 
    $$
    Z_s = C_s - 1.25 + 2A + \frac{E}{7}
    $$
 
-2. Two gates of Z_s: a steep one (weight 45δ) turns the tops of the pattern into thin bright filaments, a gentle one (weight 6) adds soft haze.
+2. Two soft switches turn Z_s into light. The steep one, with weight 45δ, lights up only the tops of the pattern, which become thin bright threads. The gentle one, with weight 6, adds a soft haze.
 
    $$
    I_s = 45\,\delta\, e^{-e^{-4 Z_s}} + 6\, e^{-e^{-Z_s/4}}
    $$
 
-3. *Result.* Color each band with its own RGB weight κ_s and sum N bands, coarse to fine. K is very bright here; the gas stage multiplies it by the rim A.
+3. *Result.* Each layer gets its own color κ_s, and N layers are added from coarse to fine, each 5% weaker than the last. K is still very bright everywhere at this point; the gas part multiplies it by the rim A to keep only the shells.
 
    $$
    K = \sum_{s=1}^{N} 0.95^{s}\, I_s\, \kappa_s
@@ -1085,36 +1085,36 @@ Original RGB field before the geometry rim and core cutout are applied. Preview 
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $S, A$ | input `geometry` | geometry |
-| $E$ | input `turbulence` | scalar field |
-| $C_s$ | | product of two cosines of S and the rotated coordinate at frequency 0.2·1.15^s |
-| $\kappa_s$ | | fixed per-band RGB weight (can be negative) |
+| $p$ | input `p` | positions |
+| $S, A$ | input `geometry` | shape |
+| $E$ | input `turbulence` | numbers |
+| $C_s$ | | the wave pattern of layer s: two cosines multiplied, built from S and a turned position, getting finer with each layer (0.2·1.15^s) |
+| $\kappa_s$ | | the fixed color of layer s (some of its numbers are negative, which takes away a little of that color) |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Bands `bands` | $N$ | 50 | 1 to 50 (step 1) | Number of the 50 source filament bands summed, coarse to fine. Fewer bands remove the finest filaments. |
-| Sharp filament gain `detail` | $\delta$ | 1 | 0 to 3 (step 0.01) | Weight of the sharp filament term (45 in the source). Zero leaves only the soft haze. |
+| Bands `bands` | $N$ | 50 | 1 to 50 (step 1) | How many of the 50 original layers are added, from coarse to fine. Slide left to remove the finest threads. |
+| Sharp filament gain `detail` | $\delta$ | 1 | 0 to 3 (step 0.01) | How strong the sharp threads are (1 here means the original weight of 45). Zero leaves only the soft haze. |
 
-*Key function shown in the editor:* filament and haze gates (I against Z).
+*Key function shown in the editor:* the switches for the threads and the haze (I against Z).
 
-*Ideas behind it:* [The double-exponential gate](#the-double-exponential-gate) · [Sums of bands](#sums-of-bands) · [Radiance, not pixels](#radiance-not-pixels)
+*Ideas behind it:* [The double-exponential gate: a soft switch](#the-double-exponential-gate-a-soft-switch) · [Sums of bands: turbulence from many waves](#sums-of-bands-turbulence-from-many-waves) · [Radiance: light, not screen colors](#radiance-light-not-screen-colors)
 
 ## Gas emission · Hgas
 
-ID: `nebulaGas` · output **color layer** ($H_{\text{gas}}$) · Source nebula · role content · when bypassed it outputs zero
+ID: `nebulaGas` · output **picture** ($H_{\text{gas}}$) · Source nebula · role content · when bypassed it outputs zero
 
-Original gas contribution. A confines emission to shell rims; 1−W clears the central glow region.
+Lights up the nebula’s gas along the shell rims. It takes the colored threads and haze from Filaments & haze and multiplies them by the rim glow A, so only the edges of the shells shine. It also clears a small area at the center, where Central glow takes over. This is the original gas formula.
 
 **How it is computed**
 
-1. The central glow mask: about 1 within 0.1 of the center and 0 outside, its edge roughened by the turbulence E.
+1. W marks the central glow. Without turbulence it is about 0.7 right at the center, 0.37 at a distance of 0.1, and almost 0 beyond 0.25. The turbulence E makes its edge ragged.
 
    $$
    W = e^{-e^{10|p| - 1 + E/4}}
    $$
 
-2. *Result.* The gas light: the filament color K, kept only along the shell rims (× A) and removed at the center (× (1 − W)), where the core glow takes over.
+2. *Result.* The gas light is the colored threads K, kept only along the shell rims (times A) and removed near the center (times 1 − W), where the core glow takes over. The gain g sets the overall brightness.
 
    $$
    H_{\text{gas}} = 1.1\, g\, (1 - W)\, K A
@@ -1122,33 +1122,33 @@ Original gas contribution. A confines emission to shell rims; 1−W clears the c
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $A$ | input `geometry` | geometry |
-| $E$ | input `turbulence` | scalar field |
-| $K$ | input `cloud` | color layer |
-| $W$ | | central glow mask |
+| $p$ | input `p` | positions |
+| $A$ | input `geometry` | shape |
+| $E$ | input `turbulence` | numbers |
+| $K$ | input `cloud` | picture |
+| $W$ | | the central glow mask: largest at the center, 0 farther out |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Gas gain `gain` | $g$ | 1 | 0 to 3 (step 0.01) | Brightness of the shell gas emission. |
+| Gas gain `gain` | $g$ | 1 | 0 to 3 (step 0.01) | How bright the glowing gas is. Slide right to brighten it; 0 hides it. |
 
-*Ideas behind it:* [The double-exponential gate](#the-double-exponential-gate) · [Masking by multiplication](#masking-by-multiplication)
+*Ideas behind it:* [The double-exponential gate: a soft switch](#the-double-exponential-gate-a-soft-switch) · [Masking by multiplying](#masking-by-multiplying)
 
 ## Central glow · W
 
-ID: `nebulaCore` · output **color layer** ($H_{\text{core}}$) · Source nebula · role content · when bypassed it outputs zero
+ID: `nebulaCore` · output **picture** ($H_{\text{core}}$) · Source nebula · role content · when bypassed it outputs zero
 
-Original glow. The square root in the source contains x²+y² only, not −1 or E/4.
+Makes the bright bluish-white glow at the nebula’s center. It is a soft spot of light about 0.2 units across, with an edge roughened by the turbulence E, and its middle is so bright that it turns white on the screen. This is the original formula; in it, |p| is just the distance from the center, and the −1 and E/4 are added after that distance is found.
 
 **How it is computed**
 
-1. The same central mask as in the gas: about 1 near the center, 0 outside.
+1. This is the same central mask as in Gas emission. It is largest at the center (about 0.7) and fades to almost 0 by a distance of about 0.25, with a ragged edge from the turbulence E.
 
    $$
    W = e^{-e^{10|p| - 1 + E/4}}
    $$
 
-2. *Result.* A bluish-white light where W is on. The values exceed 1, so the very center saturates to white.
+2. *Result.* Where W is on, the part gives off bluish-white light, with more blue (3) than red and green (2). These numbers are bigger than 1, so the very center comes out pure white on the screen.
 
    $$
    H_{\text{core}} = g\, W\, (2, 2, 3)
@@ -1156,39 +1156,39 @@ Original glow. The square root in the source contains x²+y² only, not −1 or 
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $E$ | input `turbulence` | scalar field |
-| $W$ | | central glow mask |
+| $p$ | input `p` | positions |
+| $E$ | input `turbulence` | numbers |
+| $W$ | | the central glow mask |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Core gain `gain` | $g$ | 1 | 0 to 3 (step 0.01) | Brightness of the central glow. |
+| Core gain `gain` | $g$ | 1 | 0 to 3 (step 0.01) | How bright the central glow is. Slide right to brighten it; 0 turns it off. |
 
-*Key function shown in the editor:* glow mask against distance (e = 0) (W against distance |p|).
+*Key function shown in the editor:* the glow mask by distance from the center (with e = 0) (W against distance |p|).
 
-*Ideas behind it:* [The double-exponential gate](#the-double-exponential-gate)
+*Ideas behind it:* [The double-exponential gate: a soft switch](#the-double-exponential-gate-a-soft-switch)
 
 ## Folded star lattices · T
 
-ID: `nebulaStars` · output **color layer** ($T$) · Source nebula · role content · when bypassed it outputs zero
+ID: `nebulaStars` · output **picture** ($T$) · Source nebula · role content · when bypassed it outputs zero
 
-Original deterministic stars with pointed centers. Folded-angle lattices, not random sprites or an astronomical catalog.
+Scatters pointed stars over the picture using 30 folded grids. Each grid puts a star, with a sharp pointed core and a soft halo, on regularly spaced points, and the 30 grids are turned and sized differently, so together the stars look scattered rather than lined up. There is no randomness at all: the same formula always gives the same stars. This is the original star formula from the nebula.
 
 **How it is computed**
 
-1. For lattice s, turn and scale the plane, then fold each coordinate with arccos(cos ·), a triangle wave. The plane becomes a grid of identical mirrored cells, and the folded origin (M, N) = (0, 0) sits at every cell center.
+1. For grid s, the plane is turned and scaled, and then each coordinate is folded with arccos(cos ·). This makes a zigzag (a triangle wave) that climbs from 0 to π and back down again, over and over. The plane becomes a grid of identical mirrored cells, and the folded point (M, N) = (0, 0) appears again and again, like the same tile repeated across a floor.
 
    $$
    M_s, N_s = \arccos\cos(\text{rotated, scaled } p)
    $$
 
-2. The squared distance to the nearest cell center: small only near the lattice points.
+2. Adding the squares of M_s and N_s gives the squared distance to the nearest grid point. It is small only right next to a grid point, which is where a star will be.
 
    $$
    \rho_s^2 = M_s^2 + N_s^2
    $$
 
-3. *Result.* Each lattice puts a star on every cell center: a sharp core (a steep gate of ρ², its radius wobbled by B_s to make the points) plus a soft halo, in a warm or cool color χ_s. L lattices at growing frequencies give stars of many sizes and spacings.
+3. *Result.* Each grid puts a star on every grid point: a sharp core, whose size wobbles with the angle (B_s) to make the pointed tips, plus a soft halo. Each grid has a warm or cool color χ_s, and the grids get denser as s grows, so the stars come in many sizes and spacings.
 
    $$
    T = g \sum_{s=1}^{L} \left(4\, e^{-e^{200(\rho_s^2 - 0.00125 - B_s/200)}} + e^{-e^{20 \rho_s^2 - 0.14}}\right) \chi_s
@@ -1196,35 +1196,35 @@ Original deterministic stars with pointed centers. Folded-angle lattices, not ra
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $\rho_s$ | | distance to the nearest lattice point |
-| $B_s$ | | angular modulation that makes the pointed star shapes |
-| $\chi_s$ | | alternating warm and cool star color |
+| $p$ | input `p` | positions |
+| $\rho_s$ | | the distance to the nearest grid point |
+| $B_s$ | | a wobble with the angle that gives the stars their pointed tips |
+| $\chi_s$ | | the star color, switching between warm and cool from one grid to the next |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Lattices `bands` | $L$ | 30 | 1 to 30 (step 1) | Number of the 30 folded star lattices summed. Fewer lattices give a sparser star field. |
-| Starlight `gain` | $g$ | 1 | 0 to 3 (step 0.01) | Brightness of all stars. |
+| Lattices `bands` | $L$ | 30 | 1 to 30 (step 1) | How many of the 30 original star grids are added. Slide left for fewer, sparser stars. |
+| Starlight `gain` | $g$ | 1 | 0 to 3 (step 0.01) | How bright all the stars are. Slide right to brighten them; 0 hides them. |
 
-*Key function shown in the editor:* one star’s profile (without b) (brightness against distance ρ to the lattice point).
+*Key function shown in the editor:* the brightness of one star, from its center outward (without b) (brightness against distance ρ to the lattice point).
 
-*Ideas behind it:* [Folding with arccos(cos t)](#folding-with-arccos-cos-t) · [The double-exponential gate](#the-double-exponential-gate) · [Adding light](#adding-light)
+*Ideas behind it:* [Folding with arccos(cos t)](#folding-with-arccos-cos-t) · [The double-exponential gate: a soft switch](#the-double-exponential-gate-a-soft-switch) · [Adding light](#adding-light)
 
 ## Seeded star field
 
-ID: `scatterStars` · output **color layer** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
+ID: `scatterStars` · output **picture** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
 
-New deterministic jittered-cell stars. Three scales and warm/cool variation; distinct from the original folded lattice algorithm.
+Scatters random-looking stars of many sizes and colors. The picture is split into invisible grid cells, and a scrambling formula (a hash) decides for each cell whether it holds a star, where exactly, and how big, bright, and warm or cool it is. Three grids of different sizes are laid on top of each other, and the stars twinkle gently. It is a newer, simpler method than the nebula’s folded grids, and the seed picks a different sky.
 
 **How it is computed**
 
-1. Three grids of cells at different densities. A hash of each cell (with the seed σ) decides whether it holds a star and gives it a position, size, brightness and color.
+1. Three grids of cells are laid over the plane, each finer than the last. For every cell, a hash (a formula that scrambles the cell’s number into a random-looking but repeatable value) decides whether it holds a star. The same hash, mixed with the seed σ, also gives the star its position, size, brightness and color.
 
    $$
    q_\ell = \rho\,(1 + 0.71\,\ell)\, p, \quad \ell = 0, 1, 2, \quad \text{cells hashed with seed } \sigma
    $$
 
-2. *Result.* Each star is a Gaussian core plus a faint wide glow, twinkling by ±12%. Only the 3 × 3 neighboring cells are checked per pixel, so thousands of stars cost little.
+2. *Result.* Each star is a bright bell-shaped core plus a faint glow six times wider, and it twinkles by about 12% as the sine rises and falls. The biggest stars also get faint cross-shaped rays. Each pixel only checks its own cell and the 8 cells around it, which is why thousands of stars cost very little.
 
    $$
    I = g \sum_{\ell} \sum_{\text{cells}} \left(e^{-(d/r)^2} + 0.018\, e^{-(d/6r)^2}\right) b\, \left(0.88 + 0.12 \sin(\omega t + 2\pi h)\right)
@@ -1232,40 +1232,40 @@ New deterministic jittered-cell stars. Three scales and warm/cool variation; dis
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $d$ | | distance to the jittered star in the cell (hashed with seed σ) |
-| $r, b, h$ | | hashed star size, brightness and phase |
+| $p$ | input `p` | positions |
+| $d$ | | the distance to the star in this cell (its position comes from the hash and the seed σ) |
+| $r, b, h$ | | the star’s size, brightness and twinkle timing, all from the hash |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Density scale `density` | $\rho$ | 22 | 3 to 60 (step 1) | Grid frequency of the star cells: higher values give more, closer stars. |
-| Starlight `gain` | $g$ | 0.7 | 0 to 3 (step 0.01) | Brightness of all stars. |
-| Seed `seed` | $\sigma$ | 17 | 0 to 100 (step 1) | Chooses a different random arrangement. |
-| Twinkle speed `speed` | $\omega$ | 0.1 | 0 to 2 (step 0.01) | How fast the stars twinkle (±12% brightness). |
+| Density scale `density` | $\rho$ | 22 | 3 to 60 (step 1) | How many grid cells, and so how many stars, fit in one unit. Slide right for more stars packed closer together. |
+| Starlight `gain` | $g$ | 0.7 | 0 to 3 (step 0.01) | How bright all the stars are. Slide right to brighten them; 0 hides them. |
+| Seed `seed` | $\sigma$ | 17 | 0 to 100 (step 1) | Picks a different random arrangement of stars. |
+| Twinkle speed `speed` | $\omega$ | 0.1 | 0 to 2 (step 0.01) | How fast the stars twinkle, each one gently dimming and brightening by about 12%. Zero stops the twinkling. |
 
-*Ideas behind it:* [Deterministic randomness](#deterministic-randomness) · [Gaussian bump](#gaussian-bump) · [Adding light](#adding-light)
+*Ideas behind it:* [Randomness you can repeat](#randomness-you-can-repeat) · [The Gaussian bump: a soft hill](#the-gaussian-bump-a-soft-hill) · [Adding light](#adding-light)
 
 ## Cyclonic water planet
 
-ID: `planet` · output **color layer** ($C$) · Astronomical studies · role content · when bypassed it outputs zero
+ID: `planet` · output **picture** ($C$) · Astronomical studies · role content · when bypassed it outputs zero
 
-Subject-inspired study, not the artist’s unretrieved formula. Rotated cloud coordinates, finite-octave noise, Lambert-like light, glint and rim scattering.
+Paints a blue ocean planet with swirling storm clouds. The disc is treated as the front half of a ball, so every point knows which way its surface faces and can be lit by a distant sun. Seven storms swirl the clouds, which drift slowly around the planet, and the ocean shows a bright sun glint and a blue edge. This is our own study of the subject, not the artist’s formula, which we could not find.
 
 **How it is computed**
 
-1. Treat the disc |d| < 1 as the visible half of a sphere of radius R: n is the surface point and its normal, facing the viewer.
+1. Inside the disc |d| < 1, the picture is treated as the front half of a ball of radius R. The third number, the square root, says how far the surface bulges toward you. So n is both the point on the surface and the direction the surface faces there (its normal).
 
    $$
    d = p / R, \quad \mathbf{n} = \left(d_x,\ d_y,\ \sqrt{1 - |d|^2}\right)
    $$
 
-2. Longitude and latitude on the sphere, swirled by seven vortices of strength τ and drifting over time, sample fractal noise n; a threshold set by the cloud cover c turns it into clouds m.
+2. The surface point is turned into longitude and latitude, like on a globe, then swirled by seven small whirlpools of strength τ and slid sideways over time. A noise pattern n read at those swirled positions becomes clouds m wherever it rises above a level set by the cloud cover c.
 
    $$
    u = \operatorname{cyclones}_{\tau}(\text{lon}, \text{lat}) + (0.025\, \omega t,\ 0), \quad m = \operatorname{smoothstep}(0.62 - 0.3 c,\ 0.79 - 0.28 c,\ n(u))
    $$
 
-3. *Result.* Mix ocean and cloud colors and light them by how directly the surface faces the sun l (plus a little ambient light). A sun glint on the ocean and a blue rim are added in the kernel.
+3. *Result.* Ocean and cloud colors are mixed by m, then lit by how directly the surface faces the sun l, plus a little light everywhere (0.06) so the night side is not pure black. The code also adds a sun glint on the ocean and a thin blue edge on the sunlit side.
 
    $$
    C = \operatorname{mix}(C_{\text{ocean}},\ C_{\text{cloud}},\ m)\,\left(0.06 + \max(\mathbf{n} \cdot \mathbf{l},\ 0)\right), \quad \mathbf{l} \propto (\cos\lambda,\ 0.35,\ \sin\lambda)
@@ -1273,36 +1273,36 @@ Subject-inspired study, not the artist’s unretrieved formula. Rotated cloud co
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $\mathbf{n}$ | | sphere normal (lighting) |
-| $n(u)$ | | fractal noise of the cyclone-warped surface coordinate |
-| $m$ | | cloud amount |
+| $p$ | input `p` | positions |
+| $\mathbf{n}$ | | the direction the surface faces at this point (used for lighting) |
+| $n(u)$ | | the cloud noise, read at the storm-swirled surface position |
+| $m$ | | how much cloud there is at this point |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Radius `radius` | $R$ | 1.08 | 0.1 to 2 (step 0.01) | Planet radius in world units. |
-| Cloud cover `cloud` | $c$ | 0.65 | 0 to 2 (step 0.01) | How much of the surface is covered by bright cloud; 0 shows mostly ocean. |
-| Cyclone twist `twist` | $\tau$ | 5 | 0 to 14 (step 0.1) | Strength of the seven storm vortices that swirl the clouds. |
-| Light angle `light` | $\lambda$ | 2.25 | 0 to 6.28 (step 0.01) | Direction of the sunlight around the planet, in radians. |
-| Cloud drift `speed` | $\omega$ | 0.5 | -2 to 2 (step 0.01) | How fast the cloud pattern drifts east–west. |
+| Radius `radius` | $R$ | 1.08 | 0.1 to 2 (step 0.01) | How big the planet is. Slide right for a bigger planet. |
+| Cloud cover `cloud` | $c$ | 0.65 | 0 to 2 (step 0.01) | How much of the planet is covered by white cloud. Slide left to see mostly ocean; slide right for thick cloud. |
+| Cyclone twist `twist` | $\tau$ | 5 | 0 to 14 (step 0.1) | How strongly the seven storms swirl the clouds. Zero turns the storms off. |
+| Light angle `light` | $\lambda$ | 2.25 | 0 to 6.28 (step 0.01) | Which way the sunlight comes from, as an angle in radians. At 0 it lights the planet from the right, at 1.57 from straight in front, and at 3.14 from the left. |
+| Cloud drift `speed` | $\omega$ | 0.5 | -2 to 2 (step 0.01) | How fast the clouds drift sideways around the planet. Zero stops them; negative values reverse the drift. |
 
-*Ideas behind it:* [A sphere from a disc](#a-sphere-from-a-disc) · [Domain warping](#domain-warping) · [Fractal noise (fBm)](#fractal-noise-fbm) · [Diffuse lighting](#diffuse-lighting)
+*Ideas behind it:* [A ball from a flat disc](#a-ball-from-a-flat-disc) · [Domain warping: bending space before drawing](#domain-warping-bending-space-before-drawing) · [Fractal noise: bumps on bumps](#fractal-noise-bumps-on-bumps) · [Diffuse lighting: facing the light](#diffuse-lighting-facing-the-light)
 
 ## Atmospheric rim
 
-ID: `atmosphere` · output **color layer** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
+ID: `atmosphere` · output **picture** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
 
-An independent analytic limb glow; align its radius with the planet when composing them.
+Adds a thin blue glow around the edge of a planet. It is a bright, thin ring of light plus a wider, fainter one, like the air of a planet seen edge-on against space. It is separate from the planet, so set its radius to match the planet’s when you use them together, as in the Stormy water planet scene.
 
 **How it is computed**
 
-1. Distance from the planet’s edge.
+1. Measure how far the point is from the planet’s edge: negative inside the planet, positive outside.
 
    $$
    \Delta = |p| - R
    $$
 
-2. *Result.* A thin bright Gaussian plus a wider faint one, in blue: the glow of the atmosphere seen edge-on.
+2. *Result.* The glow is a thin, bright bell-shaped ring (width 0.025) plus a wider, fainter one (width 0.07, at 18% of the strength). Both are colored blue, so together they look like the air around a planet seen edge-on.
 
    $$
    I = g\left(e^{-(\Delta/0.025)^2} + 0.18\, e^{-(\Delta/0.07)^2}\right)(0.08, 0.25, 0.55)
@@ -1310,42 +1310,42 @@ An independent analytic limb glow; align its radius with the planet when composi
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
+| $p$ | input `p` | positions |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Radius `radius` | $R$ | 1.08 | 0.1 to 2 (step 0.01) | Radius of the glowing limb; match it to the planet radius. |
-| Glow `gain` | $g$ | 0.7 | 0 to 3 (step 0.01) | Brightness of the atmospheric rim. |
+| Radius `radius` | $R$ | 1.08 | 0.1 to 2 (step 0.01) | How big the glowing ring is. Set it to the planet’s radius so the glow sits right on its edge. |
+| Glow `gain` | $g$ | 0.7 | 0 to 3 (step 0.01) | How bright the glow is. Slide right to brighten it; 0 hides it. |
 
 **As an equation** (what ✎ Edit opens, at the default values)
 
 ```text
-param R = 1.08 [0.1, 2] step 0.01  // Radius: Radius of the glowing limb; match it to the planet radius.
-param g = 0.7 [0, 3] step 0.01  // Glow: Brightness of the atmospheric rim.
-d = length(p) - R   // distance from the planet’s edge
-glow = exp(-(d/0.025)^2) + 0.18*exp(-(d/0.07)^2)   // a thin bright ring plus a wider faint one
-vec4(vec3(0.08, 0.25, 0.55)*glow*g, clamp(glow, 0, 1))   // blue light; its coverage follows the glow
+param R = 1.08 [0.1, 2] step 0.01  // Radius: How big the glowing ring is.
+param g = 0.7 [0, 3] step 0.01  // Glow: How bright the glow is.
+d = length(p) - R   // How far the point is from the planet’s edge.
+glow = exp(-(d/0.025)^2) + 0.18*exp(-(d/0.07)^2)   // A thin bright ring plus a wider, fainter one.
+vec4(vec3(0.08, 0.25, 0.55)*glow*g, clamp(glow, 0, 1))   // Blue light, and the layer is only as solid as the glow is bright.
 ```
 
-*Key function shown in the editor:* glow across the limb (brightness against distance |p|).
+*Key function shown in the editor:* brightness across the planet’s edge (brightness against distance |p|).
 
-*Ideas behind it:* [Gaussian bump](#gaussian-bump) · [Adding light](#adding-light)
+*Ideas behind it:* [The Gaussian bump: a soft hill](#the-gaussian-bump-a-soft-hill) · [Adding light](#adding-light)
 
 ## Star-cluster lens map
 
-ID: `lens` · output **coordinates** ($q$) · Astronomical studies · role modifier · when bypassed it passes `p` through
+ID: `lens` · output **positions** ($q$) · Astronomical studies · role modifier · when bypassed it passes `p` through
 
-Illustrative softened thin-lens backward mapping. Zero strength is the identity. Feed the result into a galaxy; draw foreground lens stars in the unwarped plane.
+Bends the picture behind it, the way gravity bends light. Heavy stars bend passing light, so a galaxy far behind a star cluster looks stretched into arcs. This part does that to whatever is drawn through it: it changes where each pixel looks, so the background seems pushed away from the stars and smeared around them. Draw the cluster’s own stars without the lens, with Foreground cluster stars, as in the Galaxy behind a star cluster scene.
 
 **How it is computed**
 
-1. The lens masses: one heavy central member and n − 1 light ones, all scaled by k.
+1. These are the masses of the stars: one heavy star in the middle and n − 1 lighter ones around it, all scaled by the strength k.
 
    $$
    m_0 = 0.18\, k,\ m_{i>0} = 0.024\, k
    $$
 
-2. *Result.* Thin-lens backward mapping: each pixel looks toward the masses by m/distance, so a background sampled at q appears pushed away from them and stretched into arcs around them. ε keeps it finite at each mass.
+2. *Result.* Each pixel looks a little toward every star, by an amount that grows with the star’s mass m_i and shrinks with distance. So a background drawn with q appears pushed away from the stars and stretched into arcs around them, as in real gravitational lensing. The softening ε keeps the amount from becoming infinite right on top of a star.
 
    $$
    q = p - \sum_{i=0}^{n-1} m_i\, \frac{p - c_i}{|p - c_i|^2 + \epsilon^2}
@@ -1353,28 +1353,28 @@ Illustrative softened thin-lens backward mapping. Zero strength is the identity.
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $c_i$ | | fixed golden-angle cluster positions (shared with Foreground cluster stars) |
+| $p$ | input `p` | positions |
+| $c_i$ | | the fixed star positions, laid out like the seeds of a sunflower using the golden angle (the same as in Foreground cluster stars) |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Deflection strength `strength` | $k$ | 1 | 0 to 3 (step 0.01) | Scales every lens mass. 0 is no lensing (the identity map); higher values bend the background into bigger arcs. |
-| Lenses `count` | $n$ | 7 | 1 to 12 (step 1) | How many cluster members deflect light; the first is the heavy central one. |
-| Softening `softening` | $\epsilon$ | 0.015 | 0.001 to 0.2 (step 0.001) | Core radius that keeps the deflection finite near each lens; larger values give softer, smaller distortion. |
+| Deflection strength `strength` | $k$ | 1 | 0 to 3 (step 0.01) | How strongly the stars bend the light. At 0 nothing is bent; slide right to bend the background into bigger arcs. |
+| Lenses `count` | $n$ | 7 | 1 to 12 (step 1) | How many cluster stars bend the light; the first is the heavy one in the middle. |
+| Softening `softening` | $\epsilon$ | 0.015 | 0.001 to 0.2 (step 0.001) | Keeps the bending from blowing up right on top of each star. Slide right for softer, gentler bending close to the stars. |
 
-*Key function shown in the editor:* deflection by the central mass (shift against distance |p − c₀|).
+*Key function shown in the editor:* how far the heavy middle star shifts the view, by distance (shift against distance |p − c₀|).
 
-*Ideas behind it:* [Lensing, illustrated](#lensing-illustrated) · [Backward mapping](#backward-mapping)
+*Ideas behind it:* [Gravitational lensing, illustrated](#gravitational-lensing-illustrated) · [Backward mapping: each pixel looks elsewhere](#backward-mapping-each-pixel-looks-elsewhere)
 
 ## Foreground cluster stars
 
-ID: `clusterLights` · output **color layer** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
+ID: `clusterLights` · output **picture** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
 
-Draw these AFTER lensing the background. Moving a background star image through this node would not model a foreground lens cluster.
+Draws the bright stars of the cluster that bends the light. Each star has a bright core, a soft glow and thin cross-shaped rays, and it sits exactly where Star-cluster lens map puts its masses. Draw this part without the lens, on top of the bent background, because these stars are in front of the galaxy and are not bent themselves.
 
 **How it is computed**
 
-1. *Result.* A bright core, a glow and thin cross-shaped rays at each lens position c_i, so the drawn cluster sits exactly where the lens bends light.
+1. *Result.* Each star i gets a tiny, bright core (width 0.014), a softer glow around it (width 0.055) and thin cross-shaped rays, all in its own color χ_i. The stars sit at the lens positions c_i, so the drawn cluster lines up exactly with where the lens bends light.
 
    $$
    I = g \sum_{i=0}^{n-1} \left(1.8\, e^{-(|p - c_i|/0.014)^2} + 0.14\, e^{-(|p - c_i|/0.055)^2} + \text{rays}\right) \chi_i
@@ -1382,32 +1382,32 @@ Draw these AFTER lensing the background. Moving a background star image through 
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $c_i$ | | the lens map’s cluster positions |
-| $\chi_i$ | | per-star color |
+| $p$ | input `p` | positions |
+| $c_i$ | | the star positions, the same as in Star-cluster lens map |
+| $\chi_i$ | | the color of star i, somewhere between bluish white and warm yellow |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Brightness `gain` | $g$ | 1 | 0 to 3 (step 0.01) | Brightness of the foreground cluster stars. |
-| Stars `count` | $n$ | 7 | 1 to 12 (step 1) | How many cluster stars are drawn; keep it equal to the lens count. |
+| Brightness `gain` | $g$ | 1 | 0 to 3 (step 0.01) | How bright the cluster stars are. Slide right to brighten them; 0 hides them. |
+| Stars `count` | $n$ | 7 | 1 to 12 (step 1) | How many cluster stars are drawn. Keep it the same as the lens count, so every star that bends light is shown. |
 
-*Ideas behind it:* [Gaussian bump](#gaussian-bump) · [Adding light](#adding-light)
+*Ideas behind it:* [The Gaussian bump: a soft hill](#the-gaussian-bump-a-soft-hill) · [Adding light](#adding-light)
 
 ## Logarithmic spiral galaxy
 
-ID: `galaxy` · output **color layer** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
+ID: `galaxy` · output **picture** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
 
-New analytic spiral arms, Gaussian-like central bulge, radial fade, dusty modulation and emission knots. Its input coordinates can be gravitationally warped.
+Draws a spiral galaxy seen at a tilt. Bright arms wind out from a glowing golden center, dark dust lanes cross the disk, and small violet knots dot the arms. The arms are logarithmic spirals, the shape of a nautilus shell, and the pattern slowly turns. Send its coordinates through Star-cluster lens map and the galaxy bends into arcs.
 
 **How it is computed**
 
-1. In polar coordinates of the tilted disk, a phase that turns m times around the center and decreases with log-radius: its bright bands are m logarithmic spiral arms. The 8th power sharpens them; noise roughens them.
+1. Around the center of the tilted disk, the phase φ climbs m times per turn of the angle θ, and it changes with log r, the logarithm of the distance, which grows fast near the center and slowly far out. So the lines of equal phase are m spiral arms. The cosine is brightest along them, the 8th power makes the arms narrow, and a little noise makes them ragged.
 
    $$
    \phi = m\, \theta - k \log(r/s + 0.1) - 0.1\, \omega t, \quad \text{arm} = \left(\frac{1}{2} + \frac{1}{2}\cos(\phi + \text{noise})\right)^8
    $$
 
-2. *Result.* Arms over a faint disk, fading exponentially with radius, darkened by noisy dust lanes (δ), plus a Gaussian central bulge and bright knots.
+2. *Result.* The arms sit on a faint disk (the 0.17), and everything fades with distance from the center. Noisy dust lanes darken it by up to δ, and a glowing central bulge and bright knots in the arms are added on top. The color C(r) changes from reddish near the center to blue farther out.
 
    $$
    I = C(r)\,(0.17 + \text{arm})\, e^{-1.65\, r/s}\,(1 - \delta\, \text{lanes}) + \text{bulge} + \text{knots}
@@ -1415,34 +1415,34 @@ New analytic spiral arms, Gaussian-like central bulge, radial fade, dusty modula
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $r, \theta$ | | polar coordinates of the tilted, flattened p |
+| $p$ | input `p` | positions |
+| $r, \theta$ | | the distance and angle of the point, measured in the tilted, flattened disk |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Spiral arms `arms` | $m$ | 3 | 1 to 8 (step 1) | Number of spiral arms. |
-| Winding `pitch` | $k$ | 7 | 0.5 to 15 (step 0.1) | How tightly the arms wind: higher values wrap them around the center more times. |
-| Scale `radius` | $s$ | 0.75 | 0.1 to 2 (step 0.01) | Overall size of the galaxy. |
-| Dust lanes `dust` | $\delta$ | 0.6 | 0 to 1 (step 0.01) | Strength of the dark dust lanes across the disk. |
-| Phase speed `speed` | $\omega$ | 0.2 | -2 to 2 (step 0.01) | Rotation of the arm pattern over time. |
+| Spiral arms `arms` | $m$ | 3 | 1 to 8 (step 1) | How many spiral arms the galaxy has. |
+| Winding `pitch` | $k$ | 7 | 0.5 to 15 (step 0.1) | How tightly the arms wind. Slide right to wrap them around the center more times. |
+| Scale `radius` | $s$ | 0.75 | 0.1 to 2 (step 0.01) | How big the galaxy is. Slide right for a bigger galaxy. |
+| Dust lanes `dust` | $\delta$ | 0.6 | 0 to 1 (step 0.01) | How dark the dust lanes across the disk are. Zero removes them. |
+| Phase speed `speed` | $\omega$ | 0.2 | -2 to 2 (step 0.01) | How fast the arm pattern turns over time. Zero holds it still; negative values turn it the other way. |
 
-*Ideas behind it:* [Logarithmic spirals](#logarithmic-spirals) · [Polar coordinates](#polar-coordinates) · [Fractal noise (fBm)](#fractal-noise-fbm)
+*Ideas behind it:* [Logarithmic spirals: arms that wind outward](#logarithmic-spirals-arms-that-wind-outward) · [Polar coordinates: angle and distance](#polar-coordinates-angle-and-distance) · [Fractal noise: bumps on bumps](#fractal-noise-bumps-on-bumps)
 
 ## Spiral auroral curtain
 
-ID: `aurora` · output **color layer** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
+ID: `aurora` · output **picture** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
 
-New projected spiral ribbon with green/purple emission and angular striations. It illustrates appearance, not an auroral plasma simulation.
+Draws glowing green aurora ribbons that spiral out from a center. Two ribbons wind outward, streaked by about 175 thin rays like the folds of a curtain, with a faint purple fringe along one edge. It shows what an aurora can look like, but it does not simulate the real physics. The Spiral aurora scene puts it over a star field.
 
 **How it is computed**
 
-1. A logarithmic spiral phase; the ribbon B is bright where sin φ ≈ 0 (a Gaussian of width w), faded near the center and far away.
+1. The phase φ grows with the angle θ and with log r, the logarithm of the distance, so lines of equal phase are spirals. The ribbon B is bright where sin φ is close to 0, which happens along two spiral arms, with a bell-shaped profile of width w. The last two factors dim it right at the center and far away.
 
    $$
    \phi = \theta + k \log(r + 0.12) + 0.18\, \omega t + \text{noise}, \quad B = e^{-(\sin\phi / w)^2}(1 - e^{-8r})\, e^{-0.7 r}
    $$
 
-2. *Result.* About 175 thin angular rays F streak the green ribbon (strength c); a faint purple fringe sits just outside it.
+2. *Result.* The pattern F makes about 175 thin rays around the center, like the folds of a curtain, and c sets how strongly they streak the green ribbons. A faint purple fringe runs along one edge of each ribbon, next to a wider, dim green glow.
 
    $$
    F = 0.28 + 0.72\left(\frac{1}{2} + \frac{1}{2}\sin(175\,\theta + \ldots)\right)^2, \quad I = (0.05, 0.86, 0.22)\, B\,(0.4 + c F) + \text{fringe}
@@ -1450,43 +1450,43 @@ New projected spiral ribbon with green/purple emission and angular striations. I
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $r, \theta$ | | polar coordinates around the spiral center |
-| $B$ | | ribbon brightness |
-| $F$ | | fine ray pattern |
+| $p$ | input `p` | positions |
+| $r, \theta$ | | the distance and angle of the point around the spiral’s center |
+| $B$ | | how bright the ribbon is at this point |
+| $F$ | | the pattern of thin rays |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Winding `turns` | $k$ | 4 | 0.5 to 12 (step 0.1) | How tightly the ribbon spirals around its center. |
-| Ribbon width `width` | $w$ | 0.115 | 0.01 to 0.4 (step 0.005) | Thickness of the bright ribbon, in phase units. |
-| Fine rays `curtain` | $c$ | 1 | 0 to 3 (step 0.01) | Strength of the thin radial rays within the ribbon; 0 gives a smooth ribbon. |
-| Flow speed `speed` | $\omega$ | 0.5 | -2 to 2 (step 0.01) | How fast the spiral and its rays move. |
+| Winding `turns` | $k$ | 4 | 0.5 to 12 (step 0.1) | How tightly the ribbons wind around the center. Slide right for more turns. |
+| Ribbon width `width` | $w$ | 0.115 | 0.01 to 0.4 (step 0.005) | How thick the bright ribbons are. Slide right for wider ribbons; slide left for thin ones. |
+| Fine rays `curtain` | $c$ | 1 | 0 to 3 (step 0.01) | How strongly the thin rays streak the ribbons. Zero gives smooth ribbons. |
+| Flow speed `speed` | $\omega$ | 0.5 | -2 to 2 (step 0.01) | How fast the spiral and its rays move. Zero holds them still. |
 
-*Key function shown in the editor:* ribbon across its phase (B against phase φ (mod π)).
+*Key function shown in the editor:* brightness across a ribbon (B against phase φ (mod π)).
 
-*Ideas behind it:* [Logarithmic spirals](#logarithmic-spirals) · [Gaussian bump](#gaussian-bump)
+*Ideas behind it:* [Logarithmic spirals: arms that wind outward](#logarithmic-spirals-arms-that-wind-outward) · [The Gaussian bump: a soft hill](#the-gaussian-bump-a-soft-hill)
 
 ## Accretion disk & shadow
 
-ID: `disk` · output **color layer** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
+ID: `disk` · output **picture** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
 
-New stylized construction. The bright-side weighting and bent arc are artistic terms, not a relativistic transfer calculation.
+Draws a glowing disk of gas around a black hole’s shadow. The disk is seen at a tilt, is brighter on one side and swirls with fine rings, while a thin bright arc curves over the top and the middle is black. It is an artist’s version: the one-sided brightness and the arc come from simple formulas, not from the real physics of black holes.
 
 **How it is computed**
 
-1. Squash circles vertically by ι to see a flat disk at an angle; E is a Gaussian band of that disk around radius 1.65ρ.
+1. Squashing circles up and down by ι makes a flat disk look tilted, as if you saw it from the side. E is a bell-shaped band of that disk around the distance 1.65ρ, where the gas glows.
 
    $$
    r = \sqrt{x_r^2 + (\iota\, y_r)^2}, \quad E = e^{-((r - 1.65\rho)/0.65\rho)^2}
    $$
 
-2. Fine rings, bent into a spiral by τ and swirling over time, give the disk its texture.
+2. Fine rings, about 14 per unit of distance, give the disk its texture. The inner sine makes them wobble, τ twists that wobble into a spiral, and ωt makes it swirl over time.
 
    $$
    \text{rings} = \frac{1}{2} + \frac{1}{2}\sin\left(90 r + 4\sin(3\theta + \tau\log(r + 0.1) - 0.8\, \omega t)\right)
    $$
 
-3. *Result.* The disk band is brighter on one side (D, an artistic Doppler term); a thin bright arc stands in for light bent over the top; the shadow |p| < 0.9ρ is black.
+3. *Result.* The disk is brighter on one side (D). Around real black holes, gas rushing toward us looks brighter; here a simple cosine fakes that effect. A thin bright arc over the top stands in for light bent around the black hole, and inside |p| < 0.9ρ, the shadow, everything is black.
 
    $$
    I = E\, \text{rings}\, D(\theta) + \text{arc}, \quad I = 0 \text{ where } |p| < 0.9\rho
@@ -1494,35 +1494,35 @@ New stylized construction. The bright-side weighting and bent arc are artistic t
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $x_r, y_r$ | | p rotated by −0.28 rad |
-| $\theta$ | | angle in the flattened disk plane |
-| $D(\theta)$ | | one-sided brightening |
+| $p$ | input `p` | positions |
+| $x_r, y_r$ | | p turned by −0.28 radians, which tilts the disk a little |
+| $\theta$ | | the angle around the flattened disk |
+| $D(\theta)$ | | the brightening on one side |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Shadow scale `radius` | $\rho$ | 0.34 | 0.06 to 0.8 (step 0.005) | Size of the black-hole shadow; the disk and arc scale with it. |
-| Projection flattening `inclination` | $\iota$ | 3 | 1 to 7 (step 0.05) | How edge-on the disk appears: 1 is face-on, higher values flatter. |
-| Texture winding `spin` | $\tau$ | 4 | 0 to 12 (step 0.1) | How much the disk’s ring texture spirals. |
-| Flow speed `speed` | $\omega$ | 0.5 | -2 to 2 (step 0.01) | Speed of the swirling texture. |
+| Shadow scale `radius` | $\rho$ | 0.34 | 0.06 to 0.8 (step 0.005) | How big the black shadow in the middle is. The disk and the arc grow and shrink with it. |
+| Projection flattening `inclination` | $\iota$ | 3 | 1 to 7 (step 0.05) | How tilted the disk looks. At 1 you see it face-on; slide right to see it more edge-on. |
+| Texture winding `spin` | $\tau$ | 4 | 0 to 12 (step 0.1) | How much the ring pattern in the disk twists into a spiral. Slide right for a stronger twist. |
+| Flow speed `speed` | $\omega$ | 0.5 | -2 to 2 (step 0.01) | How fast the ring pattern swirls. Zero holds it still. |
 
-*Ideas behind it:* [Phase modulation](#phase-modulation) · [Gaussian bump](#gaussian-bump)
+*Ideas behind it:* [Phase modulation: a wave inside a wave](#phase-modulation-a-wave-inside-a-wave) · [The Gaussian bump: a soft hill](#the-gaussian-bump-a-soft-hill)
 
 ## Stretched star & tidal stream
 
-ID: `tidal` · output **color layer** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
+ID: `tidal` · output **picture** ($I$) · Astronomical studies · role content · when bypassed it outputs zero
 
-New narrow curved stream broadening toward a luminous star. Independent from the disk so it can be translated, masked or reused as a comet.
+Draws a star being stretched into a long, thin stream. A narrow, curved stream of gas grows wider as it nears a bright star at its right end, and fine fibers ripple along it. In the Tidal disruption scene, this is the star being torn apart by the black hole. It is separate from the disk, so you can move it, mask it, or reuse it as a comet.
 
 **How it is computed**
 
-1. Position along the stream from its tail (u = 0) to the star (u = 1); the centerline y_c curves upward and wiggles over time.
+1. The number u measures how far along the stream the point is, from the tail on the left (u = 0) to the star on the right (u = 1). The center line y_c of the stream curves upward toward the star and wiggles slowly over time.
 
    $$
    u = \operatorname{clamp}\left(\frac{x + 0.05}{1.65}, 0, 1\right), \quad y_c = 0.14 + 0.4 u^2 + 0.05 \sin(5u - 0.25\, \omega t)
    $$
 
-2. *Result.* The stream is a Gaussian across the centerline whose width grows from 0.015 to σ (later for larger a), streaked with fibers; the star is a bright Gaussian at the end.
+2. *Result.* The stream is a bell-shaped band around its center line, and its width w grows from 0.015 at the tail to σ at the star; a larger a keeps it thin for longer. Fine fibers streak the stream, and the star itself is a bright, bell-shaped spot of size σ at the end, with a soft blue glow around it.
 
    $$
    w = \operatorname{mix}(0.015,\ \sigma,\ u^{a}), \quad I = e^{-((y - y_c)/w)^2}\, \text{fibers} + 2.4\, e^{-(|p - p_\star|/\sigma)^2} + \text{glow}
@@ -1530,42 +1530,42 @@ New narrow curved stream broadening toward a luminous star. Independent from the
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $p_\star$ | | position of the star at the stream’s end |
-| $u$ | | position along the stream |
-| $w$ | | stream width at u |
+| $p$ | input `p` | positions |
+| $p_\star$ | | where the star sits, at the end of the stream |
+| $u$ | | how far along the stream the point is |
+| $w$ | | how wide the stream is at u |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Taper power `stretch` | $a$ | 2.5 | 0.3 to 6 (step 0.05) | How quickly the stream widens toward the star; higher values keep it thin for longer. |
-| Star width `size` | $\sigma$ | 0.13 | 0.02 to 0.4 (step 0.005) | Size of the disrupted star and the stream’s maximum width. |
-| Stream speed `speed` | $\omega$ | 0.5 | -2 to 2 (step 0.01) | Speed of the wiggle and fibers along the stream. |
+| Taper power `stretch` | $a$ | 2.5 | 0.3 to 6 (step 0.05) | How quickly the stream widens toward the star. Slide right to keep it thin for longer. |
+| Star width `size` | $\sigma$ | 0.13 | 0.02 to 0.4 (step 0.005) | How big the star is, which is also the stream’s widest width. Slide right for a bigger star. |
+| Stream speed `speed` | $\omega$ | 0.5 | -2 to 2 (step 0.01) | How fast the wiggle and the fibers move along the stream. Zero holds them still. |
 
-*Key function shown in the editor:* stream width along its length (width w against position u (tail → star)).
+*Key function shown in the editor:* how wide the stream is along its length (width w against position u (tail → star)).
 
-*Ideas behind it:* [Gaussian bump](#gaussian-bump) · [Linear interpolation (mix)](#linear-interpolation-mix)
+*Ideas behind it:* [The Gaussian bump: a soft hill](#the-gaussian-bump-a-soft-hill) · [Mix: blending two values](#mix-blending-two-values)
 
 ## Single eyespot feather
 
-ID: `feather` · output **color layer** · Natural studies · role content · when bypassed it outputs zero
+ID: `feather` · output **picture** · Natural studies · role content · when bypassed it outputs zero
 
-Reusable analytic stamp. Base at (0,0), tip at (0,1). No texture. The fan node instances this exact kernel many times.
+Draws one peacock feather with its colorful eye near the tip. The feather lives in its own little frame, with its base at (0, 0) and its tip at (0, 1), so connect Translate · rotate · scale to its input to place it. It is drawn entirely from formulas, with no picture files, and Peacock feather fan draws this same feather up to 74 times.
 
 **How it is computed**
 
-1. The vane’s half-width along the shaft v (0 at the base, 1 at the tip): widest in the middle, closing at both ends. Inside it the coverage is 1.
+1. The number v runs along the shaft from the base (0) to the tip (1), and w(v) is how far the feather reaches out on each side there. It is widest in the middle and closes at both ends. Inside that outline the coverage is 1, so the feather is solid.
 
    $$
    w(v) = w_0 \sin(\pi v)^{0.55}, \quad \text{coverage} = [\,|x| < w(v)\,]
    $$
 
-2. Narrow oblique stripes slanting away from the shaft: the barbs, shimmering slightly over time.
+2. Narrow stripes slant away from the shaft, like the fine hairs (barbs) of a real feather. They shimmer slightly over time.
 
    $$
    \text{barbs} = 0.25 + 0.75\left(\frac{1}{2} + \frac{1}{2}\cos(250(v + 1.3|x|) + 0.4 \sin \omega t)\right)^3
    $$
 
-3. *Result.* An elliptical distance from the eyespot center near the tip; bands of color at fixed values of e draw the nested eye.
+3. *Result.* The number e is a stretched distance from the center of the eye, which sits near the tip. Bands of color at fixed values of e draw the nested rings of the eye: bronze on the outside, then teal, then blue, and a dark center.
 
    $$
    e = \sqrt{\left(\frac{x}{0.76\, w_0 s}\right)^2 + \left(\frac{v - 0.79}{0.107\, s}\right)^2} \quad \text{(eyespot rings at fixed } e\text{)}
@@ -1573,35 +1573,35 @@ Reusable analytic stamp. Base at (0,0), tip at (0,1). No texture. The fan node i
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $p = (x, v)$ | | local coordinates: base at v = 0, tip at v = 1 |
-| $e$ | | elliptical distance from the eyespot center |
+| $p$ | input `p` | positions |
+| $p = (x, v)$ | | the feather’s own coordinates: the base is at v = 0 and the tip at v = 1 |
+| $e$ | | the stretched distance from the center of the eye |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Width `width` | $w_0$ | 0.095 | 0.02 to 0.3 (step 0.005) | Maximum half-width of the feather vane. |
-| Eyespot scale `eye` | $s$ | 1 | 0.3 to 2 (step 0.01) | Size of the eyespot rings near the tip. |
-| Barb motion `speed` | $\omega$ | 0.2 | 0 to 2 (step 0.01) | Speed of the shimmering barb pattern. |
+| Width `width` | $w_0$ | 0.095 | 0.02 to 0.3 (step 0.005) | How wide the feather is: the distance from its middle line to its edge at the widest point. Slide right for a broader feather. |
+| Eyespot scale `eye` | $s$ | 1 | 0.3 to 2 (step 0.01) | How big the eye rings near the tip are. Slide right for a bigger eye. |
+| Barb motion `speed` | $\omega$ | 0.2 | 0 to 2 (step 0.01) | How fast the fine barb stripes shimmer. Zero holds them still. |
 
-*Key function shown in the editor:* vane half-width along the shaft (w(v) against v (base → tip)).
+*Key function shown in the editor:* how wide the feather is along its shaft (w(v) against v (base → tip)).
 
-*Ideas behind it:* [Stamps and instancing](#stamps-and-instancing) · [Signed distance](#signed-distance) · [Coverage (alpha)](#coverage-alpha)
+*Ideas behind it:* [Stamps: draw once, place many copies](#stamps-draw-once-place-many-copies) · [Signed distance: how far from the edge](#signed-distance-how-far-from-the-edge) · [Coverage (alpha)](#coverage-alpha)
 
 ## Peacock feather fan
 
-ID: `fan` · output **color layer** ($F$) · Natural studies · role content · when bypassed it outputs zero
+ID: `fan` · output **picture** ($F$) · Natural studies · role content · when bypassed it outputs zero
 
-New full-display construction, not a recovered 2026 formula. Outer-to-inner rows, shared feather kernels and staggered phase give repeated yet varied detail.
+Spreads 74 peacock feathers into a fan of four rows. Every feather is the same Single eyespot feather, turned to its own angle around a shared base and scaled to its row’s length. The rows are stacked from the outside in, each a little shorter and darker, and a gentle breeze makes the feathers sway. This is our own construction, not a formula recovered from the original artwork.
 
 **How it is computed**
 
-1. Feather i of row r points at an angle spread evenly across the opening Δ, swaying a little over time; inner rows are shorter (length ℓ_r).
+1. Feather i of row r points at the angle a_ri, and the feathers of a row are spread evenly across the opening Δ, with a tiny sway over time. Each row is 0.26 shorter than the one outside it, so the length ℓ_r shrinks row by row.
 
    $$
    a_{ri} = \left(\frac{i}{n_r - 1} - \frac{1}{2}\right)\Delta + 0.015\sin(1.8\, i + 0.45\, \omega t), \quad \ell_r = 2.12 - 0.26\, r
    $$
 
-2. *Result.* Every feather is the same stamp, sampled in coordinates rotated about the common base b and scaled by the row length, then layered with Over, outer rows first.
+2. *Result.* Every feather is the same stamp, drawn in coordinates turned around the shared base b and scaled by the row length. The feathers are stacked with Over, one on top of another, outer rows first, so the inner rows sit in front.
 
    $$
    F = \mathrm{Over}_{r=0}^{N-1}\ \mathrm{Over}_{i}\ \operatorname{feather}\left(\frac{R(a_{ri})\,(p - b)}{\ell_r};\ w\right)
@@ -1609,28 +1609,28 @@ New full-display construction, not a recovered 2026 formula. Outer-to-inner rows
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $b$ | | common base point |
-| $n_r$ | | feathers in row r |
+| $p$ | input `p` | positions |
+| $b$ | | the shared base point where all the feathers start |
+| $n_r$ | | how many feathers are in row r |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Fan spread `spread` | $\Delta$ | 2.9 | 0.4 to 3.5 (step 0.01) | Total opening angle of the fan in radians (3.14 is a half circle). |
-| Feather rows `rows` | $N$ | 4 | 1 to 4 (step 1) | Number of feather rows, outermost first (23, 20, 17 and 14 feathers). |
-| Feather width `width` | $w$ | 0.095 | 0.03 to 0.2 (step 0.005) | Width of each feather. |
-| Breeze speed `speed` | $\omega$ | 0.3 | 0 to 2 (step 0.01) | Speed of the gentle swaying. |
+| Fan spread `spread` | $\Delta$ | 2.9 | 0.4 to 3.5 (step 0.01) | How wide the fan opens, as an angle in radians (3.14 is a half circle). Slide right to open it wider. |
+| Feather rows `rows` | $N$ | 4 | 1 to 4 (step 1) | How many rows of feathers are drawn, starting from the outside (23, 20, 17 and 14 feathers). |
+| Feather width `width` | $w$ | 0.095 | 0.03 to 0.2 (step 0.005) | How wide each feather is. Slide right for broader feathers. |
+| Breeze speed `speed` | $\omega$ | 0.3 | 0 to 2 (step 0.01) | How fast the feathers sway in the breeze. Zero holds them still. |
 
-*Ideas behind it:* [Stamps and instancing](#stamps-and-instancing) · [Backward mapping](#backward-mapping) · [Front over back](#front-over-back)
+*Ideas behind it:* [Stamps: draw once, place many copies](#stamps-draw-once-place-many-copies) · [Backward mapping: each pixel looks elsewhere](#backward-mapping-each-pixel-looks-elsewhere) · [Over: the front covers the back](#over-the-front-covers-the-back)
 
 ## Peacock body & crest
 
-ID: `peacockBody` · output **color layer** · Natural studies · role content · when bypassed it outputs zero
+ID: `peacockBody` · output **picture** · Natural studies · role content · when bypassed it outputs zero
 
-A separate opaque silhouette over the feather fan, so changing the fan does not distort the bird.
+Draws the peacock’s blue body, neck, head, beak and crest. The bird is a solid silhouette made of soft ovals and short line segments, each with its own color. It is a separate layer placed over the feather fan, so you can change the fan without bending the bird.
 
 **How it is computed**
 
-1. *Result.* Scale the plane by the size s; the silhouette is the union (max) of soft ellipses and segments for the body, neck, head, beak and crest, each with its own color.
+1. *Result.* The plane is first divided by the size s, which makes the bird bigger or smaller. The bird is built from soft ovals and short line segments for the body, neck, head, beak and crest, each with its own color. Taking the largest (max) of their coverages joins them into one silhouette: a point is inside the bird if it is inside any piece.
 
    $$
    q = p / s, \quad \text{coverage} = \max(\text{body},\ \text{neck},\ \text{head},\ \text{beak},\ \text{crest})(q)
@@ -1638,29 +1638,29 @@ A separate opaque silhouette over the feather fan, so changing the fan does not 
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
+| $p$ | input `p` | positions |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Size `size` | $s$ | 1 | 0.3 to 2 (step 0.01) | Overall size of the body, neck, head and crest. |
+| Size `size` | $s$ | 1 | 0.3 to 2 (step 0.01) | How big the whole bird is, crest included. Slide right for a bigger bird. |
 
-*Ideas behind it:* [Signed distance](#signed-distance) · [Combining shapes](#combining-shapes) · [Coverage (alpha)](#coverage-alpha)
+*Ideas behind it:* [Signed distance: how far from the edge](#signed-distance-how-far-from-the-edge) · [Combining shapes: join, overlap, flip](#combining-shapes-join-overlap-flip) · [Coverage (alpha)](#coverage-alpha)
 
 ## Tapered flame field
 
-ID: `fire` · output **color layer** · Natural studies · role content · when bypassed it outputs zero
+ID: `fire` · output **picture** · Natural studies · role content · when bypassed it outputs zero
 
-New explanatory fire study. Moving the sampling coordinates creates upward flow without storing a simulation state. Not a reconstruction of the linked video.
+Draws a flickering flame that rises from its base. The flame is a teardrop whose edge is torn into tongues by noise, colored from dark red at the edges to yellow and white-hot in the core. The noise never really moves: the part reads it at positions that slide downward over time, which makes the pattern appear to rise. This is our own study, not a copy of the video that inspired it.
 
 **How it is computed**
 
-1. Normalize the flame’s box (base width b, height h). The noise coordinate u slides downward over time, so the pattern read through it rises, and is warped by the turbulence τ.
+1. First the flame’s box is scaled so that its base is b wide and it is h tall. The noise position u slides downward over time, so the pattern read through it seems to rise, and the higher the turbulence τ, the more u is warped.
 
    $$
    q = \left(\frac{x}{b},\ \frac{y + 1.05}{h}\right), \quad u = \operatorname{warp}_{0.75\tau}\left(2 q_x,\ 3.8\, q_y - 0.3\, \omega t\right)
    $$
 
-2. *Result.* A teardrop envelope narrowing upward, its edge torn into tongues by the rising noise n(u); a red–yellow–white heat palette colors it by height and intensity.
+2. *Result.* The outline is a teardrop that narrows toward the top, and the rising noise n(u) pushes its edge in and out to make tongues of flame. A heat palette then colors it by height and brightness, from dark red through orange and yellow to white. The code also makes the flame sway gently from side to side.
 
    $$
    \text{flame} = 1 - \operatorname{smoothstep}\left(-0.13,\ 0.13,\ |q_x| - 0.7(1 - q_y)^{0.63} - 0.65\,\tau\,\left(n(u) - \frac{1}{2}\right)\right)
@@ -1668,36 +1668,36 @@ New explanatory fire study. Moving the sampling coordinates creates upward flow 
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $n(u)$ | | fractal noise of the upward-advected coordinate |
-| $\text{heat}$ | | flame × height falloff, mapped red → yellow → white |
+| $p$ | input `p` | positions |
+| $n(u)$ | | the noise pattern, read at positions that slide downward, so it seems to rise |
+| $\text{heat}$ | | how hot this point looks: the flame, fading with height, colored from red through yellow to white |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Height `height` | $h$ | 2 | 0.2 to 3 (step 0.01) | Height of the flame envelope. |
-| Base width `width` | $b$ | 0.8 | 0.1 to 2 (step 0.01) | Width of the flame at its base. |
-| Turbulence `turbulence` | $\tau$ | 1 | 0 to 2 (step 0.01) | How much noise tears the envelope into tongues; 0 gives a smooth teardrop. |
-| Rise speed `speed` | $\omega$ | 1 | 0 to 3 (step 0.01) | How fast the flame pattern rises. |
+| Height `height` | $h$ | 2 | 0.2 to 3 (step 0.01) | How tall the flame is. Slide right for a taller flame. |
+| Base width `width` | $b$ | 0.8 | 0.1 to 2 (step 0.01) | How wide the flame is at its base. Slide right for a wider flame. |
+| Turbulence `turbulence` | $\tau$ | 1 | 0 to 2 (step 0.01) | How much the noise tears the edge into tongues of flame. Zero gives a smooth teardrop. |
+| Rise speed `speed` | $\omega$ | 1 | 0 to 3 (step 0.01) | How fast the flame pattern rises. Zero freezes it. |
 
-*Key function shown in the editor:* flame half-width along its height (τ = 0) (half-width against height q_y).
+*Key function shown in the editor:* how wide the flame is at each height (with τ = 0) (half-width against height q_y).
 
-*Ideas behind it:* [Domain warping](#domain-warping) · [Fractal noise (fBm)](#fractal-noise-fbm) · [Smoothstep](#smoothstep)
+*Ideas behind it:* [Domain warping: bending space before drawing](#domain-warping-bending-space-before-drawing) · [Fractal noise: bumps on bumps](#fractal-noise-bumps-on-bumps) · [Smoothstep: a soft edge](#smoothstep-a-soft-edge)
 
 ## Hedgehog & quill field
 
-ID: `hedgehog` · output **color layer** · Natural studies · role content · when bypassed it outputs zero
+ID: `hedgehog` · output **picture** · Natural studies · role content · when bypassed it outputs zero
 
-New constructive hedgehog example. Separate local stamps supply a readable silhouette and repeated surface detail; no claim about the inaccessible video steps.
+Draws a hedgehog with up to 160 spiky quills. An oval body with fuzzy brown fur is covered along its back by quills, thin lines that taper to pale tips, each with a random-looking but repeatable position and length. A head, ear, eye, nose and feet are layered on top, and the whole animal breathes gently. This is our own construction, not a copy of the video steps that inspired it.
 
 **How it is computed**
 
-1. An ellipse for the body, breathing very slightly over time.
+1. The body is an oval that reaches 0.91 units to each side of its center c and 0.59 units up and down. A tiny up-and-down stretch that rises and falls over time makes the hedgehog breathe.
 
    $$
    \text{body} = [\,|q/(0.91, 0.59)| < 1\,], \quad q = (p - c)\,/\,(1,\ 1 + 0.007 \sin(1.8\, \omega t))
    $$
 
-2. *Result.* N quills, each a Gaussian line that tapers along its length, starting at a hashed point on the body and about L long; they are layered with Over, and the head, ear, eye and feet are added the same way.
+2. *Result.* Each of the N quills is a thin, bell-shaped line that gets narrower toward its tip. It starts at a point on the body picked by a hash (a scrambling formula that gives random-looking but repeatable numbers) and is about L long. The quills are stacked with Over, and the head, ear, eye, nose and feet are added on top the same way.
 
    $$
    \text{quill}_i = e^{-(d_i/0.007(1.1 - 0.8 u_i))^2}, \quad |\text{quill}_i| = L\,(0.65 + 0.35\, h_i), \quad i < N
@@ -1705,109 +1705,109 @@ New constructive hedgehog example. Separate local stamps supply a readable silho
 
 | Symbol | Name | Meaning |
 |---|---|---|
-| $p$ | input `p` | coordinates |
-| $d_i, u_i$ | | distance to quill i and position along it |
-| $h_i$ | | hashed per-quill variation |
+| $p$ | input `p` | positions |
+| $d_i, u_i$ | | the distance to quill i, and how far along it the point is |
+| $h_i$ | | a random-looking number for quill i that varies its length |
 
 | Parameter | Symbol | Default | Range | What it does |
 |---|---|---|---|---|
-| Quill length `quills` | $L$ | 0.28 | 0.02 to 0.7 (step 0.01) | Length of the quills. |
-| Quill count `density` | $N$ | 160 | 10 to 160 (step 1) | Number of quills drawn (up to 160). |
-| Breathing speed `speed` | $\omega$ | 0.5 | 0 to 2 (step 0.01) | Speed of the subtle breathing motion. |
+| Quill length `quills` | $L$ | 0.28 | 0.02 to 0.7 (step 0.01) | How long the quills are. Slide right for longer spikes. |
+| Quill count `density` | $N$ | 160 | 10 to 160 (step 1) | How many quills are drawn, up to 160. Slide left for a sparser coat. |
+| Breathing speed `speed` | $\omega$ | 0.5 | 0 to 2 (step 0.01) | How fast the hedgehog breathes. Zero holds it still. |
 
-*Ideas behind it:* [Deterministic randomness](#deterministic-randomness) · [Gaussian bump](#gaussian-bump) · [Front over back](#front-over-back) · [Stamps and instancing](#stamps-and-instancing)
+*Ideas behind it:* [Randomness you can repeat](#randomness-you-can-repeat) · [The Gaussian bump: a soft hill](#the-gaussian-bump-a-soft-hill) · [Over: the front covers the back](#over-the-front-covers-the-back) · [Stamps: draw once, place many copies](#stamps-draw-once-place-many-copies)
 
 # Ideas behind the equations
 
 The recurring mathematical ideas the components use. In the editor each one appears as a card with a plot you can adjust.
 
-## Pixels become points of a plane
+## From pixels to points on a plane
 
 $$
 p = \frac{W}{w\, z}\left(\mathbf{x} - \frac{\mathbf{s}}{2}\right) + \mathbf{o}
 $$
 
-The canvas is a window onto an endless plane. Each pixel is turned into a point p of that plane, in world units, before any equation runs, so the picture does not depend on the resolution: more pixels sample the same functions more densely.
+The picture is a window onto an endless flat plane, like a camera looking down at a huge sheet of paper. Before any equation runs, each pixel is turned into a point p of that plane. Here x is the pixel’s position and s is the image size, both in pixels, so x − s/2 measures from the center of the image. Multiplying by W/(w z) turns pixels into plane units: W is how wide the view is at zoom 1 (2000/420, about 4.76 units), w is the image width in pixels and z is the zoom. Adding o, the pan, slides the window around the plane. Because every equation works with p and never with pixels, a bigger image shows the same picture with finer detail.
 
 Used by: [Image coordinates](#image-coordinates).
 
-## Backward mapping
+## Backward mapping: each pixel looks elsewhere
 
 $$
 I_{\text{moved}}(p) = I\left(M^{-1}(p)\right)
 $$
 
-To move, turn or bend a picture, change where each pixel looks instead of moving the picture. A pixel at p asks for the pattern at q = M⁻¹(p). This is why transforms contain inverses and minus signs: to move a shape right, subtract from x. Any pattern downstream of the map is moved the same way.
+To move, turn or bend a picture, the studio never moves the picture itself: it changes where each pixel looks. Here I is the original picture, the left side is the moved picture, M is the move you want (say, 1 unit to the right) and M⁻¹, “M inverse”, is that move undone (1 unit to the left). A pixel at p shows what I has at M⁻¹(p), the spot it would have come from. Think of every pixel copying the color of the spot just to its left: the whole picture appears shifted to the right, though nothing traveled. That is why moves are written with minus signs: to slide a shape right, each pixel looks at x − 1. Everything that later reads these moved coordinates moves the same way.
 
 Used by: [Translate · rotate · scale](#translate-rotate-scale), [Localized vortex](#localized-vortex), [Turbulent coordinate warp](#turbulent-coordinate-warp), [Custom coordinate equation](#custom-coordinate-equation), [Star-cluster lens map](#star-cluster-lens-map), [Peacock feather fan](#peacock-feather-fan).
 
-## Rotation
+## Rotation: turning points around the center
 
 $$
 R(\theta)\,(x, y) = (x\cos\theta - y\sin\theta,\ x\sin\theta + y\cos\theta)
 $$
 
-Turns a point counter-clockwise by θ radians about the origin and keeps its distance. 2π (about 6.28) is a full turn. Rotating by an angle that depends on the distance from the center gives a twist.
+R(θ), “rotate by θ (theta)”, turns a point (x, y) counter-clockwise around the center (0, 0), like a clock hand running backward. The point keeps its distance from the center; only its direction changes. Angles are measured in radians: 2π, about 6.28, is a full turn, so 1.57 is a quarter turn. The sine and cosine of θ (sin θ and cos θ) are the numbers that do the turning: θ = 0 leaves (x, y) unchanged, and a quarter turn moves (1, 0) to (0, 1). If the angle changes with the distance from the center, rings at different distances turn by different amounts and the picture twists like a whirlpool.
 
 Used by: [Translate · rotate · scale](#translate-rotate-scale), [Localized vortex](#localized-vortex).
 
-## Gaussian bump
+## The Gaussian bump: a soft hill
 
 $$
 e^{-(d/w)^2}
 $$
 
-Exactly 1 at d = 0, 0.37 at d = ±w and practically 0 beyond 3w. With d the distance to a point it draws a soft dot, with the distance to a curve a glowing line, with the distance to a shell a rim.
+The plot shows a soft hill: exactly 1 in the middle, fading smoothly to 0 on both sides. The formula divides a distance d by a width w, squares it, and raises e (a special number, about 2.718) to minus that amount, so the bigger d gets, the smaller the result. At d = 0 the value is 1, at d = w it has dropped to about 0.37, and beyond 3w it is practically 0. If d is the distance to a point you get a soft dot, if it is the distance to a curve you get a glowing line, and if it is the distance to a ring you get a glowing rim. Drag the width w to make the hill narrower or wider.
 
 Used by: [Localized vortex](#localized-vortex), [Gaussian ring](#gaussian-ring), [Replacement ring geometry](#replacement-ring-geometry), [Seeded star field](#seeded-star-field), [Atmospheric rim](#atmospheric-rim), [Foreground cluster stars](#foreground-cluster-stars), [Spiral auroral curtain](#spiral-auroral-curtain), [Accretion disk & shadow](#accretion-disk-shadow), [Stretched star & tidal stream](#stretched-star-tidal-stream), [Hedgehog & quill field](#hedgehog-quill-field).
 
-## The double-exponential gate
+## The double-exponential gate: a soft switch
 
 $$
 e^{-e^{k(x - \ell)}}
 $$
 
-About 1 when x is well below ℓ and about 0 well above it, switching over roughly 1/k around x = ℓ (where it equals 1/e ≈ 0.37). It is a soft “if x < ℓ”: a larger k makes the switch sharper, a negative k flips it. The source nebula uses it everywhere, and a product of gates is a soft AND. Unlike a hard step it has no jagged edges.
+This is a soft on/off switch, a smooth way of saying “if x is below ℓ”. It is about 1 (on) when x is well below the level ℓ and about 0 (off) when x is well above it, and right at x = ℓ it equals about 0.37. It uses e (a special number, about 2.718) twice: e raised to k(x − ℓ) grows very fast, and e raised to minus that squashes the result back between 0 and 1. The number k sets how quickly it switches, over a stretch of roughly 1/k, and a negative k flips the switch (the second curve in the plot). The original nebula uses gates everywhere, and multiplying two gates gives a soft “this AND that” with no jagged edges. Drag the steepness k to go from a gentle slope to an almost vertical cliff.
 
 Used by: [Soft threshold](#soft-threshold), [Pinched shell family · S,A](#pinched-shell-family-s-a), [Filaments & haze · K](#filaments-haze-k), [Gas emission · Hgas](#gas-emission-hgas), [Central glow · W](#central-glow-w), [Folded star lattices · T](#folded-star-lattices-t).
 
-## Smoothstep
+## Smoothstep: a soft edge
 
 $$
 \operatorname{smoothstep}(a, b, x) = 3u^2 - 2u^3, \quad u = \operatorname{clamp}\left(\frac{x - a}{b - a}, 0, 1\right)
 $$
 
-0 below a, 1 above b and an S-shaped ramp in between: a soft edge whose width is b − a. 1 − smoothstep(−ε, ε, d) of a signed distance d is a filled shape with an edge 2ε wide.
+Smoothstep makes a soft edge: it is 0 when x is below a, 1 when x is above b, and climbs along a gentle S-shaped curve in between. First u measures how far x has come from a toward b, as a fraction, and clamp(…, 0, 1) keeps that fraction between 0 and 1, like a ruler that stops at both ends. Then 3u² − 2u³ bends the straight ramp into an S that starts and ends flat, so the edge has no visible corners. The soft edge is b − a wide. For a shape with signed distance d (negative inside, positive outside), 1 − smoothstep(−ε, ε, d) fills the inside with an edge 2ε wide. Drag ε, half the edge width, to make the edge in the plot blurrier or crisper.
 
 Used by: [Soft disc / sphere mask](#soft-disc-sphere-mask), [Tapered flame field](#tapered-flame-field).
 
-## Signed distance
+## Signed distance: how far from the edge
 
 $$
 d(p) = |p| - r
 $$
 
-A shape can be described by how far a point is from its edge: negative inside, zero on the edge, positive outside (here a circle of radius r). Feed d to a smoothstep for a filled shape, to a Gaussian for a glowing outline, or to a gate for a sharp one. Distances also combine: min/max give unions and intersections.
+A shape can be described by telling every point how far it is from the edge. The trick is the sign: d is negative inside the shape, zero on the edge and positive outside, like height above sea level, which is negative under water. For a circle of radius r around the center, |p| is the distance of the point p from the center, so d = |p| − r is how far p is outside the circle. Feed d to a smoothstep for a filled shape, to a Gaussian bump for a glowing outline, or to a gate for a sharp one. Distances also combine: min, the smaller of two distances, draws both shapes at once, and max, the larger, keeps only the part where they overlap.
 
 Used by: [Soft disc / sphere mask](#soft-disc-sphere-mask), [Gaussian ring](#gaussian-ring), [Replacement ring geometry](#replacement-ring-geometry), [Single eyespot feather](#single-eyespot-feather), [Peacock body & crest](#peacock-body-crest).
 
-## Curves as zero sets
+## Curves where a formula is zero
 
 $$
 L(p) = 0
 $$
 
-A curve can be given as the points where a function is zero. The sign of L tells which side a point is on and its size roughly how far it is. The nebula’s shell residual L_s is such a function; it is not an exact distance, but its zero set is the shell and its sign is inside/outside.
+A curve can be drawn as all the points where some formula equals zero. Here L(p) is a number computed for each point p: it is exactly 0 on the curve, and its sign tells which side of the curve p is on, like land and sea on either side of a coastline. The size of L also tells roughly how far away the curve is. The nebula’s shell formula L_s works this way. It is not an exact distance, but it is zero on the shell, and its sign tells inside from outside.
 
 Used by: [Pinched shell family · S,A](#pinched-shell-family-s-a).
 
-## Polar coordinates
+## Polar coordinates: angle and distance
 
 $$
 r = |p|, \quad \theta = \operatorname{atan2}(p_y, p_x)
 $$
 
-The distance from the origin and the angle around it (−π to π). A pattern that depends on θ repeats around the circle; one that depends on r makes rings; one that depends on θ − k log r makes spirals. The angle jumps from π to −π on the negative x axis, which whole-number repetitions hide.
+Polar coordinates describe a point by how far it is from the center and in which direction, like giving directions as “walk this far, that way” instead of “go this far across, then this far up”. Here r = |p| is the distance from the center, and θ (theta) is the angle, which atan2 works out from the point’s y and x coordinates, p_y and p_x. The angle runs from −π to π (about −3.14 to 3.14), which is one full turn. A pattern that depends on θ repeats around the circle like slices of a pizza, one that depends on r makes rings, and one that mixes both can make spirals. The angle jumps from π to −π on the left of the center (the negative x axis), but patterns that repeat a whole number of times per turn hide that seam.
 
 Used by: [Polar coordinates](#polar-coordinates), [Angular mirror](#angular-mirror), [Logarithmic spiral galaxy](#logarithmic-spiral-galaxy).
 
@@ -1817,83 +1817,83 @@ $$
 O(t) = \arccos(\cos t)
 $$
 
-A triangle wave between 0 and π: it rises, then mirrors back down, forever. Folding both coordinates this way turns the whole plane into identical mirrored cells, so one shape drawn at the origin appears at every cell center. The folded star lattices draw one star this way and get a whole lattice of them; mod and abs fold the angle of the kaleidoscope the same way.
+The plot shows a zigzag: it climbs from 0 to π (about 3.14), walks back down to 0, and repeats forever. cos t swings up and down, and arccos undoes it but only answers with angles between 0 and π, so the result O(t) keeps bouncing back like a ball between two walls. Folding both coordinates this way turns the whole plane into a grid of mirrored copies of one cell, like a paper snowflake folded many times. So one star drawn at the origin shows up at every point of a grid: that is how the folded star lattices get a whole lattice from one star. The kaleidoscope folds its angle the same way, with mod (a remainder that repeats) and abs (which drops the minus sign). Drag the frequency f to make the zigzag tighter or wider.
 
 Used by: [Angular mirror](#angular-mirror), [Folded star lattices · T](#folded-star-lattices-t).
 
-## Value noise
+## Value noise: smooth randomness
 
-Pseudo-random values at the corners of a unit grid, blended smoothly in between: a bumpy field in 0–1 with features about one unit wide. The random values come from a hash of the corner coordinates, so the noise is the same every time and needs no stored texture.
+Value noise is smooth randomness: it wanders up and down like a range of hills, but it never jumps. It puts a random number from 0 to 1 at every whole-number position (the corners of a grid, in 2D) and blends smoothly in between, so the bumps are about one unit apart. The numbers are not truly random: a hash, a scrambling formula, makes them from the corner’s coordinates. So the same place always gets the same number, and the noise needs no stored picture. Drag the frequency f to squeeze more bumps into the plot, or fewer.
 
 Used by: [Fractal value noise](#fractal-value-noise).
 
-## Fractal noise (fBm)
+## Fractal noise: bumps on bumps
 
 $$
 f = \frac{1}{Z}\sum_{k} 2^{-k}\, n(2^k p)
 $$
 
-Layers (octaves) of noise, each twice as fine and half as strong: large shapes with ever smaller detail on top, like clouds, terrain or smoke. More octaves add finer detail; the first few decide the overall shapes.
+Fractal noise stacks several layers of value noise, like mountains with hills on them and rocks on the hills. Each layer, called an octave, is twice as fine and half as strong as the one before: layer k reads the noise n at the point 2^k p (p times 2 multiplied by itself k times) and is weighted by 1/2^k. The Σ sign means “add up all the layers”, and dividing by Z, the total of the weights, keeps the result f between 0 and 1. The first few layers decide the big shapes and the later ones add fine detail, which is why clouds, terrain and smoke look like this. Drag the octaves slider from 1 to 8 and watch the smooth curve grow rougher.
 
 Used by: [Turbulent coordinate warp](#turbulent-coordinate-warp), [Fractal value noise](#fractal-value-noise), [Cyclonic water planet](#cyclonic-water-planet), [Logarithmic spiral galaxy](#logarithmic-spiral-galaxy), [Tapered flame field](#tapered-flame-field).
 
-## Domain warping
+## Domain warping: bending space before drawing
 
 $$
 f(p + A\,\mathbf{d}(p))
 $$
 
-Push the coordinates around with a smooth field before a pattern reads them. The pattern itself is unchanged; only where it is sampled moves. Straight stripes become marble, a teardrop becomes a flame, a sphere’s surface coordinates become swirling storms.
+Domain warping bends the paper before the pattern is drawn on it. Each point p is pushed a little by a smooth push field d(p) before the pattern f reads it, and A sets how strong the push is. The pattern itself does not change, only where each pixel looks it up, like stripes seen through wavy bathroom glass. That is how straight stripes become marble, a teardrop becomes a flame, and the surface of a planet gets swirling storms. With A = 0 nothing moves at all.
 
 Used by: [Turbulent coordinate warp](#turbulent-coordinate-warp), [Cyclonic water planet](#cyclonic-water-planet), [Tapered flame field](#tapered-flame-field).
 
-## Phase modulation
+## Phase modulation: a wave inside a wave
 
 $$
 \cos\left(\nu x + \beta \sin(\mu y)\right)
 $$
 
-A wave inside another wave’s phase bends its stripes: with β = 0 the bands are straight; the larger β, the more they meander. A cosine inside a cosine is the simplest way to get complex yet smooth structure, and the source nebula nests them in every turbulence band.
+Putting one wave inside another makes stripes that wander. On its own, cos(ν x) makes straight, evenly spaced stripes, and ν (nu) sets how close together they are. Adding β sin(μ y) inside shifts each stripe back and forth as y changes: μ (mu) sets how often it wiggles and β (beta) how far. With β = 0 the stripes stay straight, and the bigger β, the more they snake around, like a river that meanders more and more. It is the simplest way to get detailed yet smooth patterns, and the original nebula nests cosines like this in every turbulence band. In the plot, drag the bend β and watch the wave squeeze and stretch.
 
 Used by: [Nested cosine bands](#nested-cosine-bands), [Nested-cosine turbulence · E](#nested-cosine-turbulence-e), [Accretion disk & shadow](#accretion-disk-shadow).
 
-## Sums of bands
+## Sums of bands: turbulence from many waves
 
 $$
 \sum_{s=1}^{N} 0.95^{s} \cos(1.25^{s} x + \phi_s)
 $$
 
-Many waves, each finer (frequency × 1.25) and a little weaker (× 0.95) than the last. Because the weights shrink slowly, fine bands still matter, which gives a rough, turbulent texture rather than a smooth one. Fewer bands give blobbier results.
+This adds up (Σ) N cosine waves, called bands, each a little finer and a little weaker than the one before. Band number s wiggles 1.25^s times as fast as a plain cos x, so each band is 1.25 times finer than the last, and its strength is 0.95^s, only 5% weaker than the last. The shift φ_s (phi) moves each band sideways so they do not all line up. Because the strength shrinks so slowly, even the finest bands still count, which gives a rough, turbulent texture, like choppy water, instead of a smooth one. Drag the number of bands N from 1 to 20: with few bands the curve is blobby, and with many it turns rough.
 
 Used by: [Nested-cosine turbulence · E](#nested-cosine-turbulence-e), [Filaments & haze · K](#filaments-haze-k).
 
-## Front-to-back selection
+## Front to back: the first sheet wins
 
 $$
 w_s = J_s \prod_{u < s} (1 - J_u)
 $$
 
-Imagine stacked translucent sheets: sheet s receives whatever the sheets before it let through. With gates J that are nearly 0 or 1, each point is claimed by the first shell that contains it, and overlapping shells do not add up twice. The weights always sum to at most 1.
+Imagine a stack of tinted glass sheets: each sheet only gets the light that the sheets in front of it let through. J_s, from 0 to 1, says how much sheet s is there at a point. The ∏ sign means “multiply together”, so multiplying (1 − J_u) for every sheet u in front of s gives the share still left over for sheet s, and its weight w_s is that share times J_s. When every J is nearly 0 or 1, each point belongs to the first sheet that contains it, so overlapping nebula shells are never counted twice. All the weights together add up to at most 1.
 
 Used by: [Pinched shell family · S,A](#pinched-shell-family-s-a).
 
-## Linear interpolation (mix)
+## Mix: blending two values
 
 $$
 \operatorname{mix}(a, b, t) = a + (b - a)\, t
 $$
 
-t = 0 gives a, t = 1 gives b and values between blend them. With two colors it is a gradient; with t taken from a field it paints the field.
+mix blends between two values, like a slider between two paint colors. With t = 0 you get a, with t = 1 you get b, and t = 0.5 lands exactly halfway. The formula starts at a and adds the fraction t of the gap b − a. With two colors it makes a gradient, and when t comes from a pattern, the pattern gets painted in those two colors. The plot shows t raised to a power γ (gamma) first: γ = 1 is an even blend, a bigger γ stays near a for longer, and a smaller γ rushes toward b. Drag the power γ to bend the blend.
 
 Used by: [Two-color emission](#two-color-emission), [Mask layer](#mask-layer), [Stretched star & tidal stream](#stretched-star-tidal-stream).
 
-## Front over back
+## Over: the front covers the back
 
 $$
 \alpha = \alpha_F + \alpha_B (1 - \alpha_F)
 $$
 
-Straight-alpha compositing, like paper cutouts: the front covers a fraction α_F of the pixel and the back shows through the rest. Use it whenever something must hide what is behind it.
+Over stacks one layer in front of another, like paper cutouts on a table. Each layer has a coverage α (alpha), how much of the pixel it covers, from 0 (none) to 1 (all): α_F for the front layer and α_B for the back one. The front covers its share α_F, and the back can only show through the part that is left, 1 − α_F. Together they cover α = α_F + α_B(1 − α_F). Use Over whenever something should hide what is behind it.
 
 Used by: [Front over back](#front-over-back), [Peacock feather fan](#peacock-feather-fan), [Hedgehog & quill field](#hedgehog-quill-field).
 
@@ -1903,167 +1903,167 @@ $$
 L = L_1 + L_2
 $$
 
-Light from independent sources adds up, so stars, gas and glows are summed, not painted over each other. Sums can exceed 1; only the final output conversion maps light to screen colors, so nothing clips in between.
+Light from separate sources simply adds up: two flashlights on the same spot make it twice as bright. So stars, gas and glows are added together: the total L is just the first light L_1 plus the second light L_2, instead of one being painted over the other. Nothing gets hidden, so a star behind a glowing cloud still shines through it. The total L may go above 1, brighter than the screen can show, and that is fine, because light only becomes a screen color at the very end, so nothing is cut off along the way.
 
 Used by: [Add light](#add-light), [Folded star lattices · T](#folded-star-lattices-t), [Seeded star field](#seeded-star-field), [Atmospheric rim](#atmospheric-rim), [Foreground cluster stars](#foreground-cluster-stars).
 
-## Radiance, not pixels
+## Radiance: light, not screen colors
 
-Layers carry unbounded floating-point light. Only the output conversion (Source F, Filmic or Linear, in the timeline bar) turns it into screen colors, after all composition. Multiplying or adding light therefore never loses highlight detail on the way.
+Inside the studio, every layer holds an amount of light (radiance), not a finished screen color. That amount can be far above 1, while a screen pixel stops at full brightness. Only at the very end, after all layers are combined, does the output conversion turn light into screen colors. You choose it in the timeline bar: Source F (the artist’s original mapping), Filmic (bright parts roll off softly) or Linear (anything too bright is simply cut off). Because nothing is squeezed along the way, adding or multiplying light never loses detail in the bright parts.
 
 Used by: [Custom color equation](#custom-color-equation), [Two-color emission](#two-color-emission), [Tint & gain](#tint-gain), [Filaments & haze · K](#filaments-haze-k).
 
 ## Coverage (alpha)
 
-How much of the pixel a layer covers, from 0 to 1, stored next to its color. Coverage matters only where layers are stacked with Over; adding light ignores it.
+Alpha (α) is coverage: how much of a pixel a layer covers, from 0 (not at all) to 1 (completely). It is stored next to the layer’s color, so 0.5 means the layer covers half the pixel and half of what is behind still shows. Think of a sticker on a window: alpha says how much of the glass it hides. Coverage only matters where layers are stacked with Over. When light is added, alpha is ignored, because added light never hides anything.
 
 Used by: [Mask layer](#mask-layer), [Front over back](#front-over-back), [Single eyespot feather](#single-eyespot-feather), [Peacock body & crest](#peacock-body-crest).
 
-## Masking by multiplication
+## Masking by multiplying
 
 $$
 L \cdot m, \quad m \in [0, 1]
 $$
 
-Multiplying light by a 0–1 mask keeps it where the mask is 1 and removes it where the mask is 0. (1 − W) removes the gas where the core glow W is on.
+Multiplying light L by a mask m keeps the light where m is 1 and removes it where m is 0, like a stencil held over a spray can. m ∈ [0, 1] means m is always a number from 0 to 1, and in-between values let part of the light through. For example, the nebula multiplies its gas by 1 − W, where W is the central glow. Where W is 1, 1 − W is 0, so the gas is removed at the center and the core glow takes over.
 
 Used by: [Gas emission · Hgas](#gas-emission-hgas).
 
-## Logarithmic spirals
+## Logarithmic spirals: arms that wind outward
 
 $$
 \theta - k \log r = \text{const}
 $$
 
-Curves that wind outward at a constant angle, as in galaxies, hurricanes and shells. A pattern of the phase m θ − k log r has m arms; k sets how tightly they wind.
+Logarithmic spirals wind outward and keep the same shape at every size, as in galaxies, hurricanes and snail shells. Here r is the distance from the center, θ (theta) is the angle, and log r, the natural logarithm, grows by the same step (about 0.69) every time r doubles. Along one arm, θ − k log r stays the same number (that is what “= const” means), so every doubling of the distance turns the arm by the same extra angle. A pattern built from m θ − k log r has m arms, and k sets how tightly they wind. The plot shows the arm’s angle against the distance; drag the winding k to make the spiral tighter or looser.
 
 Used by: [Logarithmic spiral galaxy](#logarithmic-spiral-galaxy), [Spiral auroral curtain](#spiral-auroral-curtain).
 
-## Deterministic randomness
+## Randomness you can repeat
 
-A hash turns cell coordinates (plus a seed) into pseudo-random numbers in 0–1. The same inputs always give the same numbers, so random-looking stars and quills are exactly reproducible, a different seed gives a new arrangement, and animation never depends on earlier frames.
+A hash is a scrambling formula: it turns the coordinates of a grid cell, plus a seed number, into a number from 0 to 1 that looks random. It is like a deck of cards that is always shuffled in exactly the same way: the same inputs always give the same number. So random-looking stars and quills come out identical every time, and a different seed deals a brand-new arrangement. Because nothing depends on earlier frames, you can jump to any moment of an animation and still see the same stars.
 
 Used by: [Seeded star field](#seeded-star-field), [Hedgehog & quill field](#hedgehog-quill-field).
 
-## Lensing, illustrated
+## Gravitational lensing, illustrated
 
 $$
 q = p - \sum_i m_i \frac{p - c_i}{|p - c_i|^2 + \epsilon^2}
 $$
 
-Mass bends light, so a background source seen near a mass appears pushed away from it and stretched into arcs. As a backward map: each pixel samples the background at a point displaced toward the masses. ε softens the singularity at each mass.
+Heavy things like star clusters bend light, so galaxies seen behind them look pushed aside and stretched into arcs. The studio imitates this by backward mapping: the pixel at p shows the background at a point q that is shifted toward the masses. Mass number i sits at c_i with strength m_i, and Σ adds up the pulls of all the masses; each pull points from p toward c_i and weakens with distance. Without ε (epsilon) the pull would become infinite right on top of a mass, so ε² is added underneath the fraction to soften it. The plot shows how strong the pull is at each distance: it peaks at a distance of ε and fades farther out. Drag the softening ε to make the peak lower and wider, or taller and sharper.
 
 Used by: [Star-cluster lens map](#star-cluster-lens-map).
 
-## Shear
+## Shear: slanting the plane
 
 $$
 (x + a y,\ y - b x)
 $$
 
-Slants the plane: lines through the origin tilt while their spacing changes little. Giving each nebula shell its own shear makes the shells lean different ways instead of lining up.
+Shear slants the plane, like pushing the top of a deck of cards sideways so the stack leans. The formula replaces x by x + a y, so the higher a point is, the farther it slides sideways, with a setting how far. It also replaces y by y − b x, so points farther right move down (for a positive b). Straight lines stay straight, but they lean. Giving each nebula shell its own a and b makes the shells lean different ways instead of lining up.
 
 Used by: [Pinched shell family · S,A](#pinched-shell-family-s-a).
 
-## A sphere from a disc
+## A ball from a flat disc
 
 $$
 \mathbf{n} = \left(x,\ y,\ \sqrt{1 - x^2 - y^2}\right)
 $$
 
-Inside the unit disc, adding z = √(1 − x² − y²) gives the point on the visible half of a unit sphere, which is also its surface normal. Lighting then depends on the angle between the normal and the light.
+A flat disc can be turned into a ball with one square root. For each point (x, y) inside a circle of radius 1, z = √(1 − x² − y²) is how far the ball’s surface bulges toward you there: 1 in the middle and 0 at the rim. Then (x, y, z) lies on the front half of a ball of radius 1, because x² + y² + z² = 1. The same three numbers, called n, also say which way the surface faces at that point, like an arrow sticking straight out of the ball (its normal). Lighting uses this arrow to decide how bright each point is.
 
 Used by: [Cyclonic water planet](#cyclonic-water-planet).
 
-## Diffuse lighting
+## Diffuse lighting: facing the light
 
 $$
 \max(\mathbf{n} \cdot \mathbf{l},\ 0)
 $$
 
-A matte surface is brightest where it faces the light and dark where it faces away; the dot product of the normal n and the light direction l measures exactly that (the cosine of the angle between them).
+A matte surface, like chalk or paper, is brightest where it faces the light and gets darker as it turns away. Here n is an arrow of length 1 pointing straight out of the surface, and l is an arrow of length 1 pointing toward the light. Their dot product n · l (multiply matching parts and add them up) is the cosine of the angle between them: 1 when the surface faces the light head-on and 0 when the light just grazes it. Facing away would give a negative number, so max(…, 0), the larger of it and 0, turns that into 0, which is dark. The plot shows the brightness for every angle to the light.
 
 Used by: [Cyclonic water planet](#cyclonic-water-planet).
 
-## Stamps and instancing
+## Stamps: draw once, place many copies
 
-Draw one object once, in its own local coordinates (a feather from base 0 to tip 1). To place copies, transform the coordinates before sampling it: rotate, scale and translate p, then combine the copies with Over. The same kernel yields a whole fan.
+To draw many copies of an object, draw it once and move the coordinates instead of the drawing. The object lives in its own little coordinate system, for example a feather that runs from 0 at its base to 1 at its tip. To place a copy, turn, scale and shift the point p before looking up the feather, just as in backward mapping. Each copy is like a rubber stamp pressed down in a different spot and direction. Stack the copies with Over, and one feather becomes a whole fan.
 
 Used by: [Single eyespot feather](#single-eyespot-feather), [Peacock feather fan](#peacock-feather-fan), [Hedgehog & quill field](#hedgehog-quill-field).
 
-## Combining shapes
+## Combining shapes: join, overlap, flip
 
 $$
 \max(a, b), \quad \min(a, b), \quad 1 - a
 $$
 
-For 0–1 coverage masks, max is the union, min the intersection and 1 − a the complement. Silhouettes are built from simple pieces this way.
+A mask says how much each point belongs to a shape, from 0 (outside) to 1 (inside); here a and b are two such masks. max(a, b), the larger of the two, is 1 wherever either shape is, so it joins them into one (the union). min(a, b), the smaller of the two, is 1 only where both shapes are, so it keeps just their overlap (the intersection). 1 − a flips a mask, turning inside into outside. The peacock’s body and crest are built from simple pieces this way.
 
 Used by: [Peacock body & crest](#peacock-body-crest).
 
-## A program for one pixel
+## Shader code: a recipe for one pixel
 
 $$
 o = \operatorname{code}(\mathrm{FC}, r, t)
 $$
 
-Shader code is the recipe for the color of a single pixel. It gets the pixel position FC (in pixels, from the bottom-left corner), the resolution r and the time t, and adds light to the output o, which starts black. The GPU runs the same code for every pixel at once; the pictures differ only because FC differs. On twigl.app this whole program often fits in one tweet.
+Shader code is a recipe for the color of one pixel: the formula says the output color o comes from running the code on three inputs. FC is the pixel’s position, in pixels from the bottom-left corner, r is the size of the picture in pixels, and t is the time in seconds. The output o starts out black, and the code adds light to it. The graphics chip (GPU) runs the same recipe for every pixel at once, and the pictures differ only because FC is different for each pixel. On twigl.app, where many of these animations come from, a whole program often fits in a single tweet.
 
 Used by: [Shader code](#shader-code).
 
-## Every pixel on its own
+## Every pixel works alone
 
-A pixel never sees its neighbors or the previous frame: the code recomputes everything from FC and t, every frame. That is why the animations can be scrubbed to any time, zoomed and paused, and why a frame is exactly reproducible. It also means that everything you see, even a whole 3D scene, is rediscovered from scratch by every pixel.
+Each pixel works alone: it cannot see its neighbors or what the previous frame looked like. So the code works everything out again from FC, the pixel’s position, and t, the time, in every single frame. That is why you can jump to any moment, pause and zoom, and the same frame always comes out exactly the same. It also means that even a whole 3D scene is rediscovered from scratch by every pixel, like thousands of painters each painting one dot without looking at the others.
 
 Used by: [Shader code](#shader-code).
 
-## Raymarching
+## Raymarching: walking into a 3D scene
 
 $$
 p = \mathbf{c} + g\,\mathbf{d}, \quad g \leftarrow g + e(p)
 $$
 
-A 3D scene with no triangles. Each pixel shoots a ray from the camera c in its own direction d and walks along it: at the current point p it asks the distance estimate e(p) how far the nearest surface can be, and steps that far. Near a surface the steps become tiny and the ray stops advancing; g is the distance travelled, the depth. Most codes here march a fixed number of steps (the outer loop) and never stop early.
+Raymarching draws a 3D scene without any triangles. For each pixel a ray starts at the camera c and heads out in that pixel’s direction d, and p = c + g d is the point a distance g along the ray. At each step the ray asks the distance estimate e(p) how far away the nearest surface could be and moves forward exactly that far (g ← g + e(p) means “add e(p) to g”). Near a surface the steps get tiny, so the ray creeps up to it and g ends up as the depth of that pixel; most codes here simply take a fixed number of steps (the outer loop) instead of stopping early. In the plot the surface is at depth 1. Drag the surface slant: a surface that faces the ray is reached in one step, while one seen at a steep slant takes many small steps.
 
-## Distance estimates
+## Distance estimates: safe step sizes
 
 $$
 e(p) \le \text{distance from } p \text{ to the surface}
 $$
 
-The function a raymarcher steps by: zero on the surface, positive outside, and never larger than the true distance, so a step of e cannot jump through anything. Simple shapes have exact ones (a sphere: |p| − R; a cylinder around y: |p.xz| − R); min(a, b) joins two shapes, max(a, −b) cuts one from another. Fractals divide by the total scale of their folds to stay safe.
+A distance estimate e(p) tells a raymarcher (a ray that walks into a 3D scene step by step) how far it can safely step from the point p. It is zero on a surface, positive outside, and never bigger than the real distance to the surface (that is what ≤ means), so a step of size e can never jump through anything. It is like walking in the dark with a stick that tells you the nearest wall is at least this far away. Simple shapes have exact ones: a ball of radius R is |p| − R, and a tube around the y axis is |p.xz| − R, which uses only the x and z coordinates. min(a, b) joins two shapes, max(a, −b) cuts shape b out of shape a, and fractals divide by how much their folds have scaled space so the estimate stays safe.
 
-## Glow by accumulation
+## Glow by adding up light
 
 $$
 o = \sum_{i} \frac{c}{\exp(k\, e_i)}
 $$
 
-Instead of shading the surface where a ray stops, many of these codes add a little light at every step: a lot when the step’s distance e is tiny (the ray grazes a surface), almost nothing when it is large. The sum over all steps gives soft glowing edges and a volumetric look for free. A larger k keeps the glow closer to the surfaces.
+Instead of coloring the surface where a ray stops, many of these codes add a little light at every step along the ray. At step i the distance to the nearest surface is e_i, and the light added is the color c divided by exp(k e_i), which is e (about 2.718) raised to k × e_i. That is a lot of light when e_i is tiny (the ray brushes past a surface) and almost none when it is large. Adding up all the steps (Σ) into the output o gives soft glowing edges and a misty look for free, like fog around neon signs. Drag the sharpness k: a larger k keeps the glow closer to the surfaces.
 
-## Repetition: p − round(p)
+## Repetition with p − round(p)
 
 $$
 p \leftarrow p - \operatorname{round}(p)
 $$
 
-Subtracting the nearest whole number sends every point into the unit cell around the origin (−½ to ½ on each axis). Whatever is drawn in that one cell appears in every cell: one object becomes an endless lattice at the cost of one line. fract(p) − 0.5 does the same.
+This one line repeats a shape forever. round(p) is the nearest whole number, so p − round(p) is how far p is from it, always between −½ and ½, and the arrow ← means “replace p with this”. Every point of space lands in the same small box around the center, so whatever is drawn in that one box appears in every box, like tiles on a floor. The plot shows the result as a sawtooth: it rises from −½ to ½ and jumps back halfway between whole numbers. fract(p) − 0.5, where fract keeps only the part after the decimal point, does the same job with the boxes shifted by half a box.
 
-## Folding fractals
+## Folding fractals: mirrors in mirrors
 
 $$
 p \leftarrow |p| - c, \quad p \leftarrow s\,p
 $$
 
-abs(p) mirrors space into one octant; subtracting c shifts the mirror; scaling by s zooms. Repeating the three a dozen times folds space into a crystal of copies of copies: every fold doubles the number of reflected pieces, so detail grows exponentially with the loop count. The scale gained along the way (often called s or S) divides the final distance so the raymarcher can still trust it.
+These fractals come from folding space again and again, like folding paper to cut a snowflake. |p| (abs) drops the minus signs of the coordinates, which mirrors all of space into one corner; subtracting c moves where the mirrors sit, and multiplying by s zooms (the arrow ← means “replace p with this”). Repeating these steps a dozen times folds space into copies of copies: every fold doubles the number of mirrored pieces, so the detail grows very fast with the number of loops. The total zoom collected along the way (often called s or S) divides the final distance at the end, so the ray that walks through the scene can still trust it as a safe step.
 
-## Sphere inversion
+## Sphere inversion: space turned inside out
 
 $$
 p \leftarrow \frac{p}{|p|^2}
 $$
 
-Turns space inside out through the unit sphere: points near the center fly far away and far points come close, while spheres stay spheres. Alternated with folds (p /= dot(p, p)) it produces the endlessly nested bubbles of Kleinian and Apollonian fractals. The factor dot(p, p) of each inversion is how much that piece was shrunk.
+Sphere inversion turns space inside out through a ball of radius 1. Dividing p by |p|², its distance from the center squared, keeps its direction but changes its distance from |p| to 1/|p|: points near the center fly far away, far points come close, and points on the ball stay put. The plot shows exactly that, so a distance of 0.5 becomes 2 and 2 becomes 0.5. Surprisingly, spheres stay spheres (or become flat planes if they pass through the center). In code this is p /= dot(p, p), where dot(p, p) is |p|²; alternated with folds, it makes the endlessly nested bubbles of Kleinian and Apollonian fractals, and dot(p, p) also says how much that piece was shrunk.
 
 ## An endless zoom: log R − t
 
@@ -2071,7 +2071,7 @@ $$
 (u, v) = (\log R - t,\ \theta)
 $$
 
-In logarithmic polar coordinates, zooming into the center is a shift of log R, so subtracting t makes the picture zoom forever without ever running out of detail: each doubling of distance is one more unit of u. Yohei Nishitsuji’s tunnels use this with the angle θ (atan) and a height, so the camera flies through a pattern that repeats at every scale.
+In log-polar coordinates a point is described by u, the logarithm of its distance R from the center, and v, its angle θ. The logarithm log R goes up by the same step (about 0.69) every time R doubles, so zooming in toward the center simply slides u along. Subtracting the time t therefore makes the picture zoom in forever without running out of detail, like a tunnel that never ends. Yohei Nishitsuji’s tunnels use this together with the angle (from atan) and a height, so the camera seems to fly through a pattern that repeats at every size. The plot shows log R: it climbs steeply near the center and slowly far away.
 
 ## Octaves by doubling: s += s
 
@@ -2079,23 +2079,23 @@ $$
 e \leftarrow e + \sum_{s = 1, 2, 4, \ldots} \frac{w(s\,p)}{s}
 $$
 
-A loop that doubles s each time adds the same wave pattern w at frequencies 1, 2, 4, 8, … with amplitudes 1, ½, ¼, …: large shapes carrying ever finer detail, exactly like fractal noise. The loop ends when s passes a limit, so the limit sets the finest detail (log₂ of it is the number of octaves).
+Many of these codes build detail with a tiny loop that doubles a number s each time (s += s adds s to itself). Each pass adds the same wave pattern w, read at s p and divided by s, to the running total e (the arrow ← means “replace e with this”). With s = 1, 2, 4, 8, … the waves get twice as fine and half as tall each time, so big shapes carry smaller and smaller detail, like a coastline with bays inside bays, just as in fractal noise. The loop stops when s passes a limit, so the limit sets the finest detail: log₂ of the limit, the number of times you can double 1 before reaching it, is the number of octaves (layers). Drag the octaves slider to add finer and finer ripples to the curve.
 
-## Hue, saturation, value
+## Hue, saturation, value: colors from a wheel
 
 $$
 \operatorname{hsv}(h, s, v)
 $$
 
-A color from three numbers: the hue h goes around the color wheel (0 red, ⅓ green, ⅔ blue, 1 red again, so it repeats), s is how colorful it is (0 gray) and v how bright. Codes often compute h from a depth or a distance, so the color labels how far a surface is; v may exceed 1 for light that the display clips to white.
+hsv(h, s, v) makes a color from three numbers, like picking a color from a color wheel. The hue h goes around the wheel: 0 is red, ⅓ green, ⅔ blue and 1 red again, so it repeats. The saturation s is how colorful it is (0 means no color at all: gray, or white at full brightness), and the value v is how bright. Codes often compute h from a depth or a distance, so the color tells how far away a surface is, and v may go above 1 for extra-bright light. The plot shows how much red, green and blue each hue contains; drag the saturation s toward 0 and all three lines flatten out at the same level, which is white.
 
-## Turning with a matrix
+## Turning with rotate2D
 
 $$
 v\, R(a), \quad R(a) = \operatorname{rotate2D}(a)
 $$
 
-rotate2D(a) is the 2×2 matrix of a rotation, so p.xz *= rotate2D(a) turns the x–z coordinates of p (a turn about the y axis) and p.xy *= rotate2D(a) a turn about z. Rotating p before measuring a shape turns the shape the other way; with a = t it spins, with a depending on p it twists.
+rotate2D(a) gives R(a), a matrix: a little 2×2 table of four numbers that turns a pair of numbers by the angle a (in radians, where 6.28 is a full turn). In code, v *= rotate2D(a), written v R(a) above, turns the pair v clockwise by a. So p.xz *= rotate2D(a) turns the x and z coordinates of p, which is a turn around the y axis like a spinning top, and p.xy *= rotate2D(a) is a turn around the z axis. Turning p before measuring a shape turns the shape the other way, just as turning your head left makes the room seem to turn right. With a = t the shape spins as time passes, and if a depends on p the shape twists.
 
 ## Soft clipping with tanh
 
@@ -2103,7 +2103,7 @@ $$
 \tanh(x)
 $$
 
-Squeezes any brightness into the range −1 to 1: small values pass almost unchanged, large ones approach 1 smoothly instead of being cut off. As the last line of a code (o = tanh(o)) it acts as a gentle tone mapping, so bright cores keep their color instead of burning out to white.
+tanh(x), the hyperbolic tangent, squeezes any number x into the range −1 to 1. Small values pass through almost unchanged, and big ones bend smoothly toward 1 instead of being chopped off, like a sponge that soaks up less and less as it fills. Many codes end with o = tanh(o), a gentle way to fit very bright light onto the screen, so bright centers keep some of their color instead of burning out to plain white. The plot compares tanh with a hard clip, which cuts everything off at 1 with a sharp corner. Drag the boost k, which multiplies x first, and watch tanh bend smoothly while the hard clip goes flat.
 
 ## One formula, thousands of points
 
@@ -2111,17 +2111,17 @@ $$
 \mathbf{x}_i = f(i, t), \quad i = 0, \ldots, n - 1
 $$
 
-A point cloud evaluates the same formula for every index i and draws a dot there. Structure appears because i is secretly a coordinate: consecutive i trace a curve, and expressions like i/7 and i/99 (or cos(i/49)) split the index into several slow and fast parameters, so the dots sweep out a surface. The time t moves every dot a little each frame.
+A point cloud runs the same formula f for every number i from 0 to n − 1, where n is the number of dots, and draws a dot at the result x_i. Shapes appear because i secretly works as a coordinate: consecutive values of i usually land close together, so they trace a curve. Expressions like i/7 and i/99, or cos(i/49), split i into a fast count and a slow count, like the seconds and minutes of a clock, so the dots sweep out a whole surface. The time t moves every dot a little each frame.
 
 Used by: [Point cloud](#point-cloud).
 
-## Density becomes brightness
+## Many faint dots make brightness
 
 $$
 L = 1 - (1 - \alpha)^m
 $$
 
-Each dot is faint (opacity α), so a single one barely shows; where m dots overlap, the light builds up as 1 − (1 − α)^m. Dense places glow and sparse places fade, which gives point clouds their soft, volumetric shading without any lighting calculation.
+Each dot is faint, with an opacity α (alpha) that says how much light it adds, so a single dot barely shows. Every dot covers the fraction α of whatever darkness is still left, so where m dots overlap, the darkness left is (1 − α)^m and the brightness is L = 1 − (1 − α)^m. Crowded places glow and sparse places fade, which gives point clouds their soft, cloudy shading without any lighting math. It works like spray paint: one quick puff barely shows, but many puffs on the same spot build up to solid color. Drag the opacity α to see how many overlapping dots it takes to reach full brightness.
 
 Used by: [Point cloud](#point-cloud).
 
@@ -2131,7 +2131,7 @@ $$
 f(t + T) = f(t)
 $$
 
-An animation loops without a jump when everything that depends on the time repeats with the same period T. sin(t) and rotate2D(t) repeat every 2π ≈ 6.283 seconds, which is why many of these clips last exactly 6.283 s, 12.566 s or 25.13 s; a term like t/8 needs 8 × 2π. The Stats tab measures how different the last frame is from the first.
+An animation loops without a jump when everything that depends on time comes back to where it started. The formula says that f, anything computed from the time t, has the same value again T seconds later; T is called the period. sin(t) and rotate2D(t) repeat every 2π ≈ 6.283 seconds, which is why many of these clips last exactly 6.283, 12.566 or 25.13 seconds. A slower term like t/8 needs 8 × 2π, about 50.27 seconds, to come back around. The Stats tab measures how different the last frame is from the first, so you can check that a loop is seamless.
 
 ## Volumes without surfaces
 
@@ -2139,4 +2139,4 @@ $$
 L = \sum_{k} \rho(p_k)\, c(p_k)\, \Delta
 $$
 
-Soft things such as smoke, fur or glowing gas have no surface to hit. A volumetric raymarcher walks through them in small steps and adds the light emitted at each point, weighted by the density ρ there. Thin bright fibers appear where the density is high in a narrow region.
+Soft things such as smoke, fur or glowing gas have no surface for a ray to hit. A volumetric raymarcher walks through them in small steps of length Δ (delta), and at each point p_k along the ray it adds the light glowing there. That light is the color c(p_k) times the density ρ(p_k) (rho), which says how thick the material is at that point, like how dense a fog is. Σ adds up all the steps into the total light L. Thin, bright fibers appear where the density is high in a narrow region.

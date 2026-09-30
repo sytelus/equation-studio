@@ -1,7 +1,7 @@
 {
   "id": "lensing",
   "title": "Galaxy behind a star cluster",
-  "description": "Backward-map the background galaxy through a softened lens field. Foreground stars remain in the observer plane.",
+  "description": "A spiral galaxy bent into glowing arcs by the gravity of a star cluster in front of it.",
   "status": "Interpretive study",
   "schemaVersion": 1,
   "nodes": [

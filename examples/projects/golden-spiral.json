@@ -1,7 +1,7 @@
 {
   "id": "golden-spiral",
   "title": "Golden spiral",
-  "description": "The whole scene lives in spiral coordinates: log R + angle/π is constant along a logarithmic spiral, so repeating space in that coordinate (p − round(p)) lays copies of a pattern along a golden-looking spiral, and subtracting t zooms into it forever. By yonatan (@zozuar).",
+  "description": "A glowing amber spiral, like a snail shell made of lace, rocks back and forth while its pattern turns and zooms inward forever. By yonatan (@zozuar).",
   "status": "Reproduction · original code",
   "schemaVersion": 1,
   "nodes": [
@@ -21,7 +21,7 @@
         "p": "space"
       },
       "params": {
-        "code": "// Golden spiral · yonatan (@zozuar), 5 Jan 2025 · readable version, same image\nfloat height, i, dist, R, a;\nfor (vec3 ray, p; i++ < 85.;) {       // march 85 steps\n  p = ray += (.5 - FC.gbr/r.y)*dist;  // step forward (the image's x and y become the world's z and x)\n  o += vec4(.4, .2, .1, 0)/exp(dist*6e3);   // amber light where a surface is very close\n  p.y--;\n  p.xy *= rotate2D(sin(t));           // rock back and forth\n  height = p.y;\n  dist = atan(p.x, p.z) - t;          // the angle around the vertical axis, turning with time\n  // spiral coordinates: log R + angle/π is constant along a logarithmic spiral; − t zooms in forever\n  p = vec3(log(R = length(p)) + dist/PI - t, a*sin(5.*dist), a = height/R) + .5;\n  for (int j = 0; j++ < 9; p /= a)    // 9 folds: repeat into unit cells and invert\n    R *= a = dot(p -= round(p), p) + .25;\n  dist = max(-height, R)/5.;          // the step: the pattern's size, but never below the floor\n}\no -= log(++dist)*2e2;                 // darken wherever the last step was long (nothing near)",
+        "code": "// Golden spiral · yonatan (@zozuar), 5 Jan 2025 · readable version, same image\nfloat height, i, dist, R, a;          // The height along the spiral's axis, the step count, the step, the radius and a fold factor.\nfor (vec3 ray, p; i++ < 85.;) {       // March 85 steps along the ray\n  p = ray += (.5 - FC.gbr/r.y)*dist;  // Step forward; the image's x and y become the world's z and x, and the ray looks along y.\n  o += vec4(.4, .2, .1, 0)/exp(dist*6e3);   // Amber light when the last step was tiny, because a surface is very close.\n  p.y--;                              // Put the spiral's center 1 unit in front of the camera.\n  p.xy *= rotate2D(sin(t));           // Rock the spiral back and forth.\n  height = p.y;                       // The point's height along the spiral's axis.\n  dist = atan(p.x, p.z) - t;          // The angle around the axis, turning with time.\n  // Spiral coordinates: log R + angle/π stays the same along a logarithmic spiral, and − t zooms in forever.\n  p = vec3(log(R = length(p)) + dist/PI - t, a*sin(5.*dist), a = height/R) + .5;\n  for (int j = 0; j++ < 9; p /= a)    // Fold 9 times: repeat, then turn inside out\n    R *= a = dot(p -= round(p), p) + .25;\n  dist = max(-height, R)/5.;          // The next step is R ÷ 5; nothing is drawn in front of the plane where height is 0.\n}\no -= log(++dist)*2e2;                 // Darken every pixel whose last step was long: its ray found nothing.",
         "speed": 1,
         "phase": 0,
         "steps1": 85,

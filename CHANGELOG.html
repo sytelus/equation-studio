@@ -27,28 +27,129 @@
   <link rel="stylesheet" href="docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="index.html">Open studio</a> <a href="README.html">Start here</a> <a href="docs/EDITOR_GUIDE.html">Editor guide</a> <a href="docs/RECIPES.html">Recipes</a> <a href="docs/ANIMATION.html">Animation</a> <a href="docs/WORKS.html">Works</a> <a href="docs/ARCHITECTURE.html">Architecture</a> <a href="docs/COMPONENTS.html">Components</a> <a href="docs/DEVELOPMENT.html">Development</a> <a href="docs/RESEARCH.html">Research</a> <a href="docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="index.html">Open studio</a> <a href="README.html">Start here</a> <a href="docs/EDITOR_GUIDE.html">Editor guide</a> <a href="docs/RECIPES.html">Recipes</a> <a href="docs/ANIMATION.html">Animation</a> <a href="docs/WORKS.html">Works</a> <a href="docs/ARCHITECTURE.html">Architecture</a> <a href="docs/COMPONENTS.html">Components</a> <a href="docs/DEVELOPMENT.html">Development</a> <a href="docs/RESEARCH.html">Research</a> <a href="docs/VALIDATION.html">Validation</a> <a href="docs/UX_REVIEW.html">UX review</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#changelog" id="toc-changelog">Changelog</a>
 <ul>
-<li><a href="#september-2026" id="toc-september-2026">2.0.0 — 26
+<li><a href="#september-2026" id="toc-september-2026">2.1.0 — 28
 September 2026</a></li>
-<li><a href="#september-2026-1" id="toc-september-2026-1">1.4.0 — 25
+<li><a href="#september-2026-1" id="toc-september-2026-1">2.0.0 — 26
 September 2026</a></li>
-<li><a href="#september-2026-2" id="toc-september-2026-2">1.3.0 — 25
+<li><a href="#september-2026-2" id="toc-september-2026-2">1.4.0 — 25
 September 2026</a></li>
-<li><a href="#september-2026-3" id="toc-september-2026-3">1.2.0 — 24
+<li><a href="#september-2026-3" id="toc-september-2026-3">1.3.0 — 25
 September 2026</a></li>
-<li><a href="#september-2026-4" id="toc-september-2026-4">1.1.0 — 23
+<li><a href="#september-2026-4" id="toc-september-2026-4">1.2.0 — 24
 September 2026</a></li>
-<li><a href="#september-2026-5" id="toc-september-2026-5">1.0.0 — 22
+<li><a href="#september-2026-5" id="toc-september-2026-5">1.1.0 — 23
+September 2026</a></li>
+<li><a href="#september-2026-6" id="toc-september-2026-6">1.0.0 — 22
 September 2026</a></li>
 </ul></li>
 </ul>
 </nav>
 <h1 id="changelog">Changelog</h1>
-<h2 id="september-2026">2.0.0 — 26 September 2026</h2>
+<h2 id="september-2026">2.1.0 — 28 September 2026</h2>
+<p>Clarity release for newcomers: the studio was reviewed through the
+eyes of a curious thirteen-year-old, and the layout, the colors, the
+words and every explanation were reworked so that a first visit makes
+sense without help. Scenes, projects and renders are unchanged; the full
+review, with a table of every problem found and what was done about it,
+is in <a href="docs/UX_REVIEW.html">UX review</a>.</p>
+<h3 id="a-scene-tells-its-story">A scene tells its story</h3>
+<ul>
+<li><strong>About this scene</strong>: opening a scene no longer lands
+on one of its parts (“Step 3 of 4”). The panel shows the whole scene:
+what you are seeing, who made it, a difficulty badge, <strong>Try
+this</strong> challenges, <strong>How it works</strong> step by step,
+the parts it is built from (each with a small picture and one plain
+line) and the big ideas it uses. Choosing a part opens it, and <strong>‹
+Whole scene</strong> goes back.</li>
+<li><strong>Try this</strong>: every scene has three to five challenges
+(“Use only 2,000 dots. Can you still see the jellyfish?”). One click
+makes the change, the animation plays so it shows, and Undo takes it
+back. Tried ones are ticked.</li>
+<li><strong>How it works</strong> lives in the scene panel: a step opens
+with its explanation and the lines of code it is about, and the picture
+shows what the step is about (a value of the code, or a loop stopped
+early). “See it in the whole code” opens the part with the same lines
+highlighted.</li>
+<li>The gallery opens by itself on the first visit, <strong>easy scenes
+first</strong>, with a difficulty badge on every card (Easy, Medium,
+Expert) and loop lengths people can read (6.3 s, not 6.283 s loop). A
+scene opened from the gallery <strong>starts playing</strong>.</li>
+</ul>
+<h3 id="colors-that-mean-something">Colors that mean something</h3>
+<ul>
+<li>The same four colors mean the same thing everywhere:
+<strong>orange</strong> is something you can change (sliders, the
+numbers in code, the letters in math, Try this), <strong>pink</strong>
+is time (t, the play button, the time bar, keyframes, What moves),
+<strong>blue</strong> is what comes into a part (like where the pixel
+is), <strong>green</strong> is what a part makes. Selection, tabs and
+menus are neutral, so color is never decoration.</li>
+<li>The math says it in a sentence above the steps (“Reading the colors:
+blue letters come in…”), instead of a legend of four dots below
+them.</li>
+</ul>
+<h3 id="plain-words-bigger-picture">Plain words, bigger picture</h3>
+<ul>
+<li>Parts, settings, “Whole picture · Just this part · What this part
+adds · What moves”, “Start over”, “Hold to compare”, “Math”, “Big
+ideas”, “Connections”, “Measure”: every label was renamed to what it
+does. The Help page is a short “How to use Equation Studio” in six
+parts.</li>
+<li>The <strong>time bar</strong> reads in seconds (2.54 s), has the
+frames directly under it and a ruler in whole seconds (0 s, 5 s, 10 s):
+the unexplained numbers under the frames are gone.</li>
+<li>Rulers and grid are off by default; display options (rulers, grid,
+measuring, brightness, light to color, sharpness, frames, snapshot)
+moved into one <strong>View ▾</strong> menu above the picture. The parts
+strip is compact, so the picture gets more room.</li>
+<li>Every part says what it makes (“makes a picture”, “makes numbers”),
+and settings come before the math in its panel. One line explains the
+small buttons of a setting (↺ put back, ▦ many values at once, ◆
+remember this value now). ✦ Variations is <strong>🎲 Surprise
+me</strong>.</li>
+<li>Clicking the picture always pins a reading (it needed the rulers
+before), so Look inside can read values at any point.</li>
+</ul>
+<h3 id="every-explanation-rewritten">Every explanation rewritten</h3>
+<ul>
+<li>All eighteen works (summaries, walk-through steps and code
+captions), the 45 parts (descriptions, 87 step captions, 119 setting
+explanations), the 47 big ideas, the 12 scene guides and the code
+tooltips were rewritten in full, friendly sentences for a curious
+thirteen-year-old: what you see first, then how the math makes it, every
+word explained where it is first used. The rules are in the <a
+href="docs/DEVELOPMENT.md#writing-for-the-app">Development
+guide</a>.</li>
+<li>Facts were checked against the formulas while rewriting, and several
+old explanations were corrected (for example: in Point jellyfish, d is
+smallest in the middle of the sheet of dots, which becomes the top of
+the bell, not “1 at the top”; the zoom card’s log R grows by about 0.69
+per doubling, not 1). The review lists them all.</li>
+</ul>
+<h3 id="code-and-tests">Code and tests</h3>
+<ul>
+<li>New modules: <code>ui-scene-view.js</code> (the scene panel) and
+<code>ui-try.js</code> (the scene’s guide and the Try this engine).
+<code>state.panel</code> (‘scene’ or ‘part’) and <code>state.tour</code>
+are shared by the panels; new events <code>tour</code> and
+<code>playing</code>; works gain <code>level</code> and
+<code>try</code>, and <code>presets.js</code> exports
+<code>guides</code> for the constructions.</li>
+<li>A new unit test (<code>tests/guides.test.js</code>) checks that
+every scene’s story, level and Try this challenges apply to it: each
+names a part, a setting and a value that exist (it caught three
+challenges that asked for more than a setting allows). Unit tests: 331.
+The workflow suite (52 checks) covers the first visit, the scene panel,
+the breadcrumb, Try this and its undo, autoplay, the time bar and the
+View menu; the screenshot suite adds the welcome gallery, the scene
+panel and a part.</li>
+</ul>
+<h2 id="september-2026-1">2.0.0 — 26 September 2026</h2>
 <p>Animation release: eighteen animations by their artists (twigl shader
 one-liners, p5.js point sketches, and one study) run in the studio,
 verified against their original code and explained step by step; shader
@@ -236,7 +337,7 @@ href="docs/ANIMATION_REPORT.html">2.0 report</a>; rewritten <a
 href="docs/ANIMATION.html">Animation</a>; updated editor guide,
 architecture, development guide, research and README.</li>
 </ul>
-<h2 id="september-2026-1">1.4.0 — 25 September 2026</h2>
+<h2 id="september-2026-2">1.4.0 — 25 September 2026</h2>
 <p>Clarity release: editing an equation is one obvious action on the
 equation itself, and the layout is calmer, with the screen always saying
 where you are. Projects from earlier versions open unchanged and render
@@ -337,7 +438,7 @@ and editing a built-in.</li>
 <li>The editor guide, README, architecture, development guide, recipes
 and catalog were updated.</li>
 </ul>
-<h2 id="september-2026-2">1.3.0 — 25 September 2026</h2>
+<h2 id="september-2026-3">1.3.0 — 25 September 2026</h2>
 <p>Understanding and editing release: every equation now explains itself
 line by line, shows where its values come from and go, and can be
 edited; a new Equation Playground and pop-out window give it room; and
@@ -537,7 +638,7 @@ README were rewritten for the new features; the component catalog now
 includes every step’s explanation and the ideas behind each
 component.</li>
 </ul>
-<h2 id="september-2026-3">1.2.0 — 24 September 2026</h2>
+<h2 id="september-2026-4">1.2.0 — 24 September 2026</h2>
 <p>Usability release focused on understanding a construction and
 experimenting safely. The project format is unchanged; 1.0 and 1.1 files
 open as before. The one behaviour change: <strong>disabling a component
@@ -634,7 +735,7 @@ bypass and exploration tools; README, architecture, development, recipes
 and the component catalog (now with typeset equations and symbol tables)
 are updated.</li>
 </ul>
-<h2 id="september-2026-4">1.1.0 — 23 September 2026</h2>
+<h2 id="september-2026-5">1.1.0 — 23 September 2026</h2>
 <p>Exploration and editing release. The project format is unchanged:
 every 1.0 project file and export opens as before.</p>
 <h3 id="seeing-what-each-component-does">Seeing what each component
@@ -715,7 +816,7 @@ manifest.</li>
 href="docs/DEVELOPMENT.html">Development guide</a>; README, architecture
 and animation documents updated.</li>
 </ul>
-<h2 id="september-2026-5">1.0.0 — 22 September 2026</h2>
+<h2 id="september-2026-6">1.0.0 — 22 September 2026</h2>
 <p>Initial release: GPU port of the supplied Bipolar Nebula equations,
 eleven further editable scenes, the typed function-graph editor,
 animation, exports and the retained Python reference.</p>

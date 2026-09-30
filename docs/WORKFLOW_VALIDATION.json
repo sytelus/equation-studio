@@ -2,34 +2,16 @@
   "scope": "Chromium in-memory browser interaction; ANGLE / SwiftShader software backend",
   "checks": [
     {
-      "name": "Defaults: live pipeline previews for all 9 source components, rulers and grid on",
+      "name": "First visit: the gallery opens with a welcome and difficulty badges; the panel tells the whole scene and lists its 9 parts; live part previews; rulers and grid off",
       "passed": true,
       "details": {
-        "version": 3,
         "previews": true,
-        "rulers": true,
-        "grid": true,
-        "quality": 480,
-        "graphHeight": 0,
-        "bottomTab": "pipeline",
-        "stageColors": "auto",
-        "contours": true,
-        "geometryChannel": "A",
-        "layerView": "color",
-        "autoExposure": true,
-        "scope": false,
-        "playground": false,
-        "panelWidth": 0,
-        "wideWidth": 0,
-        "libraryDocked": false,
-        "contrast": "auto",
-        "playbackRate": 1,
-        "exactNumbers": false,
-        "filmstrip": true
+        "rulers": false,
+        "grid": false
       }
     },
     {
-      "name": "A click selects without changing the canvas; This step follows the selection; [ ] and \u25c0 \u25b6 step; the canvas label names the view",
+      "name": "A click opens a part without changing the canvas; Just this part follows it; [ ] and \u25c0 \u25b6 step; \u2039 Whole scene and back; the canvas label names the view",
       "passed": true,
       "details": null
     },
@@ -39,9 +21,9 @@
       "details": null
     },
     {
-      "name": "Rich tooltips name the control, its shortcut and its on/off state",
+      "name": "Rich tooltips name the control, its shortcut and its on/off state; the View menu holds the display options",
       "passed": true,
-      "details": "RulersROn \u00b7 click to turn offWorld-coordinate rulers and a crosshair that reads "
+      "details": "RulersROff \u00b7 click to turn onRulers along the edges and a crosshair that reads t"
     },
     {
       "name": "UI key creation, tracked control editing and interpolation",
@@ -146,9 +128,9 @@
       "details": null
     },
     {
-      "name": "Tabs: captioned steps; In & out (T is read by Add light as B); Ideas with plots; the tab stays across selections",
+      "name": "Tabs: captioned steps; Connections (T is used by Add light as B); Big ideas with plots; the tab stays across selections",
       "passed": true,
-      "details": "\u2192Add lightreads it asBRGB=Argb+gBrgb\u03b1=max(A\u03b1,B\u03b1)"
+      "details": "\u2192Add lightuses it asBRGB=Argb+gBrgb\u03b1=max(A\u03b1,B\u03b1)"
     },
     {
       "name": "Values view; dragging a parameter symbol changes it and undoes in one step",
@@ -166,7 +148,7 @@
     {
       "name": "Formula sheet: composition summary and per-component equations with bindings",
       "passed": true,
-      "details": "THE IMAGE, COMPOSEDimage=Gas emission+Central glow+Folded star latticesLight is "
+      "details": "THE WHOLE PICTURE, AS MATHimage=Gas emission+Central glow+Folded star latticesLi"
     },
     {
       "name": "\u270e Edit on a built-in: its steps as an equation, identical when applied; edits and param lines become sliders",
@@ -236,7 +218,7 @@
       "name": "Actual MediaRecorder video download",
       "passed": true,
       "details": {
-        "bytes": 1653,
+        "bytes": 2084,
         "format": "WebM EBML container"
       }
     },
@@ -248,7 +230,7 @@
       }
     },
     {
-      "name": "Gallery: kind filter, live hover preview, a work opens on its credited code component",
+      "name": "Gallery: kind filter, live hover preview; a work opens playing, on its scene panel (credit, level, Try this, How it works); the time bar reads in seconds",
       "passed": true,
       "details": {
         "shader cards": 13
@@ -272,17 +254,22 @@
       }
     },
     {
-      "name": "How it works: a tour step highlights its lines and shows its variable; End returns to the final image",
+      "name": "How it works: a step shows its lines in the scene panel and its value on the canvas; the code highlights the same lines; End returns to the whole picture",
       "passed": true,
       "details": null
+    },
+    {
+      "name": "Try this: a challenge makes one change, is marked tried, and undoes in one step",
+      "passed": true,
+      "details": "Make the arcs three times longer: change the limits \u2212i and i"
     },
     {
       "name": "Look inside reads every variable at the pinned point",
       "passed": true,
       "details": [
-        "o=(0.6861, 0.1537, 0.8829, 1)",
-        "p=(-0.3986, 0.205)",
-        "v=(0, -0.5017)",
+        "o=(0.5836, 0.09201, 0.5511, 1)",
+        "p=(-0.3961, 0.1997)",
+        "v=(0, -0.5064)",
         "i=1"
       ]
     },
@@ -326,7 +313,7 @@
       }
     },
     {
-      "name": "Components tab: a work added to another scene keeps its credit",
+      "name": "Parts tab: a work added to another scene keeps its credit",
       "passed": true,
       "details": {
         "node": "code1"

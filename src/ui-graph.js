@@ -1,5 +1,5 @@
-import { $, esc, state, on, toast, showError, setSelected, setView, setEnabled, viewedNode, viewOptions, connect, transact, addComponent, nodeById, setPref, clamp, bypassDescription } from './editor.js';
-import { catalog, typeLabels } from './catalog.js';
+import { $, esc, state, on, toast, showError, setSelected, setView, setEnabled, viewedNode, viewOptions, connect, transact, addComponent, nodeById, setPref, clamp, bypassDescription, KIND_LABELS } from './editor.js';
+import { catalog } from './catalog.js';
 import { upstream, downstream } from './graph.js';
 import { compileGraph } from './compiler.js';
 import { renderFormulas } from './ui-formula.js';
@@ -16,8 +16,8 @@ const wireColors = { coord: '#7094b6', scalar: '#b4946d', layer: '#649b83', geom
 let positions = new Map();
 function socketMarkup(n, def) {
     const inputs = Object.entries(def.inputs), source = id => nodeById(id)?.label;
-    return inputs.map(([socket, kind], i) => `<button class="socket input ${kind} ${n.inputs[socket] ? 'connected' : ''}" data-to="${n.id}" data-socket="${socket}" style="top:${SOCKET_TOP + i * SOCKET_PITCH}px" aria-label="Connect to ${esc(n.label)} ${socket}" data-tip="Input ${esc(socket)} · ${esc(typeLabels[kind])}|${n.inputs[socket] ? `Fed by ${esc(source(n.inputs[socket]))}. Drag away to disconnect or onto another input to move the wire.` : 'Unconnected: evaluates to zero. Drag here from a matching output dot.'}"></button>`).join('')
-        + `<button class="socket output ${def.output} ${state.connection === n.id ? 'chosen' : ''}" data-from="${n.id}" aria-label="Connect output of ${esc(n.label)}" data-tip="Output · ${esc(typeLabels[def.output])}|Drag to an input dot of the same color to connect, or click here and then an input."></button>`;
+    return inputs.map(([socket, kind], i) => `<button class="socket input ${kind} ${n.inputs[socket] ? 'connected' : ''}" data-to="${n.id}" data-socket="${socket}" style="top:${SOCKET_TOP + i * SOCKET_PITCH}px" aria-label="Connect to ${esc(n.label)} ${socket}" data-tip="Input ${esc(socket)} · ${esc(KIND_LABELS[kind])}|${n.inputs[socket] ? `Fed by ${esc(source(n.inputs[socket]))}. Drag away to disconnect or onto another input to move the wire.` : 'Unconnected: evaluates to zero. Drag here from a matching output dot.'}"></button>`).join('')
+        + `<button class="socket output ${def.output} ${state.connection === n.id ? 'chosen' : ''}" data-from="${n.id}" aria-label="Connect output of ${esc(n.label)}" data-tip="Output · ${esc(KIND_LABELS[def.output])}|Drag to an input dot of the same color to connect, or click here and then an input."></button>`;
 }
 function marks(n) {
     const list = [];
@@ -47,7 +47,7 @@ export function renderGraph() {
         });
         const preview = previews ? `<canvas class="node-preview" width="160" height="96" data-preview="${n.id}" aria-hidden="true"></canvas>` : '';
         const checkTip = `${n.enabled ? 'Included' : 'Bypassed'}|Untick to bypass: it then ${esc(bypassDescription(n))}.`;
-        nodes += `<div class="graph-node ${def.output} ${state.selected === n.id ? 'selected' : ''} ${n.enabled ? '' : 'disabled'}" data-node="${n.id}" style="left:${pos.x}px;top:${pos.y}px;height:${pos.height}px" tabindex="0" role="button" aria-label="Inspect ${esc(n.label)}"><div class="node-head"><input type="checkbox" class="node-enable" data-enable="${n.id}" ${n.enabled ? 'checked' : ''} aria-label="Include ${esc(n.label)}" data-tip="${checkTip}"><b>${esc(n.label)}</b><button class="node-eye" data-show="${n.id}" aria-label="Show ${esc(n.label)} on the canvas" data-tip="Show this step|Select it and show its output on the canvas (This step).">👁</button></div><small>${esc(def.category)} · ${esc(typeLabels[def.output])}</small><div class="node-sockets">${inputs.map(([socket]) => `<span class="in-label">${esc(socket)}</span>`).join('')}</div>${preview}${socketMarkup(n, def)}${marks(n)}</div>`;
+        nodes += `<div class="graph-node ${def.output} ${state.selected === n.id ? 'selected' : ''} ${n.enabled ? '' : 'disabled'}" data-node="${n.id}" style="left:${pos.x}px;top:${pos.y}px;height:${pos.height}px" tabindex="0" role="button" aria-label="Inspect ${esc(n.label)}"><div class="node-head"><input type="checkbox" class="node-enable" data-enable="${n.id}" ${n.enabled ? 'checked' : ''} aria-label="Include ${esc(n.label)}" data-tip="${checkTip}"><b>${esc(n.label)}</b><button class="node-eye" data-show="${n.id}" aria-label="Show ${esc(n.label)} on the canvas" data-tip="Show this step|Select it and show its output on the canvas (This step).">👁</button></div><small>${esc(def.category)} · ${esc(KIND_LABELS[def.output])}</small><div class="node-sockets">${inputs.map(([socket]) => `<span class="in-label">${esc(socket)}</span>`).join('')}</div>${preview}${socketMarkup(n, def)}${marks(n)}</div>`;
     }
     const hadFocus = $('graphNodes').contains(document.activeElement);
     $('graphEdges').innerHTML = edges + '<path id="dragWire" fill="none" stroke="#a5f2cf" stroke-width="1.5" stroke-dasharray="4 3" style="display:none"/>';
@@ -59,11 +59,11 @@ export function renderGraph() {
     updateSummary();
     $('connectionHint').textContent = state.connection
         ? `Connecting ${state.connection} (${catalog[nodeById(state.connection).type].output}). Click a compatible input dot. Escape cancels.`
-        : 'Click a card to inspect it · tick to include or bypass · 👁 shows its output · drag between dots to wire · drag palette entries onto sockets.';
+        : 'Click a part to open it · untick it to switch it off · 👁 shows just that part · drag between dots to connect parts · drag parts from Scenes ▸ Parts onto a dot to add them.';
 }
 function updateSummary() {
     const status = state.prefs.previews ? (previewsFailed() ? ' · previews unavailable' : ' · live previews') : '';
-    $('graphSummary').textContent = `${state.project.nodes.length} components${status}`;
+    $('graphSummary').textContent = `${state.project.nodes.length} parts${status}`;
     $('previewsButton').classList.toggle('active', state.prefs.previews);
     $('previewsButton').setAttribute('aria-pressed', String(state.prefs.previews));
 }
@@ -315,12 +315,22 @@ const splitter = $('graphSplitter');
 let splitDrag = null;
 /** Height of the bottom panel in pixels; 0 is automatic: room for one row of
  * pipeline cards, a little more on tall windows. */
+/** Height of the strip under the picture: the one the user dragged to, else one
+ * that fits the compact part cards; only its tab bar when it is folded away. */
 export function applyGraphHeight(height) {
     const layout = $('layout').clientHeight, limit = Math.max(160, Math.floor(layout * 0.7));
-    const h = clamp(Math.round(height || (layout < 700 ? 232 : layout < 950 ? 250 : 290)), 140, limit);
+    const folded = !!state.prefs.partsFolded && !$('app').classList.contains('playground'); // the wide panel keeps its own strip
+    const h = folded ? 37 : clamp(Math.round(height || (layout < 700 ? 124 : layout < 950 ? 164 : 196)), 110, limit);
     $('layout').style.setProperty('--graph-height', `${h}px`);
+    $('app').classList.toggle('parts-folded', folded);
+    $('foldParts').textContent = folded ? '▴ Show' : '▾ Hide';
+    $('foldParts').setAttribute('aria-pressed', String(folded));
     return h;
 }
+$('foldParts').onclick = () => {
+    setPref('partsFolded', !state.prefs.partsFolded);
+    applyGraphHeight(state.prefs.graphHeight); // the canvas follows (a ResizeObserver watches the stage)
+};
 splitter.addEventListener('pointerdown', e => {
     splitDrag = { y: e.clientY, height: $('graphSection').getBoundingClientRect().height };
     splitter.setPointerCapture(e.pointerId);

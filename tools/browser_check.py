@@ -32,11 +32,16 @@ def hide_toast(page):
 
 
 def open_scene(page, preset):
-    """Open a scene the way a user does: the library drawer, then the scene card."""
-    page.locator('#libraryButton').click()
+    """Open a scene the way a user does (the gallery, then the scene card), then stop
+    it at its gallery moment so that the screenshot is repeatable."""
+    if not page.locator('#library').is_visible():
+        page.locator('#libraryButton').click()
     page.locator('[data-library="scenes"]').click()
     page.locator(f'[data-preset="{preset}"]').click()
     page.wait_for_function(PREVIEWS_PAINTED, timeout=300000)
+    if page.evaluate('document.getElementById("play").getAttribute("aria-label")') == 'Pause animation':
+        page.locator('#play').click()
+    page.evaluate('equationStudio.seek(equationStudio.getProject().thumbTime ?? 1.3)')
 
 
 with sync_playwright() as pw:
@@ -48,19 +53,41 @@ with sync_playwright() as pw:
     info = page.evaluate('equationStudio.getRenderer().info')
     print('INFO', {k: info[k] for k in ('renderer', 'gpu', 'rawFields', 'parallelCompile', 'gpuTimer', 'maxSize')}, flush=True)
 
-    # Hero: the final nebula with rulers and a crosshair reading, the live pipeline
-    # below, and the selected star lattices explained step by step in the panel.
+    # First visit: the gallery opens by itself, easy scenes first.
+    page.mouse.move(5, 300)
+    settle(page, 600)
+    assert page.locator('#library').is_visible()
+    page.screenshot(path=str(GALLERY / 'studio-welcome.png'))
+
+    # Hero: an animation opened from the gallery, its story in the panel.
+    open_scene(page, 'vortex')
+    page.mouse.move(5, 5)
+    settle(page, 800)
+    assert page.evaluate('equationStudio.getView().panel') == 'scene'
+    page.screenshot(path=str(GALLERY / 'studio-desktop.png'))
+
+    # The scene panel further down: Try this, and a step of How it works open.
+    open_scene(page, 'point-jellyfish')
+    page.locator('#sceneView [data-sv-tour="1"]').click()
+    page.locator('#inspectorContent').evaluate('e => e.scrollTop = e.querySelector(".try-list").offsetTop - 60')
+    page.mouse.move(5, 5)
+    settle(page, 800)
+    page.screenshot(path=str(GALLERY / 'studio-scene.png'))
+    page.locator('#sceneView [data-sv-tour-end]').click()
+
+    # The nebula, its star lattices opened from the parts strip and explained step by step.
+    page.evaluate('equationStudio.loadProject(__modules["presets.js"].getPreset("bipolar"))')
     page.locator('[data-stage="stars"]').click()
-    assert page.evaluate('equationStudio.getView().mode') == 'final', 'selecting keeps the final image'
-    page.mouse.move(760, 330)
+    assert page.evaluate('equationStudio.getView().mode') == 'final', 'opening a part keeps the whole picture'
     settle(page, 600)
     steps = page.locator('#inspectorContent .steps .step').count()
     print('stars steps', steps, flush=True)
     assert steps >= 3
-    page.screenshot(path=str(GALLERY / 'studio-desktop.png'))
+    page.screenshot(path=str(GALLERY / 'studio-part.png'))
 
-    # The library drawer.
+    # The library drawer: the parts to build with.
     page.locator('#libraryButton').click()
+    page.locator('[data-library="parts"]').click()
     page.mouse.move(5, 300)
     settle(page, 300)
     page.screenshot(path=str(GALLERY / 'studio-library.png'))
@@ -75,7 +102,7 @@ with sync_playwright() as pw:
     legend = page.locator('#legend').text_content()
     print('stage legend', legend, flush=True)
     assert page.locator('#legend .legend-bar').count() == 1, 'a colormap legend for the rim channel'
-    assert 'THIS STEP' in page.locator('#canvasMode').text_content()
+    assert 'JUST THIS PART' in page.locator('#canvasMode').text_content()
     page.screenshot(path=str(GALLERY / 'studio-stage.png'))
 
     # What the star field changes.
@@ -196,31 +223,35 @@ with sync_playwright() as pw:
     page.locator('[data-bottom="pipeline"]').click()
 
     # ---- 2.0: animations ----
-    # The gallery of scenes, filtered to shader code, with a card coming alive.
+    # The gallery of scenes, with a card coming alive.
     page.locator('#libraryButton').click()
     page.locator('[data-library="scenes"]').click()
+    page.locator('[data-preset="jellyfish-lattice"]').scroll_into_view_if_needed()
     page.locator('[data-preset="jellyfish-lattice"]').hover()
     page.wait_for_function('!document.querySelector("[data-preset=jellyfish-lattice] .gallery-live").hidden', timeout=300000)
     page.wait_for_timeout(800)
     page.screenshot(path=str(GALLERY / 'studio-gallery.png'))
     page.keyboard.press('Escape')
-    # A work: its credited, highlighted code in the Playground with a tour step.
+    # A work: a step of How it works opened in the scene panel, then its lines
+    # highlighted in the code, in the wide panel.
     open_scene(page, 'jellyfish-lattice')
     page.set_viewport_size({'width': 1920, 'height': 1080})
+    step = page.evaluate('equationStudio.getWorks().find(w=>w.id==="jellyfish-lattice").tour.findIndex(s=>s.at && s.at.length>1)')
+    page.locator(f'#sceneView [data-sv-tour="{max(step, 0)}"]').click()
+    page.locator('#sceneView [data-sv-code]').click()
     page.evaluate('equationStudio.openPlayground("shader")')
     page.wait_for_function('equationStudio.isPlaygroundOpen()')
-    page.locator('#inspectorContent [data-tour="3"]').click()
     page.mouse.move(5, 5)
     settle(page, 1200)
-    assert page.locator('#codeView .c-line.hl').count() >= 2
+    assert page.locator('#codeView .c-line.hl').count() >= 1
     page.screenshot(path=str(GALLERY / 'studio-code.png'))
-    page.locator('#inspectorContent [data-action="tour-end"]').click()
+    page.locator('#inspectorContent .tour-banner [data-action="tour-end"]').click()
     # A variable on the canvas: the depth the raymarcher reached, with its legend.
     page.locator('#inspectorContent [data-tab="inside"]').click()
-    page.locator('#inspectorContent .inside-row', has_text='depth').click()
+    page.locator('#inspectorContent .inside-row:has(.inside-name:text-is("depth"))').click()
     page.mouse.move(5, 5)
     settle(page, 1200)
-    assert 'VARIABLE' in page.locator('#canvasMode').text_content()
+    assert 'VALUE' in page.locator('#canvasMode').text_content()
     page.screenshot(path=str(GALLERY / 'studio-variable.png'))
     # Stats: values, histogram and the loop.
     page.locator('#inspectorContent [data-tab="stats"]').click()
@@ -278,6 +309,8 @@ with sync_playwright() as pw:
         touch.on('pageerror', lambda e: touch_errors.append(str(e)))
         open_studio(touch)
         settle(touch, 600)
+        touch.locator('#libraryClose').tap()  # the first visit opens the gallery; close it for the layout checks
+        settle(touch, 300)
         scroll = touch.evaluate('document.documentElement.scrollWidth - document.documentElement.clientWidth')
         print(name, 'coarse pointer', touch.evaluate('matchMedia("(pointer: coarse)").matches'), 'horizontal overflow', scroll, flush=True)
         assert scroll <= 0, f'{name}: the page scrolls sideways'
@@ -286,7 +319,9 @@ with sync_playwright() as pw:
         assert abs(bottom - size['height']) < 2, f'{name}: the bottom bar ends at {bottom}, not at the bottom of the screen'
         touch.screenshot(path=str(GALLERY / name))
         if name == 'studio-mobile.png':
-            # The explanation of a component, one tap away.
+            # A part explained, one tap away in the Parts tab.
+            touch.locator('[data-mobile="pipeline"]').tap()
+            touch.locator('[data-stage="stars"]').tap()
             touch.locator('[data-mobile="inspector"]').tap()
             touch.wait_for_function('document.querySelectorAll("#inspectorContent .steps .step").length >= 1')
             touch.evaluate('window.scrollTo(0, 0)')

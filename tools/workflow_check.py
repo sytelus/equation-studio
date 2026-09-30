@@ -33,7 +33,6 @@ with sync_playwright() as pw:
     page.on('pageerror', lambda error: errors.append(str(error)))
     page.set_content((ROOT / 'index.html').read_text(encoding='utf-8'), wait_until='load')
     page.wait_for_function('window.equationStudio?.getRenderer()?.current', timeout=300000)
-    page.locator('#quality').select_option('480')
     project = lambda: page.evaluate('equationStudio.getProject()')
     view = lambda: page.evaluate('equationStudio.getView()')
     node = lambda id: page.evaluate(f'equationStudio.getProject().nodes.find(n=>n.id==={json.dumps(id)})')
@@ -44,21 +43,34 @@ with sync_playwright() as pw:
     def panel_tab(tab):
         page.locator(f'#inspectorContent [data-tab="{tab}"]').click()
     canvas_mode = lambda: page.locator('#canvasMode').text_content()
-    # First run: previews, rulers and grid are on and the Pipeline tab is shown.
+    def view_menu(then):
+        """Use a control of the View menu above the picture, then close the menu."""
+        page.locator('#moreButton').click()
+        then()
+        if page.locator('#moreMenu').is_visible():
+            page.locator('#moreButton').click()
+    # First visit: the gallery opens with a welcome; the panel tells the whole scene;
+    # previews on, rulers and grid off, the Parts strip shown.
     prefs = view()['prefs']
-    assert prefs['previews'] and prefs['rulers'] and prefs['grid'] and prefs['bottomTab'] == 'pipeline', prefs
+    assert prefs['previews'] and not prefs['rulers'] and not prefs['grid'] and prefs['bottomTab'] == 'pipeline', prefs
+    assert page.locator('#library').is_visible() and 'Pick something to explore' in page.locator('#libraryContent').text_content()
+    assert page.locator('#libraryContent .level-badge').count() >= 30, 'every scene card has a difficulty badge'
+    assert view()['panel'] == 'scene' and page.locator('#sceneView .sv-title').text_content() == 'Bipolar nebula'
+    assert page.locator('#sceneView .level-badge.expert').count() == 1 and page.locator('#sceneView .sv-part').count() == 9
+    page.locator('#libraryClose').click()
+    view_menu(lambda: page.locator('#quality').select_option('480'))
     page.wait_for_function('[...document.querySelectorAll("#pipelineCards canvas[data-preview]")].length===9 && [...document.querySelectorAll("#pipelineCards canvas[data-preview]")].every(c=>c.classList.contains("painted"))', timeout=300000)
-    record('Defaults: live pipeline previews for all 9 source components, rulers and grid on', prefs)
-    # Where you are: a card click selects a component and keeps the canvas view; the
-    # canvas label, the view switch and the panel header say what is shown.
+    record('First visit: the gallery opens with a welcome and difficulty badges; the panel tells the whole scene and lists its 9 parts; live part previews; rulers and grid off', {k: prefs[k] for k in ('previews', 'rulers', 'grid')})
+    # Where you are: a card click opens that part in the panel and keeps the canvas
+    # view; the canvas label, the view switch and the panel header say what is shown.
     page.locator('[data-stage="shell"]').click()
-    assert view()['mode'] == 'final' and view()['selected'] == 'shell', view()
-    assert 'FINAL IMAGE' in canvas_mode(), canvas_mode()
-    assert 'Step 2 of 9' in page.locator('#inspectorContent .cv-pos').text_content()
-    assert 'Step 2 · Pinched shell family' in page.locator('[data-view="stage"]').text_content()
+    assert view()['mode'] == 'final' and view()['selected'] == 'shell' and view()['panel'] == 'part', view()
+    assert 'WHOLE PICTURE' in canvas_mode(), canvas_mode()
+    assert 'Part 2 of 9' in page.locator('#inspectorContent .cv-pos').text_content()
+    assert 'Part 2 · Pinched shell family' in page.locator('[data-view="stage"]').get_attribute('aria-label')
     page.locator('[data-view="stage"]').click()
     assert view()['mode'] == 'stage' and view()['node'] == 'shell'
-    assert 'THIS STEP' in canvas_mode() and 'Pinched shell family' in canvas_mode(), canvas_mode()
+    assert 'JUST THIS PART' in canvas_mode() and 'Pinched shell family' in canvas_mode(), canvas_mode()
     assert 'rim' in page.locator('#legend').text_content(), 'the legend explains the geometry look'
     page.mouse.move(5, 5)
     page.keyboard.press(']')
@@ -69,12 +81,16 @@ with sync_playwright() as pw:
     assert view()['node'] == 'turbulence'
     page.keyboard.press('Escape')
     assert view()['mode'] == 'final' and view()['selected'] == 'turbulence'
-    record('A click selects without changing the canvas; This step follows the selection; [ ] and ◀ ▶ step; the canvas label names the view')
+    page.locator('#inspectorContent .cv-crumb').click()
+    assert view()['panel'] == 'scene' and page.locator('#sceneView').is_visible()
+    page.locator('#sceneView [data-sv-part="turbulence"]').click()
+    assert view()['panel'] == 'part' and view()['selected'] == 'turbulence'
+    record('A click opens a part without changing the canvas; Just this part follows it; [ ] and ◀ ▶ step; ‹ Whole scene and back; the canvas label names the view')
     # View switch, effect view and the lock.
     page.locator('[data-stage="stars"]').click()
     page.locator('[data-view="effect"]').click()
     assert view()['mode'] == 'effect' and view()['contribution'] == 'stars'
-    assert 'WHAT IT CHANGES' in canvas_mode()
+    assert 'WHAT THIS PART ADDS' in canvas_mode()
     page.locator('#effectStyle').select_option('signed')
     assert view()['contributionStyle'] == 'signed'
     page.locator('#viewLock').click()
@@ -89,13 +105,21 @@ with sync_playwright() as pw:
     page.keyboard.press('Escape')
     show_tab('pipeline')
     record('View switch: effect styles, lock keeps a stage while selecting elsewhere')
-    # Tooltips explain controls and state whether a toggle is on.
+    # Tooltips explain controls and state whether a toggle is on; the View menu holds
+    # the display options (rulers, grid, brightness, light to color, sharpness).
+    page.locator('#moreButton').click()
+    for control in ['#rulersButton', '#gridButton', '#scopeButton', '#exposure', '#outputTone', '#quality', '#filmstripButton', '#snapshotButton']:
+        assert page.locator(control).is_visible(), control
     page.locator('#rulersButton').hover()
     page.wait_for_function('!document.getElementById("tooltip").hidden')
     tip = page.locator('#tooltip').text_content()
-    assert 'Rulers' in tip and 'On' in tip, tip
+    assert 'Rulers' in tip and 'Off' in tip, tip
+    page.locator('#rulersButton').click()
+    assert view()['prefs']['rulers'] and page.locator('#moreMenu').is_hidden(), 'choosing an item closes the menu'
     page.mouse.move(5, 5)
-    record('Rich tooltips name the control, its shortcut and its on/off state', tip[:80])
+    page.keyboard.press('r')
+    assert not view()['prefs']['rulers']
+    record('Rich tooltips name the control, its shortcut and its on/off state; the View menu holds the display options', tip[:80])
     # Keyframes and interpolation on the water planet.
     load('water')
     page.locator('[data-stage="planet"]').click()
@@ -142,7 +166,7 @@ with sync_playwright() as pw:
     hold = page.locator('#holdOriginal').bounding_box()
     page.mouse.move(hold['x'] + 4, hold['y'] + 4)
     page.mouse.down()
-    assert 'ORIGINAL' in page.locator('#legend').text_content()
+    assert 'AS IT STARTED' in page.locator('#legend').text_content()
     page.mouse.up()
     assert page.locator('#legend').is_hidden()
     page.locator('#revertScene').click()
@@ -289,10 +313,10 @@ with sync_playwright() as pw:
     assert page.locator('#inspectorContent [data-concept-card="fold"] svg.plot').count() == 1
     page.locator('#inspectorContent [data-knob="fold"]').fill('2')
     page.locator('[data-stage="shell"]').click()
-    assert page.locator('#inspectorContent .cv-tab.active').text_content().startswith('Ideas'), 'the tab stays when the selection changes'
+    assert page.locator('#inspectorContent .cv-tab.active').text_content().startswith('Big ideas'), 'the tab stays when the selection changes'
     page.locator('[data-stage="stars"]').click()
     panel_tab('equation')
-    record('Tabs: captioned steps; In & out (T is read by Add light as B); Ideas with plots; the tab stays across selections', flow.strip()[:60])
+    record('Tabs: captioned steps; Connections (T is used by Add light as B); Big ideas with plots; the tab stays across selections', flow.strip()[:60])
     # Values view and dragging a parameter symbol (one undo step).
     page.locator('#inspectorContent [data-action="values"]').click()
     assert page.locator('#inspectorContent .steps .sym-param mn').count() >= 1
@@ -380,6 +404,8 @@ with sync_playwright() as pw:
     record('Pop-out window shows the component and edits the scene')
     # Canvas readouts: Alt-click raw probe, continuous rulers readout, pin and unpin.
     load('water')
+    page.mouse.move(5, 5)
+    page.keyboard.press('r')  # rulers on
     page.locator('[data-stage="planet"]').click()
     page.locator('#artCanvas').click(position={'x': 220, 'y': 140}, modifiers=['Alt'])
     page.wait_for_function('document.querySelector("#toast").textContent.includes("Raw")')
@@ -396,6 +422,7 @@ with sync_playwright() as pw:
     assert page.locator('#clearPin').is_visible()
     page.keyboard.press('Escape')
     assert page.locator('#clearPin').is_hidden()
+    page.keyboard.press('r')  # rulers off again
     record('Alt-click raw probe; rulers readout with raw values; pin and unpin', probe)
     # Zoom about the cursor: the world point under the pointer does not move. A
     # synthetic wheel event at whole-pixel coordinates (Chromium truncates fractions).
@@ -547,10 +574,16 @@ with sync_playwright() as pw:
     page.locator('[data-gallery-kind="all"]').click()
     page.locator('[data-preset="vortex"]').click()
     page.wait_for_function('equationStudio.getProject().id==="vortex" && document.getElementById("compileStatus").hidden', timeout=300000)
-    assert view()['selected'] == 'shader', view()
-    assert page.locator('#inspectorContent .work-credit').text_content().count('Xor (@XorDev)') == 1
-    assert page.locator('#inspectorContent .work-badge').count() == 1
-    record('Gallery: kind filter, live hover preview, a work opens on its credited code component', {'shader cards': len(kinds)})
+    assert view()['selected'] == 'shader' and view()['panel'] == 'scene', view()
+    assert page.evaluate('document.getElementById("play").getAttribute("aria-label")') == 'Pause animation', 'a scene opened from the gallery plays'
+    page.locator('#play').click()  # pause, so the checks below see a still picture
+    assert page.locator('#sceneView .sv-credit').text_content().count('Xor (@XorDev)') == 1
+    assert page.locator('#sceneView .work-badge').count() == 1 and page.locator('#sceneView .level-badge').count() == 1
+    assert page.locator('#sceneView .try-card').count() >= 3 and page.locator('#sceneView .sv-step').count() >= 3
+    assert 's' in page.locator('#clock').text_content() and '20 s' in page.locator('#timeAxis').text_content()
+    page.locator('#sceneView [data-sv-part="shader"]').first.click()
+    assert view()['panel'] == 'part' and page.locator('#codeView').count() == 1
+    record('Gallery: kind filter, live hover preview; a work opens playing, on its scene panel (credit, level, Try this, How it works); the time bar reads in seconds', {'shader cards': len(kinds)})
     # Dragging a number changes the code without recompiling; one undo step restores it.
     renderer_key = lambda: page.evaluate('equationStudio.getRenderer().current.key')
     code = lambda: node('shader')['params']['code']
@@ -569,12 +602,12 @@ with sync_playwright() as pw:
     record('Dragging a code number edits the text, redraws without recompiling, and undoes in one step')
     # A variable on the canvas, its legend, and back to the color with Escape.
     page.locator('#codeView .c-var', has_text='angle').first.click()
-    page.wait_for_function('document.getElementById("canvasMode").textContent.includes("VARIABLE")')
+    page.wait_for_function('document.getElementById("canvasMode").textContent.includes("VALUE")')
     assert view()['mode'] == 'stage' and 'angle' in canvas_mode(), canvas_mode()
     page.wait_for_function('document.querySelector("#legend .legend-bar")')
     page.mouse.move(5, 5)
     page.keyboard.press('Escape')
-    page.wait_for_function('!document.getElementById("canvasMode").textContent.includes("VARIABLE")')
+    page.wait_for_function('!document.getElementById("canvasMode").textContent.includes("VALUE")')
     record('Clicking a variable shows it on the canvas with a colormap legend; Escape returns to the color')
     # Loops: stop after fewer steps (a new image), run in full again.
     full_steps = node('shader')['params']['steps1']
@@ -590,13 +623,34 @@ with sync_playwright() as pw:
     page.locator('#inspectorContent [data-action="full-loop"]').click()
     assert node('shader')['params']['steps1'] == full_steps == 16
     record('A loop slider stops the loop early (the image changes); ↺ runs it in full', {'steps': full_steps})
-    # The guided tour highlights lines and shows the variable a step is about.
-    page.locator('#inspectorContent [data-tour="1"]').click()
-    assert page.locator('#codeView .c-line.hl').count() >= 1
-    assert 'v' in canvas_mode() and 'VARIABLE' in canvas_mode(), canvas_mode()
-    page.locator('#inspectorContent [data-action="tour-end"]').click()
-    assert view()['mode'] == 'final'
-    record('How it works: a tour step highlights its lines and shows its variable; End returns to the final image')
+    # How it works: a step in the scene panel shows its lines and the value it is
+    # about; the code in the part panel highlights the same lines.
+    page.locator('#inspectorContent .cv-crumb').click()
+    show = page.evaluate('equationStudio.getWorks().find(w=>w.id==="vortex").tour.findIndex(s=>s.show)')
+    assert show >= 0
+    page.locator(f'#sceneView [data-sv-tour="{show}"]').click()
+    assert view()['tour'] == {'node': 'shader', 'index': show}, view()
+    assert page.locator('#sceneView .sv-step.open .code-view.excerpt .c-line').count() >= 1
+    assert 'VALUE' in canvas_mode(), canvas_mode()
+    page.locator('#sceneView [data-sv-code]').click()
+    assert page.locator('#codeView .c-line.hl').count() >= 1 and page.locator('#inspectorContent .tour-banner').count() == 1
+    page.locator('#inspectorContent .tour-banner [data-action="tour-end"]').click()
+    assert view()['mode'] == 'final' and view()['tour'] is None
+    record('How it works: a step shows its lines in the scene panel and its value on the canvas; the code highlights the same lines; End returns to the whole picture')
+    # Try this: one change per challenge, marked as tried, undone in one step.
+    page.locator('#inspectorContent .cv-crumb').click()
+    params_before = node('shader')['params']
+    tries = page.evaluate('equationStudio.getWorks().find(w=>w.id==="vortex").try')
+    k = next(i for i, t in enumerate(tries) if 'set' in t or 'code' in t)
+    page.locator(f'#sceneView [data-try="{k}"]').click()
+    assert node('shader')['params'] != params_before and page.locator('#sceneView .try-card.tried').count() == 1
+    if page.evaluate('document.getElementById("play").getAttribute("aria-label")') == 'Pause animation':
+        page.locator('#play').click()
+    page.mouse.move(5, 5)
+    page.keyboard.press('Control+z')
+    assert node('shader')['params'] == params_before
+    page.locator('#sceneView [data-sv-part="shader"]').first.click()
+    record('Try this: a challenge makes one change, is marked tried, and undoes in one step', tries[k]['text'][:60])
     # Look inside: every value at a pinned point.
     panel_tab('inside')
     box = page.locator('#artCanvas').bounding_box()
@@ -623,7 +677,8 @@ with sync_playwright() as pw:
     assert view()['mode'] == 'final'
     record('What moves (M): changing pixels, and trails averaging the last half second')
     # A time profile: one point through the whole timeline.
-    page.locator('#scopeButton').click()
+    page.mouse.move(5, 5)
+    page.keyboard.press('v')
     page.locator('#scopeAxis').select_option('t')
     page.wait_for_function('document.querySelector("#scopePlot svg") && document.getElementById("scopePlot").textContent.includes("time t (s)")', timeout=120000)
     page.locator('#scopeClose').click()
@@ -656,7 +711,8 @@ with sync_playwright() as pw:
     # Point clouds: a scene, its credited equation, and its own view shows dots, not a blob.
     load('point-jellyfish')
     page.wait_for_function('document.getElementById("compileStatus").hidden', timeout=300000)
-    assert view()['selected'] == 'cloud'
+    assert view()['selected'] == 'cloud' and view()['panel'] == 'scene'
+    page.locator('#sceneView [data-sv-part="cloud"]').first.click()
     assert page.locator('#editEquation').get_attribute('aria-disabled') is None, 'the equation of a point cloud is editable'
     page.evaluate('equationStudio.setView("stage","cloud")')
     page.evaluate('equationStudio.renderNow()')
@@ -670,7 +726,7 @@ with sync_playwright() as pw:
     page.locator('[data-add-work="vortex"]').click()
     added = project()['nodes'][-1]
     assert added['type'] == 'code' and added['work'] == 'vortex', added
-    record('Components tab: a work added to another scene keeps its credit', {'node': added['id']})
+    record('Parts tab: a work added to another scene keeps its credit', {'node': added['id']})
     # Exports of 2.0 on a quick scene: GIF, animated PNG, JPEG, sprite sheet, web page, code.
     page.evaluate('''()=>{const p=__modules['presets.js'].getPreset('vortex');p.duration=0.5;equationStudio.loadProject(p);}''')
     page.wait_for_function('document.getElementById("compileStatus").hidden', timeout=300000)

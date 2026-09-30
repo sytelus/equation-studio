@@ -165,7 +165,7 @@ function select(id, value, options, tip) {
 }
 function lockButton(target) {
     const locked = state.lookLock?.target === target;
-    return `<button id="lookLock" class="icon-toggle ${locked ? 'active' : ''}" aria-pressed="${locked}" data-toggle data-tip="Lock the color range|Keep the current range while you change parameters, so colors compare fairly. Unlock to follow the values again.">${locked ? '🔒' : '🔓'}</button>`;
+    return `<button id="lookLock" class="icon-toggle ${locked ? 'active' : ''}" aria-pressed="${locked}" data-toggle data-tip="Keep these colors|Keep the current color scale while you change settings, so the colors can be compared fairly. Unlock to follow the numbers again.">${locked ? '🔒' : '🔓'}</button>`;
 }
 function colorbar(look, stats) {
     const r = look.range;
@@ -212,12 +212,12 @@ function stageLegend(node) {
 /** Legend HTML for the current canvas view, or '' when there is nothing to explain. */
 function legendHTML() {
     if (state.compareOriginal) {
-        return '<b>ORIGINAL</b> the scene as it was opened · release to return';
+        return '<b>AS IT STARTED</b> the scene as you opened it · let go to see your version';
     }
     if (state.viewMode === 'effect') {
         return state.contributionStyle === 'signed'
             ? '<span class="swatch warm"></span>brighter with it <span class="swatch cool"></span>darker with it <span class="swatch black"></span>no change'
-            : '<b>In color:</b> pixels this component changes · <b>gray:</b> unchanged';
+            : '<b>In color:</b> pixels this part changes · <b>gray:</b> unchanged';
     }
     if (state.viewMode === 'motion') {
         return state.motionStyle === 'trails'

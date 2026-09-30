@@ -1,5 +1,5 @@
-import { esc, clamp, state, on, toast, showError, transact, seek, pause, nodeById, currentNode, setOutput, setSelected, selectStep, selectionPosition, toggleEnabled, duplicateNode, deleteNode, connect, resetParam, resetNode, insertComponent, replaceComponent, bypassDescription, liveParam, endLiveEdit, applyEquation, setDraft, startEdit, discardDraft, draftChanged } from './editor.js';
-import { catalog, typeNames, typeLabels, insertableTypes, replacementTypes, emitPreview, paramSpecs } from './catalog.js';
+import { esc, clamp, state, on, toast, showError, transact, seek, pause, nodeById, currentNode, setOutput, setSelected, selectStep, selectionPosition, toggleEnabled, duplicateNode, deleteNode, connect, resetParam, resetNode, insertComponent, replaceComponent, bypassDescription, liveParam, endLiveEdit, applyEquation, setDraft, startEdit, discardDraft, draftChanged, showScene, KIND_LABELS, KIND_NAMES } from './editor.js';
+import { catalog, insertableTypes, replacementTypes, emitPreview, paramSpecs } from './catalog.js';
 import { topologicalOrder, consumers, evaluationOrder } from './graph.js';
 import { animatedParameters, insertKey } from './timeline.js';
 import { texToMathML, texToMathMLSegments, programToMathML, symbolKey, nameMathML, numberMathML } from './math-render.js';
@@ -13,29 +13,31 @@ import { nebulaGLSL } from './nebula-glsl.js';
 import { motifsGLSL } from './motifs-glsl.js';
 import { previewTile } from './ui-previews.js';
 import { openSweep, openVariations } from './ui-explore.js';
-import { codeTab, insideTab, workSection, tourSection, originalSection, workOf, codeAction, codeClick, startNumberDrag, numberKey, codeDraftStatus, readPointValues } from './ui-code-view.js';
+import { codeTab, insideTab, originalSection, tourBanner, tourLines, workOf, codeAction, codeClick, startNumberDrag, numberKey, codeDraftStatus, readPointValues } from './ui-code-view.js';
 import { statsTab, statsAction } from './ui-stats.js';
 /** One component, explained and editable. The same view renders in the
  * component panel (normal or wide: the Equation Playground) and in a pop-out
  * window, so it never looks elements up through `document`: everything is scoped
  * to its root and events are delegated to the root once.
  *
- * Layout. A header that stays in view names the component and its place in the
- * construction (◀ 7 of 9 ▶), holds its include switch, and offers tabs:
+ * The UI calls components "parts" and parameters "settings". Layout: a header
+ * that stays in view leads back to the whole scene (‹ scene title), says which
+ * part this is (Part 3 of 4, ◀ ▶), holds its on/off switch, and offers tabs:
  *
- *   Equation  what it computes: the equation as numbered steps with captions
- *             (symbols colored by role; drag a parameter symbol to change it),
- *             ✎ Edit, the parameters and the key function
- *   Code      (shader code) the code, highlighted and explained, its loops, time
- *             and parameters, and for a work its credit and guided tour
- *             (ui-code-view.js)
- *   Look inside (shader code) every variable, viewable on the canvas
- *   In & out  where each input comes from, and where the output goes and what
- *             it is called there
- *   Ideas     the recurring mathematical ideas behind it, and its other symbols
- *   Stats     measurements of its output: values, histogram, motion over the
+ *   Math      what it computes: its settings (sliders) first, then its equation
+ *             as numbered steps with captions (symbols colored by role: blue comes
+ *             in, orange is a setting you can drag, pink is time, green is what it
+ *             makes), ✎ Edit and the key function
+ *   Code      (shader code) the code, highlighted and explained (drag its orange
+ *             numbers), its loops, time and settings (ui-code-view.js)
+ *   Look inside (shader code) every value the code computes, viewable on the canvas
+ *   Big ideas the recurring mathematical ideas behind it, and its other symbols
+ *   Connections where each input comes from, and where the output goes
+ *   Measure   measurements of its output: values, histogram, motion over the
  *             loop, GPU time (ui-stats.js)
- *   More      its shader code, animation tracks, replace / duplicate / delete
+ *   More      its shader code, keyframes, replace / duplicate / delete
+ *
+ * The last three are for going deeper and are shown in a quieter style.
  *
  * Editing. ✎ Edit replaces the steps by an editor holding the equation (for a
  * built-in component, the equivalent equation from fork.js). The text is a draft
@@ -43,10 +45,12 @@ import { statsTab, statsAction } from './ui-stats.js';
  * Cancel. Width decides the layout: two columns when the view is wide enough.
  */
 const views = new Set();
-const TAB_LABELS = { equation: 'Equation', code: 'Code', inside: 'Look inside', flow: 'In & out', ideas: 'Ideas', stats: 'Stats', more: 'More' };
+const TAB_LABELS = { equation: 'Math', code: 'Code', inside: 'Look inside', flow: 'Connections', ideas: 'Big ideas', stats: 'Measure', more: 'More' };
+/** Tabs for going deeper, shown in a quieter style after the others. */
+const DEEPER_TABS = new Set(['flow', 'stats', 'more']);
 /** The tabs of a component's view. */
 function tabsFor(n) {
-    return catalog[n.type].code ? ['code', 'inside', 'flow', 'ideas', 'stats', 'more'] : ['equation', 'flow', 'ideas', 'stats', 'more'];
+    return catalog[n.type].code ? ['code', 'inside', 'ideas', 'flow', 'stats', 'more'] : ['equation', 'ideas', 'flow', 'stats', 'more'];
 }
 /** The ideas behind a component, and behind the work it belongs to. */
 function conceptsOf(n) {
@@ -56,7 +60,7 @@ const LIBRARY_SOURCE = `${mathGLSL}\n${nebulaGLSL}\n${motifsGLSL}`;
 const CUSTOM_LHS = { expression: '<mi>f</mi>', vectorExpression: '<mi>q</mi>', colorExpression: '<mi mathvariant="normal">RGB</mi>' };
 const formatNumber = value => String(Number(Number(value).toFixed(5)));
 const HELPERS = [
-    ['param k = 1 [0, 2]', 'a parameter with a slider'], ['param tint = #ffd080', 'a color parameter'], ['d = length(p) - 1', 'a definition'],
+    ['param k = 1 [0, 2]', 'a setting with a slider'], ['param tint = #ffd080', 'a color setting'], ['d = length(p) - 1', 'a definition'],
     ['rotate2(p, angle)', 'rotate a coordinate'], ['angleOf(p)', 'atan2 of a coordinate'], ['noise2(p)', 'smooth value noise 0–1'], ['fbm(p, octaves)', 'fractal noise 0–1'],
     ['gaussian(d, width)', 'exp(−(d/width)²)'], ['cutoff(x)', 'exp(−exp(x)) source gate'], ['softInside(d, edge)', 'soft inside mask 0–1'], ['sat(x)', 'clamp to 0–1'],
     ['segmentDistance(p, a, b)', 'distance to a segment'], ['spectrum(x, shift)', 'vec3 rainbow palette'], ['vortex(p, strength, radius, phase)', 'local twist map'],
@@ -129,7 +133,7 @@ function symbolTable(n, def, evaluated) {
         }
     }
     for (const s of def.outputSymbols) {
-        symbols[s] = { role: 'output', type: def.output, title: 'the result of this component' };
+        symbols[s] = { role: 'output', type: def.output, title: 'what this part makes' };
     }
     symbols.t ??= { role: 'time', title: 'time in seconds' };
     return symbols;
@@ -141,10 +145,20 @@ function stepUsing(def, symbols) {
 }
 /** A custom equation as typeset step items {math, text, result}. */
 function programItems(source, type, symbols, values) {
-    return programToMathML(source, CUSTOM_LHS[type], { symbols, values }).map(line => ({ math: `<span class="eq-seg">${line.mathml}</span>`, text: line.text || (line.kind === 'result' ? 'The result. Add “// …” after any line to explain it here.' : ''), result: line.kind === 'result' }));
+    return programToMathML(source, CUSTOM_LHS[type], { symbols, values }).map(line => ({ math: `<span class="eq-seg">${line.mathml}</span>`, text: line.text || (line.kind === 'result' ? 'The result. Add “// …” after any line to explain it here.' : ''), result: line.kind === 'result', name: line.name }));
+}
+/** Names of the definitions of `source` (and '' for its result line) that the
+ * active walk-through step of part `n` explains. */
+function tourNames(n, source) {
+    const lines = source.split('\n'), names = new Set();
+    for (const k of tourLines(n, source)) {
+        const m = /^\s*([A-Za-z_]\w*)\s*=(?!=)/.exec(lines[k - 1]);
+        names.add(m ? m[1] : '');
+    }
+    return names;
 }
 function stepList(items, id = '') {
-    return `<ol class="steps"${id ? ` id="${id}"` : ''}>${items.map((item, i) => `<li class="step ${item.result ? 'result' : ''} ${item.invalid ? 'invalid' : ''}"><span class="step-number" aria-hidden="true">${item.result ? '⇒' : i + 1}</span><div class="step-body"><div class="step-math">${item.math}</div>${item.text ? `<p class="step-text">${richText(item.text)}</p>` : ''}</div></li>`).join('')}</ol>`;
+    return `<ol class="steps"${id ? ` id="${id}"` : ''}>${items.map((item, i) => `<li class="step ${item.result ? 'result' : ''} ${item.invalid ? 'invalid' : ''} ${item.hl ? 'hl' : ''}"><span class="step-number" aria-hidden="true">${item.result ? '⇒' : i + 1}</span><div class="step-body"><div class="step-math">${item.math}</div>${item.text ? `<p class="step-text">${richText(item.text)}</p>` : ''}</div></li>`).join('')}</ol>`;
 }
 /** The nearest scrolling ancestor of `el` (the panel, or the pop-out's page). */
 function scroller(el) {
@@ -187,6 +201,10 @@ export class ComponentView {
     }
     // ---- Rendering -----------------------------------------------------------
     render() {
+        if (this.layout === 'panel' && state.panel === 'scene') {
+            this.root.dataset.node = ''; // hidden while the panel shows the whole scene; rebuilt when shown
+            return;
+        }
         const n = this.node();
         if (!n) {
             this.root.innerHTML = '';
@@ -255,38 +273,40 @@ export class ComponentView {
         const bypass = bypassDescription(n), { index, count } = selectionPosition(), pinnedHere = this.pinned && this.pinned !== state.selected;
         const order = evaluationOrder(state.project), position = order.findIndex(v => v.id === n.id);
         const tools = this.layout === 'panel'
-            ? `<button class="cv-tool ${state.prefs.playground ? 'active' : ''}" data-action="playground" aria-pressed="${!!state.prefs.playground}" data-toggle data-key="E" data-tip="Equation Playground|A wide panel for studying this component: its equation and its controls side by side, with the profile of its values under the canvas. Choose again for the normal width.">⤢ Playground</button><button class="cv-tool" data-action="popout" aria-label="Pop out" data-tip="Pop out|Open this panel in a separate window, e.g. on a second screen. It follows your selection and its controls change the scene.">↗</button>`
+            ? `<button class="cv-tool ${state.prefs.playground ? 'active' : ''}" data-action="playground" aria-pressed="${!!state.prefs.playground}" data-toggle data-key="E" data-tip="Wide panel|Makes this panel wide: the math and the settings side by side, with a graph of the numbers under the picture. Choose again for the normal width.">⤢ Wide</button><button class="cv-tool" data-action="popout" aria-label="Pop out" data-tip="Its own window|Opens this panel in a separate window, for example on a second screen. It follows what you open, and its controls change the scene.">↗</button>`
             : '';
+        const crumb = this.layout === 'panel' ? `<button class="cv-crumb" data-action="scene" data-tip="Back to the whole scene|${esc(state.project.title)}: what it is, how it works and what to try.">‹ Whole scene</button>` : '';
         const nav = pinnedHere
-            ? `<span class="cv-pos">Pinned: step ${position + 1} of ${order.length}</span>`
-            : `<button class="cv-step" data-action="prev" ${index <= 0 ? 'disabled' : ''} aria-label="Previous component" data-key="[" data-tip="Previous component|The one before this in evaluation order. The canvas keeps its view.">◀</button><span class="cv-pos" data-tip="Where you are|Components are numbered in evaluation order, the order of the Pipeline.">Step ${index + 1} of ${count}</span><button class="cv-step" data-action="next" ${index >= count - 1 ? 'disabled' : ''} aria-label="Next component" data-key="]" data-tip="Next component|The one after this in evaluation order. The canvas keeps its view.">▶</button>`;
-        const draft = this.editing(n) ? '<span class="cv-draft" data-tip="Unapplied edit|This component’s equation has an edit that is not applied yet. Apply or Cancel it in the Equation tab.">✎ editing</span>' : '';
+            ? `<span class="cv-pos">Pinned: part ${position + 1} of ${order.length}</span>`
+            : `${crumb}<span class="cv-pos" data-tip="Where you are|This scene is built from ${count} parts, each working on the result of the ones before it, in the order of the Parts strip under the picture. This is part ${index + 1}.">Part ${index + 1} of ${count}</span><button class="cv-step" data-action="prev" ${index <= 0 ? 'disabled' : ''} aria-label="Previous part" data-key="[" data-tip="Previous part|The part before this one. The picture keeps its view.">◀</button><button class="cv-step" data-action="next" ${index >= count - 1 ? 'disabled' : ''} aria-label="Next part" data-key="]" data-tip="Next part|The part after this one. The picture keeps its view.">▶</button>`;
+        const draft = this.editing(n) ? '<span class="cv-draft" data-tip="Edit not applied yet|This part’s math has an edit that is not applied yet. Apply or Cancel it in the Math tab.">✎ editing</span>' : '';
         const concepts = conceptsOf(n).length;
         const tabs = tabsFor(n).map(id => {
             const extra = id === 'ideas' && concepts ? ` <span class="cv-count">${concepts}</span>` : id === 'more' && state.project.tracks.some(t => t.node === n.id && t.keys.length) ? ' <span class="cv-count">◆</span>' : (id === 'equation' || id === 'code') && this.editing(n) ? ' <span class="cv-count">✎</span>' : id === 'inside' && state.show?.node === n.id ? ' <span class="cv-count">◉</span>' : '';
-            return `<button role="tab" class="cv-tab ${this.ui.tab === id ? 'active' : ''}" data-tab="${id}" aria-selected="${this.ui.tab === id}">${TAB_LABELS[id]}${extra}</button>`;
+            return `<button role="tab" class="cv-tab ${this.ui.tab === id ? 'active' : ''} ${DEEPER_TABS.has(id) ? 'deeper' : ''}" data-tab="${id}" aria-selected="${this.ui.tab === id}">${TAB_LABELS[id]}${extra}</button>`;
         }).join('');
         return `<header class="cv-head"><div class="cv-nav">${nav}${draft}<span class="spacer"></span>${tools}</div>
-<div class="inspector-head"><label class="switch" data-tip="${n.enabled ? 'Included' : 'Bypassed'}|Untick to bypass this component: it then ${esc(bypass)}. Tick to include it again." data-toggle aria-pressed="${n.enabled}"><input type="checkbox" id="nodeEnabled" ${n.enabled ? 'checked' : ''} aria-label="Include this component"><span></span></label><input class="node-title" id="nodeLabel" value="${esc(n.label)}" aria-label="Component label" maxlength="160" data-tip="Rename|The label is only for you; the id stays ${esc(n.id)}."><span class="type-chip ${def.output}" data-tip="Output type|${esc(typeNames[def.output])}">${esc(typeLabels[def.output])}</span></div>
-<nav class="cv-tabs" role="tablist" aria-label="About this component">${tabs}</nav></header>`;
+<div class="inspector-head"><label class="switch" data-tip="${n.enabled ? 'This part is on' : 'This part is off'}|Switch it off to see what the picture looks like without it: it then ${esc(bypass)}. Switch it on again to bring it back." data-toggle aria-pressed="${n.enabled}"><input type="checkbox" id="nodeEnabled" ${n.enabled ? 'checked' : ''} aria-label="This part is on"><span></span></label><input class="node-title" id="nodeLabel" value="${esc(n.label)}" aria-label="Name of this part" maxlength="160" data-tip="Rename|Give this part your own name. It is only a label; nothing else changes."><span class="type-chip ${def.output}" data-tip="What it makes|${esc(KIND_NAMES[def.output])}">makes ${esc(KIND_LABELS[def.output])}</span></div>
+<nav class="cv-tabs" role="tablist" aria-label="About this part">${tabs}</nav></header>`;
     }
     warnings(n) {
         if (!n.enabled) {
-            return `<div class="selection-note warning">Bypassed: this component ${esc(bypassDescription(n))}. Tick the switch above to include it.</div>`;
+            return `<div class="selection-note warning">This part is switched off, so it ${esc(bypassDescription(n))}. Use the switch next to its name to turn it on again.</div>`;
         }
         if (!reachesOutput(n)) {
-            return '<div class="selection-note warning">Not connected to the final output, so it does not change the image. Show it with <b>This step</b> above the canvas, or wire it into something downstream (In &amp; out).</div>';
+            return '<div class="selection-note warning">Nothing uses this part, so it does not change the picture. Choose <b>Just this part</b> above the picture to see what it makes, or connect it to another part (Connections tab).</div>';
         }
         return '';
     }
     // ---- Equation tab ---------------------------------------------------------
     equationTab(n, def, evaluated) {
-        const intro = `<p class="node-caption">${esc(def.description)}</p>${this.warnings(n)}`;
+        const w = workOf(n);
+        const about = w && def.points ? `This part draws <b>${esc(w.title)}</b>. The formula below runs once for every dot number i, from 0 up to the number of dots, and works out where that dot goes. Change a setting, or ✎ Edit the formula itself, and watch the dots move.` : esc(def.description);
+        const intro = `<p class="node-caption">${about}</p>${this.warnings(n)}`;
         if (this.editing(n)) {
             return `${intro}<div class="cv-cols editing"><div class="cv-col">${this.editor(n, def)}</div><div class="cv-col">${this.draftMath(n, def)}${this.syntaxHelp(n)}</div></div>`;
         }
-        const work = workOf(n) ? `${workSection(this, n)}` : '';
-        return `${intro}<div class="cv-cols"><div class="cv-col">${work}${this.steps(n, def, evaluated)}${workOf(n) ? originalSection(this, n) : ''}</div><div class="cv-col">${workOf(n) ? tourSection(this, n) : ''}${this.parameters(n, def, evaluated)}${this.curve(def, evaluated)}</div></div>`;
+        return `${intro}<div class="cv-cols"><div class="cv-col">${this.parameters(n, def, evaluated)}${this.curve(def, evaluated)}</div><div class="cv-col">${tourBanner(n)}${this.steps(n, def, evaluated)}${workOf(n) ? originalSection(this, n) : ''}</div></div>`;
     }
     editButton(n) {
         const blocker = forkBlocker(n.type);
@@ -295,7 +315,7 @@ export class ComponentView {
         }
         const tip = catalog[n.type].custom
             ? 'Edit the equation|Change its text line by line. The canvas previews your edit until you Apply it.'
-            : 'Edit the equation|Opens this component written as an equation of its own, line for line, with its parameters as sliders. Change anything; the canvas previews it, and Apply puts it into the scene (Undo restores the original).';
+            : 'Edit the math|Opens this part written out as math of its own, line by line, with its settings as sliders. Change anything: the picture shows your edit, and Apply puts it into the scene (Undo brings back the original).';
         return `<button class="edit-button" id="editEquation" data-action="edit" data-tip="${esc(tip)}">✎ Edit</button>`;
     }
     steps(n, def, evaluated) {
@@ -304,6 +324,8 @@ export class ComponentView {
         if (def.custom) {
             try {
                 items = programItems(n.params.expression, n.type, symbols, values);
+                const marked = tourNames(n, n.params.expression);
+                items.forEach(item => item.hl = marked.has(item.result ? '' : item.name));
             }
             catch (e) {
                 items = [{ math: `<code>${esc(n.params.expression)}</code>`, text: e.message, result: true, invalid: true }];
@@ -312,21 +334,21 @@ export class ComponentView {
         else {
             items = def.steps.map((s, i) => ({ math: segments(s.tex, { symbols, values }), text: s.text, result: i === def.steps.length - 1 }));
         }
-        const legend = `<p class="sym-legend"><span class="sym-in ${def.inputs.p ? 'coord' : Object.values(def.inputs)[0] || ''}">input</span><span class="sym-par">parameter · drag it</span><span class="sym-out ${def.output}">output</span><span class="sym-tm">time</span></p>`;
+        const legend = `<p class="sym-legend"><b>Reading the colors:</b> <span class="sym-in">blue</span> letters come in from earlier parts (like where the pixel is), <span class="sym-par">orange</span> ones are settings you can drag left or right, <span class="sym-tm">pink t</span> is the time in seconds, and <span class="sym-out">green</span> is what this part makes. The last line (⇒) is the result.</p>`;
         const blocked = this.ui.blockedNote ? `<div class="selection-note">${esc(forkBlocker(n.type))}</div>` : '';
-        const tools = `<button class="link ${values ? 'active' : ''}" data-action="values" aria-pressed="${values}" data-tip="Show values|Replace each parameter symbol with its current value, updated live as you change it.">${values ? 'Symbols' : 'Values'}</button>${this.editButton(n)}`;
-        return this.section('equation', 'HOW IT IS COMPUTED', `${blocked}${stepList(items, 'expressionPreview')}${legend}`, { tools, tip: 'How it is computed|The component’s equation, one step per line: what each line computes and why. The ⇒ line is its result. Hover a symbol to find it everywhere; drag a parameter symbol to change it; ✎ Edit to change the equation itself.' });
+        const tools = `<button class="link ${values ? 'active' : ''}" data-action="values" aria-pressed="${values}" data-tip="${values ? 'Show letters|Show the settings as their letters again.' : 'Show numbers|Put each setting’s current number in place of its letter, updated as you change it.'}">${values ? 'Show letters' : 'Show numbers'}</button>${this.editButton(n)}`;
+        return this.section('equation', 'THE MATH, STEP BY STEP', `${legend}${blocked}${stepList(items, 'expressionPreview')}`, { tools, tip: 'The math|What this part computes for every pixel, one step per line, each with an explanation. The ⇒ line is its result. Hover a symbol to see it everywhere; drag an orange setting to change it; ✎ Edit to change the math itself.' });
     }
     editor(n, def) {
         const source = state.drafts.get(n.id) ?? '', custom = def.custom;
         const note = custom
             ? 'Change any line. The canvas previews your edit; <b>Apply</b> puts it into the scene.'
-            : `This is <b>${esc(def.name)}</b> written as an equation of its own, line for line. Change anything: the canvas previews your edit, and <b>Apply</b> turns the component into your equation (it keeps its wiring, values and animation; Undo restores it).`;
+            : `This is <b>${esc(def.name)}</b> written out as math of its own, line by line. Change anything: the picture shows your edit, and <b>Apply</b> makes this part run your math (it keeps its wiring, values and animation; Undo restores it).`;
         const options = HELPERS.map(([code, hint]) => `<option value="${esc(code)}">${esc(code)} — ${esc(hint)}</option>`).join('');
         const kernels = Object.entries(LIBRARY).filter(([name]) => !HELPERS.some(([code]) => code.startsWith(`${name}(`))).map(([name, f]) => `<option value="${esc(`${name}(${f.params.map(p => p.name).join(', ')})`)}">${esc(name)}(${esc(f.params.map(p => p.name).join(', '))}) → ${f.returns}</option>`).join('');
-        const tools = `<button data-action="cancel-edit" id="cancelEquation" data-tip="Cancel|Discard this edit; the component stays as it is.">Cancel</button><button id="applyEquation" class="primary" data-action="apply-equation" data-key="Ctrl/⌘ Enter" data-tip="Apply|Puts the equation into the scene (one undo step). An equation with an error is not applied.">Apply</button>`;
+        const tools = `<button data-action="cancel-edit" id="cancelEquation" data-tip="Cancel|Throw this edit away; the part stays as it was.">Cancel</button><button id="applyEquation" class="primary" data-action="apply-equation" data-key="Ctrl/⌘ Enter" data-tip="Apply|Puts the equation into the scene (one undo step). An equation with an error is not applied.">Apply</button>`;
         const body = `<p class="edit-note">${note}</p><textarea id="equationEditor" class="expression-input" spellcheck="false" aria-label="Equation text" rows="${Math.min(16, Math.max(5, source.split('\n').length + 1))}">${esc(source)}</textarea>
-<div class="expression-tools"><select id="insertHelper" aria-label="Insert a line or a function" data-tip="Insert|Adds a parameter line, a definition or a function at the cursor."><option value="">Insert…</option><optgroup label="Lines and helpers">${options}</optgroup><optgroup label="Scene kernels">${kernels}</optgroup></select></div>
+<div class="expression-tools"><select id="insertHelper" aria-label="Insert a line or a function" data-tip="Insert|Adds a setting line, a definition or a function where the cursor is."><option value="">Insert…</option><optgroup label="Lines and helpers">${options}</optgroup><optgroup label="Scene kernels">${kernels}</optgroup></select></div>
 <p id="equationError" class="code-error" aria-live="polite">${esc(this.draftStatus(n).text)}</p>`;
         return this.section('editor', '✎ EDITING THE EQUATION', body, { tools, cls: 'editing', tip: 'Editing|Your text is a draft until you apply it. Ctrl/⌘ Enter applies; Cancel discards it.' });
     }
@@ -341,7 +363,7 @@ export class ComponentView {
             if (!draftChanged(n.id)) {
                 return { ok: true, text: 'No changes yet. Edit the text; the canvas previews your edit.' };
             }
-            return { ok: true, text: n.id === state.selected ? '✓ The equation checks. The canvas shows your edit, not applied yet.' : '✓ The equation checks. Select this component in the main window to preview it.' };
+            return { ok: true, text: n.id === state.selected ? '✓ The equation checks. The canvas shows your edit, not applied yet.' : '✓ The math checks. Open this part in the main window to see it on the picture.' };
         }
         catch (e) {
             return { ok: false, text: e.message };
@@ -376,25 +398,25 @@ export class ComponentView {
         const symbol = `<span class="sym" data-param-symbol="${key}">${label}</span>`;
         if (s.kind === 'color') {
             const original = originalValue(state.baseline, n, key);
-            return `<div class="param ${modified ? 'modified' : ''}" data-param-row="${key}"><div class="param-head"><label data-reset-label="${key}" data-tip="${esc(s.label)}|${esc(s.help)}">${esc(s.custom ? '' : s.label)} ${symbol}</label><input type="color" value="${value}" data-param="${key}" aria-label="${esc(s.label)}"><span class="muted mono" data-color-text="${key}">${esc(value)}</span><button class="reset" data-reset="${key}" ${modified ? '' : 'disabled'} aria-label="Reset ${esc(s.label)}" data-tip="Reset to ${esc(original)}|Returns this color to its value when the scene was opened.">↺</button></div><small>${esc(s.help)}</small></div>`;
+            return `<div class="param ${modified ? 'modified' : ''}" data-param-row="${key}"><div class="param-head"><label data-reset-label="${key}" data-tip="${esc(s.label)}|${esc(s.help)}">${esc(s.custom ? '' : s.label)} ${symbol}</label><input type="color" value="${value}" data-param="${key}" aria-label="${esc(s.label)}"><span class="muted mono" data-color-text="${key}">${esc(value)}</span><button class="reset" data-reset="${key}" ${modified ? '' : 'disabled'} aria-label="Reset ${esc(s.label)}" data-tip="Put back to ${esc(original)}|Returns this color to where it started.">↺</button></div><small>${esc(s.help)}</small></div>`;
         }
         const original = originalValue(state.baseline, n, key), track = state.project.tracks.find(t => t.node === n.id && t.param === key);
         const pct = clamp((original - s.min) / (s.max - s.min), 0, 1);
-        return `<div class="param ${modified ? 'modified' : ''}" data-param-row="${key}"><div class="param-head"><label for="param-${key}" data-reset-label="${key}" data-tip="${esc(s.label)}|${esc(s.help)}\nDouble-click to reset.">${esc(s.custom ? '' : s.label)} ${symbol}</label><input type="number" data-param="${key}" id="number-${key}" value="${formatNumber(value)}" data-shown="${formatNumber(value)}" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${esc(s.label)} numerical value"><button class="key ${track?.keys.length ? 'keyed' : ''}" data-keyframe="${key}" aria-label="Keyframe ${esc(s.label)}" data-tip="Add a key|Records this value at ${state.time.toFixed(2)} s. Move the playhead and change the value to animate it.">◆</button><button class="reset" data-reset="${key}" ${modified ? '' : 'disabled'} aria-label="Reset ${esc(s.label)}" data-tip="Reset to ${formatNumber(original)}|Returns this parameter to its value when the scene was opened${track ? ' and removes its animation' : ''}.">↺</button><button class="sweep" data-sweep="${key}" aria-label="Explore ${esc(s.label)}" data-tip="Explore this parameter|Renders the image across the parameter’s whole range. Hover a thumbnail to preview it, click to use it.">▦</button></div><div class="slider-wrap"><input type="range" id="param-${key}" data-param="${key}" value="${value}" data-shown="${value}" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${esc(s.label)}"><span class="default-mark" style="left:calc(${(pct * 100).toFixed(2)}% + ${((0.5 - pct) * 14).toFixed(1)}px)" data-tip="Original value ${formatNumber(original)}|Where this parameter started. ↺ returns here."></span></div><small>${esc(s.help)} <span class="range">Range ${s.min} to ${s.max}${formatNumber(original) !== formatNumber(value) ? ` · original ${formatNumber(original)}` : ''}</span></small></div>`;
+        return `<div class="param ${modified ? 'modified' : ''}" data-param-row="${key}"><div class="param-head"><label for="param-${key}" data-reset-label="${key}" data-tip="${esc(s.label)}|${esc(s.help)}\nDouble-click to reset.">${esc(s.custom ? '' : s.label)} ${symbol}</label><input type="number" data-param="${key}" id="number-${key}" value="${formatNumber(value)}" data-shown="${formatNumber(value)}" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${esc(s.label)} numerical value"><button class="key ${track?.keys.length ? 'keyed' : ''}" data-keyframe="${key}" aria-label="Keyframe ${esc(s.label)}" data-tip="Remember this value at ${state.time.toFixed(1)} s|Adds a keyframe: at this moment the setting has this value. Move to another time, change the setting, and it will glide between the two while the animation plays.">◆</button><button class="reset" data-reset="${key}" ${modified ? '' : 'disabled'} aria-label="Reset ${esc(s.label)}" data-tip="Put back to ${formatNumber(original)}|Returns this setting to where it started${track ? ' and removes its keyframes' : ''}.">↺</button><button class="sweep" data-sweep="${key}" aria-label="Explore ${esc(s.label)}" data-tip="See many values at once|Shows small pictures for values across the whole range. Hover one to see it large, click it to use that value.">▦</button></div><div class="slider-wrap"><input type="range" id="param-${key}" data-param="${key}" value="${value}" data-shown="${value}" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${esc(s.label)}"><span class="default-mark" style="left:calc(${(pct * 100).toFixed(2)}% + ${((0.5 - pct) * 14).toFixed(1)}px)" data-tip="Started at ${formatNumber(original)}|Where this setting started when the scene was opened. ↺ puts it back here."></span></div><small>${esc(s.help)} <span class="range">From ${s.min} to ${s.max}${formatNumber(original) !== formatNumber(value) ? ` · started at ${formatNumber(original)}` : ''}</span></small></div>`;
     }
     parameters(n, def, evaluated) {
         const params = Object.entries(paramSpecs(n)).filter(([, s]) => s.kind !== 'expression');
         if (!params.length) {
-            return this.section('params', 'PARAMETERS', `<p class="muted small-note">${def.custom ? 'No parameters yet. Choose ✎ Edit and add a line such as <code>param k = 1 [0, 2]</code> to get a slider.' : 'This component has no parameters.'}</p>`);
+            return this.section('params', 'SETTINGS', `<p class="muted small-note">${def.custom ? 'No settings yet. Choose ✎ Edit and add a line such as <code>param k = 1 [0, 2]</code> to get a slider.' : 'This part has no settings to change.'}</p>`);
         }
         const numeric = params.some(([, s]) => s.kind === 'number');
-        let html = '';
+        let html = '<p class="settings-hint">Drag a slider or type a number, and watch the picture. The small mark under a slider is where it started. <span class="key-glyph">↺</span> puts it back, <span class="key-glyph">▦</span> shows the picture for many values at once, and <span class="key-glyph">◆</span> remembers the value at this moment of the animation.</p>';
         if (state.project.tracks.some(t => t.node === n.id && t.keys.length)) {
-            html += '<div class="selection-note">Animated controls (◆ lit) show the value at the playhead. Changing one adds or updates a key there; More ▸ Animation edits the keys.</div>';
+            html += '<div class="selection-note">Settings with a lit ◆ change during the animation: they show their value at the current time. Changing one updates it at this moment; More ▸ Animation lists the moments.</div>';
         }
         html += params.map(([key, s]) => this.parameter(n, key, s, evaluated[key])).join('');
-        const tools = `${numeric ? '<button id="variations" class="link" data-action="variations" data-tip="Variations|Renders eight random variations of these parameters. Hover to preview, click to use one; Undo returns.">✦ Variations</button>' : ''}<button id="resetNode" class="link" data-action="reset-node" ${isModified(state.baseline, state.project, n) ? '' : 'disabled'} data-tip="Reset all parameters|Returns every parameter of this component to its value when the scene was opened (undoable).">↺ Reset all</button>`;
-        return this.section('params', 'PARAMETERS', html, { tools });
+        const tools = `${numeric ? '<button id="variations" class="link surprise" data-action="variations" data-tip="Surprise me|Shows eight pictures with these settings changed at random. Hover one to see it large, click it to keep it; Undo takes it back.">🎲 Surprise me</button>' : ''}<button id="resetNode" class="link" data-action="reset-node" ${isModified(state.baseline, state.project, n) ? '' : 'disabled'} data-tip="Put all back|Returns every setting of this part to where it started (Undo brings your changes back).">↺ Put all back</button>`;
+        return this.section('params', 'SETTINGS', html, { tools });
     }
     curveSVG(def, evaluated) {
         const c = def.curve, P = evaluated;
@@ -406,31 +428,31 @@ export class ComponentView {
         if (!def.curve) {
             return '';
         }
-        return this.section('curve', 'KEY FUNCTION', `<div class="curve" data-curve>${this.curveSVG(def, evaluated)}</div><p class="curve-title">${esc(def.curve.title)}, with the current parameters.</p>`, { tip: 'Key function|The one-dimensional function at the heart of this component, drawn with the current parameter values. It updates as you change them.' });
+        return this.section('curve', 'THE KEY CURVE', `<div class="curve" data-curve>${this.curveSVG(def, evaluated)}</div><p class="curve-title">${esc(def.curve.title)}, drawn with the settings as they are now.</p>`, { tip: 'The key curve|The one curve at the heart of this part, drawn with the current settings. Move a setting and watch the curve change with the picture.' });
     }
     // ---- In & out tab ----------------------------------------------------------
     flowTab(n, def) {
         const inputs = Object.entries(def.inputs);
         let html = '';
         if (inputs.length) {
-            html += '<div class="flow-heading">Where the values come from</div>';
+            html += '<div class="flow-heading">What comes in</div>';
             for (const [socket, kind] of inputs) {
                 const source = nodeById(n.inputs[socket]), symbol = def.inputSymbols[socket] || socket;
                 const options = state.project.nodes.filter(other => other.id !== n.id && catalog[other.type].output === kind).map(other => `<option value="${other.id}" ${n.inputs[socket] === other.id ? 'selected' : ''}>${esc(other.label)}</option>`).join('');
                 const inserts = !n.inputs[socket] ? '' : insertableTypes(kind).map(type => `<option value="${type}">${esc(catalog[type].name)}</option>`).join('');
-                html += `<div class="input-row" data-input-row="${socket}"><label for="in-${socket}" class="flow-socket" data-tip="${esc(socket)}: ${esc(typeLabels[kind])}|Choose which component feeds this input. Unconnected inputs are zero, not the image coordinates."><span class="type-dot ${kind}"></span><span class="flow-sym">${math(symbol, { symbols: Object.fromEntries(symbol.split(',').map(s => [s.trim(), { role: 'input', type: kind, socket }])) })}</span></label><select id="in-${socket}" data-input="${socket}" aria-label="${esc(socket)} input"><option value="">Unconnected · zero</option>${options}</select>${inserts ? `<select class="insert" data-insert="${socket}" aria-label="Insert a component on ${esc(socket)}" data-tip="Insert on this input|Put a modifier between this input and what feeds it, e.g. a warp before a field or a tint before a layer. The old connection passes through it."><option value="">＋</option>${inserts}</select>` : ''}${source ? `<button class="flow-thumb-button" data-go="${source.id}" data-tip="${esc(source.label)}|Select the component that feeds ${esc(socket)}."><canvas class="flow-thumb" data-thumb="${source.id}" width="160" height="96"></canvas></button>` : ''}</div>`;
+                html += `<div class="input-row" data-input-row="${socket}"><label for="in-${socket}" class="flow-socket" data-tip="${esc(socket)}: ${esc(KIND_LABELS[kind])}|Choose which part this input comes from. An input with nothing connected is zero everywhere."><span class="type-dot ${kind}"></span><span class="flow-sym">${math(symbol, { symbols: Object.fromEntries(symbol.split(',').map(s => [s.trim(), { role: 'input', type: kind, socket }])) })}</span></label><select id="in-${socket}" data-input="${socket}" aria-label="${esc(socket)} input"><option value="">Nothing (zero)</option>${options}</select>${inserts ? `<select class="insert" data-insert="${socket}" aria-label="Put a part in before ${esc(socket)}" data-tip="Put a part in between|Insert a new part between this input and where it comes from, for example a warp before a pattern or a tint before a picture."><option value="">＋</option>${inserts}</select>` : ''}${source ? `<button class="flow-thumb-button" data-go="${source.id}" data-tip="${esc(source.label)}|Open the part that ${esc(socket)} comes from."><canvas class="flow-thumb" data-thumb="${source.id}" width="160" height="96"></canvas></button>` : ''}</div>`;
             }
         }
         else {
-            html += '<p class="muted small-note">It has no inputs: its value depends only on its parameters (and the pixel position or time, where the equation uses them).</p>';
+            html += '<p class="muted small-note">Nothing comes in: it works only from its settings (and from the pixel’s position or the time, where its math uses them).</p>';
         }
         const users = consumers(state.project, n.id), output = def.outputSymbols.length ? math(def.outputSymbols.join(',\\ '), { symbols: Object.fromEntries(def.outputSymbols.map(s => [s, { role: 'output', type: def.output }])) }) : '';
-        html += `<div class="flow-heading">Where its output ${output} goes</div>`;
+        html += `<div class="flow-heading">Where what it makes (${output}) goes</div>`;
         if (state.project.output === n.id) {
-            html += '<div class="flow-final">★ The scene’s final output: the image on the canvas, in saves and in exports.</div>';
+            html += '<div class="flow-final">★ It is the final picture of the scene: what the canvas shows, what Save keeps and what Export writes.</div>';
         }
         if (!users.length && state.project.output !== n.id) {
-            html += '<p class="muted small-note">Nothing reads this output yet. Wire it into another component’s input (drag between the dots in the Function graph), or make it the final output.</p>';
+            html += '<p class="muted small-note">No part uses it yet. Connect it to another part’s input (drag between the dots in the Wiring view under the picture), or make it the final picture.</p>';
         }
         for (const u of users) {
             const ud = catalog[u.node.type], symbolTex = ud.inputSymbols[u.socket] || u.socket, symbols = symbolTex.split(',').map(s => s.trim());
@@ -446,20 +468,20 @@ export class ComponentView {
                 const tex = stepUsing(ud, symbols);
                 used = tex ? segments(tex, { symbols: Object.fromEntries(symbols.map(s => [s, { role: 'input', type: def.output, socket: u.socket }])) }) : '';
             }
-            html += `<button class="flow-out" data-go="${u.node.id}" data-tip="${esc(u.node.label)}|Select the component that reads this output through its ${esc(u.socket)} input."><span class="flow-line"><span class="flow-arrow">→</span><b>${esc(u.node.label)}</b><span class="muted">reads it as</span>${math(symbolTex, { symbols: Object.fromEntries(symbols.map(s => [s, { role: 'input', type: def.output }])) })}<canvas class="flow-thumb" data-thumb="${u.node.id}" width="160" height="96"></canvas></span>${used ? `<span class="flow-math">${used}</span>` : ''}</button>`;
+            html += `<button class="flow-out" data-go="${u.node.id}" data-tip="${esc(u.node.label)}|Open the part that uses it, as its input ${esc(u.socket)}."><span class="flow-line"><span class="flow-arrow">→</span><b>${esc(u.node.label)}</b><span class="muted">uses it as</span>${math(symbolTex, { symbols: Object.fromEntries(symbols.map(s => [s, { role: 'input', type: def.output }])) })}<canvas class="flow-thumb" data-thumb="${u.node.id}" width="160" height="96"></canvas></span>${used ? `<span class="flow-math">${used}</span>` : ''}</button>`;
         }
         if (state.project.output !== n.id) {
-            html += '<div class="node-bottom"><button id="makeOutput" data-action="output" data-tip="Make final output|Use this component as the scene’s final image, for the canvas, saves and exports. To just look at it, choose This step above the canvas.">☆ Make it the final output</button></div>';
+            html += '<div class="node-bottom"><button id="makeOutput" data-action="output" data-tip="Make it the final picture|Use what this part makes as the scene’s final picture (for the canvas, Save and Export). To only look at it, choose Just this part above the picture.">☆ Make it the final picture</button></div>';
         }
-        return this.section('flow', 'DATA FLOW', html, { tip: 'In & out|Where this component’s inputs come from, and where its output goes and what it is called there. Click one to select it.' });
+        return this.section('flow', 'CONNECTIONS', html, { tip: 'Connections|Which parts this one gets its inputs from, and which parts use what it makes. Click one to open it.' });
     }
     // ---- Ideas tab -------------------------------------------------------------
     ideasTab(n, def) {
         const concepts = conceptsOf(n);
-        const cards = concepts.length ? concepts.map(id => this.conceptCard(id)).join('') : '<p class="muted small-note">No recurring ideas are listed for this component; its steps explain it.</p>';
+        const cards = concepts.length ? concepts.map(id => this.conceptCard(id)).join('') : '<p class="muted small-note">No big ideas are listed for this part; its math steps explain it.</p>';
         const rows = def.notes.map(([symbol, meaning]) => `<div class="sym-row sym-note"><span class="sym">${math(symbol)}</span><span class="wide">${richText(meaning)}</span></div>`).join('');
-        return this.section('why', 'WHY IT IS WRITTEN THIS WAY', `<div class="concept-grid">${cards}</div>`, { tip: 'The ideas behind it|The recurring mathematical ideas this equation uses, each explained with a small plot you can play with.' })
-            + (rows ? this.section('symbols', 'OTHER SYMBOLS', `<div class="sym-list">${rows}</div>`) : '');
+        return this.section('why', 'THE BIG IDEAS BEHIND IT', `<div class="concept-grid">${cards}</div>`, { tip: 'Big ideas|The math ideas this part uses, the ones that come up again and again in pictures like this. Each has a small graph with a slider to play with.' })
+            + (rows ? this.section('symbols', 'OTHER LETTERS IN THE MATH', `<div class="sym-list">${rows}</div>`) : '');
     }
     conceptCard(id) {
         const c = concept(id), k = this.ui.knobs[id] ?? c.knob?.value;
@@ -474,7 +496,7 @@ export class ComponentView {
     code(n, def) {
         let body;
         if (def.code) {
-            body = '<p class="node-caption">The code itself is in the Code tab. The Shader tab under the canvas shows the whole program it becomes: every variable renamed and declared at the top, each loop counted, numbers read from uniforms.</p>';
+            body = '<p class="node-caption">The code itself is in the Code tab. Under the picture, the Shader code view shows the complete program the graphics chip runs, with this code inside it.</p>';
             return this.section('code', 'SHADER CODE', body);
         }
         if (def.custom) {
@@ -490,19 +512,20 @@ export class ComponentView {
             const call = emitPreview(n.type, n.params), kernel = /^(\w+)\(/.exec(call)?.[1], source = kernel ? kernelSource(kernel) : '';
             body = `<pre id="nodeCode" class="node-code">${esc(call)}</pre>${source ? `<details class="kernel"><summary>Kernel source: ${esc(kernel)}()</summary><pre class="node-code">${esc(source)}</pre></details>` : ''}`;
         }
-        return this.section('code', 'SHADER CODE', `${body}<p class="node-caption">The GLSL this component adds to the scene’s shader. Parameter names stand for their uniforms; the whole graph compiles into one program (the Shader tab under the canvas shows it).</p>`);
+        return this.section('code', 'SHADER CODE', `${body}<p class="node-caption">The shader code (GLSL, the language of graphics chips) that this part adds to the scene’s program. Setting names stand for their current values. The whole scene becomes one program, shown under the picture in the Shader code view.</p>`);
     }
     tracks(n) {
         const tracks = state.project.tracks.filter(t => t.node === n.id), specs = paramSpecs(n);
         if (!tracks.length) {
-            return this.section('tracks', 'ANIMATION', '<p class="muted small-note">Not animated. Click ◆ next to a parameter (Equation tab) to add a key at the playhead.</p>');
+            const moves = catalog[n.type].code || catalog[n.type].points || /\bt\b/.test(catalog[n.type].steps.map(x => x.tex).join(' ') + (n.params.expression || ''));
+            return this.section('tracks', 'KEYFRAMES', `<p class="muted small-note">None of its settings has keyframes.${moves ? ' It still moves, because its math uses the time t.' : ''} To make a setting change over time, click ◆ next to it (${TAB_LABELS[tabsFor(n)[0]]} tab), move to another time, and change it.</p>`);
         }
-        return this.section('tracks', 'ANIMATION', tracks.map(t => `<div class="track-edit"><header><b>${esc(specs[t.param]?.label || t.param)}</b><select data-interpolation="${t.param}" aria-label="Interpolation for ${t.param}" data-tip="Interpolation|smooth eases in and out of each key, linear moves at constant speed, hold jumps at each key.">${['smooth', 'linear', 'hold'].map(v => `<option ${v === t.interpolation ? 'selected' : ''}>${v}</option>`).join('')}</select><button data-remove-track="${t.param}" aria-label="Remove ${t.param} animation track" data-tip="Remove animation|Deletes every key; the parameter keeps its current base value.">×</button></header><div class="key-list">${t.keys.map(k => `<button class="key-chip" data-seek="${k.time}" data-tip="Key at ${k.time} s|Click to move the playhead here.">${k.time}s: ${Number(k.value.toFixed(3))}<span data-remove-key="${t.param}" data-time="${k.time}" data-tip="Delete this key">×</span></button>`).join('')}</div></div>`).join(''));
+        return this.section('tracks', 'KEYFRAMES', tracks.map(t => `<div class="track-edit"><header><b>${esc(specs[t.param]?.label || t.param)}</b><select data-interpolation="${t.param}" aria-label="Interpolation for ${t.param}" data-tip="How it moves between keyframes|smooth speeds up and slows down gently, linear moves at a steady speed, hold jumps from one value to the next.">${['smooth', 'linear', 'hold'].map(v => `<option ${v === t.interpolation ? 'selected' : ''}>${v}</option>`).join('')}</select><button data-remove-track="${t.param}" aria-label="Remove ${t.param} animation track" data-tip="Remove the keyframes|The setting stops changing over time and keeps its current value.">×</button></header><div class="key-list">${t.keys.map(k => `<button class="key-chip" data-seek="${k.time}" data-tip="Keyframe at ${k.time} s|Click to go to this moment.">${k.time}s: ${Number(k.value.toFixed(3))}<span data-remove-key="${t.param}" data-time="${k.time}" data-tip="Delete this keyframe">×</span></button>`).join('')}</div></div>`).join(''));
     }
     actions(n) {
         const replacements = replacementTypes(n.type).map(type => `<option value="${type}">${esc(catalog[type].name)}</option>`).join('');
-        const body = `<div class="node-bottom"><select id="replaceWith" aria-label="Replace with another component" data-tip="Replace with…|Swap this component for another of the same output type, keeping its connections where the sockets match. The Filament ring scene is the Bipolar Nebula with its geometry replaced this way."><option value="">Replace with…</option>${replacements}</select><button id="duplicateNode" data-action="duplicate" data-key="Ctrl/⌘ D" data-tip="Duplicate|Adds a copy with the same parameters and inputs.">Duplicate</button><button id="deleteNode" class="danger" data-action="delete" data-key="Delete" data-tip="Delete component|Removes it and disconnects anything it fed (undoable).">Delete</button></div><p class="node-caption">Type <code>${n.type}</code> · id <code>${esc(n.id)}</code> · ${esc(catalog[n.type].category)} · output ${esc(typeNames[catalog[n.type].output])}. Unconnected inputs evaluate to zero; they are not inferred.</p>`;
-        return this.section('actions', 'COMPONENT', body);
+        const body = `<div class="node-bottom"><select id="replaceWith" aria-label="Replace with another part" data-tip="Swap for…|Swap this part for another that makes the same kind of thing, keeping its connections where they fit. The Filament ring scene is the Bipolar nebula with its shape part swapped this way."><option value="">Swap for…</option>${replacements}</select><button id="duplicateNode" data-action="duplicate" data-key="Ctrl/⌘ D" data-tip="Duplicate|Adds a copy of this part with the same settings and inputs.">Duplicate</button><button id="deleteNode" class="danger" data-action="delete" data-key="Delete" data-tip="Delete this part|Removes it from the scene and disconnects what it fed. Undo brings it back.">Delete</button></div><p class="node-caption">Kind of part: ${esc(catalog[n.type].name)} (<code>${n.type}</code>) · id <code>${esc(n.id)}</code> · makes ${esc(KIND_LABELS[catalog[n.type].output])}.</p>`;
+        return this.section('actions', 'THIS PART', body);
     }
     /** Thumbnails of connected components, from the shared live previews. */
     paintThumbs() {
@@ -733,6 +756,7 @@ export class ComponentView {
             return;
         }
         const actions = {
+            scene: () => showScene(),
             prev: () => selectStep(-1),
             next: () => selectStep(1),
             output: () => setOutput(n.id),
@@ -766,7 +790,7 @@ export class ComponentView {
                 const value = animatedParameters(p, p.nodes.find(v => v.id === n.id), state.time)[key];
                 insertKey(p, n.id, key, state.time, value);
             });
-            toast(`Key added at ${state.time.toFixed(3)} s. Move the playhead, then change the control to add another.`);
+            toast(`Keyframe added at ${state.time.toFixed(2)} s. Move to another time and change the setting: it will glide between the two while the animation plays.`);
             return;
         }
         const reset = t.closest('[data-reset]');
@@ -900,7 +924,7 @@ export class ComponentView {
         const builtIn = !catalog[n.type].custom && !catalog[n.type].code;
         try {
             if (applyEquation(n.id, source)) {
-                toast(catalog[n.type].code ? 'Code applied. Undo returns the previous version.' : builtIn ? 'Applied: the component is now your equation. Undo restores the original.' : 'Equation applied. Undo returns the previous one.');
+                toast(catalog[n.type].code ? 'Code applied. Undo brings back the previous version.' : builtIn ? 'Applied: this part now runs your math. Undo brings back the original.' : 'Math applied. Undo brings back the previous version.');
             }
         }
         catch (e) {
@@ -909,7 +933,7 @@ export class ComponentView {
                 el.textContent = e.message;
                 el.classList.add('error');
             }
-            showError('Not applied: the equation has an error (shown under the editor). The scene is unchanged.');
+            showError('Not applied: there is a mistake in the text (explained under the editor). The scene has not changed.');
         }
     }
 }

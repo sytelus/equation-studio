@@ -1,4 +1,4 @@
-import { $, esc, state, on, emit, toast, showError, transact, history, changed, markDirty, pause, currentNode, viewedNode, viewOptions, setView, setContributionStyle, setMotionStyle, setPref, clamp, noteInteraction } from './editor.js';
+import { $, esc, state, on, emit, toast, showError, transact, history, changed, markDirty, pause, currentNode, viewedNode, viewOptions, setView, setContributionStyle, setMotionStyle, setPref, clamp, noteInteraction, sceneOrigin } from './editor.js';
 import { evaluationOrder, aspectOf } from './graph.js';
 import { analyzeCode, showable } from './glsl.js';
 import { catalog } from './catalog.js';
@@ -21,28 +21,28 @@ let gesture = null, pinch = null, wheelBefore = null, wheelTimer;
 /** What the last frame drew: needed so readouts query the same project. */
 let drawn = { project: null, target: null };
 const pointers = new Map();
-/** "Step 7 · Folded star lattices": a component's place in the construction. */
+/** "Part 7 · Folded star lattices": a component's place in the scene. */
 function stepName(node) {
     const index = evaluationOrder(state.project).findIndex(n => n.id === node.id);
-    return `Step ${index + 1} · ${node.label}`;
+    return `Part ${index + 1} · ${node.label}`;
 }
 /** The label on the canvas saying what it shows, for the frame source `mode`. */
 function canvasModeHTML(mode) {
-    const node = viewedNode(), dot = n => `<span class="type-dot ${catalog[n.type].output}"></span>`;
+    const node = viewedNode();
     switch (mode) {
-        case 'original': return '<b>ORIGINAL</b> the scene as it was opened';
-        case 'preview': return '<b>PREVIEW</b> not applied · click the thumbnail to use it';
+        case 'original': return '<b>AS IT STARTED</b> the scene as you opened it';
+        case 'preview': return '<b>PREVIEW</b> not kept yet · click the small picture to keep it';
         case 'draft': {
             const edited = currentNode();
-            return `<b>DRAFT</b> your edit of ${esc(edited.label)} · not applied`;
+            return `<b>DRAFT</b> your edit of ${esc(edited.label)} · not applied yet`;
         }
         case 'stage': {
             const variable = shownVariable(node);
-            return variable ? `<b>VARIABLE</b> <span class="mono">${esc(variable.name)}</span> of ${dot(node)}${esc(stepName(node))}` : `<b>THIS STEP</b> ${dot(node)}${esc(stepName(node))}`;
+            return variable ? `<b>VALUE</b> <span class="mono">${esc(variable.name)}</span> inside ${esc(stepName(node))}` : `<b>JUST THIS PART</b> ${esc(stepName(node))}`;
         }
-        case 'effect': return `<b>WHAT IT CHANGES</b> ${dot(node)}${esc(stepName(node))}`;
-        case 'motion': return state.motionStyle === 'trails' ? '<b>TRAILS</b> the last half second at once' : '<b>WHAT MOVES</b> pixels that change in the next 0.1 s';
-        default: return '<b>FINAL IMAGE</b>';
+        case 'effect': return `<b>WHAT THIS PART ADDS</b> ${esc(stepName(node))}`;
+        case 'motion': return state.motionStyle === 'trails' ? '<b>TRAILS</b> the last half second, all at once' : '<b>WHAT MOVES</b> colored pixels change within 0.1 s; still ones are gray';
+        default: return '<b>WHOLE PICTURE</b>';
     }
 }
 /** The variable of shader code `node` shown on the canvas, or null. */
@@ -74,8 +74,8 @@ export function refreshView() {
         b.setAttribute('aria-checked', String(active));
     });
     const step = document.querySelector('[data-view="stage"]');
-    step.innerHTML = `<span class="view-step">${esc(stepName(node))}</span>`;
-    step.setAttribute('aria-label', `This step: ${stepName(node)}`);
+    step.setAttribute('aria-label', `Just this part: ${stepName(node)}`);
+    step.dataset.part = stepName(node);
     showCanvasMode(frameSource().mode);
     $('viewLock').classList.toggle('active', !!state.viewLock);
     $('viewLock').setAttribute('aria-pressed', String(!!state.viewLock));
@@ -85,8 +85,8 @@ export function refreshView() {
     $('motionStyle').hidden = mode !== 'motion';
     $('motionStyle').value = state.motionStyle;
     $('viewLock').hidden = mode === 'final' || mode === 'motion';
-    $('sceneStatus').textContent = project.status || 'Custom construction';
-    $('sceneStatus').classList.toggle('study', project.status === 'Interpretive study');
+    $('sceneStatus').textContent = sceneOrigin(project);
+    $('sceneStatus').classList.toggle('study', /study/i.test(project.status || ''));
     refreshLegend();
     $('holdOriginal').classList.toggle('active', state.compareOriginal);
     $('clearPin').hidden = !state.probePin;
@@ -98,7 +98,7 @@ export function refreshView() {
 }
 export function resizeImage() {
     const stage = $('stage'), pad = innerWidth < 650 ? 24 : innerWidth < 1200 ? 36 : 56, aspect = aspectOf(state.project);
-    const width = Math.max(10, Math.min(stage.clientWidth - pad, (stage.clientHeight - 42) * aspect));
+    const width = Math.max(10, Math.min(stage.clientWidth - pad, (stage.clientHeight - 24) * aspect));
     $('imageWrap').style.width = `${width}px`;
     $('imageWrap').style.aspectRatio = String(aspect);
     displayWidth = width;
@@ -258,7 +258,7 @@ function readoutLines(r) {
     return lines;
 }
 function updateProbeText(r) {
-    $('probe').textContent = r ? `p(${r.x.toFixed(3)}, ${r.y.toFixed(3)}) · px ${r.col},${r.rowFromTop}${r.rgb ? ` · RGB ${r.rgb.join(' ')}` : ''}${r.raw ? ` · ${r.raw.entries.map(([name, value]) => `${name} ${Number(value.toPrecision(4))}`).join(' ')}` : ''}` : 'Drag to pan · scroll to zoom';
+    $('probe').textContent = r ? `p(${r.x.toFixed(3)}, ${r.y.toFixed(3)}) · px ${r.col},${r.rowFromTop}${r.rgb ? ` · RGB ${r.rgb.join(' ')}` : ''}${r.raw ? ` · ${r.raw.entries.map(([name, value]) => `${name} ${Number(value.toPrecision(4))}`).join(' ')}` : ''}` : 'Drag to move the view · scroll to zoom · click a spot to pin its numbers';
 }
 // ---- Overlay: rulers, grid, crosshair and labels --------------------------------
 function drawLabel(ctx, lines, x, y, width, height) {
@@ -523,7 +523,7 @@ function endPointer(e) {
     if (g.moved) {
         commitView(g.before);
     }
-    else if (state.prefs.rulers && e.type === 'pointerup') { // a click pins the readout
+    else if (e.type === 'pointerup') { // a click pins the readout (Look inside reads its values there)
         const { px, py } = framebufferPoint(e);
         state.probePin = { px, py };
         pinReadout = readout(px, py, true);
@@ -606,7 +606,12 @@ $('focusButton').onclick = () => {
     $('focusButton').setAttribute('aria-pressed', String(app.classList.contains('focus-canvas')));
     resizeImage();
 };
-// "⋯" menu for less frequent canvas actions; any choice or outside click closes it.
+// The View menu: display options and less frequent picture actions. A choice, a
+// click outside or Esc closes it (Esc then does nothing else).
+function closeViewMenu() {
+    $('moreMenu').hidden = true;
+    $('moreButton').setAttribute('aria-expanded', 'false');
+}
 $('moreButton').onclick = e => {
     e.stopPropagation();
     $('moreMenu').hidden = !$('moreMenu').hidden;
@@ -614,10 +619,16 @@ $('moreButton').onclick = e => {
 };
 document.addEventListener('click', e => {
     if (!$('moreMenu').hidden && (!$('moreMenu').contains(e.target) || e.target.closest('button'))) {
-        $('moreMenu').hidden = true;
-        $('moreButton').setAttribute('aria-expanded', 'false');
+        closeViewMenu();
     }
 });
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !$('moreMenu').hidden) {
+        e.stopImmediatePropagation();
+        closeViewMenu();
+        $('moreButton').focus();
+    }
+}, true);
 $('copyImage').onclick = async () => {
     if (!state.renderer) {
         showError('A working WebGL 2 context is required.');

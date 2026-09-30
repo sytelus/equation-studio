@@ -1,5 +1,5 @@
 import { Renderer } from './renderer.js';
-import { $, state, refreshUI, changed, pause, toast, showError, loadProject, seek, setView, setContributionStyle, setShow, readStorage, STORAGE, markDirty, emit } from './editor.js';
+import { $, state, refreshUI, changed, pause, toast, showError, loadProject, seek, setView, setContributionStyle, setShow, readStorage, STORAGE, markDirty, emit, showScene } from './editor.js';
 import { parseProject, clone } from './graph.js';
 import { catalog } from './catalog.js';
 import { loopTime } from './timeline.js';
@@ -9,7 +9,7 @@ import { updatePreviews } from './ui-previews.js';
 import { renderPipeline } from './ui-pipeline.js';
 import { updateClock } from './ui-timeline.js';
 import { syncInspectorValues } from './ui-inspector.js';
-import { takeSnapshot, getSnapshots } from './ui-library.js';
+import { takeSnapshot, getSnapshots, openLibrary, openScene } from './ui-library.js';
 import { exportDialogOpen } from './ui-export.js';
 import { shortcuts } from './ui-toolbar.js';
 import { refreshGpuLabels } from './ui-performance.js';
@@ -127,8 +127,14 @@ window.equationStudio = {
         mode: state.viewMode, node: state.viewMode === 'final' ? null : (state.viewLock || state.selected), locked: !!state.viewLock,
         isolated: state.viewMode === 'stage' ? (state.viewLock || state.selected) : null,
         contribution: state.viewMode === 'effect' ? (state.viewLock || state.selected) : null,
-        contributionStyle: state.contributionStyle, prefs: { ...state.prefs }, selected: state.selected
+        contributionStyle: state.contributionStyle, prefs: { ...state.prefs }, selected: state.selected,
+        /** What the side panel shows: 'scene' (the whole scene) or 'part' (the selected component). */
+        panel: state.panel, tour: state.tour ? { ...state.tour } : null
     }),
+    /** Open a scene as the gallery does (it starts playing); `loadProject` opens one without playing. */
+    openScene: id => openScene(id),
+    /** Show the whole scene in the side panel. */
+    showScene: () => showScene(),
     /** Canvas view: 'final', 'stage', 'effect' or 'motion', optionally for a given node. */
     setView: (mode, node) => {
         if (node && !state.project.nodes.some(n => n.id === node)) {
@@ -189,4 +195,7 @@ showBottomTab(state.prefs.bottomTab);
 refreshUI();
 emit('view');
 changed();
+if (!state.prefs.welcomed) {
+    openLibrary('scenes'); // first visit: start by picking something to explore
+}
 requestAnimationFrame(tick);

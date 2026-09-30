@@ -1,7 +1,8 @@
 import { $, state, on } from './editor.js';
 import { showBottomTab } from './ui-graph.js';
 /** Phones: one panel at a time under a sticky canvas, chosen with the tab bar
- * (Pipeline, Inspect, Formulas, Graph). The CSS shows the panel named by
+ * (About: the scene or the open part; Parts; Math; Wiring). It starts on About, the
+ * story of the scene. The CSS shows the panel named by
  * #app[data-mobile-panel]; on wider screens the tab bar is hidden and every
  * panel is visible, so this module changes nothing there.
  */
@@ -30,7 +31,7 @@ $('mobileTabs').addEventListener('click', e => {
 export const prefersInlineStudy = () => matchMedia('(pointer: coarse)').matches;
 /** The one-column phone layout of style.css is active: the page itself scrolls. */
 export const phoneLayout = () => matchMedia('(max-width: 700px)').matches;
-showMobilePanel(['pipeline', 'graph', 'formulas'].includes(state.prefs.bottomTab) ? state.prefs.bottomTab : 'pipeline');
+showMobilePanel('inspector');
 on('prefs', () => {
     const tab = state.prefs.bottomTab;
     if ($('app').dataset.mobilePanel !== 'inspector' && tab !== $('app').dataset.mobilePanel && ['pipeline', 'graph', 'formulas'].includes(tab)) {

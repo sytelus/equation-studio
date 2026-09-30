@@ -1,7 +1,7 @@
 {
   "id": "point-jellyfish",
   "title": "Point jellyfish",
-  "description": "Twenty thousand faint points drawn by one formula of their index i and the time. By ア (@yuruyurau).",
+  "description": "This jellyfish is drawn with 20,000 tiny dots, and there is no picture of a jellyfish anywhere in the code. By ア (@yuruyurau).",
   "status": "Reproduction · original code",
   "schemaVersion": 1,
   "nodes": [
@@ -32,7 +32,7 @@
         "p": "space"
       },
       "params": {
-        "expression": "// Point jellyfish · ア (@yuruyurau), 29 Aug 2026 · the point formula of the p5.js sketch\ny = i/99                              // a slow second index: 0 to 202 over the 20000 points\nk = (8 + sin(i/19 + t))*cos(i/49)     // across the bell: swings side to side as i runs; the swing breathes with time\ne = y/8 - 12                          // along the body: −12 at the top to 13 at the tentacle tips\nd = length(vec2(k, e))^2/79 + 1       // squared distance in the (k, e) plane: 1 at the top of the bell, growing downward\nx = k/d*4 - e*sin(k) + k/(d*d)*(12 + d*6*sin(d*d - t + cos(t/3) + .3*sin(e))) + 200   // sideways: the bell narrows with d; the sines make the tentacles wave\nvec2(x, 12*sin(d*2.6 - t) + d*66 + 40)   // down: mostly d (the body hangs from the top), plus a pulse running down it",
+        "expression": "// Point jellyfish · ア (@yuruyurau), 29 Aug 2026 · where the sketch puts dot number i\ny = i/99                              // y is like a row number: it goes up by 1 every 99 dots, from 0 to about 202\nk = (8 + sin(i/19 + t))*cos(i/49)     // k swings from side to side as i counts up, and how far it swings changes with time t\ne = y/8 - 12                          // e turns the row into a height from −12 to 13, with 0 in the middle rows\nd = length(vec2(k, e))^2/79 + 1       // d is 1 in the middle of the sheet of dots and grows toward its edges\nx = k/d*4 - e*sin(k) + k/(d*d)*(12 + d*6*sin(d*d - t + cos(t/3) + .3*sin(e))) + 200   // across: dividing by d squeezes the dots together lower down, and the sines make the strands sway\nvec2(x, 12*sin(d*2.6 - t) + d*66 + 40)   // the dot's place: 66·d pixels down, so the middle of the sheet is the top of the bell, plus a wave that runs down the body",
         "count": 20000,
         "size": 1,
         "color": "#ffffff",

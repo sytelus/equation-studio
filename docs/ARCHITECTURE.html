@@ -92,7 +92,7 @@
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a> <a href="../docs/UX_REVIEW.html">UX review</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#architecture-a-small-language-for-visual-fields"
@@ -158,15 +158,17 @@ drawn preview.” A shared upstream component is emitted once in the
 shader, even if several downstream components use it.</p>
 <p>The implementation deliberately separates <strong>atoms</strong>,
 <strong>compound kernels</strong>, <strong>graph definitions</strong>,
-<strong>explanations</strong> and <strong>the UI</strong>. Low-level
-kernels are ordinary GLSL functions. The catalog assigns selected
-functions typed inputs, parameters, and the metadata that explains them:
-the equation as captioned steps, symbols, the ideas behind it and its
-key function. Presets connect catalog components. The UI edits the same
-validated JSON used by the public renderer. Compound kernels such as the
-planet keep their internal lighting/cloud calculations together; those
-internals are documented and editable source, not separately exposed
-graph sockets for every subexpression.</p>
+<strong>explanations</strong> and <strong>the UI</strong>. (The UI calls
+components <em>parts</em> and parameters <em>settings</em>; this
+document keeps the model’s names.) Low-level kernels are ordinary GLSL
+functions. The catalog assigns selected functions typed inputs,
+parameters, and the metadata that explains them: the equation as
+captioned steps, symbols, the ideas behind it and its key function.
+Presets connect catalog components. The UI edits the same validated JSON
+used by the public renderer. Compound kernels such as the planet keep
+their internal lighting/cloud calculations together; those internals are
+documented and editable source, not separately exposed graph sockets for
+every subexpression.</p>
 <pre class="text"><code>catalog.js ─┬─ compiler.js ── renderer.js ── canvas, thumbnails, probes, exports
 concepts.js ┤                      ↑
 expression.js ─ custom equations ──┘ (parsed, checked, printed as GLSL)
@@ -265,8 +267,11 @@ instead of collapsing every downstream coordinate to the origin.
 inputs a view evaluates (a disabled node pulls in only its bypass
 input), and every statement of the compiled program chooses between the
 component’s expression and its bypass at run time (see below), so
-bypassing never recompiles. The roles also drive the editor’s <em>Only
-structure</em> action, which bypasses content and keeps the rest.</p>
+bypassing never recompiles. The roles also drive the editor’s <em>Start
+empty</em> action (above the parts strip), which bypasses content and
+keeps the rest, and the tooltip of every on/off switch, which says what
+that part does when it is off (<code>bypassDescription()</code> in
+<code>editor.js</code>).</p>
 <p>The <code>geometry</code> bundle does not mean a mesh, physical
 volume, or signed-distance field. The original <code>warp</code> is an
 implicit shell-following coordinate, <code>rim</code> is an emission
@@ -334,8 +339,8 @@ per <code>vec4</code>; readable aliases such as
 <tr>
 <td>included / bypassed</td>
 <td><code>u_enabled</code>, one bit per component</td>
-<td>checkboxes, <em>Only structure</em> and “what it changes” never
-recompile</td>
+<td>on/off switches, <em>Start empty</em> and <em>What this part
+adds</em> never recompile</td>
 </tr>
 <tr>
 <td>what is evaluated</td>
@@ -347,7 +352,7 @@ needs</td>
 <tr>
 <td>which component is shown</td>
 <td><code>u_target</code></td>
-<td>walking the pipeline, thumbnails and probes use the same
+<td>walking the parts strip, thumbnails and probes use the same
 program</td>
 </tr>
 <tr>
@@ -360,9 +365,10 @@ program</td>
 <td>sampling</td>
 <td><code>u_sampling</code>, <code>u_line</code>,
 <code>u_offset</code></td>
-<td>the camera grid, a line of points (the profile), one point at many
-times (a time profile: <code>u_sampling</code> 2 makes the global
-<code>u_time</code> run along the line), or a tile of an atlas</td>
+<td>the camera grid, a line of points (Measure along a line), one point
+at many times (a time profile: <code>u_sampling</code> 2 makes the
+global <code>u_time</code> run along the line), or a tile of an
+atlas</td>
 </tr>
 <tr>
 <td>time</td>
@@ -425,9 +431,10 @@ readable description of one view: the program for the target’s subgraph
 plus
 <code>{target, type, raw, contribution, contributionStyle, reachable, evaluated}</code>.
 <code>subgraph(project, target)</code> lists the target and everything
-upstream of it, whatever the enabled flags. The GLSL tab shows this
-smaller program for the current view, which is easier to read; the
-canvas runs the same statements in the program for the whole graph.</p>
+upstream of it, whatever the enabled flags. The <strong>Shader
+code</strong> tab under the picture shows this smaller program for the
+current view, which is easier to read; the canvas runs the same
+statements in the program for the whole graph.</p>
 <h3 id="custom-equations-in-the-program">Custom equations in the
 program</h3>
 <p>A custom component’s equation is compiled by
@@ -486,7 +493,8 @@ recently used first; the program on screen is never evicted).</p>
 </thead>
 <tbody>
 <tr>
-<td>final image, a layer stage</td>
+<td>final image (<em>Whole picture</em>), a layer stage (<em>Just this
+part</em>)</td>
 <td>one draw of the graph program (<code>u_mode</code> display)</td>
 </tr>
 <tr>
@@ -496,7 +504,7 @@ the <strong>look pass</strong> (<code>lookPassSource</code> in
 <code>looks.js</code>) colors them</td>
 </tr>
 <tr>
-<td>what a component changes</td>
+<td>what a component changes (<em>What this part adds</em>)</td>
 <td>two draws of the displayed image, with the component and with it
 bypassed (<code>withBypassed(project, id)</code>), into two float
 textures, then the <strong>compare pass</strong>
@@ -508,7 +516,7 @@ textures, then the <strong>compare pass</strong>
 each with its own <code>u_target</code>, one readback</td>
 </tr>
 <tr>
-<td>profile, point readouts</td>
+<td>Measure along a line, point readings</td>
 <td><code>sampleLine()</code> / <code>samplePoint()</code>:
 <code>u_sampling</code> evaluates the target at points along a segment
 into a <code>count × 1</code> float target</td>
@@ -525,7 +533,7 @@ pass into an <code>RGBA16F</code> texture of the frame’s size (one per
 purpose: view, atlas, probe, stats), with premultiplied blending</td>
 </tr>
 <tr>
-<td>what moves</td>
+<td><em>What moves</em></td>
 <td><code>renderMotion()</code>: the image now and
 <code>MOTION.dt</code> later into two float textures and the compare
 pass; or <em>trails</em>, <code>MOTION.frames</code> frames over
@@ -533,15 +541,15 @@ pass; or <em>trails</em>, <code>MOTION.frames</code> frames over
 <code>RGBA16F</code> texture and the <strong>copy pass</strong></td>
 </tr>
 <tr>
-<td>a shown variable</td>
+<td>a shown variable (label <em>VALUE</em>)</td>
 <td>the target drawn with <code>u_show</code>; <code>shownType()</code>
 gives the type of the variable for the look</td>
 </tr>
 <tr>
 <td>several moments</td>
 <td><code>timeAtlas()</code>: one tile per time in one framebuffer, one
-non-blocking readback (the filmstrip, gallery previews, palette
-previews)</td>
+non-blocking readback (the frames on the time bar, gallery previews,
+previews in the Parts palette)</td>
 </tr>
 <tr>
 <td>a point over time</td>
@@ -551,7 +559,7 @@ or one draw per time when point clouds or keyframes depend on it</td>
 <tr>
 <td>GPU cost</td>
 <td><code>measure()</code>: the median of a few draws of a view, each
-waited for with a one-pixel readback (the Stats tab)</td>
+waited for with a one-pixel readback (the Measure tab)</td>
 </tr>
 </tbody>
 </table>
@@ -577,12 +585,12 @@ responsive. <code>whenReady()</code> returns a promise for code that
 wants to wait. Synchronous calls (<code>draw</code>,
 <code>snapshot</code>, probes) link immediately and may block.</p>
 <h3 id="reading-back-without-waiting">Reading back without waiting</h3>
-<p>Thumbnails, the profile and the statistics behind automatic colors
-read back <strong>asynchronously</strong>: <code>readPixels</code> into
-a pixel-pack buffer, a fence, and <code>getBufferSubData</code> once
-<code>poll()</code> sees the fence signalled. The page never waits for
-the GPU for those. Readouts under the cursor still read one pixel
-synchronously.</p>
+<p>Thumbnails, Measure along a line and the statistics behind automatic
+colors read back <strong>asynchronously</strong>:
+<code>readPixels</code> into a pixel-pack buffer, a fence, and
+<code>getBufferSubData</code> once <code>poll()</code> sees the fence
+signalled. The page never waits for the GPU for those. Readouts under
+the cursor still read one pixel synchronously.</p>
 <h3 id="measuring-the-gpu">Measuring the GPU</h3>
 <p><code>info.gpu</code> classifies the renderer string
 (<code>describeRenderer()</code> in <code>gpu-info.js</code>): a
@@ -594,11 +602,12 @@ Driver), or unknown when the browser masks it; for an unknown name,
 <code>beginTimer()</code>/<code>endTimer()</code> measure a visible draw
 with <code>EXT_disjoint_timer_query_webgl2</code> when available
 (<code>gpuTimeExact</code>), else as the time until a fence signals (an
-upper bound). The editor’s Auto quality uses that time to lower the
+upper bound). The editor’s Auto sharpness uses that time to lower the
 resolution during interaction when frames exceed about 24 ms, and the
-LIVE badge and <strong>GPU &amp; performance</strong> dialog report it.
-Web pages cannot schedule per-pixel work on a neural processing unit;
-the GPU is the only accelerator available to this kind of rendering.</p>
+LIVE badge and the GPU dialog (<em>Your GPU and how fast it draws</em>)
+report it. Web pages cannot schedule per-pixel work on a neural
+processing unit; the GPU is the only accelerator available to this kind
+of rendering.</p>
 <h2 id="color-alpha-masks-and-light">Color, alpha, masks and light</h2>
 <p>RGB values in graph layers are <strong>radiance-like floating-point
 numbers</strong>. They are artistic quantities, not calibrated physical
@@ -620,17 +629,22 @@ C=\frac{a_fC_f+(1-a_f)a_bC_b}{\max(a,10^{-8})}.
 <p>Use Over when a planet, body or feather must hide the layer behind
 it. <strong>Mask layer changes alpha, not RGB</strong>, so apply it with
 Over. Sending an alpha-masked field through Add does not remove its RGB;
-the inspector explicitly warns about this. To attenuate emitted RGB,
+the part panel explicitly warns about this. To attenuate emitted RGB,
 multiply/tint it or author a color expression with that multiplier.</p>
 <p>Color-picker bytes are interpreted as direct numeric radiance
 multipliers; the app does not perform a color-managed spectral workflow.
-The three final display modes are:</p>
+The three final display modes (<code>project.tone</code>, chosen with
+<strong>Light to color</strong> in the View menu, after
+<strong>Brightness</strong>, <code>project.exposure</code>) are:</p>
 <ul>
-<li><strong>Source</strong>: the original nonlinear <code>F</code>,
-including integer floor, with no extra gamma transform.</li>
-<li><strong>Filmic</strong>: the deliberately simple artistic curve
+<li><strong>The artist’s formula</strong> (<code>source</code>): the
+original nonlinear <code>F</code>, including integer floor, with no
+extra gamma transform.</li>
+<li><strong>Soft highlights</strong> (<code>filmic</code>): the
+deliberately simple artistic curve
 <code>(1-exp(-max(H,0)))^(1/2.2)</code>.</li>
-<li><strong>Linear</strong>: direct clipping to display range.</li>
+<li><strong>Plain</strong> (<code>linear</code>): direct clipping to
+display range.</li>
 </ul>
 <p>No tone mapping is applied between graph nodes. Exports currently
 have opaque displayed RGB, even though alpha exists inside the graph.
@@ -641,7 +655,7 @@ that are not colors</h2>
 own; showing one means choosing an encoding. <code>looks.js</code> holds
 these encodings as pure data and functions, from which it generates both
 the GLSL of the look pass and a CPU twin used to paint thumbnails, so a
-stage looks the same on the canvas and in the Pipeline.</p>
+stage looks the same on the canvas and in the parts strip.</p>
 <table>
 <colgroup>
 <col style="width: 33%" />
@@ -694,10 +708,10 @@ or the camera change (<code>ui-look.js</code>). A look can be
 locked.</p>
 <p>These encodings are views of numbers, not the numbers. A negative
 field is not “negative light,” and a coordinate grid is not a texture of
-the scene. The readouts and the profile report the actual values:
-<code>sampleLine()</code> and <code>samplePoint()</code> render into
-<code>RGBA32F</code> framebuffers and return floats before exposure,
-mapping and quantization, as <code>[scalar,0,0,1]</code>,
+the scene. The readings and Measure along a line report the actual
+values: <code>sampleLine()</code> and <code>samplePoint()</code> render
+into <code>RGBA32F</code> framebuffers and return floats before
+exposure, mapping and quantization, as <code>[scalar,0,0,1]</code>,
 <code>[x,y,0,1]</code>, <code>[warp,rim,coverage,1]</code>, or actual
 RGBA, depending on the target. They need
 <code>EXT_color_buffer_float</code>, which is checked. All inspection
@@ -921,16 +935,18 @@ value</td>
 </table>
 <p><code>analyzeCode(source)</code> (cached) returns
 <code>{params, loops, variables, numbers, refs, comments, helpers, inputs}</code>
-for the UI: the Code view highlights with <code>refs</code> (what every
-name refers to), the Loops panel uses <code>loops</code> (with their
+for the UI: the Code tab highlights with <code>refs</code> (what every
+name refers to), its Loops section uses <code>loops</code> (with their
 captions and lengths), Look inside <code>showable()</code>.
-<code>withNumber()</code> and <code>numberText()</code> edit one number
-while keeping twigl’s style (<code>.5</code>). <code>withCode()</code>
-in <code>fork.js</code> applies a new version like
-<code>withEquation()</code>: the component’s time parameters stay,
-<code>param</code> values stay while their default is unchanged, and a
-loop limit the user set stays while a loop that ran in full keeps
-running in full.</p>
+<code>highlightCode(analysis, {only})</code> in
+<code>ui-code-view.js</code> prints only the given lines, for the
+excerpts of the scene panel’s How it works. <code>withNumber()</code>
+and <code>numberText()</code> edit one number while keeping twigl’s
+style (<code>.5</code>). <code>withCode()</code> in <code>fork.js</code>
+applies a new version like <code>withEquation()</code>: the component’s
+time parameters stay, <code>param</code> values stay while their default
+is unchanged, and a loop limit the user set stays while a loop that ran
+in full keeps running in full.</p>
 <p>The twigl helpers are in <code>twigl-glsl.js</code> (the noise
 functions by Ashima Arts / Stefan Gustavson as bundled by twigl), with
 <code>codeFragCoord()</code> (the pixel of a plane point; an unwarped
@@ -948,14 +964,18 @@ code, the point settings of p5 works, a <code>summary</code>, a
 <code>tour</code> of explanation steps (<code>at</code> names code
 snippets whose lines to highlight, <code>show</code> a variable,
 <code>steps</code> loop limits), <code>concepts</code> and
-<code>tags</code>. <code>presets.js</code> turns each into a scene
-(<code>workScene()</code>): a Shader code component with the readable
-code, or a Point cloud over <code>Solid color #090909</code>, in the
-clip’s aspect ratio, output <em>Linear</em> at exposure 1 (so colors are
-what the code computes, as on twigl’s canvas). The component carries
-<code>work: id</code>, so its credit and explanation travel with it when
-it is added to another scene (<code>addWorkComponent()</code> in
-<code>editor.js</code>), and into exported pages and code.</p>
+<code>tags</code>, a difficulty <code>level</code> (<code>easy</code>,
+<code>medium</code> or <code>expert</code>) and <code>try</code>, the
+<em>Try this</em> challenges. <code>presets.js</code> turns each into a
+scene (<code>workScene()</code>): a Shader code component with the
+readable code, or a Point cloud over <code>Solid color #090909</code>,
+in the clip’s aspect ratio, output <em>Linear</em> at exposure 1
+(<strong>Light to color</strong> <em>Plain</em> at
+<strong>Brightness</strong> 1, so colors are what the code computes, as
+on twigl’s canvas). The component carries <code>work: id</code>, so its
+credit and explanation travel with it when it is added to another scene
+(<code>addWorkComponent()</code> in <code>editor.js</code>), and into
+exported pages and code.</p>
 <p><code>tools/works_check.py</code> verifies every work on the GPU: for
 twigl works it renders the original in a twigl-style shader (the exact
 geekest template and helpers), the original in a Shader code component
@@ -964,10 +984,46 @@ it runs the original sketch in a p5.js stand-in (Canvas 2D, pixel
 density 2) and compares with the Point cloud.
 <code>tools/generate_works.js</code> writes <code>docs/WORKS.md</code>
 from the registry and the verification.</p>
+<h3 id="scene-guides-and-try-this">Scene guides and Try this</h3>
+<p>The side panel shows the whole scene
+(<code>state.panel === 'scene'</code>, rendered by
+<code>SceneView</code> in <code>ui-scene-view.js</code>) until a part is
+opened (<code>'part'</code>, a <code>ComponentView</code>).
+<code>sceneGuide(project)</code> in <code>ui-try.js</code> gives the
+open scene’s guide,
+<code>{kind, level, about, try, tour, work, node}</code>: a work’s scene
+takes it from <code>works.js</code>; a construction from
+<code>guides</code> in <code>presets.js</code>, which holds
+<code>about</code>, <code>level</code> and <code>try</code> for the
+twelve constructions, keyed by scene id (so a saved project with the
+same id shows them too). A scene without a guide shows its
+<code>description</code> and its parts.</p>
+<p>A challenge is <code>{text, …}</code> with one action:
+<code>set: {node?, param, value}</code> or
+<code>{node?, param, times}</code> (a setting; <code>times</code>
+multiplies its current value), <code>code: {node?, find, replace}</code>
+(the first occurrence in the part’s code or equation),
+<code>view: 'motion'</code> or <code>view: 'stage'</code> (with
+<code>node</code> for a construction), <code>show: 'name'</code> (a
+variable of the code on the canvas), <code>build: n</code> (sweep loop n
+from 0 steps to all of them) and, for constructions,
+<code>hide: node</code> (switch that part off). A work’s challenges act
+on its component. <code>tryAvailable()</code> checks that a challenge
+still fits the edited scene; <code>applyTry(index)</code> applies it as
+a single undoable step (a view or shown value is not a history entry)
+and starts playback, except for a build-up, so the change is visible.
+The tour’s steps are applied by <code>applyTour(nodeId, k)</code> in
+<code>ui-code-view.js</code>: loop limits through
+<code>transact()</code>, a shown value through <code>setShow()</code>,
+and the active step in <code>state.tour</code>
+(<code>{node, index}</code> or null, set with <code>setTour()</code>,
+event <code>tour</code>); <code>tourBanner()</code> and
+<code>tourLines()</code> show and highlight it in the part’s Code or
+Math tab.</p>
 <h2 id="metadata-that-explains">Metadata that explains</h2>
-<p>The explanation panel is generated from catalog metadata, so every
-component is explained the same way and a new component is explained by
-adding data:</p>
+<p>The part panel is generated from catalog metadata, so every component
+is explained the same way and a new component is explained by adding
+data:</p>
 <table>
 <colgroup>
 <col style="width: 50%" />
@@ -981,9 +1037,16 @@ adding data:</p>
 </thead>
 <tbody>
 <tr>
+<td><code>description</code></td>
+<td>the plain introduction at the top of the Math tab and the tips of
+the parts strip; its first sentence (<code>firstSentence()</code> in
+<code>editor.js</code>) is the one line shown for the part in the scene
+panel’s <em>How it is built</em></td>
+</tr>
+<tr>
 <td><code>steps: [step(tex, text)]</code></td>
-<td><em>How it is computed</em>: numbered, typeset lines with captions;
-the last is the result</td>
+<td><em>The math, step by step</em>: numbered, typeset lines with
+captions; the last is the result</td>
 </tr>
 <tr>
 <td><code>source: [line, …]</code></td>
@@ -994,23 +1057,22 @@ captions (see above)</td>
 <td>params’ <code>symbol</code>, <code>help</code>;
 <code>inputSymbols</code>, <code>outputSymbols</code>,
 <code>notes</code></td>
-<td>colored, hoverable symbols in the steps, parameter help, <em>Other
-symbols</em></td>
+<td>colored, hoverable symbols in the steps, the help of each setting,
+<em>Other letters in the math</em></td>
 </tr>
 <tr>
 <td><code>concepts: [id]</code></td>
-<td><em>Why it is written this way</em>: cards from
-<code>concepts.js</code>, each with a formula, a paragraph and
-optionally a plot with a knob</td>
+<td><em>Big ideas</em>: cards from <code>concepts.js</code>, each with a
+formula, a paragraph and optionally a plot with a knob</td>
 </tr>
 <tr>
 <td><code>curve: {title, x, y, domain(P), series, marks(P)}</code></td>
-<td><em>Key function</em>: an SVG plot (<code>plot.js</code>) with the
+<td><em>The key curve</em>: an SVG plot (<code>plot.js</code>) with the
 live parameters</td>
 </tr>
 <tr>
 <td><code>role</code>, <code>bypass</code></td>
-<td>what the checkbox does, <em>Only structure</em></td>
+<td>what the on/off switch does, <em>Start empty</em></td>
 </tr>
 </tbody>
 </table>
@@ -1018,9 +1080,11 @@ live parameters</td>
 each symbol it recognizes with its role (<code>sym-input</code>,
 <code>sym-param</code>, <code>sym-output</code>, <code>sym-time</code>)
 and a data attribute naming the socket or parameter; the UI uses those
-for coloring, hover highlighting, clicking through to inputs and
-dragging parameter symbols. <code>formula.js</code> writes the whole
-construction as a formula sheet (<code>compositionTeX()</code> expands
+for coloring (blue inputs, orange settings, pink time, green output: the
+same four colors mean the same everywhere in the app), hover
+highlighting, clicking through to inputs and dragging parameter symbols.
+<code>formula.js</code> writes the whole construction as a formula sheet
+(the <em>All the math</em> tab) (<code>compositionTeX()</code> expands
 the combiners into an expression over the components they combine).
 <code>tests/catalog.test.js</code> checks that every component has steps
 with captions, that every parameter’s symbol appears in them, that every
@@ -1081,24 +1145,31 @@ objects whose <code>data</code> is laid out like
 <code>ImageData</code>.</p>
 <p>The editor also exposes <code>window.equationStudio</code> for
 integration: <code>getProject()</code>, <code>getBaseline()</code>,
-<code>loadProject(project)</code>, <code>seek(t)</code>,
-<code>getTime()</code>, <code>getRenderer()</code>,
-<code>getCatalog()</code>, <code>getView()</code>,
-<code>setView(mode, node)</code> with mode <code>final</code>,
-<code>stage</code> or <code>effect</code>, <code>isolate(id)</code> and
+<code>loadProject(project)</code> (opens a project without playing it),
+<code>openScene(id)</code> (opens a preset as the gallery does: it
+starts playing unless the system asks for reduced motion),
+<code>showScene()</code> (the side panel shows the whole scene),
+<code>seek(t)</code>, <code>getTime()</code>,
+<code>getRenderer()</code>, <code>getCatalog()</code>,
+<code>getView()</code> (the view mode and node, the selection, the
+preferences, <code>panel</code>: <code>'scene'</code> or
+<code>'part'</code>, and <code>tour</code>: the active walk-through step
+<code>{node, index}</code> or null), <code>setView(mode, node)</code>
+with mode <code>final</code>, <code>stage</code>, <code>effect</code> or
+<code>motion</code>, <code>isolate(id)</code> and
 <code>contribution(id, style)</code> (1.1-compatible shorthands),
-<code>setPreviews(enabled)</code>, <code>openPlayground(id)</code>
-(select a component and widen the panel into the Equation Playground),
-<code>closePlayground()</code>, <code>isPlaygroundOpen()</code>,
-<code>popOut(id)</code> (false when the browser blocks the window),
-<code>snapshot(title)</code>, <code>getSnapshots()</code>,
-<code>renderNow()</code>, and <code>exportPNG()</code>.
-<code>getProject()</code>, <code>getBaseline()</code> and
-<code>getSnapshots()</code> return clones. The low-level
-<code>exportPNG()</code> hook returns a plain preview-resolution PNG;
-use the dialog or metadata helper for an archival export. The <a
-href="DEVELOPMENT.html">development guide</a> maps the editor’s modules
-and events.</p>
+<code>setPreviews(enabled)</code>, <code>openPlayground(id)</code> (open
+a component and widen the panel: the wide panel, formerly the Equation
+Playground), <code>closePlayground()</code>,
+<code>isPlaygroundOpen()</code>, <code>popOut(id)</code> (false when the
+browser blocks the window), <code>snapshot(title)</code>,
+<code>getSnapshots()</code>, <code>renderNow()</code>, and
+<code>exportPNG()</code>. <code>getProject()</code>,
+<code>getBaseline()</code> and <code>getSnapshots()</code> return
+clones. The low-level <code>exportPNG()</code> hook returns a plain
+preview-resolution PNG; use the dialog or metadata helper for an
+archival export. The <a href="DEVELOPMENT.html">development guide</a> maps
+the editor’s modules and events.</p>
 <h2 id="add-your-own-component">Add your own component</h2>
 <p>Small formulas can be authored inside the browser with Custom scalar,
 Custom coordinate, or Custom color, in the <a
@@ -1109,7 +1180,9 @@ using its local <code>component</code>, <code>num</code>,
 <code>rgb</code> and <code>step</code> helpers. Each parameter has a TeX
 <code>symbol</code> that appears in the steps, and a plain-language
 <code>help</code> string saying what changing it does; each step has a
-caption saying what the line computes and why:</p>
+caption saying what the line computes and why. All of this text is shown
+to a curious reader of about thirteen, so follow <a
+href="DEVELOPMENT.md#writing-for-the-app">Writing for the app</a>:</p>
 <div class="sourceCode" id="cb8"><pre
 class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>petals<span class="op">:</span> <span class="fu">component</span>({</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">name</span><span class="op">:</span> <span class="st">&#39;Petal field&#39;</span><span class="op">,</span> <span class="dt">category</span><span class="op">:</span> <span class="st">&#39;Scalar fields&#39;</span><span class="op">,</span> <span class="dt">output</span><span class="op">:</span> <span class="st">&#39;scalar&#39;</span><span class="op">,</span> <span class="dt">inputs</span><span class="op">:</span> { <span class="dt">p</span><span class="op">:</span> <span class="st">&#39;coord&#39;</span> }<span class="op">,</span></span>
@@ -1142,12 +1215,12 @@ returning <code>plotSVG</code> options for the knob value
 <p>For a larger kernel, put a named GLSL function with comments into a
 shader library and have the emitter call it. The emitter receives
 <strong>GLSL expression strings</strong>, including uniform aliases, not
-runtime JS numbers. The metadata automatically drives the component
-browser and its tips, the explanation panel, socket validation,
-drag-and-drop typing, insert and replace menus, previews, the formula
-sheet and code generation; the kernel also becomes callable from custom
-equations. Add a preset/example, a unit test, and a GPU test. Then
-follow the regeneration checklist in the <a
+runtime JS numbers. The metadata automatically drives the Parts palette
+and its tips, the part panel, the scene panel’s list of parts, socket
+validation, drag-and-drop typing, insert and replace menus, previews,
+the formula sheet and code generation; the kernel also becomes callable
+from custom equations. Add a preset/example, a unit test, and a GPU
+test. Then follow the regeneration checklist in the <a
 href="DEVELOPMENT.html">development guide</a>.</p>
 <h2 id="typeset-equations">Typeset equations</h2>
 <p><code>src/math-render.js</code> converts the catalog’s TeX subset to

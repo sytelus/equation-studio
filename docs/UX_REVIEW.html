@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>UX review: the studio through a thirteen-year-old's
+eyes</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="../docs/reading.css" />
+</head>
+<body>
+<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a> <a href="../docs/UX_REVIEW.html">UX review</a></nav>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#ux-review-the-studio-through-a-thirteen-year-olds-eyes"
+id="toc-ux-review-the-studio-through-a-thirteen-year-olds-eyes">UX
+review: the studio through a thirteen-year-old’s eyes</a>
+<ul>
+<li><a href="#how-the-review-was-done"
+id="toc-how-the-review-was-done">How the review was done</a></li>
+<li><a href="#what-a-newcomer-asked" id="toc-what-a-newcomer-asked">What
+a newcomer asked</a></li>
+<li><a href="#the-design" id="toc-the-design">The design</a></li>
+<li><a href="#facts-corrected-along-the-way"
+id="toc-facts-corrected-along-the-way">Facts corrected along the
+way</a></li>
+<li><a href="#measurements-1440-900-the-same-script-before-and-after"
+id="toc-measurements-1440-900-the-same-script-before-and-after">Measurements
+(1440 × 900, the same script before and after)</a></li>
+<li><a href="#checklist" id="toc-checklist">Checklist</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="ux-review-the-studio-through-a-thirteen-year-olds-eyes">UX
+review: the studio through a thirteen-year-old’s eyes</h1>
+<p>This review (September 2026, version 2.1) asked one question of every
+screen: <em>would a curious thirteen-year-old who likes the animation
+understand what they see, know what to do next, and want to keep
+playing?</em> It records how the review was done, what confused, the
+design that answers it, and a checklist of every change with its
+status.</p>
+<h2 id="how-the-review-was-done">How the review was done</h2>
+<ol type="1">
+<li><strong>Screenshots of every main state</strong> at 1440 × 900: the
+first open, the gallery, a point-cloud animation (Point jellyfish), a
+shader animation (Vortex) and each of its tabs, a construction, the Help
+and Export dialogs, the parts palette.</li>
+<li><strong>Two independent readings.</strong> One by the developer, and
+one by a reviewer who saw only the screenshots and role-played the
+thirteen-year-old: for every screen, the literal questions they would
+ask and what they would click first, then a prioritized list of problems
+with fixes.</li>
+<li><strong>Measurements</strong> before and after, with the same
+script: visible controls, the size of the picture, what the panel says
+first.</li>
+<li><strong>Verification</strong> of the new design with screenshots at
+laptop, desktop, tablet and phone sizes, the workflow suite and the unit
+tests.</li>
+</ol>
+<h2 id="what-a-newcomer-asked">What a newcomer asked</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Where</th>
+<th>The question</th>
+<th>What changed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>First open</td>
+<td>“What is <em>Step 2 of 9 · Pinched shell family · S,A</em>? Did I
+skip step 1?”</td>
+<td>A scene opens on <strong>About this scene</strong>, not on one of
+its parts. Parts are numbered “Part 3 of 4” and reached from the scene’s
+list, with <strong>‹ Whole scene</strong> to go back.</td>
+</tr>
+<tr>
+<td>First open</td>
+<td>“<em>Exact structural port at defaults. Ordered soft first-hit
+selection produces S…</em>”</td>
+<td>Every description was rewritten; the first thing the panel says is
+what you are seeing, in plain sentences.</td>
+</tr>
+<tr>
+<td>First open</td>
+<td>“Why is the picture so small? Why are there lines and numbers on
+it?”</td>
+<td>Rulers and grid are off by default; the parts strip is compact and
+can be folded away; the picture has more than twice the area (see
+Measurements).</td>
+</tr>
+<tr>
+<td>Top bar</td>
+<td>“<em>Source-equation port</em>? Like a USB port?”</td>
+<td>A plain line says where the scene comes from: “By Xor · the artist’s
+own code”, “Our own study”, “Built from parts”.</td>
+</tr>
+<tr>
+<td>Point jellyfish</td>
+<td>“Why is it not moving?”</td>
+<td>A scene opened from the gallery plays at once (unless the system
+asks for reduced motion).</td>
+</tr>
+<tr>
+<td>Math</td>
+<td>“● input ● parameter · drag it ● output ● time — drag what,
+where?”</td>
+<td>A sentence above the math: “Reading the colors: blue letters come in
+from earlier parts (like where the pixel is), orange ones are settings
+you can drag, pink t is the time in seconds, and green is what this part
+makes.” The same colors mean the same thing everywhere.</td>
+</tr>
+<tr>
+<td>Math</td>
+<td>“<em>a slow second index: 0 to 202 over the 20000 points</em>”</td>
+<td>“y is like a row number: it goes up by 1 every 99 dots, from 0 to
+about 202.” Every caption is a full sentence.</td>
+</tr>
+<tr>
+<td>Time bar</td>
+<td>“What are 0.0, 0.7, 1.3 under the pictures?”</td>
+<td>The frames sit directly under the time bar, with a ruler in whole
+seconds (0 s, 1 s, 2 s …); the clock reads “2.54 s”.</td>
+</tr>
+<tr>
+<td>Time bar</td>
+<td>“<em>Source F</em>? <em>Linear</em>? <em>Exposure</em>?”</td>
+<td>Moved to the <strong>View</strong> menu as Light to color (The
+artist’s formula, Soft highlights, Plain) and Brightness.</td>
+</tr>
+<tr>
+<td>Parameters</td>
+<td>“What do ◆ ↺ ▦ do? What does <em>Values</em> do?”</td>
+<td>One line above the sliders explains the three buttons; “Values” is
+“Show numbers”; “Variations” is “🎲 Surprise me”.</td>
+</tr>
+<tr>
+<td>Parts strip</td>
+<td>“<em>coordinates feeds Pinched shell family · S,A</em>?”</td>
+<td>Cards show a number, a name and a picture; the scene panel lists
+each part with one plain line (“Tells every pixel where it is on the
+picture.”).</td>
+</tr>
+<tr>
+<td>Code</td>
+<td>“Can I change this?” (the hint was under the code)</td>
+<td>“How to play” is above the code: drag an orange number, click a
+name, hover anything.</td>
+</tr>
+<tr>
+<td>Tabs</td>
+<td>“<em>In &amp; out</em>, <em>Stats</em>, <em>More</em>: who is this
+for?”</td>
+<td>Tabs are Math or Code, Look inside, Big ideas, then — quieter, for
+going deeper — Connections, Measure, More.</td>
+</tr>
+<tr>
+<td>Look inside</td>
+<td>“What are vec4, vec2, float, int?”</td>
+<td>Plain kinds: color, 2 numbers, number, count.</td>
+</tr>
+<tr>
+<td>More</td>
+<td>“<em>Not animated</em>? It’s spinning!”</td>
+<td>“None of its settings has keyframes. It still moves, because its
+math uses the time t.”</td>
+</tr>
+<tr>
+<td>Help</td>
+<td>“<em>Think in fields. Build in layers.</em> Farm fields?”</td>
+<td>“How to use Equation Studio”: Look, Play, Take it apart, Read the
+colors, Make your own, Go deeper.</td>
+</tr>
+<tr>
+<td>Gallery</td>
+<td>“<em>6.283 s loop</em>? Which one is easy?”</td>
+<td>“6.3 s loop”; an <strong>Easy / Medium / Expert</strong> badge on
+every card; “Start here · easy ones” first; the gallery opens by itself
+on the first visit.</td>
+</tr>
+<tr>
+<td>Footer</td>
+<td>“<em>browser storage unavailable</em>: is it broken?”</td>
+<td>“Not kept automatically here: use Save” (and “Kept in this browser ·
+nothing is uploaded” where storage works).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-design">The design</h2>
+<h3 id="the-picture-first">1. The picture first</h3>
+<p>The picture is why anyone opens the studio, so it gets the room:
+rulers and grid start off, display options live in one <strong>View
+▾</strong> menu (rulers, grid, measuring along a line, brightness, light
+to color, sharpness, frames, snapshot, compare, copy, expand), the parts
+strip uses compact cards and folds away with <strong>▾ Hide</strong>,
+and the time bar puts the frames under the scrubber instead of in a
+second row.</p>
+<h3 id="a-scene-tells-its-story-parts-are-chapters">2. A scene tells its
+story; parts are chapters</h3>
+<p>The side panel shows either the whole scene or one part.
+<strong>About this scene</strong> comes first: what you are seeing, who
+made it and whether it is their own code, how hard it is, <strong>Try
+this</strong>, <strong>How it works</strong> step by step, the parts it
+is built from, the big ideas, and the code as posted. A part’s panel
+always says where you are (“‹ Whole scene · Part 3 of 4”). The canvas
+label (WHOLE PICTURE, JUST THIS PART, WHAT THIS PART ADDS, WHAT MOVES,
+VALUE …) says what the picture shows, and the parts strip marks the open
+part: three location cues that never disagree.</p>
+<h3 id="colors-that-mean-one-thing">3. Colors that mean one thing</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Color</th>
+<th>Means</th>
+<th>Where you see it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Orange</td>
+<td>something you can change</td>
+<td>sliders, the numbers in code, setting letters in math, Try this, the
+“changed” dot</td>
+</tr>
+<tr>
+<td>Pink</td>
+<td>time</td>
+<td>t in math, the play button, the clock and time bar, keyframes that
+are set, What moves</td>
+</tr>
+<tr>
+<td>Blue</td>
+<td>what comes into a part</td>
+<td>input letters (x, y, p), <code>FC</code> in code</td>
+</tr>
+<tr>
+<td>Green</td>
+<td>what a part makes</td>
+<td>output letters, the final picture’s label, “✓ Made from the artist’s
+own code”, tried challenges</td>
+</tr>
+<tr>
+<td>Gray and white</td>
+<td>everything else</td>
+<td>selection, tabs, menus, buttons</td>
+</tr>
+</tbody>
+</table>
+<p>The kinds of parts (positions, numbers, shape, picture) no longer
+have their own colors in the panels, so color never means two things.
+The wiring view keeps them on its sockets, where matching kinds is the
+point.</p>
+<h3 id="invite-play-make-it-safe">4. Invite play, make it safe</h3>
+<ul>
+<li><strong>Try this</strong>: three to five challenges per scene, each
+a single undoable change with one button; the animation starts so the
+change shows; tried ones are ticked.</li>
+<li><strong>🎲 Surprise me</strong> next to every part’s settings;
+<strong>▦</strong> shows a setting’s whole range at once; a mark under
+each slider shows where it started.</li>
+<li><strong>How it works</strong> puts a value of the code on the
+picture or stops a loop early while a step is open, so the explanation
+is something you watch.</li>
+<li>Every panel and challenge says the same thing about safety: Undo
+takes back each change and <strong>Start over</strong> brings back the
+scene.</li>
+</ul>
+<h3 id="writing">5. Writing</h3>
+<p>Every explanation was rewritten to one set of rules (in the <a
+href="DEVELOPMENT.md#writing-for-the-app">Development guide</a>): full
+sentences; what you see first, then how the math makes it; every
+technical word explained where it first appears; everyday comparisons;
+concrete numbers. The rewrite covered the 18 works (summaries,
+walk-through steps, the captions of every line of readable code, Try
+this), the 45 parts (descriptions whose first sentence doubles as a
+one-line summary, 87 step captions, 119 setting explanations, notes and
+code comments), the 47 big ideas, the 12 scene guides, 59 code tooltips,
+and every label, tooltip, message and the Help page of the
+interface.</p>
+<h2 id="facts-corrected-along-the-way">Facts corrected along the
+way</h2>
+<p>Rewriting meant re-deriving each explanation from its formula, and
+some old explanations were wrong:</p>
+<ul>
+<li><strong>Point jellyfish</strong>: d is smallest (1) in the
+<em>middle</em> of the sheet of dots, which becomes the top of the bell;
+the old caption said “1 at the top of the bell, growing downward”.</li>
+<li><strong>Central glow</strong>: the mask W is about 0.7 at the
+center, 0.37 at a distance of 0.1 and nearly 0 beyond 0.25 (not “about 1
+within 0.1”).</li>
+<li><strong>Aurora</strong>: two ribbon arms, not one, with the purple
+fringe along one edge of each ribbon.</li>
+<li><strong>Localized vortex</strong>: its rotation speed turns the
+whole picture, not only the swirl.</li>
+<li><strong>Fractal noise</strong>: with a positive flow speed the
+pattern moves down the screen.</li>
+<li><strong>Zoom (log R)</strong>: each doubling of distance adds about
+0.69 to the natural log, not 1.</li>
+<li><strong>rotate2D</strong>: <code>v *= rotate2D(a)</code> turns v
+clockwise; <strong>fsnoiseDigits</strong> changes slowly rather than
+making “larger cells”.</li>
+<li><strong>Golden spiral</strong>: it does <em>not</em> loop seamlessly
+after 2π seconds (its zoom slides 8.28 pattern cells, not a whole
+number; renders at 0 and 2π differ), so the claim and its “seamless
+loop” idea were removed.</li>
+<li><strong>Underwater reef</strong>: the camera starts at (6, 6, 15),
+not (6, 15, 15).</li>
+<li><strong>Rainbow trefoil</strong>: a trefoil knot passes over and
+under itself, not “through itself”.</li>
+<li><strong>Jellyfish lattice</strong>: the bend only affects the
+smaller copies, so the old “the dome becomes a bell” caption was
+wrong.</li>
+<li><strong>Lace garden</strong>: w = p/3 makes the background three
+times bigger, not smaller.</li>
+<li><strong>Cloud cave</strong>: the glow peaks just outside the surface
+and subtracts light inside the cloud.</li>
+<li><strong>Fluffy anemone</strong> (our study): 90 slices, not 80; the
+sway is sin(0.333 t + 5 R).</li>
+<li><strong>Blossoming tree</strong>, <strong>Folded jewel box</strong>,
+<strong>Carved stone kaleidoscope</strong>: captions of loops and early
+stops corrected to what the code does (checked by rendering).</li>
+<li>Walk-through steps that stop a loop early were re-checked by
+rendering them; steps whose picture was almost black now stop later (for
+example the jellyfish lattice at 80 steps instead of 40).</li>
+</ul>
+<h2
+id="measurements-1440-900-the-same-script-before-and-after">Measurements
+(1440 × 900, the same script before and after)</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th></th>
+<th>2.0</th>
+<th>2.1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Visible controls, first open</td>
+<td>87</td>
+<td>69</td>
+</tr>
+<tr>
+<td>Visible controls, Vortex open</td>
+<td>77</td>
+<td>57</td>
+</tr>
+<tr>
+<td>Picture, a square animation (px)</td>
+<td>337 × 331</td>
+<td>485 × 485 (2.1× the area)</td>
+</tr>
+<tr>
+<td>Picture, the nebula (px)</td>
+<td>562 × 331</td>
+<td>808 × 485</td>
+</tr>
+<tr>
+<td>Share of the window that is picture, square animation</td>
+<td>8.6 %</td>
+<td>18.2 %</td>
+</tr>
+<tr>
+<td>What the panel says first</td>
+<td>“◀ Step 2 of 9 ▶ ⤢ Playground … Exact structural port at
+defaults.”</td>
+<td>“ABOUT THIS SCENE · Point jellyfish · By ア (<span class="citation"
+data-cites="yuruyurau">@yuruyurau</span>) · Easy · ✓ Made from the
+artist’s own sketch”</td>
+</tr>
+</tbody>
+</table>
+<h2 id="checklist">Checklist</h2>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Item</th>
+<th>Status</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>A scene opens on its story, not on a part</td>
+<td>Done</td>
+<td><code>ui-scene-view.js</code>; workflow check “First visit…”</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Always say where you are (‹ Whole scene · Part n of m, the canvas
+label, the marked card)</td>
+<td>Done</td>
+<td>workflow checks “A click opens a part…”</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Colors mean one thing everywhere</td>
+<td>Done</td>
+<td><code>style.css</code> tokens <code>--change</code>,
+<code>--time</code>, <code>--where</code>, <code>--result</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Legend as a sentence above the math</td>
+<td>Done</td>
+<td><code>ui-component-view.js</code> steps()</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Plain labels everywhere (views, tabs, buttons, menus, Help)</td>
+<td>Done</td>
+<td><code>index.html</code>, UI modules</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Frames under the time bar with a ruler in seconds; clock in
+seconds</td>
+<td>Done</td>
+<td><code>ui-timeline.js</code>, <code>ui-filmstrip.js</code>; workflow
+check</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Bigger picture: rulers/grid off, View menu, compact and foldable
+parts strip</td>
+<td>Done</td>
+<td>Measurements above</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Try this challenges for all 30 scenes, undoable</td>
+<td>Done</td>
+<td><code>works.js</code>, <code>presets.js</code> guides,
+<code>ui-try.js</code>; workflow check</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Autoplay when a scene is opened from the gallery</td>
+<td>Done</td>
+<td><code>openScene()</code> in <code>ui-library.js</code>; workflow
+check</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Gallery: first-visit welcome, easy first, difficulty badges,
+readable loop lengths</td>
+<td>Done</td>
+<td><code>ui-library.js</code>; workflow check</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Every explanation rewritten to the writing rules</td>
+<td>Done</td>
+<td>works, catalog, concepts, guides, tooltips</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Facts re-derived and corrected while rewriting</td>
+<td>Done</td>
+<td>list above</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Settings before the math; one line explaining ↺ ▦ ◆; Surprise
+me</td>
+<td>Done</td>
+<td><code>ui-component-view.js</code></td>
+</tr>
+<tr>
+<td>14</td>
+<td>Click the picture to pin a reading without turning on rulers</td>
+<td>Done</td>
+<td><code>ui-canvas.js</code></td>
+</tr>
+<tr>
+<td>15</td>
+<td>Phones start on About (the story); tablet and phone without sideways
+scrolling</td>
+<td>Done</td>
+<td><code>ui-mobile.js</code>; screenshot suite</td>
+</tr>
+<tr>
+<td>16</td>
+<td>High contrast covers the new panels</td>
+<td>Done</td>
+<td><code>style.css</code></td>
+</tr>
+<tr>
+<td>17</td>
+<td>A guided first-visit tour over the real screen (coach marks)</td>
+<td>Not done</td>
+<td>The welcome note, the gallery header and Try this cover the first
+steps; a step-by-step overlay is a possible next step</td>
+</tr>
+<tr>
+<td>18</td>
+<td>Tested with actual thirteen-year-olds</td>
+<td>Not done</td>
+<td>This review is by role-play and heuristics; watching real newcomers
+is the next check</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

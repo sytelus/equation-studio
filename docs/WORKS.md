@@ -33,37 +33,37 @@ One requested link could not be studied: the Grok conversation `https://x.com/i/
 
 <a id="jellyfish-lattice"></a>By yonatan (@zozuar), 25 Aug 2021 · [the post](https://x.com/zozuar/status/1430657958329917450) · twigl.app shader (GLSL, geekest mode) · clip 720 × 720, 10 s · scene loop 10 s · title given by Equation Studio
 
-A raymarcher that never shades a surface: every one of its 200 steps adds a little light that grows as the ray passes close to a jellyfish, so bodies glow like neon. One jellyfish is built from a thin dome that is bent, mirrored and shrunk six times (the tentacles are the smaller copies), then repeated in every unit cell of space. A sine of time and height squeezes the bells so a pulse runs down each body.
+You are looking into an endless swarm of glowing jellyfish that drift slowly upward while their bells pulse. The picture is made by a shader, a small program that runs once for every pixel and works out that pixel’s color. For each pixel it sends out a ray, an imaginary line from your eye into the scene, and walks along it in 200 steps. At every step it checks how far the ray is from the nearest jellyfish and adds a little light, far more when the ray passes close by, so the bodies glow like neon instead of looking solid. Only one jellyfish is ever described: space is cut into boxes, and every box shows the same one. Its frilly tentacles come from shrinking, bending and mirroring the bell shape again and again, six times.
 
 ### How it works
 
-1. **A ray for every pixel.** uv is the direction of this pixel. The point on its ray is (uv·depth + 0.7, depth): the further along the ray, the wider the view. depth grows by the last distance estimate every step. *(In the app this step shows `depth` on the canvas.)*
-2. **One cell, endless jellyfish.** p − round(p) sends every point into the unit cell around the origin, so the single jellyfish drawn there appears in every cell of space. The drift t·0.1 moves the whole lattice.
-3. **A pulse down the body.** Scaling x and z by 1 + 0.2 sin(…) squeezes the bell; the phase depends on the height p.y and on which cell (round(depth)), so a wave travels down each body and neighbors pulse out of step.
-4. **Dome, bend, mirror, shrink.** The inner loop draws a thin dome |length(p) − 0.2| cut at y = 0, then bends space (points away from the axis rise) and mirrors and enlarges it 3×. Each pass adds a smaller, bent copy: the tentacles. Stop loop 2 after 1 step to see the bare domes. *(In the app this step stops loop 2 after 1 step.)*
-5. **Glow instead of surfaces.** Every step adds light 4·10⁻⁶/dist: a lot where the ray grazes a body, almost nothing in the gaps. Summed over 200 steps this looks like translucent, glowing tissue. Stop loop 1 early to see the glow build up from the front. *(In the app this step stops loop 1 after 40 steps.)*
+1. **A ray for every pixel.** For each pixel the code follows a ray, a straight line from the camera into the scene. uv is the pixel’s direction, with (0, 0) in the middle of the image. The point on the ray is (uv·depth + 0.7, depth), so depth says how far along the ray we are. Each step moves depth forward by dist, the distance to the nearest jellyfish measured in the step before. *(In the app this step shows `depth` on the canvas.)*
+2. **One box, endless jellyfish.** round(p) is the nearest point whose coordinates are whole numbers, so p − round(p) is the position inside a box one unit wide. Every box of space gives the same answer, so the one jellyfish drawn in the middle of a box appears in every box, forever. Before that, p.y −= 0.1·t slides space down a little every second, which makes the whole swarm rise by one box every 10 seconds. That is exactly how long the animation takes to repeat.
+3. **A pulse runs down the body.** This line multiplies x and z, the two sideways directions, by 1 + 0.2·sin(…), a number that swings between 0.8 and 1.2, so each bell gets narrower and wider. The sine grows with time (t·π, one pulse every 2 seconds) and with the height p.y, so the squeeze reaches different heights at different moments: a wave that runs down the body. round(depth) is added too, so jellyfish at different distances pulse at different times.
+4. **Dome, bend, mirror, repeat.** Loop 2, the inner loop marked ⟳2, repeats three lines six times. First it measures the distance to a dome, the top half of a thin ball with radius 0.2. Then it bends space, raising every point by twice its distance from the middle, and mirrors, flips and enlarges it 3 times. The next pass measures the same dome in this changed space, so it shows up as smaller, bent copies, and copies of copies become the tentacles. This step stops loop 2 after one pass, so you see only smooth domes (their colors change too, because the hue comes from the last pass). *(In the app this step stops loop 2 after 1 step.)*
+5. **Glow instead of surfaces.** The ray never stops at a surface. Every step adds a little light, 0.000004 ÷ dist: when the ray passes close to a body, dist is tiny and the light is strong, and in the empty gaps it adds almost nothing. A tiny extra, scale ÷ 2,000,000, keeps dist from ever reaching 0, so the light never becomes infinite. Added up over 200 steps, this looks like glowing, see-through jelly. This step stops loop 1 after 80 steps: only the nearest jellyfish have had time to light up. *(In the app this step stops loop 1 after 80 steps.)*
 
-Loops: loop 1 (line 4, march 200 steps along the ray): 200 steps; loop 2 (line 9, levels of detail at scales 9, 18, 36, 72, 144, 288): 6 steps per run. Variables: `uv` vec2, `depth` float, `dist` float, `scale` float, `i` float, `p` vec3. Helpers: `hsv`. 21 numbers can be dragged.
+Loops: loop 1 (line 4, March 200 steps along the ray): 200 steps; loop 2 (line 9, Six levels of detail, scale 9 to 288): 6 steps per run. Variables: `uv` vec2, `depth` float, `dist` float, `scale` float, `i` float, `p` vec3. Helpers: `hsv`. 21 numbers can be dragged.
 
-Ideas: Raymarching · Glow by accumulation · Repetition: p − round(p) · Folding fractals · Hue, saturation, value · Seamless loops.
+Ideas: Raymarching: walking into a 3D scene · Glow by adding up light · Repetition with p − round(p) · Folding fractals: mirrors in mirrors · Hue, saturation, value: colors from a wheel · Seamless loops.
 
 ### Readable version
 
 ```glsl
 // Jellyfish lattice · yonatan (@zozuar), 25 Aug 2021 · readable version, same image
-vec2 uv = (FC.xy - r*.5)/r.y;        // this pixel as a direction: the center is 0, the image 1 high
-float depth = 0., dist = 0., scale;   // how far the ray has gone; the last distance to a jellyfish
-for (float i = 0.; i++ < 2e2;) {      // march 200 steps along the ray
-  vec3 p = vec3(uv*depth + .7, depth += dist);   // the point on the ray (the camera looks along z)
-  p.y -= t*.1;                        // the swarm drifts with time
-  p -= round(p);                      // one jellyfish per unit cell: an endless lattice
-  p.xz *= 1. + sin(t*PI + (round(depth) + p.y)*9.)*.2;   // pulse: each bell squeezes and relaxes, a wave running down its body
-  for (dist = scale = 9.; scale < 4e2; scale += scale) {   // levels of detail at scales 9, 18, 36, 72, 144, 288
-    dist = scale/2e6 + min(dist, max(-p.y, abs(length(p) - .2))/scale);   // a thin dome (radius .2, cut at y = 0) at this scale; keep the nearest
-    p.y += length(p.xz)*2.;           // lift points away from the axis: the dome becomes a bell
-    p = .2 - abs(p*3.);               // mirror and enlarge 3×: the next level is a smaller copy (the tentacles)
+vec2 uv = (FC.xy - r*.5)/r.y;        // The pixel's direction: 0 in the center, and the image is 1 high.
+float depth = 0., dist = 0., scale;   // How far the ray has gone, and how far it was from a jellyfish.
+for (float i = 0.; i++ < 2e2;) {      // March 200 steps along the ray
+  vec3 p = vec3(uv*depth + .7, depth += dist);   // The point on the ray; depth grows by the last distance.
+  p.y -= t*.1;                        // Slide space down as time runs, so the jellyfish drift up.
+  p -= round(p);                      // Wrap space into one box: every box holds the same jellyfish.
+  p.xz *= 1. + sin(t*PI + (round(depth) + p.y)*9.)*.2;   // Narrow and widen the bell: a pulse runs down the body.
+  for (dist = scale = 9.; scale < 4e2; scale += scale) {   // Six levels of detail, scale 9 to 288
+    dist = scale/2e6 + min(dist, max(-p.y, abs(length(p) - .2))/scale);   // Distance to a thin dome of radius 0.2; keep the nearest.
+    p.y += length(p.xz)*2.;           // Bend space: raise each point by twice its distance from the middle.
+    p = .2 - abs(p*3.);               // Mirror, flip and enlarge 3 times: the next level draws smaller copies.
   }
-  o.rgb += hsv(.6 + .9/p.y, .9, 4e-6/dist);   // glow: bright where the ray passes close, blue to green by the last height
+  o.rgb += hsv(.6 + .9/p.y, .9, 4e-6/dist);   // Add glow: a lot when the ray passes close; the hue starts at blue.
 }
 ```
 
@@ -77,42 +77,42 @@ for(float i,e,g,s;i++<2e2;){vec3 p=vec3((FC.xy-r*.5)/r.y*g+.7,g+=e);p.y-=t*.1;p-
 
 <a id="stormy-sea"></a>By yonatan (@zozuar), 4 Mar 2023 · [the post](https://x.com/zozuar/status/1632160439944478721) · twigl.app shader (GLSL, geekest mode) · clip 720 × 720, 6.283 s · scene loop 6.283 s · title given by Equation Studio
 
-A height field raymarcher: at every step the ray moves forward by its height above the water, which is 26 layers of sharp-crested waves. Each wave points in a new direction (rotate2D(5)), is 0.8 times smaller than the previous one and leans sideways like a real choppy crest. The colour is a byproduct: every wave adds a pinch of blue-green, the last step is nudged by 10⁻⁴ so the change in height marks steep foam, and distance adds haze.
+A dark, stormy ocean heaves under a gray sky, with white foam flashing on the steepest waves. The code is a shader, a small program that runs once for every pixel to find its color. For each pixel it follows a ray, an imaginary line from the camera down toward the water, and moves along it by the ray’s height above the waves, so it slows down as it gets close to the surface. The surface is 26 waves added together, each smaller than the one before and running in a new direction, which is why it looks so rough and real. The colors are a side effect: every wave adds a pinch of blue-green light, a last tiny nudge picks out steep spots as foam, and distance adds a gray haze toward the horizon.
 
 ### How it works
 
-1. **Camera above the water.** The ray starts at z = −3 and is tilted down by 0.6 radians. depth is how far it has travelled. *(In the app this step shows `depth` on the canvas.)*
-2. **Waves as a sum.** The height of the water is the sum of 26 waves exp(sin(phase) − 2.5)·amp. exp(sin) is flat most of the time and peaks sharply: crests. Each wave is rotated by 5 radians and 0.8 times smaller, so the sum looks irregular. Try fewer waves with loop 2. *(In the app this step stops loop 2 after 6 steps.)*
-3. **Choppy crests.** p.xz −= wave·cos(phase) moves the sample sideways by the slope of the wave, so crests lean and sharpen, as in real (Gerstner) waves.
-4. **Marching a height field.** height is how far above the water the point is; stepping by it lands close to the surface in a few steps and then creeps toward it. *(In the app this step shows `height` on the canvas.)*
-5. **Foam and haze.** On the last step the point was nudged by 10⁻⁴: where the water is steep that changes the height a lot, so height² lights the crests. depth²/200 is the haze on the horizon.
+1. **A camera above the water.** Each pixel’s ray starts at a camera 3 units back (z = −3) and points forward. rotate2D is a helper that turns a pair of coordinates by an angle, here 0.6 radians (about 34 degrees; a full turn is about 6.28 radians). Turning the whole view this way lifts the camera to about 1.7 units above the water and tips it to look down at the sea. depth is how far the ray has traveled so far. *(In the app this step shows `depth` on the canvas.)*
+2. **Twenty-six waves.** The water’s height is a sum of 26 waves, each exp(sin(phase) − 2.5)·amp. A sine goes smoothly up and down; exp, “e to the power”, turns that into sharp peaks with wide, flat valleys, just like wave crests. amp, the wave’s size, starts at 0.8 and is multiplied by 0.8 each time, so the waves get smaller and shorter. Each one is also turned by 5 radians so it runs in a new direction, and ++p.x shifts each wave by one more unit, so they do not all start from the same spot. This step keeps only the first 6 waves: the sea becomes smooth, rolling swells. *(In the app this step stops loop 2 after 6 steps.)*
+3. **Choppy crests.** After each wave, p.xz −= wave·cos(phase) pushes the point sideways by an amount that follows the slope of that wave. All the smaller waves after it are measured at this pushed point, so they crowd together on one side of each crest. That makes the crests lean and sharpen, the way real waves do in a storm.
+4. **Walking toward the water.** height is how far the point is above the water, and the ray moves forward by exactly that much at each step. High above the waves it takes big steps; close to the surface the steps become tiny, so the ray slows down and creeps up to the water. After 100 steps it is very close to the surface. *(In the app this step shows `height` on the canvas.)*
+5. **Foam and haze.** On the very last step the point is nudged by 0.0001. Where the water is flat that barely changes the height, but where it is steep it changes a lot. The last line multiplies that change, squared, by 4,000,000 and adds it as white light: foam on the steepest crests. The foam is never brighter than 1 ÷ depth, so faraway foam is dimmer, and depth² ÷ 200 adds a gray haze that grows toward the horizon.
 
-Loops: loop 1 (line 4, march 100 steps along the ray): 100 steps; loop 2 (line 9, … minus 26 waves, each 0.8 times smaller than the last): 26 steps per run. Variables: `uv` vec2, `height` float, `depth` float, `amp` float, `wave` float, `phase` float, `i` float, `p` vec3. Helpers: `rotate2D`. 17 numbers can be dragged.
+Loops: loop 1 (line 4, March 100 steps along the ray): 100 steps; loop 2 (line 9, Subtract 26 waves, each one smaller): 26 steps per run. Variables: `uv` vec2, `height` float, `depth` float, `amp` float, `wave` float, `phase` float, `i` float, `p` vec3. Helpers: `rotate2D`. 17 numbers can be dragged.
 
-Ideas: Raymarching · Octaves by doubling: s += s · Turning with a matrix · Seamless loops.
+Ideas: Raymarching: walking into a 3D scene · Octaves by doubling: s += s · Turning with rotate2D · Seamless loops.
 
 ### Readable version
 
 ```glsl
 // Stormy sea · yonatan (@zozuar), 4 Mar 2023 · readable version, same image
-vec2 uv = (FC.xy - .5*r)/r.y;         // this pixel as a direction: the center is 0, the image 1 high
-float height, depth = 0., amp, wave, phase;
-for (float i = 0.; i++ < 1e2;) {      // march 100 steps along the ray
-  vec3 p = vec3(uv*depth, depth - 3.);   // the point on the ray; the camera stands at z = −3
-  p.zy *= rotate2D(.6);               // tilt the view down toward the water
-  if (i >= 1e2) p += 1e-4;            // last step: nudge the point (the change of height lights the foam at the end)
-  height = p.y;                       // height above calm water at y = 0 …
-  for (amp = .8; amp > .003; amp *= .8) {   // … minus 26 waves, each 0.8 times smaller than the last
-    p.xz *= rotate2D(5.);             // every wave runs in another direction
-    phase = (++p.x + p.z)/amp + t + t;   // position along the wave: finer for small waves, moving with time
-    wave = exp(sin(phase) - 2.5)*amp; // exp(sin) makes sharp crests and wide troughs
-    o.gb += wave/4e2;                 // a little blue-green light from every wave
-    p.xz -= wave*cos(phase);          // crests lean sideways: choppy water
-    height -= wave;                   // the surface is higher by the wave
+vec2 uv = (FC.xy - .5*r)/r.y;         // The pixel's direction: 0 in the center, and the image is 1 high.
+float height, depth = 0., amp, wave, phase;   // The height above the water, the distance traveled, and one wave's size, height and position.
+for (float i = 0.; i++ < 1e2;) {      // March 100 steps along the ray
+  vec3 p = vec3(uv*depth, depth - 3.);   // The point on the ray; the camera starts at z = −3.
+  p.zy *= rotate2D(.6);               // Turn by 0.6 radians: the camera rises and looks down at the water.
+  if (i >= 1e2) p += 1e-4;            // On the very last step, nudge the point a tiny bit (it is used for the foam).
+  height = p.y;                       // Start with the height above flat water at y = 0.
+  for (amp = .8; amp > .003; amp *= .8) {   // Subtract 26 waves, each one smaller
+    p.xz *= rotate2D(5.);             // Turn each wave to run in a new direction.
+    phase = (++p.x + p.z)/amp + t + t;   // Where we are along this wave: smaller waves are shorter, and all move with time.
+    wave = exp(sin(phase) - 2.5)*amp; // The wave's height: exp of a sine gives sharp crests and wide, flat troughs.
+    o.gb += wave/4e2;                 // Every wave adds a little blue-green light.
+    p.xz -= wave*cos(phase);          // Push the point sideways along the wave's slope, so the smaller waves bunch up.
+    height -= wave;                   // The water is higher here by this wave.
   }
-  depth += height;                    // step forward by the height above the water
+  depth += height;                    // Step forward by the height above the water.
 }
-o += min(height*height*4e6, 1./depth) + depth*depth/2e2;   // foam where the nudge changed the height a lot (steep water), haze far away
+o += min(height*height*4e6, 1./depth) + depth*depth/2e2;   // White foam where the nudge changed the height a lot, plus haze far away.
 ```
 
 ### As posted
@@ -125,33 +125,33 @@ float e,i,a,w,x,g;for(;i++<1e2;){vec3 p=vec3((FC.xy-.5*r)/r.y*g,g-3.);p.zy*=rota
 
 <a id="vortex"></a>By Xor (@XorDev), 19 Nov 2023 · [the post](https://x.com/XorDev/status/1726103550986469869) · twigl.app shader (GLSL, geekest mode) · clip 1080 × 1080, 20 s · scene loop 20 s
 
-Sixteen glowing arcs, one per radius from 0.2 to 0.95, each spinning at a speed equal to its radius, so the inner arcs lag and the rings shear into a vortex. Each arc is a distance field in polar coordinates: v measures how far a pixel is along and away from the arc. Light falls off as 1/distance and is brighter on the outer side of each arc, then tanh squeezes it into the displayable range.
+Sixteen glowing rings of light swirl around a black hole, orange on the inside and blue-white on the outside. Each ring is really an arc, a piece of a circle about a third of the way around, and each spins at its own speed: the bigger the ring, the faster it turns, so the arcs slide past each other like water in a whirlpool. The code is a shader, a small program that runs once for every pixel. For each pixel it works out how far the pixel is from every arc and adds light that is huge right next to an arc and fades quickly with distance, which makes the arcs glow like neon tubes. Each arc is lit only on its outer side, so every arc casts a dark shadow toward the middle.
 
 ### How it works
 
-1. **Polar coordinates.** atan gives the angle around the center; adding i + i·t turns each ring and spins it at speed i. mod(…, 2π) − π keeps the angle between −π and π. *(In the app this step shows `angle` on the canvas.)*
-2. **Distance to an arc.** v = (angle·r − i, r − i): the first part is the distance along the ring, the second the distance from it. Subtracting clamp(v.x, −i, i) makes the first part zero along an arc 2i long, so only that arc glows. *(In the app this step shows `v` on the canvas.)*
-3. **Neon by 1/distance.** Light 1/l with l the distance to the arc is huge on the arc and fades smoothly, a classic glow. The factor 1 + v.y/l is 2 outside the arc and 0 inside, so each arc casts a shadow toward the center.
-4. **A rainbow by phase.** cos(5i + (0, 1, 2, 3)) + 1 gives each channel a shifted cosine of the ring index: a palette running through orange, magenta and blue.
-5. **Soft clipping.** tanh maps any brightness into 0–1 smoothly, so overlapping cores stay colored instead of burning out.
+1. **The angle around the center.** atan(p.y, p.x) gives the angle of the pixel around the center, like the hand of a clock. Angles here are in radians: a full turn is 2π, about 6.28. The code adds i + i·t, so ring i starts turned by i and keeps turning at i radians per second, clockwise: the biggest ring goes around in about 6.6 seconds, the smallest in about 31. mod(…, 2π) − π wraps the angle back into the range −π to π, the way a clock hand goes from 12 back to 1. *(In the app this step shows `angle` on the canvas.)*
+2. **Distance to an arc.** length(p) is the pixel’s distance from the center. v.y = length(p) − i says how far the pixel is outside ring i (it is negative inside). After the next line adds i back, v.x = angle × length(p) measures how far along the ring the pixel is from the middle of the arc. clamp keeps a number between two limits, so subtracting clamp(v.x, −i, i) makes v.x zero anywhere along an arc 2i long. At radius i, an arc 2i long covers 2 radians, about a third of the circle, and length(v) is the distance to that arc. *(In the app this step shows `v` on the canvas.)*
+3. **Neon glow by division.** The glow comes from one division: brightness = 1 ÷ l, where l is the distance to the arc plus 0.003 (so it is never 0). Right on the arc l is tiny, so the light is huge; a little farther away it drops quickly. The factor 1 + v.y ÷ l is close to 2 just outside the arc and close to 0 just inside it, so each arc is lit on its outer side and throws a shadow toward the center. With all 16 rings dark on their inner side, the middle stays black.
+4. **A color for each ring.** cos(5i + (0, 1, 2, 3)) + 1 gives red, green and blue three cosine waves of the ring’s radius i, each shifted a little. As i grows, the mix runs from orange through magenta and blue to almost white. For the innermost ring (i = 0.25 when the color is made), red is cos(1.25) + 1 ≈ 1.3, green is about 0.37 and blue about 0.01: a bright orange.
+5. **Soft clipping.** A screen cannot show brightness above 1, and where arcs overlap the sum can be much bigger. tanh squeezes any positive number into the range 0 to 1: small values pass almost unchanged, and huge values end up just under 1. Because the squeeze is smooth, the bright cores fade gently into white instead of ending in a hard edge.
 
-Loops: loop 1 (line 3, 16 rings of radius i = .2, .25, … , .95): 16 steps. Variables: `p` vec2, `v` vec2, `i` float, `l` float, `angle` float. Helpers: none. 14 numbers can be dragged.
+Loops: loop 1 (line 3, 16 rings, radius i = 0.2 to 0.95): 16 steps. Variables: `p` vec2, `v` vec2, `i` float, `l` float, `angle` float. Helpers: none. 14 numbers can be dragged.
 
-Ideas: Polar coordinates · Signed distance · Glow by accumulation · Soft clipping with tanh.
+Ideas: Polar coordinates: angle and distance · Signed distance: how far from the edge · Glow by adding up light · Soft clipping with tanh.
 
 ### Readable version
 
 ```glsl
 // Vortex · Xor (@XorDev), 19 Nov 2023 · readable version, same image
-vec2 p = (FC.xy*2. - r)/r.y, v;       // this pixel: the center is 0, the image 2 high
-for (float i = .2, l; i < 1.;) {      // 16 rings of radius i = .2, .25, … , .95
-  float angle = mod(atan(p.y, p.x) + i + i*t, PI2) - PI;   // angle around the center, turned by i and spinning at speed i
-  v = vec2(angle, 1)*length(p) - i;   // (distance along the ring, distance from the ring)
-  v.x -= clamp(v.x += i, -i, i);      // … measured from an arc 2i long instead of the whole ring
-  i += .05;                           // (the color below already uses the next ring's i)
-  o += (cos(i*5. + vec4(0, 1, 2, 3)) + 1.)*(1. + v.y/(l = length(v) + .003))/l/1e2;   // neon glow ~ 1/distance, colored by i, brighter outside the arc
+vec2 p = (FC.xy*2. - r)/r.y, v;       // The pixel's position: 0 in the center, and the image is 2 high.
+for (float i = .2, l; i < 1.;) {      // 16 rings, radius i = 0.2 to 0.95
+  float angle = mod(atan(p.y, p.x) + i + i*t, PI2) - PI;   // The pixel's angle around the center, turned by i and spinning at speed i.
+  v = vec2(angle, 1)*length(p) - i;   // v.y is how far the pixel is outside ring i; v.x measures along the ring.
+  v.x -= clamp(v.x += i, -i, i);      // Make v.x zero all along an arc 2i long, so only the arc glows.
+  i += .05;                           // Move on to the next ring (the color below already uses the new i).
+  o += (cos(i*5. + vec4(0, 1, 2, 3)) + 1.)*(1. + v.y/(l = length(v) + .003))/l/1e2;   // Glow: 1 ÷ distance, colored by the ring, lit only outside the arc.
 }
-o = tanh(o);                          // soft clip: bright cores keep their color
+o = tanh(o);                          // Squeeze the brightness into 0 to 1, so bright spots fade smoothly into white.
 ```
 
 ### As posted
@@ -164,36 +164,36 @@ vec2 p=(FC.xy*2.-r)/r.y,v;for(float i=.2,l;i<1.;o+=(cos(i*5.+vec4(0,1,2,3))+1.)*
 
 <a id="blossom-tree"></a>By yonatan (@zozuar), 2 Mar 2024 · [the post](https://x.com/zozuar/status/1763906851337326736) · twigl.app shader (GLSL, geekest mode) · clip 720 × 720, 6.284 s · scene loop 6.283 s · title given by Equation Studio
 
-A tree grown by sphere inversion. Each of 14 levels inverts space through the unit sphere (p /= |p|²), which turns the whole tree into smaller copies of itself, then turns and mirrors it into four branches and measures the distance to one thin twig. The shrinking factor `scale` is also the key to the colour: where the ray passes tiny twigs deep in the recursion it adds pink-white light (the blossom), along thick branches it stays dark. The sway is a sine of time and of the inversion radius.
+You are looking into the crown of a cherry tree in full bloom: dark branches that split again and again, covered in pink-white blossoms, swaying in the breeze. The code is a shader, a small program that runs for every pixel, and it follows each pixel’s ray, an imaginary line from the camera, through the tree in 130 steps. The tree is built with sphere inversion, a trick that turns space inside out around a ball: points close to the center are thrown far away, and far points are pulled close. Doing this 14 times, while turning and mirroring space into four branches each time, makes smaller and smaller copies of one twig, a fractal (a shape made of smaller copies of itself). The code keeps track of how much each copy was shrunk and uses that number for the color: light is added where the ray passes tiny twigs deep inside the tree (the blossoms) and in the open sky, while the thick branches stay dark.
 
 ### How it works
 
-1. **Camera and ray.** The camera stands at (−0.1, 0.65, −0.6) and looks along z; every step moves by the last distance estimate.
-2. **Inversion makes copies.** Dividing p by |p|² maps the outside of the unit sphere inside and vice versa. Repeated with folds, the same twig reappears at ever smaller sizes; scale records the size so the distance stays right. *(In the app this step shows `scale` on the canvas.)*
-3. **Four branches and a twig.** abs(p.xz·rotation) − 0.53 mirrors space into four branches 0.53 apart; length(p.xz) − 0.02/r2 is the distance to a thin twig. The rotation includes sin(1/r2 + t), so every level sways at its own rate.
-4. **Fewer levels.** With only a few levels the tree is bare branches; the blossoms appear only when the recursion goes deep. Drag loop 2 to see the tree grow. *(In the app this step stops loop 2 after 4 steps.)*
-5. **Light from the size.** The light is .007/exp(3000/(scale·(9, 5, 4, 4) + dist·4·10⁶)): large scale or distance makes the exponent small and the light strong. The channel weights 9, 5, 4 make it pink.
+1. **Camera and ray.** The camera stands at (−0.1, 0.65, −0.6), and each pixel’s ray points forward along z, spread out by the pixel’s position. Each of the 130 steps moves the ray forward by dist, the distance to the nearest part of the tree found in the step before. So the ray moves quickly through empty space and slows down near branches.
+2. **Inversion makes copies.** dot(p, p) is the squared distance from the center, r2. Dividing p by it is sphere inversion: a point at distance 2 from the center moves to distance ½, and a point at distance ½ moves to 2 (the + 0.01 only avoids dividing by 0). Because the loop does this 14 times, with turns and mirrors in between, the same twig shows up again and again at smaller and smaller sizes. scale keeps track of how much space was stretched on the way, so dividing by it turns distances back into real ones. It starts at 7, which makes every step 7 times more careful. *(In the app this step shows `scale` on the canvas.)*
+3. **Four branches and a twig.** rotate2D turns the x–z pair by an angle, and abs mirrors it: abs(x) folds the left side onto the right side, like folding paper. Folding both x and z makes four matching quarters, and subtracting 0.53 moves each quarter’s branch away from the middle. twig = length(p.xz) − 0.02/r2 is the distance to a thin stick standing along the y axis. The turn angle includes sin(1/r2 + t), which changes with time, so the branches sway, and each level sways a little differently.
+4. **Growing the tree.** With only a few levels the tree is just bare branches with a few twigs; the blossoms appear only when the loop goes deep and the twigs become tiny. This step stops loop 2 (the inner loop, marked ⟳2) after 4 levels. Drag the Loop 2 slider up to watch the tree grow. *(In the app this step stops loop 2 after 4 steps.)*
+5. **Light from size and distance.** Each step adds 0.007 ÷ exp(3000 ÷ (scale·(9, 5, 4, 4) + dist·4,000,000)). exp means “e to the power”, and dividing by exp of a big number gives almost nothing, so the light is strong only when the bottom of the fraction is big. That happens when scale is big (the ray is near tiny twigs, the blossoms) or when dist is big (open sky). Near thick branches both are small and the step adds almost no light. Red gets the biggest weight (9), then green (5) and blue (4), so the blossoms come out pink.
 
-Loops: loop 1 (line 3, march 130 steps): 130 steps; loop 2 (line 5, 14 levels of branching (level 7 to 20)): 14 steps per run. Variables: `p` vec3, `ray` vec3, `level` float, `i` float, `dist` float, `scale` float, `r2` float, `twig` float. Helpers: `rotate2D`. 20 numbers can be dragged.
+Loops: loop 1 (line 3, March 130 steps along the ray): 130 steps; loop 2 (line 5, 14 levels of branches): 14 steps per run. Variables: `p` vec3, `ray` vec3, `level` float, `i` float, `dist` float, `scale` float, `r2` float, `twig` float. Helpers: `rotate2D`. 20 numbers can be dragged.
 
-Ideas: Raymarching · Sphere inversion · Folding fractals · Glow by accumulation · Distance estimates.
+Ideas: Raymarching: walking into a 3D scene · Sphere inversion: space turned inside out · Folding fractals: mirrors in mirrors · Glow by adding up light · Distance estimates: safe step sizes.
 
 ### Readable version
 
 ```glsl
 // Blossoming tree · yonatan (@zozuar), 2 Mar 2024 · readable version, same image
-vec3 p, ray = vec3(-.1, .65, -.6);    // the camera; ray walks along the ray of this pixel
-for (float level, i, dist, scale, r2; i++ < 130.;) {   // march 130 steps
-  p = ray += vec3((FC.xy - .5*r)/r.y, 1)*dist;   // step forward by the last distance
-  for (level = dist = scale = 7.; level++ < 21.;) {   // 14 levels of branching (level 7 to 20)
-    scale /= r2 = dot(p, p);          // sphere inversion: divide by |p|² …
-    p /= r2 + .01;                    // … so every level holds smaller copies of the tree (scale tracks their size)
-    p.xz = abs(p.xz*rotate2D(level + sin(1./r2 + t)/scale)) - .53;   // turn (swaying with time) and mirror into four branches
-    float twig = length(p.xz) - .02/r2;   // distance to a thin twig along y
-    p.y = 1.8 - p.y;                  // mirror across y = 0.9
-    dist = min(dist, max(twig, p.y)/scale);   // the twig, cut by the mirror plane, at this level's size; keep the nearest
+vec3 p, ray = vec3(-.1, .65, -.6);    // The camera's position; ray walks from there along this pixel's direction.
+for (float level, i, dist, scale, r2; i++ < 130.;) {   // March 130 steps along the ray
+  p = ray += vec3((FC.xy - .5*r)/r.y, 1)*dist;   // Step forward by the last distance.
+  for (level = dist = scale = 7.; level++ < 21.;) {   // 14 levels of branches
+    scale /= r2 = dot(p, p);          // r2 is the squared distance from the center; scale keeps track of the stretching.
+    p /= r2 + .01;                    // Sphere inversion: turn space inside out around the center.
+    p.xz = abs(p.xz*rotate2D(level + sin(1./r2 + t)/scale)) - .53;   // Turn (swaying with time), mirror and shift: four branches.
+    float twig = length(p.xz) - .02/r2;   // The distance to a thin twig standing along the y axis.
+    p.y = 1.8 - p.y;                  // Flip the height around y = 0.9.
+    dist = min(dist, max(twig, p.y)/scale);   // Keep only the part of the twig above height 1.8, at its real size; keep the nearest.
   }
-  o += .007/exp(3e3/(scale*vec4(9, 5, 4, 4) + dist*4e6));   // light: pink-white where the ray grazes tiny twigs (blossoms), dark along thick branches
+  o += .007/exp(3e3/(scale*vec4(9, 5, 4, 4) + dist*4e6));   // Light: pink-white near tiny twigs and in the open sky, dark near thick branches.
 }
 ```
 
@@ -207,39 +207,39 @@ vec3 p,q=vec3(-.1,.65,-.6);for(float j,i,e,v,u;i++<130.;o+=.007/exp(3e3/(v*vec4(
 
 <a id="jewel-box"></a>By yonatan (@zozuar), 3 May 2024 · [the post](https://x.com/zozuar/status/1786335843700912160) · twigl.app shader (GLSL, geekest mode) · clip 720 × 720, 25.134 s · scene loop 25.133 s · title given by Equation Studio
 
-A Mandelbox-style fractal: 20 times, space is folded back into a box (2·clamp(p) − p reflects anything outside it) and inverted through the sphere. The folded z coordinate divided by the accumulated scale serves as the distance to step. The colours come from the fold itself: a sine of the final p.z and log(scale) in four phase-shifted channels, so ornaments get their gold, green and slate bands without any lighting.
+Ornaments that look like carved beads, gold studs and striped cushions fill the view as the camera slowly circles through them. The code is a shader, a small program that runs for every pixel, and it follows each pixel’s ray, an imaginary line from the camera, in 50 steps. The shapes come from folding space 20 times: whatever sticks out of a box is mirrored back inside, like folding a sheet of paper, and then space is turned inside out around a ball. Each fold copies and shrinks the pattern, so detail keeps appearing inside detail: a fractal, a shape made of smaller copies of itself. There is no lighting at all; the colors come from two numbers the folding leaves behind, which paint the bands of gold, green and slate.
 
 ### How it works
 
-1. **Orbiting camera.** Two rotations by t/8 (one doubled) turn the scene about two axes; after 8π seconds the view is symmetric again, which is the clip’s loop.
-2. **Box fold.** 2·clamp(p, −box, box) − p leaves points inside the box alone and reflects the rest back in. Together with inversion it is the recipe of the Mandelbox fractal.
-3. **Inversion and scale.** Each fold divides by |p|², shrinking or growing that piece; scale keeps the product so the distance p.z/scale is in the units of the original space. *(In the app this step shows `scale` on the canvas.)*
-4. **Fewer folds.** With a handful of folds the shapes are simple boxes; the ornament appears as the folds accumulate. Try loop 2 at 3. *(In the app this step stops loop 2 after 3 steps.)*
-5. **Colour from the fold.** sin((4, 3, 2, 0)·p.z − log(scale)) gives each channel a different phase of the fold coordinate: an orbit-trap palette. exp(dist·5000) limits the light to steps close to the surface.
+1. **A circling camera.** M is a turn by t/8 radians (a full turn is about 6.28 radians). The code turns the point around the x axis by twice that angle (M·M), shifts it by 1 along every axis, and then turns it around the z axis by t/8. Together these make the camera circle slowly through the ornament. After 8π seconds (about 25) the view is back to one that looks exactly like the start, so the animation repeats.
+2. **Box fold.** clamp(p, −box, box) keeps each coordinate between minus and plus the box’s half-size. 2·clamp(p, −box, box) − p leaves points inside the box where they are, but a point that sticks out past a wall is mirrored back across that wall, like folding paper along it. For example, with the x wall at 0.2, x = 0.5 becomes 2·0.2 − 0.5 = −0.1.
+3. **Inversion and scale.** After each box fold, the code divides p by r2 = dot(p, p), the squared distance from the center. This is sphere inversion: points near the center are thrown far away and far points are pulled close. A box fold followed by an inversion is close to the recipe of a famous fractal, the Mandelbox. Each inversion stretches or squeezes space, and scale keeps the total, so p.z ÷ scale can be used as a careful distance to step. *(In the app this step shows `scale` on the canvas.)*
+4. **Fewer folds.** With only a few folds the shapes are plain and gray, with a few round beads; the studs, stripes and colors appear only as the folds pile up. This step stops loop 2 (the inner loop, marked ⟳2) after 3 folds. Drag the Loop 2 slider up to watch the ornament grow. *(In the app this step stops loop 2 after 3 steps.)*
+5. **Color from the folds.** Each step adds exp(dist·5000 − sin(…)) ÷ 50, where exp means “e to the power”. dist·5000 is a big negative number unless the step is tiny, so light is added only right next to a surface. Inside the sine, the folded p.z is multiplied by 4 for red, 3 for green and 2 for blue, and log(scale) is subtracted (log turns a huge range of stretches into a small range of numbers). The three colors rise and fall out of step with each other, and that paints the bands of gold, green and slate.
 
-Loops: loop 1 (line 4, march 50 steps): 50 steps; loop 2 (line 11, 20 folds of a Mandelbox-like fractal): 20 steps per run. Variables: `box` vec3, `p` vec3, `uv` vec2, `i` float, `dist` float, `depth` float, `scale` float, `r2` float, `M` mat2, `j` int. Helpers: `rotate2D`. 15 numbers can be dragged.
+Loops: loop 1 (line 4, March 50 steps along the ray): 50 steps; loop 2 (line 11, Fold space 20 times): 20 steps per run. Variables: `box` vec3, `p` vec3, `uv` vec2, `i` float, `dist` float, `depth` float, `scale` float, `r2` float, `M` mat2, `j` int. Helpers: `rotate2D`. 15 numbers can be dragged.
 
-Ideas: Raymarching · Folding fractals · Sphere inversion · Distance estimates · Seamless loops.
+Ideas: Raymarching: walking into a 3D scene · Folding fractals: mirrors in mirrors · Sphere inversion: space turned inside out · Distance estimates: safe step sizes · Seamless loops.
 
 ### Readable version
 
 ```glsl
 // Folded jewel box · yonatan (@zozuar), 3 May 2024 · readable version, same image
-vec3 box = vec3(.2, .4, 1.5), p;      // half-size of the folding box along x, y and z
-vec2 uv = (FC.xy - .5*r)/r.y;
-for (float i, dist, depth, scale, r2; i++ < 50.;) {   // march 50 steps
-  p = vec3(uv*depth, depth) - i/3e4;  // the point on the ray (a tiny shift per step softens banding)
-  mat2 M = rotate2D(t/8.);            // a slow turn
-  p.yz *= M*M;                        // turn about x by twice the angle …
-  p--;                                // … move …
-  p.yx *= M;                          // … and turn about z: the camera orbits
-  scale = 5.;
-  for (int j = 0; j++ < 20; p /= r2) {   // 20 folds of a Mandelbox-like fractal
-    p = 2.*clamp(p, -box, box) - p;   // box fold: whatever sticks out of the box is reflected back in
-    scale /= r2 = dot(p, p);          // sphere inversion (p /= r2 after each fold), tracking the total scale
+vec3 box = vec3(.2, .4, 1.5), p;      // Half the size of the folding box along x, y and z.
+vec2 uv = (FC.xy - .5*r)/r.y;         // The pixel's direction: 0 in the center, and the image is 1 high.
+for (float i, dist, depth, scale, r2; i++ < 50.;) {   // March 50 steps along the ray
+  p = vec3(uv*depth, depth) - i/3e4;  // The point on the ray, shifted a tiny bit more at every step.
+  mat2 M = rotate2D(t/8.);            // A slow turn by t/8 radians.
+  p.yz *= M*M;                        // Turn around the x axis by twice that angle, …
+  p--;                                // … shift by 1 along every axis, …
+  p.yx *= M;                          // … and turn around the z axis: the camera circles.
+  scale = 5.;                         // Start at 5, which makes every step 5 times more careful.
+  for (int j = 0; j++ < 20; p /= r2) {   // Fold space 20 times
+    p = 2.*clamp(p, -box, box) - p;   // Box fold: whatever sticks out of the box is mirrored back in.
+    scale /= r2 = dot(p, p);          // Then turn space inside out (p /= r2 ends each pass); scale tracks the stretching.
   }
-  depth -= dist = p.z/scale;          // step by the folded z, corrected by the scale
-  o += exp(dist*5e3 - sin(vec4(4, 3, 2, 0)*p.z - log(scale)))/50.;   // light near the surface, colored by the fold (p.z) and the scale
+  depth -= dist = p.z/scale;          // Move along the ray by the folded z, divided by the total stretching.
+  o += exp(dist*5e3 - sin(vec4(4, 3, 2, 0)*p.z - log(scale)))/50.;   // Light only near a surface, colored by the folded z and the stretching.
 }
 ```
 
@@ -253,41 +253,41 @@ vec3 f=vec3(.2,.4,1.5),p;for(float i,e,g,S,u;i++<50.;o+=exp(e*5e3-sin(vec4(4,3,2
 
 <a id="lace-garden"></a>By yonatan (@zozuar), 26 Nov 2024 · [the post](https://x.com/zozuar/status/1861521606390018548) · twigl.app shader (GLSL, geekest mode) · clip 720 × 720, 1.566 s · scene loop 1.5708 s · title given by Equation Studio
 
-Two fractals marched together. The first inverts space (p /= |p|²) and mirrors four stems at every level, which blossoms into lace flowers; the second, in a smaller copy of space w, uses a clamped inversion and a fold to build the ornate background panels. Both distances join with min, and each step adds light .01/exp(dist·scale2): pure grey tones from proximity alone. The whole garden turns once every 2π seconds; the clip loops after a quarter turn because the mirrors make it four-fold symmetric.
+A gray garden made of lace turns in front of you: delicate flowers on thin stems stand in the middle, and ornate, frilly panels surround them. The code is a shader, a small program that runs for every pixel, and it follows each pixel’s ray, an imaginary line from the camera, in 100 steps. It builds two fractals at once, shapes made of smaller copies of themselves. The flowers come from sphere inversion, which turns space inside out around a ball, together with four mirrored stems, repeated 9 times; the background panels come from a second copy of space that is shifted, stretched and mirrored in a similar way. There is no color, only light: each step adds a little gray light when the ray is close to a surface, so surfaces glow and empty space stays black.
 
 ### How it works
 
-1. **Turning garden.** p.xz is rotated by t; with abs(p.xz) folding four ways, a quarter turn (π/2 s) brings the same picture back.
-2. **Flowers by inversion.** Inverting through the unit sphere and mirroring stems at every level makes smaller and smaller flowers inside each other. *(In the app this step shows `scale` on the canvas.)*
-3. **Background panels.** w is a copy of space three times smaller. Shifting, inverting with a clamp and mirroring it builds the panels; its plane w.x + w.z is joined with the flowers by min.
-4. **Grey light.** Only proximity makes light here: .01/exp(dist·scale2). Fewer steps (loop 1) show which surfaces are found first. *(In the app this step stops loop 1 after 25 steps.)*
+1. **A turning garden.** The camera sits at (0, 0.6, 0.6) and looks along −z. rotate2D(t) turns each point around the vertical axis by t radians, so the garden makes one full turn every 2π seconds, about 6.3. Because the flowers and the panels are mirrored four ways, the picture looks the same after only a quarter turn, π/2 seconds (about 1.57), and that is how long the loop lasts.
+2. **Flowers by inversion.** Inside loop 2 (the inner loop, marked ⟳2), dividing p by dot(p, p), its squared distance from the center, turns space inside out around a ball of radius 1: points near the center are thrown far away and far points are pulled close. Then abs(p.xz) − 0.4 mirrors four stems into place, 0.4 from the middle, and 2 − p.y keeps only the part above height 2. Repeating this 9 times puts smaller and smaller flowers inside each other. scale keeps track of the stretching, so dividing by it turns distances back into real ones. *(In the app this step shows `scale` on the canvas.)*
+3. **Background panels.** w is a second copy of space, p divided by 3, so everything built in it comes out 3 times bigger. At each level it is shifted down by 2.5, divided by its squared distance (but never by more than 0.52, so it cannot blow up), and mirrored with abs. A flat plane in this folded space, w.x + w.z = 0, becomes the ornate panels. min then joins them with the flowers: it keeps whichever surface is nearer.
+4. **Gray light.** Each step adds 0.01 ÷ exp(dist·scale2), the same amount to red, green and blue, so everything is gray. exp means “e to the power”: when a step lands right on a surface (dist near 0) it adds the full 0.01, and far from everything it adds almost nothing. Over 100 steps, rays that stay close to surfaces add up to bright lace. This step stops loop 1 after 50 steps: the flowers and the nearest panels have appeared, but they are still dim. *(In the app this step stops loop 1 after 50 steps.)*
 
-Loops: loop 1 (line 5, march 100 steps): 100 steps; loop 2 (line 10, 9 levels): 9 steps per run. Variables: `level` float, `dist` float, `scale` float, `r2` float, `scale2` float, `w` vec3, `p` vec3, `ray` vec3, `i` float. Helpers: `rotate2D`. 14 numbers can be dragged.
+Loops: loop 1 (line 5, March 100 steps along the ray): 100 steps; loop 2 (line 10, 9 levels of both fractals): 9 steps per run. Variables: `level` float, `dist` float, `scale` float, `r2` float, `scale2` float, `w` vec3, `p` vec3, `ray` vec3, `i` float. Helpers: `rotate2D`. 14 numbers can be dragged.
 
-Ideas: Raymarching · Sphere inversion · Folding fractals · Glow by accumulation.
+Ideas: Raymarching: walking into a 3D scene · Sphere inversion: space turned inside out · Folding fractals: mirrors in mirrors · Glow by adding up light.
 
 ### Readable version
 
 ```glsl
 // Lace garden · yonatan (@zozuar), 26 Nov 2024 · readable version, same image
-float level, dist, scale, r2, scale2;
-vec3 w, p, ray;
-ray.yz += .6;                         // the camera
-for (float i = 0.; i < 1e2; i++) {    // march 100 steps
-  p = ray += (FC.rgb/r.y - .5)*dist;  // step forward (FC.z = .5 makes the ray look along −z)
-  dist = scale = 3.;
-  p.xz *= rotate2D(t);                // the garden turns
-  w = p/dist;                         // a second, smaller copy of space: the background
-  for (level = scale2 = .7; level++ < 9.;) {   // 9 levels
-    w.y -= 2.5;                       // background: shift, …
-    scale2 /= r2 = min(dot(w, w), .5) + .02;   // … a clamped inversion …
-    w = abs(w)/r2 - .4;               // … and a mirror
-    scale /= r2 = dot(p, p);          // flowers: sphere inversion
-    p /= r2;
-    dist = min(dist, max(length(p.xz = abs(p.xz) - .4), p.y = 2. - p.y)/scale);   // mirrored stems (cylinders .4 apart), cut by a mirror plane
+float level, dist, scale, r2, scale2; // Numbers for the two fractals: scale for the flowers, scale2 for the background.
+vec3 w, p, ray;                       // p is the flowers' space, w the background's, and ray the point walking along the ray.
+ray.yz += .6;                         // The camera starts at y = 0.6, z = 0.6.
+for (float i = 0.; i < 1e2; i++) {    // March 100 steps along the ray
+  p = ray += (FC.rgb/r.y - .5)*dist;  // Step forward; the third part is about −0.5, so the ray looks along −z.
+  dist = scale = 3.;                  // Start both at 3.
+  p.xz *= rotate2D(t);                // The garden turns, one full turn every 2π seconds.
+  w = p/dist;                         // The background's space: p divided by 3, so its shapes come out 3 times bigger.
+  for (level = scale2 = .7; level++ < 9.;) {   // 9 levels of both fractals
+    w.y -= 2.5;                       // Background: shift down, …
+    scale2 /= r2 = min(dot(w, w), .5) + .02;   // … divide by the squared distance, but never by more than 0.52, …
+    w = abs(w)/r2 - .4;               // … then mirror and shift.
+    scale /= r2 = dot(p, p);          // Flowers: sphere inversion, keeping track of the stretching …
+    p /= r2;                          // … (turn space inside out around the center).
+    dist = min(dist, max(length(p.xz = abs(p.xz) - .4), p.y = 2. - p.y)/scale);   // Four mirrored stems 0.4 from the middle, only above height 2; keep the nearest.
   }
-  dist = min(dist, (w.x + w.z)/scale2);   // the background's folded plane
-  o += .01/exp(dist*scale2);          // light where a surface is close
+  dist = min(dist, (w.x + w.z)/scale2);   // Add the background, a folded flat plane, if it is nearer.
+  o += .01/exp(dist*scale2);          // Gray light, strong only close to a surface.
 }
 ```
 
@@ -301,40 +301,40 @@ float j,i,e,v,u,S;vec3 w,p,q;for(q.yz+=.6;p=q+=(FC.rgb/r.y-.5)*e,e=v=3.,p.xz*=ro
 
 <a id="stone-kaleidoscope"></a>By yonatan (@zozuar), 29 Nov 2024 · [the post](https://x.com/zozuar/status/1862325652013097042) · twigl.app shader (GLSL, geekest mode) · clip 720 × 720, 12 s · scene loop 12 s · title given by Equation Studio
 
-A kaleidoscopic fractal (repeated abs, stretch and shift) carves columns of stone that repeat along the flight direction, while a small mirror ball at the center reflects them: when the ray touches the ball it simply changes direction to point away from its center. Everything is grey light from proximity. The world turns once every 12 s and the repetition moves one cell per second, so the clip loops after 12 s.
+You fly through a hall of carved white stone, mirrored left to right like the view inside a kaleidoscope, with a shiny ball floating in the middle. The code is a shader, a small program that runs for every pixel, and it follows each pixel’s ray, an imaginary line from the camera, in 100 steps. The carvings are a fractal, a shape made of smaller copies of itself: 9 times over, space is mirrored, stretched and shifted, which carves finer and finer detail. Space is also repeated along the flight direction and slides by one copy every second, so the flight never ends, and the whole world turns once every 12 seconds. When a ray touches the ball, it simply changes direction to point straight out from the ball’s center, which is enough to make the ball look like a mirror. Every step adds the same amount of red, green and blue, so the whole picture is gray.
 
 ### How it works
 
-1. **Flying through repeats.** fract(p.z + t) − .5 repeats space along z and moves it by one cell per second: an endless flight.
-2. **Kaleidoscopic folds.** Each of 9 passes mirrors (abs), shifts, stretches by up to 6/|p|² and shifts again. The stretch is multiplied into scale so the column distance length(p.xz)/scale stays true. *(In the app this step shows `scale` on the canvas.)*
-3. **A mirror ball.** ball is the distance to a sphere of radius .3 at the center. Once it is tiny the direction becomes ray·3: pointing out from the center, a crude but convincing reflection. *(In the app this step shows `ball` on the canvas.)*
-4. **Only proximity lights.** .01/exp(dist·1000) is large only when a step lands within a few thousandths of a surface. Stopping loop 2 early leaves the stone smooth. *(In the app this step stops loop 2 after 3 steps.)*
+1. **Flying through copies.** fract keeps only the part of a number after the decimal point, so fract(p.z + t) − 0.5 wraps z into a slice from −0.5 to 0.5 that repeats forever along z. Adding t slides the slices by one whole copy every second, which feels like flying forward through an endless hall. The world also turns by π/6 radians per second, a full turn in 12 seconds, so after 12 seconds everything is back where it started.
+2. **Carving the stone.** abs(p) mirrors space: the left side becomes a copy of the right side, like the mirrors inside a kaleidoscope. Loop 2 (the inner loop, marked ⟳2) runs 9 times. Each pass mirrors and shifts space, stretches it by 6 ÷ dot(p, p) (a lot near the center, and never less than 3 times), then mirrors, stretches and shifts it again. Each pass turns one big shape into many smaller ones, so the carvings get finer and finer. scale multiplies all the stretches together, and dividing by it turns the distance length(p.xz) back into a real distance. *(In the app this step shows `scale` on the canvas.)*
+3. **A mirror ball.** ball = length(ray) − 0.3 is the distance from the ray to a ball of radius 0.3 in the middle, which does not turn or repeat like the rest. When that distance drops below 0.01, the ray has touched the ball, and the code sets the ray’s direction to ray·3: straight out from the ball’s center. A real mirror bounces light at an angle, but this simple shortcut still puts the surrounding stone on the ball’s surface, so it looks shiny. *(In the app this step shows `ball` on the canvas.)*
+4. **Light from nearness.** Each step adds 0.01 ÷ exp(dist·1000), where exp means “e to the power”. That is the full 0.01 when the ray is right on a surface, and almost nothing once it is even 0.005 away, so only steps that end very close to the stone add light. This step stops loop 2 after 3 passes: the stone nearly disappears, leaving only faint lines. Drag the Loop 2 slider up and the carvings fill in by about 5 passes. *(In the app this step stops loop 2 after 3 steps.)*
 
-Loops: loop 1 (line 5, march 100 steps): 100 steps; loop 2 (line 12, 9 folds of a kaleidoscopic fractal): 9 steps per run. Variables: `dist` float, `scale` float, `ball` float, `p` vec3, `ray` vec3, `dir` vec3, `i` float, `k` int. Helpers: `rotate2D`. 17 numbers can be dragged.
+Loops: loop 1 (line 5, March 100 steps along the ray): 100 steps; loop 2 (line 12, Carve 9 times: mirror, stretch, shift): 9 steps per run. Variables: `dist` float, `scale` float, `ball` float, `p` vec3, `ray` vec3, `dir` vec3, `i` float, `k` int. Helpers: `rotate2D`. 17 numbers can be dragged.
 
-Ideas: Raymarching · Folding fractals · Repetition: p − round(p) · Glow by accumulation · Seamless loops.
+Ideas: Raymarching: walking into a 3D scene · Folding fractals: mirrors in mirrors · Repetition with p − round(p) · Glow by adding up light · Seamless loops.
 
 ### Readable version
 
 ```glsl
 // Carved stone kaleidoscope · yonatan (@zozuar), 29 Nov 2024 · readable version, same image
-float dist, scale, ball = .5;         // ball: distance to the mirror ball at the center
-vec3 p, ray, dir = ball - FC.rgb/r.y; // the direction of this pixel's ray (FC.z = .5 makes it look along +z)
-ray.z--;                              // the camera stands at z = −1
-for (float i = 0.; i++ < 1e2;) {      // march 100 steps
-  if (ball < .01) dir = ray*3.;       // the ray touched the mirror ball: bounce away from its center
-  p = ray += dir*dist;                // step forward
-  p.zy *= rotate2D(t*PI/6.);          // the world turns, once every 12 s
-  p.z = fract(p.z + t) - .5;          // repeat along z and fly through it
-  scale = 2.;
-  p = .5 - abs(p);                    // mirror into a box
-  for (int k = 0; k++ < 9; p.z += 3.) {   // 9 folds of a kaleidoscopic fractal
-    p = abs(p) - .7;
-    scale *= dist = 6./min(dot(p, p), 2.);   // an inversion-like stretch (at least 3×) …
-    p = abs(p)*dist - 4.;             // … mirror, stretch and shift
+float dist, scale, ball = .5;         // ball is the distance to the mirror ball in the middle.
+vec3 p, ray, dir = ball - FC.rgb/r.y; // This pixel's ray direction; its third part is about 0.5, so it looks along +z.
+ray.z--;                              // The camera starts at z = −1.
+for (float i = 0.; i++ < 1e2;) {      // March 100 steps along the ray
+  if (ball < .01) dir = ray*3.;       // The ray touched the ball: point it straight out from the ball's center.
+  p = ray += dir*dist;                // Step forward.
+  p.zy *= rotate2D(t*PI/6.);          // The world turns, once every 12 seconds.
+  p.z = fract(p.z + t) - .5;          // Repeat space along z, and slide it by one copy every second.
+  scale = 2.;                         // Start the stretch count at 2.
+  p = .5 - abs(p);                    // Mirror space, like the mirrors in a kaleidoscope.
+  for (int k = 0; k++ < 9; p.z += 3.) {   // Carve 9 times: mirror, stretch, shift
+    p = abs(p) - .7;                  // Mirror and shift.
+    scale *= dist = 6./min(dot(p, p), 2.);   // Stretch by 6 ÷ the squared distance (at least 3 times) and keep count.
+    p = abs(p)*dist - 4.;             // Mirror, stretch and shift again; z also moves by 3 after each pass.
   }
-  dist = min(ball = length(ray) - .3, length(p.xz)/scale);   // the nearest of the ball (radius .3) and the carved columns
-  o += .01/exp(dist*1e3);             // light where a surface is very close
+  dist = min(ball = length(ray) - .3, length(p.xz)/scale);   // The nearer of the ball (radius 0.3) and the carved stone.
+  o += .01/exp(dist*1e3);             // Gray light, only very close to a surface.
 }
 ```
 
@@ -348,36 +348,36 @@ float e,i,s,x=.5;vec3 p,q,d=x-FC.rgb/r.y;for(q.z--;i++<1e2;o+=.01/exp(e*1e3)){x<
 
 <a id="underwater-reef"></a>By yonatan (@zozuar), 8 Dec 2024 · [the post](https://x.com/zozuar/status/1865850795822104948) · twigl.app shader (GLSL, geekest mode) · clip 720 × 720, 47.116 s · scene loop 47.116 s · title given by Equation Studio
 
-A coral reef from a kaleidoscopic fractal: 20 passes of stretch, mirror and shift make branching, porous shapes, marched together with a flat water surface above (y = 30). Colour comes from the fractal scale (hue and brightness by log(scale)) and from distance (FC.zww is (0.5, 1, 1), a cyan haze), both modulated by 3D simplex noise over time: flickering caustics. The camera turns once every 30π seconds; the clip shows half a turn.
+You are diving over a coral reef: lumpy green coral below, the rippling underside of the water surface above, and patches of sunlight flickering over everything. The code is a shader, a small program that runs for every pixel, and it follows each pixel’s ray, an imaginary line from the camera, in 100 steps. The coral is a fractal, a shape made of smaller copies of itself: 20 times over, space is stretched, mirrored and shifted, which grows branching, bumpy shapes full of holes. A flat water surface sits above it, 24 units over the camera. The flickering comes from noise, a smooth random pattern that slowly changes with time, the way sunlight dances under water. The coral’s color depends on how much the folding stretched space, and a blue-green haze grows with distance.
 
 ### How it works
 
-1. **Camera in the water.** The ray starts at (6, 15, 15) (−9 + 15) and turns with t/15 around the vertical axis.
-2. **Coral by folding.** Twenty passes stretch space by 15/|p|², mirror it twice and shift it; scale multiplies the stretches so p.y/scale is a usable distance to the coral. *(In the app this step shows `scale` on the canvas.)*
-3. **Water surface.** min(30 − q.y, …) adds a flat ceiling: the surface of the sea seen from below. *(In the app this step shows `depth` on the canvas.)*
-4. **Caustics.** light = 3 + simplex noise of (x/10, z/10, t): the brightness of every step flickers the way sunlight dances under water. *(In the app this step shows `light` on the canvas.)*
-5. **Colour and haze.** hsv(log(scale)/15, …) colours the coral by how deep in the fractal the ray is; FC.zww·depth adds cyan with distance.
+1. **A camera in the water.** Each ray starts at (6, 6, 15): the point on the ray is (uv·depth − 9, depth) + 15, and at depth 0 that is (−9 + 15, −9 + 15, 15). rotate2D(t/15) turns x and z around the vertical axis, so the camera circles the middle of the reef once every 30π seconds, about 94 seconds. The clip shows half of that circle.
+2. **Coral by folding.** Loop 2 (the inner loop, marked ⟳2) runs 20 times. Each pass stretches space by 15 ÷ dot(p, p), which is a lot near the center and a little far away, then mirrors it with abs, shifts it by (3, 4, 3), mirrors it again and shifts it by (0, 4, −1). Mirroring and stretching over and over turns a flat surface into branching, bubbly coral. scale multiplies all the stretches, so p.y ÷ scale gives a careful distance to the coral. *(In the app this step shows `scale` on the canvas.)*
+3. **Water above.** min(30 − q.y, …) adds a flat ceiling at height 30: the underside of the water surface. q is the point before folding, so 30 − q.y is simply how far below the surface the point is. The ray steps by whichever is nearer, the coral or the surface. *(In the app this step shows `depth` on the canvas.)*
+4. **Dancing sunlight.** snoise3D is noise: a smooth, random-looking pattern with values from about −1 to 1. Here it is read at (x/10, z/10, t), so it drifts and changes as time passes. light = 3 plus that noise swings between about 2 and 4, and it multiplies everything this step adds, so bright and dark patches flicker across the reef. *(In the app this step shows `light` on the canvas.)*
+5. **Color and haze.** hsv makes a color from a hue (a place on the color wheel, from 0 to 1), a saturation (how strong the color is) and a brightness. Here both the hue and the brightness come from log(scale) ÷ 15, so parts of the coral get different colors depending on how much the folds stretched them. The second part, FC.zww·depth, adds a little (0.5, 1, 1), more green and blue than red, that grows with distance: the blue-green haze of deep water.
 
-Loops: loop 1 (line 3, march 100 steps): 100 steps; loop 2 (line 8, 20 folds of a kaleidoscopic fractal: the coral): 20 steps per run. Variables: `light` float, `level` float, `depth` float, `stretch` float, `scale` float, `n` float, `i` float, `q` vec3, `p` vec3. Helpers: `rotate2D`, `snoise3D`, `hsv`. 17 numbers can be dragged.
+Loops: loop 1 (line 3, March 100 steps along the ray): 100 steps; loop 2 (line 8, Fold 20 times to grow the coral): 20 steps per run. Variables: `light` float, `level` float, `depth` float, `stretch` float, `scale` float, `n` float, `i` float, `q` vec3, `p` vec3. Helpers: `rotate2D`, `snoise3D`, `hsv`. 17 numbers can be dragged.
 
-Ideas: Raymarching · Folding fractals · Hue, saturation, value · Distance estimates.
+Ideas: Raymarching: walking into a 3D scene · Folding fractals: mirrors in mirrors · Hue, saturation, value: colors from a wheel · Distance estimates: safe step sizes.
 
 ### Readable version
 
 ```glsl
 // Underwater reef · yonatan (@zozuar), 8 Dec 2024 · readable version, same image
-float light, level, depth, stretch, scale, n = 15.;
-for (float i = 0.; i++ < 1e2;) {      // march 100 steps
-  vec3 q, p = vec3((FC.xy - .5*r)/r.y*depth - 9., depth) + n;   // the point on the ray, seen from (6, 15, 15)
-  p.zx *= rotate2D(t/n);              // the camera turns slowly (a full turn in 94 s)
-  scale = level = 3.;
-  light = scale + snoise3D(vec3(p.xz*.1, t));   // caustics: brightness 3 ± noise that drifts with time
-  for (q = p; level++ < 23.;) {       // 20 folds of a kaleidoscopic fractal: the coral
-    scale *= stretch = n/dot(p, p);   // an inversion-like stretch …
-    p = vec3(0, 4, -1) - abs(abs(p)*stretch - vec3(3, 4, 3));   // … mirror, stretch and shift
+float light, level, depth, stretch, scale, n = 15.;   // n = 15 is used several times below.
+for (float i = 0.; i++ < 1e2;) {      // March 100 steps along the ray
+  vec3 q, p = vec3((FC.xy - .5*r)/r.y*depth - 9., depth) + n;   // The point on the ray; the camera starts at (6, 6, 15).
+  p.zx *= rotate2D(t/n);              // The camera circles slowly, once every 94 seconds.
+  scale = level = 3.;                 // Start both at 3.
+  light = scale + snoise3D(vec3(p.xz*.1, t));   // Flickering sunlight: 3 plus smooth noise that changes with time.
+  for (q = p; level++ < 23.;) {       // Fold 20 times to grow the coral
+    scale *= stretch = n/dot(p, p);   // Stretch by 15 ÷ the squared distance, and keep the total …
+    p = vec3(0, 4, -1) - abs(abs(p)*stretch - vec3(3, 4, 3));   // … then mirror, stretch, shift, mirror and shift again.
   }
-  depth += min(30. - q.y, p.y/scale); // step: the nearest of the water surface (y = 30) and the coral
-  o.rgb += hsv(scale = log(scale)/n, .5, scale/2e2*light) + FC.zww*depth*light/6e4;   // coral colored by its scale, plus blue-green haze growing with distance
+  depth += min(30. - q.y, p.y/scale); // Step by the nearer of the water surface (y = 30) and the coral.
+  o.rgb += hsv(scale = log(scale)/n, .5, scale/2e2*light) + FC.zww*depth*light/6e4;   // Coral colored by its stretching, plus blue-green haze that grows with distance.
 }
 ```
 
@@ -391,38 +391,39 @@ for(float i,k,j,g,e,s,n=15.;i++<1e2;o.rgb+=hsv(s=log(s)/n,.5,s/2e2*k)+FC.zww*g*k
 
 <a id="golden-spiral"></a>By yonatan (@zozuar), 5 Jan 2025 · [the post](https://x.com/zozuar/status/1875945664070475933) · twigl.app shader (GLSL, geekest mode) · clip 720 × 720, 6.116 s · scene loop 6.283 s · title given by Equation Studio
 
-The whole scene lives in spiral coordinates: log R + angle/π is constant along a logarithmic spiral, so repeating space in that coordinate (p − round(p)) lays copies of a pattern along a golden-looking spiral, and subtracting t zooms into it forever. Nine repeat-and-invert passes carve the ornament; each step adds amber light near surfaces and the last line darkens pixels whose final step was long.
+A glowing amber spiral, like a snail shell made of lace, rocks back and forth while its pattern turns and zooms inward forever. The code is a shader, a small program that runs for every pixel, and it follows each pixel’s ray, an imaginary line from the camera, in 85 steps. Its secret is a change of coordinates: instead of x, y and z, it describes each point by the logarithm of its distance from the spiral’s center, its angle around the center, and its height. In these spiral coordinates a logarithmic spiral, the kind found in snail shells and galaxies, becomes a straight line, and zooming in becomes a simple slide. The code then repeats and folds space 9 times to carve an ornament, adds amber light near its surfaces, and at the end blacks out every pixel whose ray found nothing.
 
 ### How it works
 
-1. **Logarithmic spiral.** In (log R + angle/π − t, …) a logarithmic spiral becomes a straight line, and zooming becomes a shift. See the log-polar concept. *(In the app this step shows `R` on the canvas.)*
-2. **Repeat and invert.** p −= round(p) repeats space in unit cells; dividing by dot(p, p) + .25 inverts each cell. The factor a is multiplied into R, the size of the result. *(In the app this step stops loop 2 after 2 steps.)*
-3. **Rocking and turning.** rotate2D(sin t) rocks the spiral; atan(p.x, p.z) − t turns it. After 2π seconds everything is back: a seamless loop.
-4. **Amber glow and dark gaps.** Each step adds (.4, .2, .1)/exp(dist·6000): amber near surfaces. The last line subtracts 200·log(1 + dist), blacking out where the final step found nothing close.
+1. **Looking down the axis.** The ray starts at the origin and moves mostly along the y direction; the image’s x and y become the world’s z and x. p.y−− puts the spiral’s center 1 unit in front of the camera, so you look straight down the spiral’s axis. rotate2D(sin t) then tilts the spiral by an angle that swings between −1 and 1 radian (about 57 degrees each way) as sin t goes up and down, so it rocks back and forth every 2π seconds, about 6.3.
+2. **Spiral coordinates.** R = length(p) is the distance from the spiral’s center, and dist here holds the angle around its axis (atan gives an angle, like the hand of a clock). log R, the logarithm of R, goes up by the same amount every time R is multiplied by the same number. The first new coordinate, log R + angle ÷ π − t, stays the same along a logarithmic spiral that gets about 7.4 times wider with every turn. So the pattern is laid out along spirals, and because − t (and the − t inside the angle) keeps sliding this coordinate, the pattern moves outward and you seem to zoom in forever. *(In the app this step shows `R` on the canvas.)*
+3. **Two more coordinates.** The second coordinate, sin(5 × angle) times a, makes five ripples around the axis. The third, a = height ÷ R, says how far the point is above or below the spiral’s flat middle, compared with its distance from the center. Dividing the angle by π in the first coordinate is a clever choice: where the angle jumps from π back to −π, that coordinate jumps by exactly 2, a whole number, so the repeating in the next step hides the seam.
+4. **Repeat and fold.** Loop 2 (marked ⟳2) runs 9 times. p −= round(p) keeps only how far each coordinate is from the nearest whole number, which repeats the pattern in boxes and so copies it along the spiral. Then p is divided by a = dot(p, p) + 0.25, which turns each box inside out around its center. a is between 0.25 and 1, and R is multiplied by every a, so R becomes tiny near the ornament. This step stops loop 2 after 6 passes: R stays bigger, fewer rays get close enough to light up, and the ornament turns faint and patchy. *(In the app this step stops loop 2 after 6 steps.)*
+5. **Amber glow and black gaps.** The next step is R ÷ 5, and max(−height, R) keeps the ray from stopping in front of the flat plane where height is 0. At every step the code adds (0.4, 0.2, 0.1) ÷ exp(dist·6000): red, half as much green and a quarter as much blue, which is amber. That is almost nothing unless the last step was tiny, meaning a surface is very close. At the end, o −= 200·log(1 + dist) darkens each pixel more the longer its last step was, so pixels whose ray found nothing turn black.
 
-Loops: loop 1 (line 3, march 85 steps): 85 steps; loop 2 (line 12, 9 folds: repeat into unit cells and invert): 9 steps per run. Variables: `height` float, `i` float, `dist` float, `R` float, `a` float, `ray` vec3, `p` vec3, `j` int. Helpers: `rotate2D`. 12 numbers can be dragged.
+Loops: loop 1 (line 3, March 85 steps along the ray): 85 steps; loop 2 (line 12, Fold 9 times: repeat, then turn inside out): 9 steps per run. Variables: `height` float, `i` float, `dist` float, `R` float, `a` float, `ray` vec3, `p` vec3, `j` int. Helpers: `rotate2D`. 12 numbers can be dragged.
 
-Ideas: An endless zoom: log R − t · Repetition: p − round(p) · Sphere inversion · Glow by accumulation · Raymarching · Seamless loops.
+Ideas: An endless zoom: log R − t · Repetition with p − round(p) · Sphere inversion: space turned inside out · Glow by adding up light · Raymarching: walking into a 3D scene.
 
 ### Readable version
 
 ```glsl
 // Golden spiral · yonatan (@zozuar), 5 Jan 2025 · readable version, same image
-float height, i, dist, R, a;
-for (vec3 ray, p; i++ < 85.;) {       // march 85 steps
-  p = ray += (.5 - FC.gbr/r.y)*dist;  // step forward (the image's x and y become the world's z and x)
-  o += vec4(.4, .2, .1, 0)/exp(dist*6e3);   // amber light where a surface is very close
-  p.y--;
-  p.xy *= rotate2D(sin(t));           // rock back and forth
-  height = p.y;
-  dist = atan(p.x, p.z) - t;          // the angle around the vertical axis, turning with time
-  // spiral coordinates: log R + angle/π is constant along a logarithmic spiral; − t zooms in forever
+float height, i, dist, R, a;          // The height along the spiral's axis, the step count, the step, the radius and a fold factor.
+for (vec3 ray, p; i++ < 85.;) {       // March 85 steps along the ray
+  p = ray += (.5 - FC.gbr/r.y)*dist;  // Step forward; the image's x and y become the world's z and x, and the ray looks along y.
+  o += vec4(.4, .2, .1, 0)/exp(dist*6e3);   // Amber light when the last step was tiny, because a surface is very close.
+  p.y--;                              // Put the spiral's center 1 unit in front of the camera.
+  p.xy *= rotate2D(sin(t));           // Rock the spiral back and forth.
+  height = p.y;                       // The point's height along the spiral's axis.
+  dist = atan(p.x, p.z) - t;          // The angle around the axis, turning with time.
+  // Spiral coordinates: log R + angle/π stays the same along a logarithmic spiral, and − t zooms in forever.
   p = vec3(log(R = length(p)) + dist/PI - t, a*sin(5.*dist), a = height/R) + .5;
-  for (int j = 0; j++ < 9; p /= a)    // 9 folds: repeat into unit cells and invert
+  for (int j = 0; j++ < 9; p /= a)    // Fold 9 times: repeat, then turn inside out
     R *= a = dot(p -= round(p), p) + .25;
-  dist = max(-height, R)/5.;          // the step: the pattern's size, but never below the floor
+  dist = max(-height, R)/5.;          // The next step is R ÷ 5; nothing is drawn in front of the plane where height is 0.
 }
-o -= log(++dist)*2e2;                 // darken wherever the last step was long (nothing near)
+o -= log(++dist)*2e2;                 // Darken every pixel whose last step was long: its ray found nothing.
 ```
 
 ### As posted
@@ -435,34 +436,34 @@ float y,i,e,R,a;for(vec3 q,p;i++<85.;e=max(-y,R)/5.){p=q+=(.5-FC.gbr/r.y)*e;o+=v
 
 <a id="cloud-cave"></a>By Yohei Nishitsuji (@YoheiNishitsuji), 17 Jan 2025 · [the post](https://x.com/YoheiNishitsuji/status/1880163156741275732) · twigl.app shader (GLSL, geekest mode) · clip 700 × 500, 15.716 s · scene loop 15.708 s · title given by Equation Studio
 
-Yohei Nishitsuji’s signature construction: the ray lives in log-spherical coordinates (log R, a height made from the angle to the z axis, the angle around it), so the scene repeats at every scale and subtracting t flies into it forever. The surface is a plane in those coordinates plus nine octaves of sine turbulence (frequency doubling with s += s). The light is not shading but a warm glow that peaks at a middle distance from the surface, which draws bright rims on every billow.
+You drift endlessly into a cave of billowing, smoky clouds, with a soft warm glow along every edge. The code is a shader, a small program that runs for every pixel, and it follows each pixel’s ray, an imaginary line from the camera, in 99 steps. Its trick, a favorite of the artist, is to describe each point not by x, y and z but by the logarithm of its distance from the center and two angles. In these coordinates zooming in is the same as sliding, so subtracting time from the first coordinate flies you inward forever, with new clouds growing out of the middle. The cloud’s surface is a simple cone, a funnel shape, made bumpy by 9 layers of ripples, each twice as fine and half as tall as the one before. There is no real lighting: each step adds a little warm white light, most of it when the ray passes just outside the cloud, which draws bright rims on every billow.
 
 ### How it works
 
-1. **Log-spherical space.** Replacing p by (log₂R − 0.8t, exp2(.9 − cos of the polar angle), angle − 0.4t) makes zooming a shift and turning a shift: the flight never ends. *(In the app this step shows `R` on the canvas.)*
-2. **Octaves by doubling.** freq runs 1, 2, 4, …, 256: each octave adds sin-based detail at twice the frequency and half the amplitude. Stop loop 2 at 2 to see the smooth underlying shape. *(In the app this step stops loop 2 after 2 steps.)*
-3. **Steps that scale.** The step is dist·R·0.3: far from the center, the log coordinates stretch, so steps must grow with R.
-4. **Rim light.** min(dist·freq, .65 − dist)/45 is small on the surface and far from it, largest in between: bright edges on every billow. Show dist to see the distance to the cloud. *(In the app this step shows `dist` on the canvas.)*
+1. **New coordinates.** The code replaces the point p with three new numbers. The first is log₂R − 0.8t: log₂R goes up by 1 every time R, the distance from the center, doubles, and subtracting 0.8t slides everything so you keep flying inward, by one doubling every 1.25 seconds. The second, exp2(0.9 − p.z/R), depends only on the angle between the point and the z axis. The third is the angle around the z axis (atan, like the hand of a clock), turning slowly with − 0.4t. In these coordinates zooming in is just sliding, so the flight never has to end, and after 5π seconds (about 15.7) everything is back in step. *(In the app this step shows `R` on the canvas.)*
+2. **A cone with ripples.** dist starts as the second coordinate minus 1, which is 0 on a cone, a funnel shape around the z axis. Loop 2 (marked ⟳2) then adds 9 layers of ripples made from sines (waves that go up and down between −1 and 1), with freq = 1, 2, 4, … up to 256. Each layer is twice as fine and, because it is divided by freq, half as tall. Stacking layers like this turns a smooth shape into billowing clouds. This step stops loop 2 after 2 layers to show the smooth shape underneath. *(In the app this step stops loop 2 after 2 steps.)*
+3. **Steps that grow.** In the new coordinates, a distance of 1 is small near the center and huge far away. So the step, dist·R·0.3, is multiplied by R, the real distance from the center, to turn it back into a real distance, and the 0.3 keeps it careful.
+4. **Rims of light.** The light added at each step is min(dist·512, 0.65 − dist) ÷ 45, because freq is 512 when the loop ends. It is 0 right on the surface, peaks when the ray is a hair outside the cloud (dist about 0.0013), and slowly fades farther out. Inside the cloud, where dist is below 0, it is negative and takes light away. Rays that skim past an edge spend many steps just outside it, so the edges glow, and hsv(0.1, 0.2, …) makes that light a pale, warm white. *(In the app this step shows `dist` on the canvas.)*
 
-Loops: loop 1 (line 5, march 99 steps): 99 steps; loop 2 (line 11, the cloud: the height minus one …): 9 steps per run. Variables: `dist` float, `R` float, `freq` float, `ray` vec3, `p` vec3, `dir` vec3, `i` float. Helpers: `hsv`. 18 numbers can be dragged.
+Loops: loop 1 (line 5, March 99 steps along the ray): 99 steps; loop 2 (line 11, Start at a cone, add 9 ripple layers): 9 steps per run. Variables: `dist` float, `R` float, `freq` float, `ray` vec3, `p` vec3, `dir` vec3, `i` float. Helpers: `hsv`. 18 numbers can be dragged.
 
-Ideas: An endless zoom: log R − t · Octaves by doubling: s += s · Raymarching · Hue, saturation, value · Seamless loops.
+Ideas: An endless zoom: log R − t · Octaves by doubling: s += s · Raymarching: walking into a 3D scene · Hue, saturation, value: colors from a wheel · Seamless loops.
 
 ### Readable version
 
 ```glsl
 // Cloud cave · Yohei Nishitsuji (@YoheiNishitsuji), 17 Jan 2025 · readable version, same image
-float dist, R, freq;
-vec3 ray, p, dir = vec3(FC.xy/r - vec2(.5, -.3), 1);   // the ray of this pixel, tilted up
-ray.zy--;                             // the camera stands at y = −1, z = −1
-for (float i = 0.; i++ < 99.;) {      // march 99 steps
-  o.rgb += hsv(.1, .2, min(dist*freq, .65 - dist)/45.);   // warm white light, strongest at a middle distance from the cloud (from the last step)
-  freq = 1.;
-  p = ray += dir*dist*R*.3;           // step forward; steps grow with the distance R from the center
-  // log-spherical coordinates: log₂R − 0.8t (flying inward forever), a height from the angle to z, the angle around z (turning)
+float dist, R, freq;                  // The distance to the cloud, the distance from the center, and a ripple frequency.
+vec3 ray, p, dir = vec3(FC.xy/r - vec2(.5, -.3), 1);   // This pixel's ray direction, tilted upward.
+ray.zy--;                             // The camera starts at y = −1, z = −1.
+for (float i = 0.; i++ < 99.;) {      // March 99 steps along the ray
+  o.rgb += hsv(.1, .2, min(dist*freq, .65 - dist)/45.);   // Warm white light, strongest just outside the cloud (from the last step).
+  freq = 1.;                          // The ripples start at frequency 1.
+  p = ray += dir*dist*R*.3;           // Step forward; the steps grow with R, the distance from the center.
+  // New coordinates: log₂R − 0.8t (flying inward), a height from the angle to the z axis, and the angle around it (turning).
   p = vec3(log2(R = length(p)) - t*.8, exp2(-p.z/R + .9), atan(p.y, p.x) - t*.4);
-  for (dist = --p.y; freq < 3e2; freq += freq)   // the cloud: the height minus one …
-    dist += (dot(sin(p.xy*freq) - .5, .5 - sin(p.zy*freq)))/freq*.3;   // … plus 9 octaves of sine turbulence (frequency 1, 2, 4, …, 256)
+  for (dist = --p.y; freq < 3e2; freq += freq)   // Start at a cone, add 9 ripple layers
+    dist += (dot(sin(p.xy*freq) - .5, .5 - sin(p.zy*freq)))/freq*.3;   // Each layer: twice the frequency, half the height.
 }
 ```
 
@@ -476,33 +477,33 @@ float i,e,R,s;vec3 q,p,d=vec3(FC.xy/r-vec2(.5,-.3),1);for(q.zy--;i++<99.;){o.rgb
 
 <a id="smoke-tunnel"></a>By Yohei Nishitsuji (@YoheiNishitsuji), 8 Mar 2025 · [the post](https://x.com/YoheiNishitsuji/status/1898392319386366065) · twigl.app shader (GLSL, geekest mode) · clip 800 × 600, 6.283 s · scene loop 6.283 s · title given by Equation Studio
 
-The same log-spherical flight as the Cloud cave, with a different turbulence (a sine of a dot product of shuffled sines and cosines) that folds into thin wisps, and a camera that sways with cos(t). The zoom moves one octave of the distance per second and the sway repeats after 2π seconds, so the clip loops.
+You rush through a tunnel of swirling white smoke, full of thin, twisting wisps, while the whole tunnel sways gently back and forth. The code is a close cousin of the Cloud cave by the same artist: a shader, a small program that runs for every pixel, following each pixel’s ray, an imaginary line from the camera, in 99 steps. Like the Cloud cave, it describes each point by the logarithm of its distance from the center and two angles, so subtracting time from the first coordinate flies you inward forever, here by one doubling of the distance every second. The smoke gets its wisps from a different recipe for its ripples: 9 layers, each a sine of sines and cosines taken with the coordinates shuffled around. The glow works like the Cloud cave’s: warm white light that is strongest just outside the smoke, so every wisp gets a bright edge.
 
 ### How it works
 
-1. **Endless tunnel.** log₂R − t moves inward by one octave per second; in these coordinates the tunnel looks the same at every scale.
-2. **Swirling octaves.** Each octave adds sin(dot(…))/freq; swapping the axes (zxy, yxz) in the sines makes the wisps twist. *(In the app this step stops loop 2 after 3 steps.)*
-3. **Rim light.** The glow min(dist·freq, .7 − dist)/35 draws the bright edges. *(In the app this step shows `dist` on the canvas.)*
+1. **An endless flight.** Like the Cloud cave, the code swaps x, y and z for three new numbers. The first, log₂R − t, slides inward by one doubling of the distance R every second. The second, exp(1 − p.z/R), depends only on the angle away from the z axis. The third is the angle around the z axis (atan) plus cos(t)·0.2, which swings by up to 0.2 radians (about 11 degrees) each way, so the whole tunnel sways gently. After 2π seconds (about 6.3) the flight and the sway are both back in step, so the animation loops.
+2. **Swirling layers.** dist starts as exp(1 − p.z/R) − 1, which is 0 along the z axis and grows as you turn away from it. Loop 2 (marked ⟳2) adds 9 layers, with freq = 1, 2, 4, … up to 256, each half as tall as the one before. Each layer is the sine of a dot product (a sum of products) of sines and cosines, with the three coordinates shuffled into different orders (zxy and yxz). The shuffling mixes the directions together, which folds the smoke into thin, twisting wisps. This step stops loop 2 after 3 layers, which leaves smooth ribbons of smoke. *(In the app this step stops loop 2 after 3 steps.)*
+3. **Glowing edges.** Each step adds min(dist·512, 0.7 − dist) ÷ 35 of warm white light, because freq is 512 when the loop ends. That is largest when the ray is just outside the smoke and 0 right on it, so rays that skim past a wisp add up the most light and draw its bright edge. The steps are dist·R·0.1, even more careful than in the Cloud cave. *(In the app this step shows `dist` on the canvas.)*
 
-Loops: loop 1 (line 5, march 99 steps): 99 steps; loop 2 (line 11, the smoke surface …): 9 steps per run. Variables: `dist` float, `R` float, `freq` float, `ray` vec3, `p` vec3, `dir` vec3, `i` float. Helpers: `hsv`. 16 numbers can be dragged.
+Loops: loop 1 (line 5, March 99 steps along the ray): 99 steps; loop 2 (line 11, Add 9 layers of swirling ripples): 9 steps per run. Variables: `dist` float, `R` float, `freq` float, `ray` vec3, `p` vec3, `dir` vec3, `i` float. Helpers: `hsv`. 16 numbers can be dragged.
 
-Ideas: An endless zoom: log R − t · Octaves by doubling: s += s · Raymarching · Seamless loops.
+Ideas: An endless zoom: log R − t · Octaves by doubling: s += s · Raymarching: walking into a 3D scene · Seamless loops.
 
 ### Readable version
 
 ```glsl
 // Smoke tunnel · Yohei Nishitsuji (@YoheiNishitsuji), 8 Mar 2025 · readable version, same image
-float dist, R, freq;
-vec3 ray, p, dir = vec3(FC.xy/r - vec2(.6, .5), .7);   // the ray of this pixel, looking a little to the left
-ray.zx--;                             // the camera stands at x = −1, z = −1
-for (float i = 0.; i++ < 99.;) {      // march 99 steps
-  o.rgb += hsv(.1, .2, min(dist*freq, .7 - dist)/35.);   // warm white rim light from the last step
-  freq = 1.;
-  p = ray += dir*dist*R*.1;           // step forward, growing with the distance R from the center
-  // log-spherical coordinates: flying in by one octave of R per second, the angle swaying with cos t
+float dist, R, freq;                  // The distance to the smoke, the distance from the center, and a ripple frequency.
+vec3 ray, p, dir = vec3(FC.xy/r - vec2(.6, .5), .7);   // This pixel's ray direction, turned a little to the left.
+ray.zx--;                             // The camera starts at x = −1, z = −1.
+for (float i = 0.; i++ < 99.;) {      // March 99 steps along the ray
+  o.rgb += hsv(.1, .2, min(dist*freq, .7 - dist)/35.);   // Warm white light, strongest just outside the smoke (from the last step).
+  freq = 1.;                          // The ripples start at frequency 1.
+  p = ray += dir*dist*R*.1;           // Step forward; the steps grow with R, the distance from the center.
+  // New coordinates: log₂R − t (flying inward), a height from the angle to the z axis, and the angle around it (swaying with cos t).
   p = vec3(log2(R = length(p)) - t, exp(1. - p.z/R), atan(p.y, p.x) + cos(t)*.2);
-  for (dist = --p.y; freq < 3e2; freq += freq)   // the smoke surface …
-    dist += sin(dot(sin(p.zxy*freq) - .5, 1. - cos(p.yxz*freq)))/freq;   // … with 9 octaves of swirling turbulence
+  for (dist = --p.y; freq < 3e2; freq += freq)   // Add 9 layers of swirling ripples
+    dist += sin(dot(sin(p.zxy*freq) - .5, 1. - cos(p.yxz*freq)))/freq;   // Each layer: twice the frequency, half the height, axes shuffled.
 }
 ```
 
@@ -516,33 +517,33 @@ float i,e,R,s;vec3 q,p,d=vec3(FC.xy/r-vec2(.6,.5),.7);for(q.zx--;i++<99.;){o.rgb
 
 <a id="cloud-mountains"></a>By Yohei Nishitsuji (@YoheiNishitsuji), 27 Feb 2026 · [the post](https://x.com/YoheiNishitsuji/status/2027368118130000146) · twigl.app shader (GLSL, geekest mode) · clip 800 × 600, 12.566 s · scene loop 12.566 s · title given by Equation Studio
 
-Log-spherical space again, now with the turbulence starting at frequency 5, so the octaves read as ridges and cliffs: a mountain range of cloud. The colour uses the distance itself as the saturation: far from the surface the sepia deepens, on it the light turns white. The height breathes with sin(t) and the zoom (0.5 per second in natural log) repeats after 4π seconds.
+Jagged mountains of cloud tower up in sepia brown and white, slowly rising and sinking as if the landscape were breathing. The code is by the same artist as the Cloud cave and the Smoke tunnel, and it is a shader: a small program that runs for every pixel, following each pixel’s ray, an imaginary line from the camera, in 97 steps. Again each point is described by the logarithm of its distance from the center and two angles, so subtracting time from the first coordinate flies you slowly inward forever. This time the ripples start at a higher frequency, 5, and double 8 times up to 640, so there are no big soft billows, only sharp ridges and cliffs. The color uses the distance to the surface as its saturation: light added far from the mountains is a deep sepia, and light added right next to them is almost white.
 
 ### How it works
 
-1. **Ridges from octaves.** Starting at frequency 5 with 8 doublings gives sharp ridges instead of soft billows. Compare loop 2 at 1, 3 and 8. *(In the app this step stops loop 2 after 3 steps.)*
-2. **Breathing.** sin(t)·.07 raises and lowers the whole surface; exp(−p.z/R) is the height from the polar angle.
-3. **Saturation from distance.** hsv(.1, dist, …): dist is the saturation, so light far from the surface is sepia and light on it is white. *(In the app this step shows `dist` on the canvas.)*
+1. **Ridges from layers.** dist starts as the second coordinate minus 1. Loop 2 (marked ⟳2) then adds 8 layers of ripples with freq = 5, 10, 20, … up to 640, each twice as fine and half as tall as the one before. Because even the first layer is fairly fine, there are no big soft billows: the layers stack up into sharp ridges and cliffs, like a mountain range. This step stops loop 2 after 3 layers, which leaves soft, rounded hills; try 1 and 8 on the Loop 2 slider to compare. *(In the app this step stops loop 2 after 3 steps.)*
+2. **A breathing landscape.** exp(−p.z/R) depends only on the angle between the point and the z axis, so the bare surface is a cone around that axis, so wide that it is almost flat. sin(t)·0.07 raises and lowers the whole surface a little as time passes, which makes the mountains breathe once every 2π seconds (about 6.3). At the same time, log R − 0.5t slides slowly inward, and after 4π seconds (about 12.6) everything is back in step, so the animation loops.
+3. **Color from distance.** hsv(0.1, dist, …) is a color with hue 0.1 (orange-brown), saturation dist and a brightness. Saturation is how strong the color is: 0 gives white or gray, 1 gives the full color. Using dist as the saturation means light added while the ray is far from the surface comes out sepia, and light added right next to it comes out white, which gives the ridges their bright, frosty edges. The brightness, min(dist·1280, 1) ÷ 95, is full for any step that is not almost touching the surface. *(In the app this step shows `dist` on the canvas.)*
 
-Loops: loop 1 (line 5, march 97 steps): 97 steps; loop 2 (line 11, the mountain surface …): 8 steps per run. Variables: `dist` float, `R` float, `freq` float, `ray` vec3, `p` vec3, `dir` vec3, `i` float. Helpers: `hsv`. 17 numbers can be dragged.
+Loops: loop 1 (line 5, March 97 steps along the ray): 97 steps; loop 2 (line 11, Add 8 layers of sharp ridges): 8 steps per run. Variables: `dist` float, `R` float, `freq` float, `ray` vec3, `p` vec3, `dir` vec3, `i` float. Helpers: `hsv`. 17 numbers can be dragged.
 
-Ideas: An endless zoom: log R − t · Octaves by doubling: s += s · Raymarching · Hue, saturation, value · Seamless loops.
+Ideas: An endless zoom: log R − t · Octaves by doubling: s += s · Raymarching: walking into a 3D scene · Hue, saturation, value: colors from a wheel · Seamless loops.
 
 ### Readable version
 
 ```glsl
 // Cloud mountains · Yohei Nishitsuji (@YoheiNishitsuji), 27 Feb 2026 · readable version, same image
-float dist, R, freq;
-vec3 ray, p, dir = vec3(FC.xy/r*.6 - vec2(.3, -.6), .5);   // the ray of this pixel, looking up
-ray.zy--;                             // the camera stands at y = −1, z = −1
-for (float i = 0.; i++ < 97.;) {      // march 97 steps
-  o.rgb += hsv(.1, dist, min(dist*freq, 1.)/95.);   // sepia light: saturated where far from the surface, white on it
-  freq = 5.;
-  p = ray += dir*dist*R*.4;           // step forward, growing with the distance R from the center
-  // log-spherical coordinates: zooming in slowly, the height breathing with sin t
+float dist, R, freq;                  // The distance to the mountains, the distance from the center, and a ripple frequency.
+vec3 ray, p, dir = vec3(FC.xy/r*.6 - vec2(.3, -.6), .5);   // This pixel's ray direction, tilted steeply upward.
+ray.zy--;                             // The camera starts at y = −1, z = −1.
+for (float i = 0.; i++ < 97.;) {      // March 97 steps along the ray
+  o.rgb += hsv(.1, dist, min(dist*freq, 1.)/95.);   // Sepia light far from the surface, almost white close to it (from the last step).
+  freq = 5.;                          // The ripples start at frequency 5.
+  p = ray += dir*dist*R*.4;           // Step forward; the steps grow with R, the distance from the center.
+  // New coordinates: log R − 0.5t (flying slowly inward), a height from the angle to the z axis that breathes with sin t, and the angle around the z axis.
   p = vec3(log(R = length(p)) - t*.5, exp(-p.z/R) + sin(t)*.07 + .2, atan(p.y, p.x));
-  for (dist = --p.y; freq < 1e3; freq += freq)   // the mountain surface …
-    dist += dot(sin(p.zxx*freq), .4 - cos(p.yyz*freq))/freq*.3;   // … with 8 octaves (frequency 5 to 640)
+  for (dist = --p.y; freq < 1e3; freq += freq)   // Add 8 layers of sharp ridges
+    dist += dot(sin(p.zxx*freq), .4 - cos(p.yyz*freq))/freq*.3;   // Each layer: twice the frequency (5 up to 640), half the height.
 }
 ```
 
@@ -556,35 +557,35 @@ float i,e,R,s;vec3 q,p,d=vec3(FC.xy/r*.6-vec2(.3,-.6),.5);for(q.zy--;i++<97.;){o
 
 <a id="rainbow-trefoil"></a>By yonatan (@zozuar), 30 Aug 2026 · [the post](https://x.com/zozuar/status/2094068054590190033) · twigl.app shader (GLSL, geekest mode) · clip 720 × 720, 6.266 s · scene loop 6.283 s · title given by Equation Studio
 
-A raymarcher without a distance formula. The trefoil knot is the curve (sin u + 2 sin 2u, cos u − 2 cos 2u, −sin 3u); instead of solving for its nearest point, every step makes 25 random guesses of the parameter u near the best one so far (knot + u³π, which searches finely near the best and coarsely far away) and keeps the closest. The random numbers differ per pixel and frame, which gives the grain. The hue is the parameter along the knot: a rainbow that follows the tube.
+A rainbow-colored tube tied in a trefoil knot, the simplest knot that cannot be untied, turns in the dark, one end swelling fat while the other thins to a point. The code is a shader, a small program that runs for every pixel, and it follows each pixel’s ray, an imaginary line from the camera, like the other 3D works here, but with a twist: it has no formula for the distance to the knot. Instead, at every step it makes 25 random guesses of a place on the knot, keeps the one closest to the ray, and uses that distance to step forward. Most guesses land close to the best place found so far, so the search quickly homes in. Because the random guesses differ from pixel to pixel and from moment to moment, the image has a fine, sparkling grain. The color follows the place on the knot, so the rainbow runs along the tube.
 
 ### How it works
 
-1. **The trefoil curve.** (sin u + 2 sin 2u, cos u − 2 cos 2u, −sin 3u) traces a knot that passes through itself three times as u goes around 2π.
-2. **Random search.** fsnoise gives a new random u every sample; knot + u³π concentrates guesses near the best parameter. After 25 guesses the best distance is used to step: a stochastic sphere tracer. *(In the app this step shows `best` on the canvas.)*
-3. **A tube that grows.** Subtracting fract((u/6 − t)/π·3) makes the tube radius a sawtooth along the knot that moves with time: the fat part travels around the loop.
-4. **Rainbow by parameter.** hsv(knot/6, …): the hue follows the place on the knot, so each lobe has its own color. Fewer samples (loop 1) make the image grainier. *(In the app this step stops loop 1 after 150 steps.)*
+1. **The trefoil knot.** As u goes from 0 to 2π (about 6.28), the point (sin u + 2 sin 2u, cos u − 2 cos 2u, −sin 3u) traces a closed loop with three lobes that passes over and under itself: a trefoil knot. You cannot untie it without cutting it. rotate3D, a helper that turns a point around an axis, turns the knot by t radians around a tilted axis, so it makes one full turn every 2π seconds (about 6.3).
+2. **Searching at random.** fsnoise gives a random-looking number from 0 to 1, and × 2 − 1 turns it into a number u from −1 to 1. The guess is knot + u³·π: u³ is tiny when u is small, so most guesses land very near knot, the best place found so far, and a few land up to π away. If a guess is closer than the best one, it becomes the new best. After 25 guesses, the ray steps forward by the best distance: this raymarcher searches for its distance instead of calculating it. *(In the app this step shows `best` on the canvas.)*
+3. **A tube that swells.** Subtracting a number from the distance to a curve makes a tube that thick around it. Here the thickness is fract((u/6 − t)/π·3), and fract keeps only the part after the decimal point, so it grows from 0 to 1 once around the knot and then drops back to 0. That is why one end of the tube is fat and the other comes to a point. Because t is in it too, the fat part slides along the knot, all the way around about once a second.
+4. **Rainbow and grain.** hsv(knot/6, 0.7, …) takes the hue, the place on the color wheel, from knot, the place on the knot, so the colors run through the rainbow along the tube. The brightness is 0.1 ÷ exp(best·i): bright when the best guess is close to the ray. Because the guesses are random, neighboring pixels get slightly different answers, which is the sparkling grain. This step stops loop 1 after 300 of its 600 samples (12 ray steps), so the knot is dimmer and grainier. *(In the app this step stops loop 1 after 300 steps.)*
 
-Loops: loop 1 (line 5, 600 samples: 24 steps along the ray × 25 random guesses each): 600 steps. Variables: `p` vec3, `d` float, `best` float, `knot` float, `u` float, `i` float. Helpers: `fsnoise`, `rotate3D`, `hsv`. 18 numbers can be dragged.
+Loops: loop 1 (line 5, 600 samples: 24 steps × 25 guesses): 600 steps. Variables: `p` vec3, `d` float, `best` float, `knot` float, `u` float, `i` float. Helpers: `fsnoise`, `rotate3D`, `hsv`. 18 numbers can be dragged.
 
-Ideas: Raymarching · Distance estimates · Hue, saturation, value · Turning with a matrix · Seamless loops.
+Ideas: Raymarching: walking into a 3D scene · Distance estimates: safe step sizes · Hue, saturation, value: colors from a wheel · Turning with rotate2D · Seamless loops.
 
 ### Readable version
 
 ```glsl
 // Rainbow trefoil · yonatan (@zozuar), 30 Aug 2026 · readable version, same image
-vec3 p;                               // the point marching along the ray
-float d, best, knot, u;               // a sample's distance, the best distance found, its place on the knot, a random number
-p.z = 5.;                             // the camera stands at z = 5
-for (float i = 0.; i++ < 6e2;) {      // 600 samples: 24 steps along the ray × 25 random guesses each
-  u = fsnoise(p.xy*i + t)*2. - 1.;    // a random number in −1 … 1, different for every pixel, sample and moment
-  // distance to a random point of a trefoil knot near the best guess, minus a tube radius that changes along the knot and with time
+vec3 p;                               // The point that walks along the ray.
+float d, best, knot, u;               // A guess's distance, the best distance so far, the best place on the knot, and a random number.
+p.z = 5.;                             // The camera starts at z = 5.
+for (float i = 0.; i++ < 6e2;) {      // 600 samples: 24 steps × 25 guesses
+  u = fsnoise(p.xy*i + t)*2. - 1.;    // A random number from −1 to 1, new for every pixel, guess and moment.
+  // The distance from the point (turned with time) to a guessed place u on the trefoil knot, minus the tube's thickness there.
   d = length(p*rotate3D(t, p + i) - vec3(sin(u = knot + u*u*u*PI) + 2.*sin(u + u), cos(u) - 2.*cos(u + u), -sin(3.*u)))
       - fract((u/6. - t)/PI*3.);
-  if (d < best) { best = d; knot = u; }   // keep the nearest guess
-  if (mod(i, 25.) == 0.) {            // after every 25 guesses:
-    o.rgb += hsv(knot/6., .7, .1/exp(best < 0. ? 0. : best*i));   // color by the place on the knot, brightness by the distance
-    p -= (.5 - FC.rgb/r.y)*best++;    // step along the ray by the best distance; + 1 lets the next search start over
+  if (d < best) { best = d; knot = u; }   // Keep the closest guess.
+  if (mod(i, 25.) == 0.) {            // After every 25 guesses:
+    o.rgb += hsv(knot/6., .7, .1/exp(best < 0. ? 0. : best*i));   // add color: the hue comes from the place on the knot, and it is brighter when closer.
+    p -= (.5 - FC.rgb/r.y)*best++;    // Step along the ray by the best distance, then add 1 so any guess at the new spot can win.
   }
 }
 ```
@@ -599,29 +600,30 @@ vec3 p;float D,e,i,B,R;for(p.z=5.;i++<6e2;mod(i,25.)==s?o.rgb+=hsv(B/6.,.7,.1/ex
 
 <a id="point-jellyfish"></a>By ア (@yuruyurau), 29 Aug 2026 · [the post](https://x.com/yuruyurau/status/2093710258120331463) · p5.js sketch · clip 800 × 800, 8 s · scene loop 8 s · title given by Equation Studio
 
-Twenty thousand faint points drawn by one formula of their index i and the time. Two slow and fast views of the index (cos(i/49) swings across, i/99 runs down) act as two coordinates, so consecutive points weave a surface: the bell. d grows from the top of the bell outward; dividing by d narrows the body and the sine terms of d and t make a pulse and the tentacles wave. Density does the shading: where many points overlap the jellyfish glows.
+This jellyfish is drawn with 20,000 tiny dots, and there is no picture of a jellyfish anywhere in the code. One formula takes each dot’s number i (0, 1, 2, … up to 19,999) and the time t, and works out where that dot goes. Dots with neighboring numbers land close together, so all of them together trace a smooth sheet that folds into a bell with hanging strands. Every dot is faint, so the jellyfish looks brightest where many dots pile up. As time runs, the same formula moves every dot a little: the bell pulses and the strands sway.
 
 ### How it works
 
-1. **Two coordinates from one index.** cos(i/49) swings back and forth every 308 points while i/99 creeps down: together they sweep a 2D sheet, like a scan line on an old television.
-2. **Distance from the top.** d = |(k, e)|²/79 + 1 is 1 at the top of the bell and grows along the body. The vertical position is mostly 66·d: the body hangs from the top.
-3. **A bell that pulses.** k/d·4 narrows the body with d; 12·sin(2.6d − t) moves each ring up and down with a phase that travels down the body.
-4. **Density is light.** Each point is 26% opaque; overlapping points build up (Opacity). Try fewer points (Points) or a larger Point size.
+1. **One number becomes two.** The formula gets just one number per dot: its number i. It makes two coordinates out of it. y = i/99 grows slowly, by 1 every 99 dots, like a row number. cos(i/49) swings back and forth quickly, once every 308 dots, like a pendulum. Together they sweep over a flat sheet, the way the beam of an old TV drew the screen line by line.
+2. **How far from the middle.** e = y/8 − 12 turns the row number into a height from −12 to 13, with 0 in the middle rows. Then d = (k² + e²)/79 + 1 measures how far a dot is from the middle of the sheet: exactly 1 in the middle and bigger toward the edges. Each dot is placed 66·d pixels down, so the middle of the sheet becomes the top of the bell and its edges hang below as strands.
+3. **A wide bell, thin strands.** Sideways, the formula divides by d and by d·d. Near the top d is small, so the dots spread out into a wide dome. Lower down d is bigger, the division squeezes the dots together, and the body narrows into strands. The sin(…) terms add ripples that change with time, so the strands sway.
+4. **A pulse runs down the body.** The last line adds 12·sin(2.6·d − t) to the height. As t grows, this wave moves toward bigger d, so a ripple travels from the top of the bell down to the tips, again and again. Watch the bell squeeze and relax.
+5. **Light from crowds of dots.** Each dot is only 26% opaque, so one dot on its own is dim. Where hundreds of dots land in the same place, their light adds up, which is why the edges of the bell glow. Try fewer dots with the Points slider and you will start to see the separate dots.
 
 The point formula defines `y`, `k`, `e`, `d`, `x` and places point i at the last line. The Point cloud draws 20000 points with opacity 0.259 (stroke alpha 66), sketch time t = 2.3562 × seconds + 0.0393.
 
-Ideas: One formula, thousands of points · Density becomes brightness · Seamless loops.
+Ideas: One formula, thousands of points · Many faint dots make brightness · Seamless loops.
 
 ### The point formula (equation language)
 
 ```text
-// Point jellyfish · ア (@yuruyurau), 29 Aug 2026 · the point formula of the p5.js sketch
-y = i/99                              // a slow second index: 0 to 202 over the 20000 points
-k = (8 + sin(i/19 + t))*cos(i/49)     // across the bell: swings side to side as i runs; the swing breathes with time
-e = y/8 - 12                          // along the body: −12 at the top to 13 at the tentacle tips
-d = length(vec2(k, e))^2/79 + 1       // squared distance in the (k, e) plane: 1 at the top of the bell, growing downward
-x = k/d*4 - e*sin(k) + k/(d*d)*(12 + d*6*sin(d*d - t + cos(t/3) + .3*sin(e))) + 200   // sideways: the bell narrows with d; the sines make the tentacles wave
-vec2(x, 12*sin(d*2.6 - t) + d*66 + 40)   // down: mostly d (the body hangs from the top), plus a pulse running down it
+// Point jellyfish · ア (@yuruyurau), 29 Aug 2026 · where the sketch puts dot number i
+y = i/99                              // y is like a row number: it goes up by 1 every 99 dots, from 0 to about 202
+k = (8 + sin(i/19 + t))*cos(i/49)     // k swings from side to side as i counts up, and how far it swings changes with time t
+e = y/8 - 12                          // e turns the row into a height from −12 to 13, with 0 in the middle rows
+d = length(vec2(k, e))^2/79 + 1       // d is 1 in the middle of the sheet of dots and grows toward its edges
+x = k/d*4 - e*sin(k) + k/(d*d)*(12 + d*6*sin(d*d - t + cos(t/3) + .3*sin(e))) + 200   // across: dividing by d squeezes the dots together lower down, and the sines make the strands sway
+vec2(x, 12*sin(d*2.6 - t) + d*66 + 40)   // the dot's place: 66·d pixels down, so the middle of the sheet is the top of the bell, plus a wave that runs down the body
 ```
 
 ### As posted
@@ -635,29 +637,31 @@ t=0,draw=$=>{t||createCanvas(w=400,w);background(9).stroke(w,66);for(t+=PI/80,i=
 
 <a id="point-creature"></a>By ア (@yuruyurau), 16 Sept 2026 · [the post](https://x.com/yuruyurau/status/2100230050063024467) · p5.js sketch · clip 800 × 800, 16 s · scene loop 8 s · title given by Equation Studio
 
-A creature swimming in a circle. The point formula works in polar coordinates around the center of the sketch: the angle c moves with −t/8 (circling) and cos(t + e)/9 (wiggling), the radius q is 99 plus a wave that travels along the body and fin-like terms. The fast index cos(i/7) sweeps across the body, the slow one y = i/598 along it.
+A long, feathery creature swims in a circle around the middle of the picture, its body rippling and its fins waving. It is drawn with 20,000 tiny, faint dots, and there is no picture of the creature anywhere in the code. One formula takes each dot’s number i (0, 1, 2, … up to 19,999) and the time t, and works out where that dot goes. The formula first finds how far the dot should be from the center of the picture and at what angle, like the length and direction of a clock hand, and only then turns those into a position. Dots with neighboring numbers land close together, so together they trace smooth strands, and the creature looks brightest where many dots pile up.
 
 ### How it works
 
-1. **Polar placement.** The last line turns (q, c) into sketch pixels: q is the distance from the center, c the angle. Everything else computes those two.
-2. **Swimming.** c = d/4 − t/8 + cos(t + e)/9: −t/8 moves the creature around the circle, cos(t + e) wiggles the body with a phase that runs along it.
-3. **Fins and hairs.** y/23·k·(3 sin e + e sin 2e + sin 4d) pushes points in and out depending on where they sit: the thin appendages.
+1. **A distance and an angle.** The last line places each dot using two numbers: q, its distance from the center of the picture, and c, its angle around the center, like the length and direction of a clock hand. Describing a point this way is called polar coordinates. q·sin(c) and q·cos(c) turn them into steps across and down, and + 200 moves the center to the middle of the 400-pixel sketch. Every line above the last one only works out q and c.
+2. **Two counters from one number.** Each dot knows only its number i. y = i/598 grows slowly, by 1 every 598 dots, so it moves along the body. cos(i/7) swings back and forth fast, once every 44 dots, so k sweeps across the body again and again, like someone shading with a pencil. From these the formula works out e and d; d, from about 1 to 14.5, says where along the body the dot is.
+3. **Swimming in a circle.** c = d/4 − t/8 + cos(t + e)/9. The d/4 part spreads the body out along the circle, so it is bent into a long arc about half the circle long. The sketch’s time t grows by 2π (about 6.28) every second, so − t/8 moves the whole creature clockwise around the center, once every 8 seconds. cos(t + e)/9 adds a small wiggle, once a second, that reaches different parts of the body at different moments.
+4. **Waves, fins and hairs.** q = 99 + … keeps the body about 99 pixels from the center. d·sin(t − d) adds a wave that runs along the body toward the end where d is big, and it grows bigger there. The last part, y/23·k·(…), pushes dots in and out; it grows with y, so one end of the body stays smooth while the other end sprouts fins and hairs that wave as the sines change.
+5. **Light from crowds of dots.** Each dot is faint: it covers only about 38% of what is behind it (the sketch’s alpha, 96 out of 255). Where many dots land on top of each other, their light adds up, so the dense strands glow and the loose hairs look thin and dim.
 
 The point formula defines `y`, `k`, `e`, `d`, `q`, `c` and places point i at the last line. The Point cloud draws 20000 points with opacity 0.376 (stroke alpha 96), sketch time t = 6.2832 × seconds + 0.1047.
 
-Ideas: One formula, thousands of points · Polar coordinates · Density becomes brightness · Seamless loops.
+Ideas: One formula, thousands of points · Polar coordinates: angle and distance · Many faint dots make brightness · Seamless loops.
 
 ### The point formula (equation language)
 
 ```text
-// Swimming creature · ア (@yuruyurau), 16 Sep 2026 · the point formula of the p5.js sketch
-y = i/598                             // a slow second index: 0 to 33 over the 20000 points
-k = (5 + sin(y))*cos(i/7)             // across the body: a fast swing every 44 points, wider where sin(y) is large
-e = y/5 - 11                          // along the body: −11 to −4.3
-d = length(vec2(k, e))/.6 - 6         // distance in the (k, e) plane: where along the body the point is
-q = 99 + d*sin(t - d) + y/23*k*(3*sin(e) + e*sin(e*2) + sin(d*4))   // distance from the center: a wave runs along the body; fins and hairs from the sines
-c = d/4 - t/8 + cos(t + e)/9          // angle around the center: the creature circles once every 16π of sketch time and wiggles
-vec2(q*sin(c) + 200, q*cos(c) + 200)  // polar to sketch pixels around the center (200, 200)
+// Swimming creature · ア (@yuruyurau), 16 Sep 2026 · where the sketch puts dot number i
+y = i/598                             // y counts slowly: it goes up by 1 every 598 dots, reaching about 33.
+k = (5 + sin(y))*cos(i/7)             // k swings fast from side to side, once every 44 dots, by 4 to 6.
+e = y/5 - 11                          // e turns y into a number from −11 to about −4.3.
+d = length(vec2(k, e))/.6 - 6         // d says where along the body the dot sits: from about 1 to 14.5.
+q = 99 + d*sin(t - d) + y/23*k*(3*sin(e) + e*sin(e*2) + sin(d*4))   // q is the distance from the center: about 99 pixels, plus a wave along the body, plus the fins.
+c = d/4 - t/8 + cos(t + e)/9          // c is the angle around the center: − t/8 makes the creature circle, and cos(t + e)/9 makes it wiggle.
+vec2(q*sin(c) + 200, q*cos(c) + 200)  // Turn the distance q and the angle c into a place around the center (200, 200).
 ```
 
 ### As posted
@@ -671,28 +675,30 @@ t=0,draw=$=>{t||createCanvas(w=400,w);background(9).stroke(w,96);for(t+=PI/30,i=
 
 <a id="point-twins"></a>By ア (@yuruyurau), 18 Sept 2026 · [the post](https://x.com/yuruyurau/status/2100956346057392137) · p5.js sketch · clip 800 × 800, 16 s · scene loop 8 s · title given by Equation Studio
 
-The same polar construction, with a twist: (i % 2)·9 adds 9 radians to every odd point, so the even and odd points form two copies of the creature, about 1.4 turns apart, circling together. The frills come from sin(d² − 3t), a wave whose wavelength shrinks along the body.
+Two lacy creatures chase each other around the center of the picture, their bodies rippling with frills. Both are drawn by one formula from 20,000 faint dots: it takes each dot’s number i and the time t, and works out where that dot goes. Like the Swimming creature, it first finds each dot’s distance from the center and its angle around it, like the length and direction of a clock hand, and then turns those into a position. The twin comes from one small extra term: every odd-numbered dot is turned 9 radians further around the circle, so the odd dots draw a second copy of the creature about 156 degrees away. The frills come from a wave whose ripples get closer and closer together along the body.
 
 ### How it works
 
-1. **Two creatures from one formula.** i % 2 is 0 for even and 1 for odd points; multiplying by 9 turns every odd point 9 radians further: a twin.
-2. **Frills.** sin(d² − 3t) oscillates faster and faster along the body (d² grows quickly), which ruffles the edges.
+1. **Two creatures from one formula.** i % 2 is the remainder when i is divided by 2: 0 for even dots and 1 for odd dots. Multiplied by 9, it turns every odd dot 9 radians further around the center (a full turn is about 6.28 radians). 9 radians is almost one and a half turns, so the odd dots draw a second copy of the creature about 156 degrees around the circle: the twin. Even and odd dots take turns, so each twin gets 10,000 dots.
+2. **Circling together.** The rest of the angle, d/3 − t/4 + k²/89, is the same for both twins. d/3 spreads each body out along the circle, so it is bent into an arc. The sketch’s time t grows by π (about 3.14) every second, so − t/4 moves both twins clockwise around the center, once every 8 seconds.
+3. **Waves and frills.** q starts at 99 pixels from the center. − d²·sin(t − d) is a wave that runs along the body and gets much bigger toward the end where d is large, because d² grows fast. y/13·k·(e + sin(d² − 3t)) makes the frills: since d² grows faster and faster, the ripples of sin(d² − 3t) get closer and closer together along the body. 3·sin(3k) adds a small ripple of up to 3 pixels.
+4. **Light from crowds of dots.** Each dot is faint: it covers only about 38% of what is behind it (the sketch’s alpha, 96 out of 255). Where the strands of a body cross and pile up, their light adds up and they glow.
 
 The point formula defines `y`, `k`, `e`, `d`, `q`, `c` and places point i at the last line. The Point cloud draws 20000 points with opacity 0.376 (stroke alpha 96), sketch time t = 3.1416 × seconds + 0.0524.
 
-Ideas: One formula, thousands of points · Polar coordinates · Density becomes brightness · Seamless loops.
+Ideas: One formula, thousands of points · Polar coordinates: angle and distance · Many faint dots make brightness · Seamless loops.
 
 ### The point formula (equation language)
 
 ```text
-// Circling twins · ア (@yuruyurau), 18 Sep 2026 · the point formula of the p5.js sketch
-y = i/638                             // a slow second index: 0 to 31 over the 20000 points
-k = (3 + cos(y))*sin(i/7) + 1e-4      // across the body: a fast swing every 44 points (never exactly 0)
-e = y/5 - 9                           // along the body
-d = length(vec2(k, e)) - 3            // where along the body the point is
-q = 99 + 3*sin(k*3) - d*d*sin(t - d) + y/13*k*(e + sin(d*d - t*3))   // distance from the center: ripples, a wave along the body, frills
-c = d/3 - t/4 + (i % 2)*9 + k*k/89    // angle: odd points are turned by 9 radians, so two twins circle together
-vec2(q*sin(c) + 200, q*cos(c) + 200)  // polar to sketch pixels around the center
+// Circling twins · ア (@yuruyurau), 18 Sep 2026 · where the sketch puts dot number i
+y = i/638                             // y counts slowly: it goes up by 1 every 638 dots, reaching about 31.
+k = (3 + cos(y))*sin(i/7) + 1e-4      // k swings fast from side to side, once every 44 dots; + 0.0001 keeps it from being exactly 0.
+e = y/5 - 9                           // e turns y into a number from −9 to about −2.7.
+d = length(vec2(k, e)) - 3            // d says where along the body the dot sits: from about 0 to 7.
+q = 99 + 3*sin(k*3) - d*d*sin(t - d) + y/13*k*(e + sin(d*d - t*3))   // q is the distance from the center: about 99 pixels, plus ripples, a wave along the body, and frills.
+c = d/3 - t/4 + (i % 2)*9 + k*k/89    // c is the angle: odd dots (i % 2 = 1) are turned 9 radians further, which makes the twin.
+vec2(q*sin(c) + 200, q*cos(c) + 200)  // Turn the distance q and the angle c into a place around the center (200, 200).
 ```
 
 ### As posted
@@ -706,28 +712,29 @@ t=0,draw=$=>{t||createCanvas(w=400,w);background(9).stroke(w,96);for(t+=PI/60,i=
 
 <a id="point-twins-hairy"></a>By ア (@yuruyurau), 19 Sept 2026 · [the post](https://x.com/yuruyurau/status/2101319815772397831) · p5.js sketch · clip 800 × 800, 16 s · scene loop 8 s · title given by Equation Studio
 
-A one-term variation of the Circling twins: 3·sin(9/k) replaces 3·sin(3k). Near the body’s center line k is tiny, 9/k huge and its sine oscillates wildly from point to point, scattering points into bristles and spines. Compare the two scenes side by side to see what a single term does.
+These are the same two creatures as in Circling twins, but now they are covered in fine, bristly fuzz. The formula is exactly the Circling twins formula with one small term changed: 3·sin(9/k) instead of 3·sin(3k). k swings from side to side across each body, so it is very close to 0 along the middle of the body. There 9/k is huge and jumps to very different values from one dot to the next, so its sine jumps between −1 and 1 almost at random. That scatters neighboring dots up to 3 pixels in and out, and the scattered dots look like bristles. Open the two scenes one after the other to see how much one small term can change.
 
 ### How it works
 
-1. **One term changed.** sin(9/k) swings between −1 and 1 ever faster as k approaches 0, so neighbouring points jump apart: bristles along the middle of each body.
-2. **Why + 1e-4.** k is never exactly 0 thanks to + 1e-4, so 9/k stays finite.
+1. **One term changed.** Compare the q line with the Circling twins: 3·sin(3k) became 3·sin(9/k). Where k is far from 0, 9/k changes smoothly, and the term is a gentle ripple, as before. But along the middle of each body k is tiny, so 9/k is huge and jumps to very different values from one dot to the next, and its sine swings between −1 and 1 almost at random. The dots there scatter up to 3 pixels in and out, which looks like bristles.
+2. **Why + 0.0001.** k = (3 + cos y)·sin(i/7) + 0.0001. For dot number 0, sin(0) is exactly 0, and 9 ÷ 0 would be infinite, which would break that dot. Adding 0.0001 keeps k away from exactly 0. The Circling twins has the same tiny number, but there it makes no difference, because nothing divides by k.
+3. **Circling together.** Everything else is the same as in Circling twins. Odd dots are turned 9 radians further around the center, which makes the twin, and − t/4 moves both twins clockwise around the center, once every 8 seconds.
 
 The point formula defines `y`, `k`, `e`, `d`, `q`, `c` and places point i at the last line. The Point cloud draws 20000 points with opacity 0.376 (stroke alpha 96), sketch time t = 3.1416 × seconds + 0.0524.
 
-Ideas: One formula, thousands of points · Polar coordinates · Density becomes brightness.
+Ideas: One formula, thousands of points · Polar coordinates: angle and distance · Many faint dots make brightness.
 
 ### The point formula (equation language)
 
 ```text
-// Circling twins, bristled · ア (@yuruyurau), 19 Sep 2026 · the point formula of the p5.js sketch
-y = i/638                             // a slow second index
-k = (3 + cos(y))*sin(i/7) + 1e-4      // across the body (never exactly 0: 9/k below would be infinite)
-e = y/5 - 9                           // along the body
-d = length(vec2(k, e)) - 3            // where along the body the point is
-q = 99 + 3*sin(9/k) - d*d*sin(t - d) + y/13*k*(e + sin(d*d - t*3))   // 3 sin(9/k) instead of 3 sin(3k): wild oscillation near the center line makes bristles
-c = d/3 - t/4 + (i % 2)*9 + k*k/89    // angle: two twins circling together
-vec2(q*sin(c) + 200, q*cos(c) + 200)  // polar to sketch pixels around the center
+// Circling twins, bristled · ア (@yuruyurau), 19 Sep 2026 · where the sketch puts dot number i
+y = i/638                             // y counts slowly: it goes up by 1 every 638 dots, reaching about 31.
+k = (3 + cos(y))*sin(i/7) + 1e-4      // k swings fast from side to side; + 0.0001 keeps it from being exactly 0, since 9/k below would be infinite.
+e = y/5 - 9                           // e turns y into a number from −9 to about −2.7.
+d = length(vec2(k, e)) - 3            // d says where along the body the dot sits.
+q = 99 + 3*sin(9/k) - d*d*sin(t - d) + y/13*k*(e + sin(d*d - t*3))   // The one change: 3·sin(9/k) instead of 3·sin(3k). Near k = 0 it jumps wildly, which makes bristles.
+c = d/3 - t/4 + (i % 2)*9 + k*k/89    // c is the angle: odd dots are turned 9 radians further, which makes the twin.
+vec2(q*sin(c) + 200, q*cos(c) + 200)  // Turn the distance q and the angle c into a place around the center (200, 200).
 ```
 
 ### As posted
@@ -741,60 +748,60 @@ t=0,draw=$=>{t||createCanvas(w=400,w);background(9).stroke(w,96);for(t+=PI/60,i=
 
 <a id="fluffy-anemone"></a>After Jae (@Jaenam97), 29 Jul 2026 · [the post](https://x.com/Jaenam97/status/2082449968548159779) · clip only; our own study · clip 1920 × 1440, 19.108 s · scene loop 18.85 s · title given by Equation Studio
 
-The post shows a glowing ball of fibers rendered by a multi-pass volumetric raymarcher, without publishing its code. This study rebuilds the look in one pass: rays step through the ball in 80 slices; at each sample the direction from the center is mapped onto a cube face whose grid holds one randomly placed fiber per cell, so the density is high near a fiber direction. Rotating the sample point by an angle that grows with the radius makes the fibers bend and sway. Emission is cyan at the core and pink at the tips; transmittance makes front fibers hide those behind.
+A round ball of glowing fibers floats in deep blue water, blue and cyan with pink tips, swaying gently as if in a current. This one is different from the other works: the artist, Jae, posted only a video, not the code, so the code here is our own attempt to rebuild the look, not the artist’s program. It is a shader, a small program that runs for every pixel, but there is no solid surface for its rays to hit. Instead, each pixel’s ray (an imaginary line from the camera) takes 90 thin slices through the ball, like a stack of tracing paper, and at each slice adds the light of any fiber passing through it. The fibers are placed by pointing directions at the six faces of a cube and scattering one fiber at a random spot in each square of a grid on each face. Fibers in front partly hide the ones behind, so the ball looks dense in the middle and wispy at the edge.
 
 ### How it works
 
-1. **Slices through a volume.** There is no surface to hit: the ray takes 80 evenly spaced samples through the ball and adds the light emitted at each, weighted by the density there. *(In the app this step stops loop 1 after 30 steps.)*
-2. **Fibers from a cube.** The direction from the center is projected onto a cube face; each grid cell of the face holds one fiber at a random place (fsnoise). near is the distance to the closest fiber direction, and seed that fiber’s own random number, which sets its length. *(In the app this step shows `near` on the canvas.)*
-3. **Swaying.** rotate3D turns the sample by sway·R²·sin(t/3 + 6R): the outer parts of the fibers turn more and at a different phase than the inner parts, so the fibers bend like hair in a current.
-4. **Tips and colors.** along runs from 0 at the center to 1 at the fiber’s tip, where a bright bead sits. The color depends on the direction: cyan toward the upper right, pink tips on the left, violet underneath, white where the fibers meet. *(In the app this step shows `along` on the canvas.)*
-5. **Seeing through the fluff.** through (the transmittance) starts at 1 and shrinks behind every fiber, so the front fibers hide those behind: the ball looks solid in the middle and wispy at the edge. *(In the app this step shows `through` on the canvas.)*
+1. **Slices through a cloud of fibers.** The other 3D works in this gallery look for the surface a ray hits. This ball has no surface: it is a volume, like fog or cotton candy. So each pixel’s ray takes 90 evenly spaced samples, or slices, straight through the ball and adds the light given off at each one. This step stops loop 1 after 30 slices, so you see only the front third of the ball. *(In the app this step stops loop 1 after 30 steps.)*
+2. **Fibers from a cube.** Every fiber points straight out from the center, so a fiber is really a direction. To spread about a thousand directions evenly, the code imagines a cube around the ball: it finds which of the six faces the direction points at and where on that face it lands. Each face is divided into a grid of fibers × fibers squares (13 × 13 at first), and each square holds one fiber at a random spot; fsnoise gives the random numbers. near is the distance to the closest fiber, found by checking this square and its 8 neighbors, and seed is that fiber’s own random number. *(In the app this step shows `near` on the canvas.)*
+3. **Swaying in the current.** rotate3D, a helper that turns a point around an axis, turns the point by the angle sway·R²·sin(0.333t + 5R). R² makes the turn tiny near the center and bigger toward the outside, so the fibers stay fixed in the middle and bend toward their tips. The sine changes with time and with R, so the bend moves along the fibers like hair waving in water. The axis wobbles too, because its first part is sin(0.667t).
+4. **Tips and colors.** along is R divided by the fiber’s length: 0 at the center and 1 at the tip. seed gives each fiber its own length, between 0.7 and 1.15 times the ball’s radius. The fiber fades out just past its tip, and a bright bead sits where along is 0.95. The color depends on the direction: blue, turning cyan toward the upper right, pink tips on the left, violet underneath, and white near the core where the fibers meet. *(In the app this step shows `along` on the canvas.)*
+5. **Seeing through the fluff.** through starts at 1, meaning everything behind still shows. Each slice multiplies it by 1 − fiber·0.12 (but never by less than 0.5), so every fiber the ray passes dims whatever lies behind it. The light from each slice is multiplied by through, so fibers in front partly hide the ones behind: the ball looks dense in the middle and wispy at the edges. *(In the app this step shows `through` on the canvas.)*
 
-Loops: loop 1 (line 13, 90 slices through the ball, front to back): 90 steps; loop 2 (line 23, this cell and its eight neighbors): 9 steps per run. Variables: `uv` vec2, `ray` vec3, `dir` vec3, `through` float, `i` float, `p` vec3, `R` float, `q` vec3, `n` vec3, `a` vec3, `face` vec2, `side` float, `cell` vec2, `f` vec2, `near` float, `seed` float, `k` int, `c` vec2, `id` vec2, `jitter` vec2, `d` float, `along` float, `fiber` float, `bead` float, `core` float, `color` vec3. Helpers: `rotate3D`, `fsnoise`. 80 numbers can be dragged.
+Loops: loop 1 (line 13, 90 slices through the ball, front to back): 90 steps; loop 2 (line 23, Check this square and its 8 neighbors): 9 steps per run. Variables: `uv` vec2, `ray` vec3, `dir` vec3, `through` float, `i` float, `p` vec3, `R` float, `q` vec3, `n` vec3, `a` vec3, `face` vec2, `side` float, `cell` vec2, `f` vec2, `near` float, `seed` float, `k` int, `c` vec2, `id` vec2, `jitter` vec2, `d` float, `along` float, `fiber` float, `bead` float, `core` float, `color` vec3. Helpers: `rotate3D`, `fsnoise`. 80 numbers can be dragged.
 
-Ideas: Volumes without surfaces · Raymarching · Glow by accumulation.
+Ideas: Volumes without surfaces · Raymarching: walking into a 3D scene · Glow by adding up light.
 
 ### Readable version
 
 ```glsl
 // Fluffy anemone · a study after Jae (@Jaenam97), 29 Jul 2026 · our own code
 // The post (“Volumetric raymarch of a fluffy sea creature… multi pass #glsl fragment shader”) did not publish its shader.
-// This is Equation Studio's single-pass model of the look: a ball of glowing fibers in deep water.
-param radius = .45 [.2, .7] step .01    // radius of the ball
-param fibers = 13 [4, 40] step 1        // fibers along each side of the six cube faces (6 × fibers² in all)
-param width = .13 [.03, .45] step .005  // thickness of a fiber, relative to the spacing of the fibers
-param sway = .5 [0, 2] step .01         // how strongly the fibers wave in the current
-param glow = 1 [0, 3] step .01          // brightness of the fibers
-vec2 uv = (FC.xy - .5*r)/r.y;          // this pixel: the center is 0, the image 1 high
-vec3 ray = vec3(0, 0, -2.2), dir = normalize(vec3(uv, 1.8));   // the camera and the direction of this pixel
-o.rgb = vec3(.02, .035, .08)*(1.2 - .8*length(uv));   // deep water behind, darker toward the corners
-float through = 1.;                    // how much of what lies behind still shows (transmittance)
+// This is Equation Studio's own one-pass attempt at the look: a ball of glowing fibers in deep water.
+param radius = .45 [.2, .7] step .01    // The radius of the ball.
+param fibers = 13 [4, 40] step 1        // Fibers along each side of each of the six cube faces (6 × fibers² in all).
+param width = .13 [.03, .45] step .005  // How thick a fiber is, compared with the spacing between fibers.
+param sway = .5 [0, 2] step .01         // How strongly the fibers wave in the current.
+param glow = 1 [0, 3] step .01          // How brightly the fibers glow.
+vec2 uv = (FC.xy - .5*r)/r.y;          // The pixel's position: 0 in the center, and the image is 1 high.
+vec3 ray = vec3(0, 0, -2.2), dir = normalize(vec3(uv, 1.8));   // The camera, 2.2 units from the ball's center, and this pixel's direction.
+o.rgb = vec3(.02, .035, .08)*(1.2 - .8*length(uv));   // Deep blue water behind, darker toward the corners.
+float through = 1.;                    // How much of what lies behind still shows through (1 means all of it).
 for (float i = 0.; i < 90.; i++) {     // 90 slices through the ball, front to back
-  vec3 p = ray + dir*(2.2 - radius*1.4 + i*radius*2.8/90.);   // the sample point of this slice
-  float R = length(p);                 // distance from the center of the ball
-  if (R > radius*1.3) continue;        // outside the ball: nothing to add
-  vec3 q = p*rotate3D(sway*R*R*sin(t*.333 + R*5.), vec3(sin(t*.667), 1, .4));   // bend: outer parts turn more, swaying with time
-  vec3 n = normalize(q), a = abs(n);   // the direction from the center, and its size on each axis
-  vec2 face = a.x > a.y && a.x > a.z ? n.yz/a.x : a.y > a.z ? n.xz/a.y : n.xy/a.z;   // that direction on the largest face of a cube
-  float side = a.x > a.y && a.x > a.z ? sign(n.x) : a.y > a.z ? 2.*sign(n.y) : 3.*sign(n.z);   // which face
-  vec2 cell = floor(face*fibers), f = face*fibers - cell;   // one fiber per cell of that face
-  float near = 9., seed = 0.;          // distance to the nearest fiber (in cells) and that fiber's random number
-  for (int k = 0; k < 9; k++) {        // this cell and its eight neighbors
-    vec2 c = vec2(k%3 - 1, k/3 - 1), id = cell + c + side*17.;
-    vec2 jitter = vec2(fsnoise(id), fsnoise(id + 5.3));   // where the fiber sits in its cell
-    float d = length(f - c - .15 - .7*jitter);
-    if (d < near) { near = d; seed = fsnoise(id + 9.1); }
+  vec3 p = ray + dir*(2.2 - radius*1.4 + i*radius*2.8/90.);   // The point where the ray crosses this slice.
+  float R = length(p);                 // Its distance from the center of the ball.
+  if (R > radius*1.3) continue;        // Outside the ball there is nothing to add: go on to the next slice.
+  vec3 q = p*rotate3D(sway*R*R*sin(t*.333 + R*5.), vec3(sin(t*.667), 1, .4));   // Bend: turn the point more the farther out it is, swaying with time.
+  vec3 n = normalize(q), a = abs(n);   // The direction from the center, and how big it is along each axis.
+  vec2 face = a.x > a.y && a.x > a.z ? n.yz/a.x : a.y > a.z ? n.xz/a.y : n.xy/a.z;   // Where that direction hits a cube around the ball, on the face it hits.
+  float side = a.x > a.y && a.x > a.z ? sign(n.x) : a.y > a.z ? 2.*sign(n.y) : 3.*sign(n.z);   // Which of the six faces that is.
+  vec2 cell = floor(face*fibers), f = face*fibers - cell;   // A grid on the face, with one fiber in each square.
+  float near = 9., seed = 0.;          // The distance to the nearest fiber (in squares), and that fiber's random number.
+  for (int k = 0; k < 9; k++) {        // Check this square and its 8 neighbors
+    vec2 c = vec2(k%3 - 1, k/3 - 1), id = cell + c + side*17.;   // Which neighbor, and a number that names its square.
+    vec2 jitter = vec2(fsnoise(id), fsnoise(id + 5.3));   // A random spot for the fiber inside its square.
+    float d = length(f - c - .15 - .7*jitter);   // The distance to that fiber.
+    if (d < near) { near = d; seed = fsnoise(id + 9.1); }   // Keep the nearest fiber and its random number.
   }
-  float along = R/(radius*(.7 + .45*seed));   // 0 at the center, 1 at this fiber's tip (every fiber has its own length)
-  float fiber = exp(-near*near/(width*width))*(1. - smoothstep(.85, 1.05, along));   // density: high on a fiber, ending at its tip
-  float bead = exp(-near*near/(width*width*2.))*exp(-(along - .95)*(along - .95)*300.);   // a bright bead at the tip
-  float core = exp(-R*R/(radius*radius*.05));   // a soft glowing core
-  vec3 color = mix(vec3(.3, .42, 1.), vec3(.55, .95, 1.), smoothstep(-.3, .8, n.y*.7 + n.x*.5));   // blue, turning cyan toward the upper right …
+  float along = R/(radius*(.7 + .45*seed));   // 0 at the center and 1 at this fiber's tip (each fiber has its own length).
+  float fiber = exp(-near*near/(width*width))*(1. - smoothstep(.85, 1.05, along));   // How much fiber is here: a lot on a fiber, fading out at its tip.
+  float bead = exp(-near*near/(width*width*2.))*exp(-(along - .95)*(along - .95)*300.);   // A bright bead at the tip.
+  float core = exp(-R*R/(radius*radius*.05));   // A soft glow at the core.
+  vec3 color = mix(vec3(.3, .42, 1.), vec3(.55, .95, 1.), smoothstep(-.3, .8, n.y*.7 + n.x*.5));   // Blue, turning cyan toward the upper right …
   color = mix(color, vec3(1., .42, .72), smoothstep(.4, 1., along)*(1. - smoothstep(-.9, .1, n.x*.8 - n.y*.3)));   // … pink tips on the left …
-  color = mix(color, vec3(.45, .3, 1.), (1. - smoothstep(-.9, -.1, n.y))*.6);   // … violet underneath
-  color = mix(vec3(.8, .95, 1.), color, smoothstep(.05, .35, along));   // white where the fibers meet at the core
-  o.rgb += through*glow*(fiber*.16 + bead*.3 + core*.05)*color;   // emitted light, dimmed by what lies in front
-  through *= 1. - min(fiber*.12, .5);  // fibers hide some of what lies behind them
+  color = mix(color, vec3(.45, .3, 1.), (1. - smoothstep(-.9, -.1, n.y))*.6);   // … violet underneath …
+  color = mix(vec3(.8, .95, 1.), color, smoothstep(.05, .35, along));   // … and white where the fibers meet at the core.
+  o.rgb += through*glow*(fiber*.16 + bead*.3 + core*.05)*color;   // Add this slice's light, dimmed by the fibers in front of it.
+  through *= 1. - min(fiber*.12, .5);  // Fibers hide part of whatever lies behind them.
 }
 ```

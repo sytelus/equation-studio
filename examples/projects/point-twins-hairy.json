@@ -1,7 +1,7 @@
 {
   "id": "point-twins-hairy",
   "title": "Circling twins, bristled",
-  "description": "A one-term variation of the Circling twins: 3·sin(9/k) replaces 3·sin(3k). By ア (@yuruyurau).",
+  "description": "These are the same two creatures as in Circling twins, but now they are covered in fine, bristly fuzz. By ア (@yuruyurau).",
   "status": "Reproduction · original code",
   "schemaVersion": 1,
   "nodes": [
@@ -32,7 +32,7 @@
         "p": "space"
       },
       "params": {
-        "expression": "// Circling twins, bristled · ア (@yuruyurau), 19 Sep 2026 · the point formula of the p5.js sketch\ny = i/638                             // a slow second index\nk = (3 + cos(y))*sin(i/7) + 1e-4      // across the body (never exactly 0: 9/k below would be infinite)\ne = y/5 - 9                           // along the body\nd = length(vec2(k, e)) - 3            // where along the body the point is\nq = 99 + 3*sin(9/k) - d*d*sin(t - d) + y/13*k*(e + sin(d*d - t*3))   // 3 sin(9/k) instead of 3 sin(3k): wild oscillation near the center line makes bristles\nc = d/3 - t/4 + (i % 2)*9 + k*k/89    // angle: two twins circling together\nvec2(q*sin(c) + 200, q*cos(c) + 200)  // polar to sketch pixels around the center",
+        "expression": "// Circling twins, bristled · ア (@yuruyurau), 19 Sep 2026 · where the sketch puts dot number i\ny = i/638                             // y counts slowly: it goes up by 1 every 638 dots, reaching about 31.\nk = (3 + cos(y))*sin(i/7) + 1e-4      // k swings fast from side to side; + 0.0001 keeps it from being exactly 0, since 9/k below would be infinite.\ne = y/5 - 9                           // e turns y into a number from −9 to about −2.7.\nd = length(vec2(k, e)) - 3            // d says where along the body the dot sits.\nq = 99 + 3*sin(9/k) - d*d*sin(t - d) + y/13*k*(e + sin(d*d - t*3))   // The one change: 3·sin(9/k) instead of 3·sin(3k). Near k = 0 it jumps wildly, which makes bristles.\nc = d/3 - t/4 + (i % 2)*9 + k*k/89    // c is the angle: odd dots are turned 9 radians further, which makes the twin.\nvec2(q*sin(c) + 200, q*cos(c) + 200)  // Turn the distance q and the angle c into a place around the center (200, 200).",
         "count": 20000,
         "size": 1,
         "color": "#ffffff",

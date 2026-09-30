@@ -39,15 +39,15 @@ import { EquationError, parseParamLine } from './expression.js';
 export const CODE_LIMITS = { length: 12000, loops: 8, variables: 64, numbers: 160, params: 8, budget: 30000 };
 /** Input names of twigl's geekest mode → {type, meaning, writable}. */
 export const CODE_INPUTS = {
-    FC: { type: 'vec4', meaning: 'pixel position: FC.xy in pixels from the bottom-left corner, FC.z = 0.5, FC.w = 1' },
-    r: { type: 'vec2', meaning: 'resolution: the width and height of the image in pixels' },
-    t: { type: 'float', meaning: 'time in seconds' },
-    o: { type: 'vec4', meaning: 'the output color, 0 at the start; the code adds light to it', writable: true },
-    m: { type: 'vec2', meaning: 'mouse position, 0 to 1 (fixed at the center here)' },
-    f: { type: 'float', meaning: 'frame number, 60 frames per second' },
-    s: { type: 'float', meaning: 'sound level (always 0 here)' },
-    PI: { type: 'float', meaning: 'π = 3.14159…' },
-    PI2: { type: 'float', meaning: '2π = 6.28318…' }
+    FC: { type: 'vec4', meaning: 'the position of this pixel, in pixels from the bottom-left corner (FC.x across, FC.y up); FC.z is always 0.5 and FC.w is always 1' },
+    r: { type: 'vec2', meaning: 'the size of the picture in pixels: r.x is its width and r.y its height' },
+    t: { type: 'float', meaning: 'the time in seconds, which grows as the animation plays' },
+    o: { type: 'vec4', meaning: 'the output color of this pixel, which starts at 0 (black); the code adds light to it, with o.r, o.g and o.b for red, green and blue', writable: true },
+    m: { type: 'vec2', meaning: 'the mouse position, from 0 to 1 across and up the picture; here it stays at the center, (0.5, 0.5)' },
+    f: { type: 'float', meaning: 'the frame number: the time counted in frames, 60 per second' },
+    s: { type: 'float', meaning: 'the sound level, which is always 0 here' },
+    PI: { type: 'float', meaning: 'the number π, about 3.14159: half a turn, in radians' },
+    PI2: { type: 'float', meaning: 'the number 2π, about 6.28318: one full turn, in radians' }
 };
 /** twigl helpers callable from code, with their signatures (see twigl-glsl.js). */
 export const CODE_HELPERS = {
@@ -65,19 +65,33 @@ export const CODE_HELPERS = {
     grad4: [['vec4', 'float', 'vec4']]
 };
 /** What each helper does, in words (tooltips and the explanation). */
+/** One-line meanings of the GLSL built-ins, for tooltips in code. */
+export const BUILTIN_HELP = {
+    abs: 'abs(x): drops the minus sign, so −3 becomes 3 and 3 stays 3', sign: 'sign(x): −1 if x is negative, 0 if it is zero and 1 if it is positive', floor: 'floor(x): rounds down to a whole number, so 2.7 becomes 2 and −2.3 becomes −3', ceil: 'ceil(x): rounds up to a whole number, so 2.3 becomes 3 and −2.7 becomes −2',
+    fract: 'fract(x): keeps only the part after the decimal point, so as x grows it counts from 0 up to 1 and starts again, like a seconds hand going round. It is x − floor(x), so fract(−0.25) is 0.75', round: 'round(x): the nearest whole number, so 2.4 becomes 2 and 2.6 becomes 3', mod: 'mod(x, y): what is left after taking away whole steps of size y, so mod(7, 3) is 1. As x grows it climbs from 0 toward y and starts again, like a clock that wraps around every y',
+    min: 'min(a, b): the smaller of a and b', max: 'max(a, b): the larger of a and b', clamp: 'clamp(x, lo, hi): keeps x between lo and hi, so anything smaller becomes lo and anything bigger becomes hi', mix: 'mix(a, b, t): blends from a to b, giving a at t = 0, b at t = 1 and exactly halfway at t = 0.5. It is a + (b − a)·t',
+    step: 'step(edge, x): a switch that gives 0 when x is below the edge and 1 when x is at or above it', smoothstep: 'smoothstep(a, b, x): 0 below a, 1 above b and a smooth S-shaped climb in between, which makes soft edges', length: 'length(v): how long the arrow v is, found with Pythagoras: for v = (3, 4) it is √(3² + 4²) = 5',
+    distance: 'distance(a, b): how far apart the points a and b are, the same as length(a − b)', dot: 'dot(a, b): multiplies matching parts and adds them up (a.x·b.x + a.y·b.y + …). For two arrows of length 1 it is the cosine of the angle between them: 1 if they point the same way, 0 if they are at right angles', cross: 'cross(a, b): a 3D arrow that stands at right angles to both a and b',
+    normalize: 'normalize(v): the arrow v shrunk or stretched to length 1, so only its direction is left', reflect: 'reflect(v, n): the arrow v bounced off a mirror that faces the direction n, like a ball off a wall (n should have length 1)', sin: 'sin(x): a smooth wave that swings between −1 and 1 and repeats every 2π (about 6.28)',
+    cos: 'cos(x): the same wave as sin, a quarter of a wave ahead, so it starts at 1 when x is 0', tan: 'tan(x): sin(x) divided by cos(x), which shoots off toward infinity wherever cos(x) is 0', atan: 'atan(y, x): the angle of the point (x, y) seen from the center, from −π to π, like the hand of a clock. With one input, atan(s) is the angle of a slope s, from −π/2 to π/2',
+    exp: 'exp(x): the number e (about 2.718) to the power x. It grows very fast as x grows, and exp(−x) shrinks toward 0', log: 'log(x): the natural logarithm, the opposite of exp. It goes up by about 0.69 each time x doubles (x must be positive)', exp2: 'exp2(x): 2 to the power x, so exp2(3) is 2 × 2 × 2 = 8', log2: 'log2(x): how many times you double 1 to reach x, so log2(8) is 3',
+    pow: 'pow(x, y): x to the power y, so pow(2, 3) is 8 (x must not be negative)', sqrt: 'sqrt(x): the square root, the number that times itself gives x, so sqrt(9) is 3', inversesqrt: 'inversesqrt(x): 1 divided by the square root of x, so inversesqrt(4) is 0.5', tanh: 'tanh(x): squeezes any number smoothly into the range −1 to 1. Small numbers pass almost unchanged and huge ones end up close to 1 (or −1)',
+    sinh: 'sinh(x): the hyperbolic sine, (exp(x) − exp(−x)) / 2. It is about x near 0 and grows very fast farther out', cosh: 'cosh(x): the hyperbolic cosine, (exp(x) + exp(−x)) / 2. It is 1 at x = 0 and has the shape of a hanging chain', trunc: 'trunc(x): chops off the part after the decimal point, so 2.7 becomes 2 and −2.7 becomes −2', fwidth: 'fwidth(x): how much x changes from this pixel to its neighbors (across plus up), useful for edges that are about one pixel soft',
+    any: 'any(b): true if at least one of the yes/no values in b is true', all: 'all(b): true only if every one of the yes/no values in b is true', lessThan: 'lessThan(a, b): compares a and b part by part and gives a yes/no answer for each: is a.x < b.x, is a.y < b.y, and so on'
+};
 export const HELPER_HELP = {
-    hsv: 'hsv(h, s, v): a color from hue h (0–1 around the color wheel), saturation s and brightness v',
-    rotate2D: 'rotate2D(a): the 2×2 matrix of a rotation by a radians; v *= rotate2D(a) turns v by −a',
-    rotate3D: 'rotate3D(a, axis): the 3×3 matrix of a rotation by a radians about the axis',
-    snoise2D: 'snoise2D(p): smooth simplex noise in 2D, about −1 to 1',
-    snoise3D: 'snoise3D(p): smooth simplex noise in 3D, about −1 to 1',
-    snoise4D: 'snoise4D(p): smooth simplex noise in 4D, about −1 to 1',
-    fsnoise: 'fsnoise(c): a pseudo-random number from 0 to 1 for the point c (a hash, not smooth)',
-    fsnoiseDigits: 'fsnoiseDigits(c): like fsnoise with larger cells',
-    mod289: 'mod289(x): x modulo 289, a step of the simplex noise',
-    permute: 'permute(x): a pseudo-random permutation, a step of the simplex noise',
-    taylorInvSqrt: 'taylorInvSqrt(r): a fast approximation of 1/√r, a step of the simplex noise',
-    grad4: 'grad4(j, ip): a 4D gradient, a step of the simplex noise'
+    hsv: 'hsv(h, s, v): a color from a hue h (0 to 1 around the color wheel: 0 red, ⅓ green, ⅔ blue), a saturation s (0 gray, 1 full color) and a brightness v',
+    rotate2D: 'rotate2D(a): a 2×2 matrix, a little table of four numbers that turns things by the angle a in radians (6.28 is a full turn). v *= rotate2D(a) turns the pair v clockwise by a',
+    rotate3D: 'rotate3D(a, axis): a 3×3 matrix that turns 3D points by the angle a (in radians) around the direction axis, like a wheel turning on its axle',
+    snoise2D: 'snoise2D(p): smooth, random-looking hills over the 2D point p (simplex noise), between about −1 and 1',
+    snoise3D: 'snoise3D(p): the same smooth, random-looking noise over the 3D point p, between about −1 and 1',
+    snoise4D: 'snoise4D(p): the same smooth noise with four inputs, for example 3D space plus time, between about −1 and 1',
+    fsnoise: 'fsnoise(c): a random-looking number from 0 to 1 for the point c. The same c always gives the same number, but nearby points give unrelated numbers, so it is not smooth',
+    fsnoiseDigits: 'fsnoiseDigits(c): a gentler twin of fsnoise. The numbers inside it are smaller, so its result changes far more slowly as c moves',
+    mod289: 'mod289(x): the remainder of x after dividing by 289, one of the inner steps of the simplex noise',
+    permute: 'permute(x): scrambles numbers in a fixed way, one of the inner steps of the simplex noise',
+    taylorInvSqrt: 'taylorInvSqrt(r): a quick, rough stand-in for 1 divided by the square root of r, one of the inner steps of the simplex noise',
+    grad4: 'grad4(j, ip): picks a direction arrow in 4D, one of the inner steps of the simplex noise'
 };
 // ---- Types --------------------------------------------------------------------
 const VECTOR = { vec2: ['float', 2], vec3: ['float', 3], vec4: ['float', 4], ivec2: ['int', 2], ivec3: ['int', 3], ivec4: ['int', 4], bvec2: ['bool', 2], bvec3: ['bool', 3], bvec4: ['bool', 4] };

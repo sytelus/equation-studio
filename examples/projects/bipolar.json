@@ -1,7 +1,7 @@
 {
   "id": "bipolar",
   "title": "Bipolar nebula",
-  "description": "The supplied equations, decomposed into their original fields. GPU float32 port; use the included Python oracle for float64 output.",
+  "description": "Hamid Naderi Yeganeh’s nebula equations, split into the nine parts that build its lobes, threads and stars.",
   "status": "Source-equation port",
   "schemaVersion": 1,
   "nodes": [

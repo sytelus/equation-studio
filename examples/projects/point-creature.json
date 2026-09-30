@@ -1,7 +1,7 @@
 {
   "id": "point-creature",
   "title": "Swimming creature",
-  "description": "A creature swimming in a circle. By ア (@yuruyurau).",
+  "description": "A long, feathery creature swims in a circle around the middle of the picture, its body rippling and its fins waving. By ア (@yuruyurau).",
   "status": "Reproduction · original code",
   "schemaVersion": 1,
   "nodes": [
@@ -32,7 +32,7 @@
         "p": "space"
       },
       "params": {
-        "expression": "// Swimming creature · ア (@yuruyurau), 16 Sep 2026 · the point formula of the p5.js sketch\ny = i/598                             // a slow second index: 0 to 33 over the 20000 points\nk = (5 + sin(y))*cos(i/7)             // across the body: a fast swing every 44 points, wider where sin(y) is large\ne = y/5 - 11                          // along the body: −11 to −4.3\nd = length(vec2(k, e))/.6 - 6         // distance in the (k, e) plane: where along the body the point is\nq = 99 + d*sin(t - d) + y/23*k*(3*sin(e) + e*sin(e*2) + sin(d*4))   // distance from the center: a wave runs along the body; fins and hairs from the sines\nc = d/4 - t/8 + cos(t + e)/9          // angle around the center: the creature circles once every 16π of sketch time and wiggles\nvec2(q*sin(c) + 200, q*cos(c) + 200)  // polar to sketch pixels around the center (200, 200)",
+        "expression": "// Swimming creature · ア (@yuruyurau), 16 Sep 2026 · where the sketch puts dot number i\ny = i/598                             // y counts slowly: it goes up by 1 every 598 dots, reaching about 33.\nk = (5 + sin(y))*cos(i/7)             // k swings fast from side to side, once every 44 dots, by 4 to 6.\ne = y/5 - 11                          // e turns y into a number from −11 to about −4.3.\nd = length(vec2(k, e))/.6 - 6         // d says where along the body the dot sits: from about 1 to 14.5.\nq = 99 + d*sin(t - d) + y/23*k*(3*sin(e) + e*sin(e*2) + sin(d*4))   // q is the distance from the center: about 99 pixels, plus a wave along the body, plus the fins.\nc = d/4 - t/8 + cos(t + e)/9          // c is the angle around the center: − t/8 makes the creature circle, and cos(t + e)/9 makes it wiggle.\nvec2(q*sin(c) + 200, q*cos(c) + 200)  // Turn the distance q and the angle c into a place around the center (200, 200).",
         "count": 20000,
         "size": 1,
         "color": "#ffffff",

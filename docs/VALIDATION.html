@@ -92,7 +92,7 @@
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a> <a href="../docs/UX_REVIEW.html">UX review</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#validation-and-known-limits"
@@ -141,7 +141,7 @@ outputs.</p>
 <tbody>
 <tr>
 <td>JavaScript unit tests</td>
-<td><strong>328 passed, 0 failed</strong></td>
+<td><strong>331 passed, 0 failed</strong></td>
 <td><a href="NODE_TEST_RESULTS.txt">Captured output</a></td>
 </tr>
 <tr>
@@ -227,68 +227,74 @@ href="WORKS.html">WORKS</a></td>
 <td>1.x scenes unchanged</td>
 <td><strong>24 renders</strong> of the twelve 1.x scenes (final image
 and every component’s raw values, t = 0 and 2.3) against revision
-<code>056a474 (Equation Studio 1.3.0 and 1.4.0: explained and editable equations, clearer layout)</code>:
+<code>d2da1ab (Equation Studio 2.0.0: animations as code, point clouds, index.html)</code>:
 identical</td>
 <td><a href="REGRESSION_VALIDATION.json">Regression report</a></td>
 </tr>
 <tr>
 <td>Editor workflows</td>
-<td>51 checks: Defaults: live pipeline previews for all 9 source
-components, rulers and grid on; A click selects without changing the
-canvas; This step follows the selection; [ ] and ◀ ▶ step; the canvas
-label names the view; View switch: effect styles, lock keeps a stage
-while selecting elsewhere; Rich tooltips name the control, its shortcut
-and its on/off state; UI key creation, tracked control editing and
-interpolation; Undo/redo preserves the animation model, selection and
-playhead; Dragging a key in its lane retimes it; Reset: modified marker,
-parameter and component reset, hold-to-compare, undoable revert; Sweep
-across a range and random variations apply on click and undo cleanly;
-Unticking a coordinate modifier bypasses it (identity), not zero; Only
-structure bypasses content; ticking one component includes its
-dependencies; Original restores; Insert a modifier on an input and
-replace a component while keeping its wiring; ✎ Edit: the text typesets
-live and previews on the canvas as a draft; Apply puts it in; an invalid
-equation is not applied; Cancel discards; Ticking components, walking
-stages and showing what one changes reuse one compiled program; GPU
-badge and performance dialog; Stage colors: signed colormap with range
-and histogram, coordinate grid, classic diagnostic on request; Profile
-plot of raw values along a line (V toggles it); Tabs: captioned steps;
-In &amp; out (T is read by Add light as B); Ideas with plots; the tab
-stays across selections; Values view; dragging a parameter symbol
-changes it and undoes in one step; Equation Playground widens the panel,
-shows the step and its profile, keeps the pipeline as a strip; Escape
-backs out; Formula sheet: composition summary and per-component
-equations with bindings; ✎ Edit on a built-in: its steps as an equation,
-identical when applied; edits and param lines become sliders; Pop-out
-window shows the component and edits the scene; Alt-click raw probe;
-rulers readout with raw values; pin and unpin; Wheel zoom keeps the
-world point under the cursor fixed; Drag-and-drop onto a socket adds and
-wires a compatible component; incompatible drops are rejected; Drag
-wiring, drag-off disconnection, card checkboxes and the card eye button;
-Snapshot save and restore; Project JSON download and import round trip;
-PNG encoding + embedded UTF-8 project metadata; Four-frame deterministic
-PNG ZIP, CRCs, timestamps and visual change; Actual MediaRecorder video
-download; Exporting a stage uses the canvas colors (colormap, not the
-gray diagnostic); Gallery: kind filter, live hover preview, a work opens
-on its credited code component; Dragging a code number edits the text,
+<td>52 checks: First visit: the gallery opens with a welcome and
+difficulty badges; the panel tells the whole scene and lists its 9
+parts; live part previews; rulers and grid off; A click opens a part
+without changing the canvas; Just this part follows it; [ ] and ◀ ▶
+step; ‹ Whole scene and back; the canvas label names the view; View
+switch: effect styles, lock keeps a stage while selecting elsewhere;
+Rich tooltips name the control, its shortcut and its on/off state; the
+View menu holds the display options; UI key creation, tracked control
+editing and interpolation; Undo/redo preserves the animation model,
+selection and playhead; Dragging a key in its lane retimes it; Reset:
+modified marker, parameter and component reset, hold-to-compare,
+undoable revert; Sweep across a range and random variations apply on
+click and undo cleanly; Unticking a coordinate modifier bypasses it
+(identity), not zero; Only structure bypasses content; ticking one
+component includes its dependencies; Original restores; Insert a
+modifier on an input and replace a component while keeping its wiring; ✎
+Edit: the text typesets live and previews on the canvas as a draft;
+Apply puts it in; an invalid equation is not applied; Cancel discards;
+Ticking components, walking stages and showing what one changes reuse
+one compiled program; GPU badge and performance dialog; Stage colors:
+signed colormap with range and histogram, coordinate grid, classic
+diagnostic on request; Profile plot of raw values along a line (V
+toggles it); Tabs: captioned steps; Connections (T is used by Add light
+as B); Big ideas with plots; the tab stays across selections; Values
+view; dragging a parameter symbol changes it and undoes in one step;
+Equation Playground widens the panel, shows the step and its profile,
+keeps the pipeline as a strip; Escape backs out; Formula sheet:
+composition summary and per-component equations with bindings; ✎ Edit on
+a built-in: its steps as an equation, identical when applied; edits and
+param lines become sliders; Pop-out window shows the component and edits
+the scene; Alt-click raw probe; rulers readout with raw values; pin and
+unpin; Wheel zoom keeps the world point under the cursor fixed;
+Drag-and-drop onto a socket adds and wires a compatible component;
+incompatible drops are rejected; Drag wiring, drag-off disconnection,
+card checkboxes and the card eye button; Snapshot save and restore;
+Project JSON download and import round trip; PNG encoding + embedded
+UTF-8 project metadata; Four-frame deterministic PNG ZIP, CRCs,
+timestamps and visual change; Actual MediaRecorder video download;
+Exporting a stage uses the canvas colors (colormap, not the gray
+diagnostic); Gallery: kind filter, live hover preview; a work opens
+playing, on its scene panel (credit, level, Try this, How it works); the
+time bar reads in seconds; Dragging a code number edits the text,
 redraws without recompiling, and undoes in one step; Clicking a variable
 shows it on the canvas with a colormap legend; Escape returns to the
 color; A loop slider stops the loop early (the image changes); ↺ runs it
-in full; How it works: a tour step highlights its lines and shows its
-variable; End returns to the final image; Look inside reads every
-variable at the pinned point; Stats: per-channel values with a
-histogram, and a loop measurement with a verdict; What moves (M):
-changing pixels, and trails averaging the last half second; Profile over
-time: one pixel plotted through the whole loop; Filmstrip of 12 frames;
-clicking one seeks there; ❄ Freeze here: speed 0 and the time offset of
-the playhead (undoable); Code editing: errors point at their line; Apply
-puts valid code into the scene; undo restores it; Point cloud scene:
-editable credited equation; its own view shows the dots over black;
-Components tab: a work added to another scene keeps its credit; Exports:
-looping GIF and animated PNG, JPEG, sprite sheet with JSON, a web page
-that plays the scene, twigl code; High contrast cycles auto → high →
-normal (K); exact numbers compile a separate program; Context
-loss/recovery and float extension re-enablement</td>
+in full; How it works: a step shows its lines in the scene panel and its
+value on the canvas; the code highlights the same lines; End returns to
+the whole picture; Try this: a challenge makes one change, is marked
+tried, and undoes in one step; Look inside reads every variable at the
+pinned point; Stats: per-channel values with a histogram, and a loop
+measurement with a verdict; What moves (M): changing pixels, and trails
+averaging the last half second; Profile over time: one pixel plotted
+through the whole loop; Filmstrip of 12 frames; clicking one seeks
+there; ❄ Freeze here: speed 0 and the time offset of the playhead
+(undoable); Code editing: errors point at their line; Apply puts valid
+code into the scene; undo restores it; Point cloud scene: editable
+credited equation; its own view shows the dots over black; Parts tab: a
+work added to another scene keeps its credit; Exports: looping GIF and
+animated PNG, JPEG, sprite sheet with JSON, a web page that plays the
+scene, twigl code; High contrast cycles auto → high → normal (K); exact
+numbers compile a separate program; Context loss/recovery and float
+extension re-enablement</td>
 <td><a href="WORKFLOW_VALIDATION.json">Workflow report</a></td>
 </tr>
 <tr>

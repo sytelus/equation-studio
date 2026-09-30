@@ -1,7 +1,7 @@
 {
   "id": "tidal",
   "title": "Tidal disruption",
-  "description": "A tapered stellar stream, a projected accretion disk and an illustrative central shadow. Not a physical simulation.",
+  "description": "A drawing, not a simulation, of a black hole with a glowing disk tearing gas from a star.",
   "status": "Interpretive study",
   "schemaVersion": 1,
   "nodes": [

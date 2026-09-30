@@ -92,7 +92,7 @@
   <link rel="stylesheet" href="../docs/reading.css" />
 </head>
 <body>
-<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a></nav>
+<nav class="topnav"><a href="../index.html">Open studio</a> <a href="../README.html">Start here</a> <a href="../docs/EDITOR_GUIDE.html">Editor guide</a> <a href="../docs/RECIPES.html">Recipes</a> <a href="../docs/ANIMATION.html">Animation</a> <a href="../docs/WORKS.html">Works</a> <a href="../docs/ARCHITECTURE.html">Architecture</a> <a href="../docs/COMPONENTS.html">Components</a> <a href="../docs/DEVELOPMENT.html">Development</a> <a href="../docs/RESEARCH.html">Research</a> <a href="../docs/VALIDATION.html">Validation</a> <a href="../docs/UX_REVIEW.html">UX review</a></nav>
 <nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#animation-reproducibility-and-export"
@@ -136,12 +136,12 @@ history</h2>
 <p>The renderer evaluates <code>image = R(project, time)</code>. There
 is no evolving fluid grid and no previous-frame feedback (twigl’s
 backbuffer <code>b</code> is deliberately not offered). This is why
-scrubbing backward, jumping between times, regenerating a chosen frame,
-rendering twelve frames of a filmstrip at once or exporting frames out
-of order all work without replaying earlier frames. The GPU tests render
-<code>t=0</code>, <code>t=2.3</code>, then <code>t=0</code> again for
-the moving presets: the middle frame changes, and the repeated first
-frame is identical.</p>
+dragging the time bar backward, jumping between times, regenerating a
+chosen frame, rendering the twelve frames under the time bar at once or
+exporting frames out of order all work without replaying earlier frames.
+The GPU tests render <code>t=0</code>, <code>t=2.3</code>, then
+<code>t=0</code> again for the moving presets: the middle frame changes,
+and the repeated first frame is identical.</p>
 <p>Determinism means <strong>the same project, time, dimensions and
 backend</strong>, not bitwise equality across GPU models or browsers.
 Chaotic fractal loops amplify differences in the last bit of a float, so
@@ -151,31 +151,34 @@ the exported frames and the backend metadata when exact historical
 output matters.</p>
 <h2 id="time-in-a-scene">Time in a scene</h2>
 <p>The studio clock <code>τ</code> runs from 0 to the scene’s
-<strong>duration</strong> (the timeline). The playback speed menu (¼× to
-2×) only changes how fast the playhead moves while you watch; exports
-always use real time.</p>
-<p>Components see time in three ways:</p>
+<strong>Length</strong> (on the time bar). <strong>Speed</strong> (¼× to
+2×) only changes how fast the time moves while you watch; exports always
+use real time.</p>
+<p>Parts see time in three ways:</p>
 <ul>
 <li><strong>Procedural time</strong> in built-in kernels: a coordinate
 drift <code>q = p − vt</code>, a phase <code>cos(kx − ωt)</code>. Each
-speed slider scales the time given to that kernel; zero freezes it.</li>
+speed setting scales the time given to that kernel; zero freezes
+it.</li>
 <li><strong>Shader code and point clouds</strong> have their own clock:
 <code>t = σ τ + τ₀</code>, with the <strong>Time speed</strong> σ and
-<strong>Time offset</strong> τ₀ parameters. σ = 1 is real time, 0
-freezes the picture at τ₀, a negative σ plays backward. <strong>❄ Freeze
-here</strong> sets σ = 0 and τ₀ to the moment under the playhead, so an
-animation becomes a still that can be used in any scene; setting σ again
-brings the motion back. For a p5.js sketch that adds Δ to <code>t</code>
-every frame at 60 frames per second, σ = 60 Δ (the works set this).</li>
-<li><strong>Keyframes</strong> interpolate any numeric parameter
-(below), including the time speed, the loop step limits and the
-parameters of <code>param</code> lines.</li>
+<strong>Time offset</strong> τ₀ settings (under <strong>TIME</strong> in
+a code part’s Code tab, and among a point cloud’s settings). σ = 1 is
+real time, 0 freezes the picture at τ₀, a negative σ plays backward.
+<strong>❄ Freeze here</strong> sets σ = 0 and τ₀ to the moment the time
+bar shows, so an animation becomes a still that can be used in any
+scene; setting σ again brings the motion back. For a p5.js sketch that
+adds Δ to <code>t</code> every frame at 60 frames per second, σ = 60 Δ
+(the works set this).</li>
+<li><strong>Keyframes</strong> interpolate any number setting
+(parameter, below), including the time speed, the loop step limits and
+the settings made by <code>param</code> lines.</li>
 </ul>
 <h2 id="shader-code-twigl">Shader code (twigl)</h2>
-<p>A <strong>Shader code</strong> component holds the whole program for
-one pixel, written as GLSL ES 3.00 statements exactly as on <a
-href="https://twigl.app">twigl.app</a> in its <em>geekest (300 es)</em>
-mode. The inputs are twigl’s:</p>
+<p>A <strong>Shader code</strong> part (component) holds the whole
+program for one pixel, written as GLSL ES 3.00 statements exactly as on
+<a href="https://twigl.app">twigl.app</a> in its <em>geekest (300
+es)</em> mode. The inputs are twigl’s:</p>
 <table>
 <colgroup>
 <col style="width: 33%" />
@@ -204,7 +207,7 @@ bottom-left corner, FC.z = 0.5, FC.w = 1</td>
 <tr>
 <td><code>t</code></td>
 <td>float</td>
-<td>time in seconds (the component’s clock, above)</td>
+<td>time in seconds (the part’s clock, above)</td>
 </tr>
 <tr>
 <td><code>o</code></td>
@@ -228,8 +231,8 @@ bottom-left corner, FC.z = 0.5, FC.w = 1</td>
 rotation matrix; <code>v *= rotate2D(a)</code> turns v),
 <code>rotate3D(a, axis)</code>, <code>snoise2D/3D/4D</code> (simplex
 noise), <code>fsnoise</code> (a hash), and every GLSL built-in.
-<code>param name = value [min, max]</code> lines make sliders, as in
-equations.</p>
+<code>param name = value [min, max]</code> lines make sliders
+(settings), as in equations.</p>
 <p>The code is <strong>checked, not pasted</strong>:
 <code>src/glsl.js</code> parses it, checks names, scopes and types (GLSL
 does not convert <code>int</code> to <code>float</code> by itself, and
@@ -239,60 +242,65 @@ textures, <code>b</code>, <code>#define</code> and <code>discard</code>
 are not available, each with an explanation. So that a mistake cannot
 freeze the GPU, all loops of a pixel together stop after <strong>30,000
 steps</strong>.</p>
-<p>How the code sits in a scene: the component’s input <code>p</code> is
-a point of the plane, and <code>FC.xy</code> is the pixel of the code’s
+<p>How the code sits in a scene: the part’s input <code>p</code> is a
+point of the plane, and <code>FC.xy</code> is the pixel of the code’s
 own canvas at that point, <code>r</code> pixels wide; the code’s canvas
 spans the image. So the code zooms and pans with the camera, and it can
 be warped like any other layer by connecting a coordinate map to
 <code>p</code>. At the camera’s native framing an unwarped point gets
 the exact pixel center, so the original code computes exactly what it
 computes on twigl. The output <code>o</code> becomes an opaque layer
-(NaN becomes 0, and values are kept above 1 so exposure can reveal
-detail; the canvas of twigl clips at 1, which exposure 1 and
-<em>Linear</em> output reproduce).</p>
+(NaN becomes 0, and values are kept above 1 so
+<strong>Brightness</strong> can reveal detail; the canvas of twigl clips
+at 1, which Brightness 1 and <strong>Light to color</strong>
+<em>Plain</em> reproduce).</p>
 <h3 id="numbers-are-live">Numbers are live</h3>
 <p>Every decimal number in the code (and a whole number inside a float
 constructor such as <code>vec4(0, 1, 2, 3)</code>) is read from a
-uniform, so <strong>dragging a number</strong> in the Code view changes
-the picture in a few milliseconds without compiling anything (compiling
-takes 0.1–1 s, and more for large scenes on a cold driver cache). Its
-structure (the code without its numbers and comments) decides when a new
-program is needed. For a bit-for-bit match with twigl, <strong>GPU &amp;
-performance ▸ Compile numbers as constants</strong> compiles them as
+uniform, so <strong>dragging an orange number</strong> in the Code tab
+changes the picture in a few milliseconds without compiling anything
+(compiling takes 0.1–1 s, and more for large scenes on a cold driver
+cache). Its structure (the code without its numbers and comments)
+decides when a new program is needed. For a bit-for-bit match with
+twigl, <strong>Compile numbers as constants</strong> in the GPU dialog
+(click the LIVE badge or the GPU label in the footer) compiles them as
 literals, as twigl does; then a number change recompiles. On the
 deterministic SwiftShader backend, the thirteen twigl works render
 bit-identical frames either way to the code in a twigl-style shader; on
 hardware GPUs the constant version lets the driver fold numbers exactly
 as twigl’s does.</p>
 <h3 id="loops-and-variables">Loops and variables</h3>
-<p>Every loop gets a slider <strong>Loop N steps</strong>: stop it after
-that many steps (in each run, for an inner loop). The slider’s range is
-the loop’s real length, which <code>glsl.js</code> computes from the
-code in float32 arithmetic, as the GPU does
-(<code>for(float i=.2; i&lt;1.; …) i+=.05</code> runs 16 times, not 17).
-A raymarcher’s outer loop is the number of steps along each ray, so few
-steps show which surfaces are found first; a fractal’s inner loop is its
-depth of detail. <strong>▶ Build up</strong> sweeps a loop from 0 to all
-of its steps; a keyframe track on the step count animates it in a scene
-or an export.</p>
+<p>Every loop gets a slider <strong>Loop N steps</strong> (the part’s
+<strong>LOOPS</strong> section): stop it after that many steps (in each
+run, for an inner loop). The slider’s range is the loop’s real length,
+which <code>glsl.js</code> computes from the code in float32 arithmetic,
+as the GPU does (<code>for(float i=.2; i&lt;1.; …) i+=.05</code> runs 16
+times, not 17). A raymarcher’s outer loop is the number of steps along
+each ray, so few steps show which surfaces are found first; a fractal’s
+inner loop is its depth of detail. <strong>▶</strong> (build up) sweeps
+a loop from 0 to all of its steps; a keyframe track on the step count
+animates it in a scene or an export.</p>
 <p>Every variable of the code, and the step count of every loop, can be
-shown on the canvas instead of the color (<strong>Look inside</strong>,
-or click a variable in the code). All declarations are gathered at the
-top of the generated function, so a variable is shown with the value it
-had when the code finished (with loops stopped where their sliders say);
-with a pinned point, Look inside reads them all there.</p>
+shown on the picture instead of the color (<strong>Look inside</strong>,
+or click a name in the code; the label on the picture says
+<strong>VALUE</strong>). A step of a work’s <strong>How it
+works</strong> walk-through, in the scene panel, can do both: stop loops
+early and show a value. All declarations are gathered at the top of the
+generated function, so a variable is shown with the value it had when
+the code finished (with loops stopped where their sliders say); with a
+pinned point, Look inside reads them all there.</p>
 <h2 id="point-clouds-p5.js-style">Point clouds (p5.js style)</h2>
-<p>A <strong>Point cloud</strong> draws <code>n</code> points placed by
-one equation of their index <code>i</code> (0 to n − 1), <code>n</code>
-and the time <code>t</code>, like a p5.js sketch that calls
-<code>point()</code> in a loop. The equation uses the language of custom
-equations; its last line is the position <code>vec2(x, y)</code> in
-sketch pixels (x to the right, y down, the sketch <code>S</code> pixels
-wide and centered, so <code>(S/2, S/2)</code> is the middle of the
-image). <strong>Points</strong>, <strong>Point size</strong> (the
+<p>A <strong>Point cloud</strong> part draws <code>n</code> points
+placed by one equation of their index <code>i</code> (0 to n − 1),
+<code>n</code> and the time <code>t</code>, like a p5.js sketch that
+calls <code>point()</code> in a loop. The equation uses the language of
+custom equations; its last line is the position <code>vec2(x, y)</code>
+in sketch pixels (x to the right, y down, the sketch <code>S</code>
+pixels wide and centered, so <code>(S/2, S/2)</code> is the middle of
+the image). <strong>Points</strong>, <strong>Point size</strong> (the
 strokeWeight), <strong>Color</strong>, <strong>Opacity</strong> (the
 stroke alpha: 66/255 ≈ 0.26), <strong>Sketch size</strong> and the time
-parameters are sliders.</p>
+settings are sliders.</p>
 <p>The points are drawn by the GPU in a vertex shader into a texture the
 size of the frame, as antialiased round dots (the area of each pixel
 inside the dot, from 4 × 4 samples), blended over each other like the
@@ -305,47 +313,52 @@ through its input samples that texture at the warped places, so it shows
 only what is inside the frame.</p>
 <h2 id="seeing-and-measuring-motion">Seeing and measuring motion</h2>
 <ul>
-<li><strong>What moves</strong> (<code>M</code>): the final image now
-and a tenth of a second later. Pixels that change keep their color;
-still ones turn gray.</li>
-<li><strong>Trails</strong>: eight frames over the last half second
-averaged, like a long exposure: still parts stay sharp, moving parts
-smear along their path.</li>
-<li><strong>🎞 Frames</strong>: twelve frames spread over the timeline
-under the transport (the view the canvas shows, in its colors). Click
-one to go there. They are drawn together with one non-blocking readback,
-only when the scene changes.</li>
-<li><strong>Profile ▸ Over time</strong>: one point (the cursor or the
-pinned reading) through the whole timeline, as a plot with the playhead
-marked: see a pixel flicker, pulse or drift.</li>
-<li><strong>Stats ▸ Over the loop</strong>: 25 frames across the
-timeline, their mean brightness, the change between neighbouring frames
-(when things move fastest) and a verdict on the loop. The loop is
-<strong>seamless</strong> when the last frame differs from the first no
-more than neighbouring frames differ (1.5 × their median); otherwise the
-dialog says how many times more.</li>
+<li><strong>What moves</strong> (<code>M</code>, above the picture): the
+whole picture now and a tenth of a second later. Pixels that change keep
+their color; still ones turn gray.</li>
+<li><strong>Trails</strong> (the menu next to What moves): eight frames
+over the last half second averaged, like a long exposure: still parts
+stay sharp, moving parts smear along their path.</li>
+<li><strong>Frames on the time bar</strong> (View menu): twelve frames
+spread over the animation, right under the time bar (the view the
+picture shows, in its colors). Click one to go there. They are drawn
+together with one non-blocking readback when the scene, the view or the
+length changes, also while the animation plays.</li>
+<li><strong>Measure along a line ▸ Over time, at one point</strong>
+(View menu): one point (the pointer or the pinned reading) through the
+whole animation, as a graph with the current time marked: see a pixel
+flicker, pulse or drift.</li>
+<li><strong>Measure ▸ Over the loop</strong> (a part’s Measure tab): 25
+frames across the animation, their mean brightness, the change between
+neighboring frames (when things move fastest) and a verdict on the loop.
+The loop is <strong>seamless</strong> when the last frame differs from
+the first no more than neighboring frames differ (1.5 × their median);
+otherwise the tab says how many times more.</li>
 </ul>
 <h2 id="seamless-loops-require-more-than-the-loop-checkbox">Seamless
 loops require more than the Loop checkbox</h2>
-<p>The checkbox wraps the playhead. It does not change the mathematical
-phases. For a seamless loop of length <code>T</code>, key values should
-agree at <code>0</code> and <code>T</code>, and every procedural phase
-must return modulo its period: <code>sin(t)</code> and
-<code>rotate2D(t)</code> repeat every 2π s, which is why many works last
-6.283 s, <code>t/8</code> needs 16π s, a zoom <code>log R − t</code>
-repeats when the pattern repeats in log R. The <em>Stats</em> verdict
-measures it. Some works are not loops at all: Xor’s Vortex turns its
-rings at speeds 0.2 to 0.95, whose common period is 125.7 s, and the
-reef’s caustics are noise in time; their scenes play the length of the
-posted clip.</p>
+<p>The <strong>Loop</strong> checkbox on the time bar wraps the time. It
+does not change the mathematical phases. For a seamless loop of length
+<code>T</code>, key values should agree at <code>0</code> and
+<code>T</code>, and every procedural phase must return modulo its
+period: <code>sin(t)</code> and <code>rotate2D(t)</code> repeat every 2π
+s, which is why many works last 6.283 s (the gallery rounds it to 6.3
+s), <code>t/8</code> needs 16π s, a zoom <code>log R − t</code> repeats
+when the pattern repeats in log R. The verdict in <em>Measure ▸ Over the
+loop</em> measures it. Some works are not loops at all: Xor’s Vortex
+turns its rings at speeds 0.2 to 0.95, whose common period is 125.7 s,
+and the reef’s caustics are noise in time; their scenes play the length
+of the posted clip.</p>
 <h2 id="keyframes-and-interpolation">Keyframes and interpolation</h2>
-<p>Select a component, click a parameter’s ◆ at the current time, move
-the playhead and change the control. Once a track exists, edits insert
-or replace keys at the current time. Numeric parameters can be tracked
-(including code <code>param</code> lines, loop step limits and time
-speeds); colors, the global exposure and graph connections cannot.
-Count-like parameters interpolate through fractional values; use
-<em>Hold</em> for discrete changes.</p>
+<p>Open a part, click ◆ next to a setting at the current time (it turns
+pink), move the time and change the setting. Once a track exists, edits
+insert or replace keyframes at the current time. Number settings can be
+tracked (including code <code>param</code> lines, loop step limits and
+time speeds); colors, <strong>Brightness</strong> and connections
+cannot. Count-like settings interpolate through fractional values; use
+<em>Hold</em> for discrete changes. The part’s <strong>More ▸
+Keyframes</strong> chooses the interpolation and deletes keyframes and
+tracks.</p>
 <p>Outside the keyed interval the endpoint value is held. Between keys
 <code>(t0,v0)</code> and <code>(t1,v1)</code>, let
 <code>u = clamp((t − t0)/(t1 − t0), 0, 1)</code>:</p>
@@ -353,17 +366,18 @@ Count-like parameters interpolate through fractional values; use
 smooth: v = v0 + (v1-v0)*u*u*(3-2*u)
 hold:   v = v0 until the next key, then v1</code></pre>
 <p>Smooth is a zero-end-slope cubic easing for each interval, not a
-global spline; it never overshoots the parameter’s range. Times are
-rounded to milliseconds. Keys can be dragged along their lane to retime
-them. The panel shows the evaluated value of every tracked control
-during playback without rebuilding, and <code>,</code> and
-<code>.</code> step the playhead one frame at 24 fps.</p>
+global spline; it never overshoots the setting’s range. Times are
+rounded to milliseconds. Keyframes can be dragged along their lane under
+the time bar to retime them. The panel shows the evaluated value of
+every tracked setting during playback without rebuilding, and
+<code>,</code> and <code>.</code> step the time one frame at 24 fps.</p>
 <h2 id="export">Export</h2>
 <p>Exports draw at the requested size on the GPU and restore the preview
 afterwards. The Export dialog suggests a size in the scene’s aspect
 ratio; a size you type is kept when you switch formats (and shrunk only
-to a format’s limit). <em>Export the current stage</em> exports the view
-the canvas shows, in its colors.</p>
+to a format’s limit). The checkbox <em>Export what the canvas shows now
+(just one part, or what it adds) instead of the whole picture</em>
+exports that view, in its colors.</p>
 <table>
 <colgroup>
 <col style="width: 33%" />
@@ -380,12 +394,12 @@ the canvas shows, in its colors.</p>
 <tbody>
 <tr>
 <td>PNG</td>
-<td>The current playhead, with the project embedded (below)</td>
+<td>The current time, with the project embedded (below)</td>
 <td>GPU limit, at most 4096 px</td>
 </tr>
 <tr>
 <td>JPEG, WebP</td>
-<td>The current playhead, smaller; quality 1–100</td>
+<td>The current time, smaller; quality 1–100</td>
 <td>as PNG</td>
 </tr>
 <tr>
@@ -397,7 +411,7 @@ sets the bitrate</td>
 </tr>
 <tr>
 <td>GIF</td>
-<td>The whole timeline, looping; one 256-color palette for all frames
+<td>The whole animation, looping; one 256-color palette for all frames
 (median cut) with light ordered dithering</td>
 <td>800 px, 300 frames</td>
 </tr>
@@ -426,16 +440,16 @@ their times and positions, and the project, in a ZIP</td>
 <tr>
 <td>Web page</td>
 <td>One HTML file that plays the scene live on any device with WebGL 2:
-its compiled shaders (numbers as constants), point passes, parameters
+its compiled shaders (numbers as constants), point passes, settings
 (sampled 30 times a second when keyframes animate them) and credits;
 nothing is fetched</td>
 <td>—</td>
 </tr>
 <tr>
 <td>Shader code</td>
-<td>The selected Shader code component’s code, with its author’s credit,
-ready for twigl.app; <code>param</code> lines become declarations
-holding their current values</td>
+<td>The open Shader code part’s code, with its author’s credit, ready
+for twigl.app; <code>param</code> lines become declarations holding
+their current values</td>
 <td>—</td>
 </tr>
 </tbody>
@@ -449,7 +463,7 @@ count, loop, delay).</p>
 <h3 id="still-png-with-project-metadata">Still PNG with project
 metadata</h3>
 <p>The Export dialog draws the requested target and dimensions at the
-current playhead, then adds an uncompressed UTF-8 PNG <code>iTXt</code>
+current time, then adds an uncompressed UTF-8 PNG <code>iTXt</code>
 chunk with keyword <code>equation-studio</code>. The JSON contains the
 full project, time, target ID, the contribution node when a contribution
 view was exported, width/height and backend information. Rulers, grid,
@@ -472,32 +486,33 @@ times, FPS, tone, exposure, target and backend) and
 recompression; the writer validates paths, duplicate names, offsets,
 sizes and CRCs. Cancellation does not download a partial archive.</p>
 <h3 id="browser-video-webm">Browser video (WebM)</h3>
-<p>The WebM export records one pass through the timeline in wall-clock
+<p>The WebM export records one pass through the animation in wall-clock
 time, drawing frame <code>i</code> at exactly <code>t = i/FPS</code>
 when the clock reaches it and pushing it to the recorder explicitly
 (<code>requestFrame</code>). A slow device skips frames rather than
 recording them late, and the dialog reports how many were drawn. Use MP4
 when every frame must be present and on time.</p>
 <h2 id="practical-performance">Practical performance</h2>
-<p>Preview width changes sample spacing and pixel work, not the
-formulas. A scene’s shader is compiled once per graph structure, in the
-background where the browser allows it; changing a value, a code number,
-a keyframe, the playhead, a bypass checkbox, the view or a shown
-variable reuses the linked program, so playback and exploration never
-compile. With <strong>Auto</strong> quality the canvas renders at the
-display’s pixel density and, when a frame takes longer than about 24 ms
-on the GPU during playback or a drag, at a lower resolution until the
-motion stops; exports always render at their own size.</p>
+<p><strong>Sharpness</strong> (the preview width) changes sample spacing
+and pixel work, not the formulas. A scene’s shader is compiled once per
+graph structure, in the background where the browser allows it; changing
+a setting, a code number, a keyframe, the time, a part’s on/off switch,
+the view or a shown variable reuses the linked program, so playback and
+exploration never compile. With Sharpness at <strong>Auto</strong> the
+picture renders at the display’s pixel density and, when a frame takes
+longer than about 24 ms on the GPU during playback or a drag, at a lower
+resolution until the motion stops; exports always render at their own
+size.</p>
 <p>Measured on an NVIDIA RTX 5070 (Direct3D 11 through ANGLE) with
 <code>tools/perf_report.py</code> (<a
 href="PERFORMANCE.json">PERFORMANCE.json</a>): every work draws a
 1024-pixel frame in 0.4–9.4 ms; a code-number drag costs 2–7 ms per
 change against 160–220 ms per recompile; 20,000 points take 0.13 ms on
 the GPU against about 130 ms in Canvas 2D. Point clouds, thumbnails, the
-filmstrip, gallery previews, profiles and statistics read back
-asynchronously. The large nebula programs compile slowly on a cold
-Direct3D driver cache (several seconds when shader code is fused into
-them); the previous image stays up with a <em>Compiling</em> indicator
-meanwhile.</p>
+frames on the time bar, gallery previews, Measure along a line and
+statistics read back asynchronously. The large nebula programs compile
+slowly on a cold Direct3D driver cache (several seconds when shader code
+is fused into them); the previous image stays up with a
+<em>Compiling</em> indicator meanwhile.</p>
 </body>
 </html>

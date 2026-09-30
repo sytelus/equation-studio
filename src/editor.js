@@ -25,6 +25,12 @@ import { getWork, P5_CANVAS } from './works.js';
  *              views update numbers without rebuilding
  *   draft      an unapplied edit of a component's equation or code changed (nodeId)
  *   pin        the pinned reading on the canvas was set or cleared
+ *   tour       the step of a work's "How it works" walk-through changed (state.tour)
+ *   playing    playback started or stopped
+ *
+ * The side panel shows either the whole scene (state.panel 'scene': what it is,
+ * how it works, things to try, its parts) or one part of it ('part': the selected
+ * component). Opening a scene shows the scene; choosing a part shows the part.
  *
  * The canvas shows one of four views of the project:
  *   final   the scene's final output (what exports and saves)
@@ -38,19 +44,41 @@ import { getWork, P5_CANVAS } from './works.js';
 export const $ = id => document.getElementById(id);
 export const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+/** What each kind of part makes, in plain words: a short label and a sentence. */
+export const KIND_LABELS = { coord: 'positions', scalar: 'numbers', geometry: 'a shape', layer: 'a picture' };
+export const KIND_NAMES = {
+    coord: 'Positions: a point (x, y) for every pixel, which tells the parts after it where to look.',
+    scalar: 'Numbers: one number for every pixel, like a height map or a pattern of stripes.',
+    geometry: 'A shape: for every pixel, where it lands on the shape, how brightly the shape’s rim glows there, and how much of the shape covers it.',
+    layer: 'A picture: a color for every pixel, and how see-through it is.'
+};
+const ORIGINS = { 'Source-equation port': 'The artist’s own nebula formulas', 'Interpretive study': 'Our own study', 'Original tutorial study': 'Our own study', 'Component remix': 'Built from parts', 'Component study': 'One part up close', 'Custom construction': 'Your own scene' };
+/** Where a scene comes from, in a few words (the top bar and the scene panel). */
+export function sceneOrigin(project) {
+    const work = project.work ? getWork(project.work) : null;
+    if (work) {
+        return work.platform === 'study' ? `Our study after ${work.author}` : `By ${work.author} · the artist’s own code`;
+    }
+    return ORIGINS[project.status] || project.status || 'Your own scene';
+}
+/** The first sentence of a text: what lists of parts show for each part. */
+export function firstSentence(text) {
+    const m = /^(.+?[.!?])(\s|$)/.exec(text || '');
+    return m ? m[1] : text || '';
+}
 export const STORAGE = { project: 'equation-studio.project.v1', baseline: 'equation-studio.baseline.v1', prefs: 'equation-studio.prefs.v1', snapshots: 'equation-studio.snapshots.v1' };
 export const CUSTOM_STATUS = 'Custom construction';
 export const VIEW_MODES = ['final', 'stage', 'effect', 'motion'];
 export const MOTION_STYLES = ['change', 'trails'];
 /** Bump when defaults change in a way returning users should receive. */
-const PREFS_VERSION = 3;
+const PREFS_VERSION = 4;
 /** Persisted preferences. `quality` is the canvas width in pixels, 0 for Auto
  * (match the display). Stage looks (looks.js): `stageColors` 'auto' or 'classic',
  * `contours` on scalar colormaps, `geometryChannel` 'S', 'A', 'coverage' or 'all',
  * `layerView` 'color' or 'alpha', `autoExposure` for clipped or black layer stages.
  */
 const defaultPrefs = {
-    version: PREFS_VERSION, previews: true, rulers: true, grid: true, quality: 0, graphHeight: 0, bottomTab: 'pipeline',
+    version: PREFS_VERSION, previews: true, rulers: false, grid: false, quality: 0, graphHeight: 0, bottomTab: 'pipeline',
     stageColors: 'auto', contours: true, geometryChannel: 'A', layerView: 'color', autoExposure: true, scope: false,
     /** Layout: the Equation Playground (a wide component panel) on or off, the
      * panel's normal and wide widths in pixels (0: automatic, about a quarter and
@@ -60,15 +88,22 @@ const defaultPrefs = {
      * prefers-contrast, 'more' or 'off' force it), playback speed (1 is real time),
      * shader numbers compiled as constants (exact, recompiles on every change)
      * instead of uniforms (live), the filmstrip under the timeline. */
-    contrast: 'auto', playbackRate: 1, exactNumbers: false, filmstrip: true
+    contrast: 'auto', playbackRate: 1, exactNumbers: false, filmstrip: true,
+    /** The gallery opens by itself until a scene has been chosen from it once; the
+     * strip under the picture can be folded away to its tab bar. */
+    welcomed: false, partsFolded: false
 };
 /** Preference keys kept when upgrading from an older version. */
-const KEPT_PREFS = ['graphHeight', 'bottomTab', 'previews', 'rulers', 'grid'];
+const KEPT_PREFS = ['graphHeight', 'bottomTab', 'previews', 'welcomed', 'partsFolded']; // rulers and grid are off by default since version 4
 export const state = {
     project: getPreset('bipolar'),
     /** The project as it was opened (preset, file or snapshot): what "Original" and resets return to. */
     baseline: getPreset('bipolar'),
     selected: 'shell',
+    /** What the side panel shows: 'scene' (the whole scene) or 'part' (the selected component). */
+    panel: 'scene',
+    /** The active step of a work's walk-through: {node, index}, or null. */
+    tour: null,
     viewMode: 'final',
     /** Node the stage/effect view is locked to, or null to follow the selection. */
     viewLock: null,
@@ -185,16 +220,20 @@ export function showError(error) {
 /** Debounced autosave to browser storage; Save project remains the portable backup. */
 export function persist() {
     clearTimeout(saveTimer);
-    $('saveStatus').textContent = 'Unsaved changes';
+    $('saveStatus').textContent = 'Not saved yet';
     saveTimer = setTimeout(() => {
         const ok = writeStorage(STORAGE.project, JSON.stringify(state.project)) && writeStorage(STORAGE.baseline, JSON.stringify(state.baseline));
-        $('saveStatus').textContent = ok ? 'Autosaved in this browser · no uploads' : 'Use Save project · browser storage unavailable';
+        $('saveStatus').textContent = ok ? 'Kept in this browser · nothing is uploaded' : 'Not kept automatically here: use Save';
     }, 300);
 }
 export function pause() {
+    const was = state.playing;
     state.playing = false;
     $('play').textContent = '▶';
     $('play').setAttribute('aria-label', 'Play animation');
+    if (was) {
+        emit('playing');
+    }
 }
 /** Request a new frame plus overlay and preview updates. */
 export function markDirty() {
@@ -295,8 +334,11 @@ export function loadProject(next, { fromHistory = false, keepBaseline = false, k
         state.viewMode = 'final';
         state.viewLock = null;
         state.probePin = null;
-        // A work's scene opens on its component (the code or point cloud it studies).
+        // A work's scene opens on its component (the code or point cloud it studies),
+        // but the panel shows the whole scene until a part is chosen.
         state.selected = (state.project.nodes.find(n => n.work) || state.project.nodes.find(n => n.id !== 'space') || state.project.nodes[0]).id;
+        state.panel = 'scene';
+        state.tour = null;
     }
     changed();
     refreshUI();
@@ -330,12 +372,23 @@ export function setSelected(id) {
         return;
     }
     state.selected = id;
+    state.panel = 'part';
     state.connection = null;
     if (state.viewMode !== 'final' && !state.viewLock) {
         markDirty(); // the stage/effect view follows the selection
     }
     updateDraftPreview();
     emit('selection');
+}
+/** Show the whole scene in the side panel (the selection stays, for the part views). */
+export function showScene() {
+    state.panel = 'scene';
+    emit('selection');
+}
+/** Set the active step of a work's walk-through ({node, index} or null) and tell the views. */
+export function setTour(tour) {
+    state.tour = tour;
+    emit('tour');
 }
 // ---- Canvas view -------------------------------------------------------------
 /** The node the stage and effect views show: the lock, else the selection. */
@@ -496,9 +549,9 @@ export function restoreEnabled() {
 export function bypassDescription(node) {
     const socket = bypassSocket(node.type), source = socket && nodeById(node.inputs[socket]);
     if (socket) {
-        return source ? `passes “${source.label}” through unchanged` : `passes its ${socket} input through (currently unconnected, so zero)`;
+        return source ? `passes “${source.label}” along unchanged` : `passes its input ${socket} along (nothing is connected there, so zero)`;
     }
-    return 'contributes nothing (zero)';
+    return 'adds nothing (zero)';
 }
 // ---- Parameters ---------------------------------------------------------------
 /** Project as it was when the current continuous edit began (see liveParam). */
@@ -714,11 +767,12 @@ export function addComponent(type, { connectTo = null, params = {}, label = null
     }, { refresh: false, structural: true });
     if (ok) {
         state.selected = id;
+        state.panel = 'part';
         state.viewMode = connectTo ? state.viewMode : 'stage';
         state.viewLock = null;
         refreshUI();
         emit('view');
-        toast(connectTo ? 'Component added and connected.' : 'Component added; the canvas shows its output. Wire it downstream, or make it the final output.');
+        toast(connectTo ? 'Part added and connected.' : 'Part added. The picture shows just this part; connect it to another part (Wiring), or make it the final picture (Connections tab).');
     }
     return ok ? id : null;
 }
@@ -734,7 +788,7 @@ export function addWorkComponent(workId, options = {}) {
         ? addComponent('points', { ...options, params: { expression: w.readable, canvas: P5_CANVAS, size: 1, color: '#ffffff', ...w.points }, label: w.title, work: w.id })
         : addComponent('code', { ...options, params: { code: w.readable }, label: w.title, work: w.id });
     if (id) {
-        toast(`Added ${w.title} by ${w.author}: a color layer. Combine it with Add light or Front over back; its Code or Equation tab explains it, and ❄ Freeze here makes it a still.`);
+        toast(`Added ${w.title} by ${w.author} as a picture. Combine it with Add light or Front over back; its Code or Math tab explains it, and ❄ Freeze here stops it at one moment.`);
     }
     return id;
 }
@@ -742,7 +796,7 @@ export function addWorkComponent(workId, options = {}) {
 export function insertComponent(type, targetId, socket) {
     const def = catalog[type], target = nodeById(targetId);
     if (!def || !target || !def.bypass || def.output !== catalog[target.type].inputs[socket]) {
-        throw new Error('That component cannot be inserted on this input.');
+        throw new Error('That part cannot go on this input: it makes a different kind of thing.');
     }
     let id;
     const ok = transact(p => {
@@ -762,9 +816,10 @@ export function insertComponent(type, targetId, socket) {
     }, { refresh: false, structural: true });
     if (ok) {
         state.selected = id;
+        state.panel = 'part';
         refreshUI();
         emit('view');
-        toast(`${def.name} inserted on ${target.label} · ${socket}. Its parameters are in the inspector.`);
+        toast(`${def.name} put in before ${target.label} (input ${socket}). Its settings are in the panel.`);
     }
     return ok ? id : null;
 }
@@ -831,6 +886,7 @@ export function duplicateNode(id) {
     }, { refresh: false, structural: true });
     if (ok) {
         state.selected = copyId;
+        state.panel = 'part';
         refreshUI();
         emit('view');
     }

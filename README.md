@@ -2,33 +2,47 @@
 
 **A local GPU laboratory for equation art: see what every equation computes, why it is written that way, and what happens when you change it.**
 
-![The editor: the final image, the pipeline of steps under it, and the selected component explained step by step in the panel on the right](gallery/studio-desktop.png)
+![The Vortex by Xor, opened from the gallery: the whole picture in the middle, its parts under it, and About this scene on the right with the story and things to try](gallery/studio-desktop.png)
 
-Every image is a typed graph of small equations evaluated live, per pixel, on your GPU. The editor is built for understanding, exploring, decomposing and composing them:
+Every picture is a typed graph of small equations evaluated live, per pixel, on your GPU. The studio is built so that a curious newcomer can understand, explore, take apart and put together these pictures:
 
-- **Always know where you are.** The pipeline under the canvas is the map of the construction: every step in order with a live picture of its output. The panel on the right explains the step you select (*Step 7 of 9*), and a label on the canvas says what it shows: the final image, the selected step's own output, what that step changes, or a draft you are editing.
-- **Understand the math.** Each component's equation is shown as numbered, typeset steps, each with a caption saying what the line computes and why. Symbols are colored by role (inputs, parameters, output, time); hover one to find it everywhere, click an input to follow it upstream, drag a parameter symbol to change it. *In & out* shows where each input comes from and where the output goes, down to the equation that uses it. *Ideas* explains the 47 recurring ideas (double-exponential gates, folding with arccos cos, backward mapping, fractal noise, front-to-back selection…) with small interactive plots, and a live plot shows each component's key function. The **Formulas** tab writes the whole construction as a formula sheet.
-- **Edit the equation you are reading.** **✎ Edit** on any equation opens it as text, one line per step; a built-in component opens as its own math written out. Parameters are `param` lines that become sliders, definitions name intermediate values and `//` captions explain each line. The canvas previews your edit as a draft until you apply it, and mistakes are reported in words.
-- **Study one equation in depth.** The **Equation Playground** (double-click any component) widens the panel: the equation beside its controls and plots, the step on the canvas with a profile of its actual values. **↗** pops the panel into its own window, e.g. on a second screen.
-- **See every step.** The canvas shows the final image, any single step, or exactly which pixels a component changes. Values that have no color of their own (numbers, coordinates, geometry) get automatic colormaps with contour lines and a legend.
-- **Experiment without fear.** Every parameter can be reset, and a marker shows its original value. Sweeps render a parameter across its whole range. Variations suggest nearby versions. Hold *Original* to compare, and *Revert* is undoable. Tick and untick components to bypass them and build the image up layer by layer.
-- **Compose.** Drag components from the library onto the graph or an input, drag wires between sockets, insert a modifier on any input, or replace a component while keeping its wiring.
-- **Fast on real GPUs, honest about it.** One compiled shader serves every view of a scene, so ticking boxes, walking steps and scrubbing parameters never recompile; wiring changes compile in the background with a visible *Compiling* indicator. The LIVE badge says whether a hardware GPU or software rendering does the work, and a performance dialog names the GPU and reports frame times.
+- **Start with a story.** On a first visit the gallery opens with the easy scenes first, and every scene has a difficulty badge. A scene opens playing, and the panel on the right tells what you are seeing, how it works step by step, and which parts it is built from. **Try this** challenges each change one thing, and Undo takes it back.
+- **Always know where you are.** The parts strip under the picture is the map of the scene: every part in order, with a live picture of what it makes. An open part says where it sits (*Part 7 of 9*, with *‹ Whole scene* to go back), and a label on the picture says what it shows: the whole picture, just this part, what this part adds, what moves, or a draft you are editing.
+- **Colors that mean something.** Orange is something you can change, pink is time, blue is what comes into a part and green is what a part makes, in the math, the code, the sliders and the time bar alike.
+- **Understand the math.** Each part’s math is shown as numbered, typeset steps, each with a sentence saying what the line computes and why. Hover a letter to find it everywhere, click a blue one to follow it upstream, and drag an orange one to change it. *Connections* shows where each input comes from and where the result goes, down to the equation that uses it. *Big ideas* explains the 47 recurring ideas (double-exponential gates, folding with arccos cos, backward mapping, fractal noise, front-to-back selection…) with small interactive graphs, and a live graph shows each part’s key curve. **All the math** writes the whole scene as a formula sheet.
+- **Edit the math you are reading.** **✎ Edit** on any equation opens it as text, one line per step; a built-in part opens as its own math written out. Settings are `param` lines that become sliders, definitions name in-between values, and `//` captions explain each line. The picture shows your edit as a draft until you apply it, and mistakes are reported in words.
+- **Study one part in depth.** The **wide panel** (⤢ Wide, or double-click any part) puts a part’s math beside its settings and graphs, with the part on the picture and a graph of its actual values under it. **↗** opens the panel in its own window, e.g. on a second screen.
+- **See every part.** The picture shows the whole scene, any single part, or exactly which pixels a part changes. Values that have no color of their own (numbers, positions, shapes) get automatic color scales with contour lines and a legend.
+- **Experiment without fear.** Every setting can be put back, and a mark shows where it started. Sweeps show a setting across its whole range, and **🎲 Surprise me** suggests random versions. *Hold to compare* shows the scene as it started, and *Start over* can be undone. Switch parts off and on to build the picture up layer by layer.
+- **Compose.** Drag parts from the library onto the Wiring view or onto an input, drag wires between dots, put a part in between on any input, or swap a part while keeping its wiring.
+- **Fast on real GPUs, honest about it.** One compiled shader serves every view of a scene, so switching parts off, walking through parts and dragging settings never recompile; wiring changes compile in the background with a visible *Compiling* indicator. The LIVE badge says whether a hardware GPU or software rendering does the work, and the GPU dialog names the GPU and reports frame times.
 
-![Editing a built-in component: its equation written out as text, changed, and previewed on the canvas as a draft](gallery/studio-equation.png)
+![Editing a built-in part: its math written out as text, changed, and shown on the picture as a draft](gallery/studio-equation.png)
+
+### New in 2.1: made for newcomers
+
+![The first visit: the gallery opens by itself, with the easy scenes first and a difficulty badge on every card](gallery/studio-welcome.png)
+
+- **A scene tells its story.** Opening a scene shows **About this scene**: what you are seeing, who made it and how it was checked, **Try this** challenges, **How it works** step by step (each step shows the lines of code it explains), the parts it is built from, the big ideas it uses, and the code as the artist posted it.
+- **Plain words.** Components are *parts*, parameters are *settings*, and every label says what it does: *Whole picture · Just this part · What this part adds · What moves*, *Start over*, *Hold to compare*, *Math*, *Big ideas*. Every explanation in the app was rewritten in full sentences for a curious thirteen-year-old.
+- **More room for the picture.** The display options moved into one **View ▾** menu, rulers and grid are off by default, the parts strip is compact (and folds away with ▾ Hide), and the time bar reads in seconds with the frames right under it.
+
+![The scene panel of Point jellyfish: Try this, and a step of How it works open with the lines of the formula it explains](gallery/studio-scene.png)
+
+![A part explained: the star lattices of the Bipolar nebula, opened from the parts strip, with a plain introduction, then their settings and key curve](gallery/studio-part.png)
 
 ### New in 2.0: animations you can take apart
 
-![A twigl shader by yonatan (@zozuar), its readable code with a guided explanation: step 4 stops the inner loop after one step, and the canvas shows the bare domes that the loop turns into jellyfish](gallery/studio-code.png)
+![A twigl shader by yonatan (@zozuar) in the wide panel: a step of How it works highlights the lines of the readable code it explains, and the loop sliders sit beside it](gallery/studio-code.png)
 
 - **Eighteen animations by their artists**, in a browsable gallery: thirteen [twigl.app](https://twigl.app) shader one-liners, four p5.js point sketches and one study. Each runs its **original code**, credited and linked, and opens a **readable version** with named variables and a caption on every line. On a deterministic GPU the original and the readable version render **bit-identical** frames to the code in a twigl-style shader ([works and verification](docs/WORKS.md)).
-- **Shader code is a component**: paste any twigl code. Hover anything for what it is; **drag any number** and the picture follows without recompiling; stop each **loop** after N steps or watch it **build up**; put any **variable** on the canvas with a colormap (the depth a raymarcher reached, the scale of a fractal); follow **How it works** step by step.
-- **Point clouds**: thousands of points placed by one equation of their index and time, drawn on the GPU, composited like any layer.
-- **Time**: *What moves* and *Trails* views, a filmstrip of the whole loop, playback speed, a profile of one pixel over time, per-component time speed and ❄ Freeze.
-- **Measure**: a Stats tab with values, histograms, whether a loop is seamless, and where the GPU time goes.
+- **Shader code is a part**: paste any twigl code. Hover anything for what it is; **drag any orange number** and the picture follows without recompiling; stop each **loop** after N steps or watch it **build up**; put any **variable** on the picture with a color scale (the depth a raymarcher reached, the scale of a fractal) from **Look inside**; follow **How it works** step by step.
+- **Point clouds**: thousands of dots placed by one equation of their index and time, drawn on the GPU, combined like any other picture.
+- **Time**: *What moves* and *Trails* views, frames of the whole loop under the time bar, playback speed, a graph of one pixel over time, a time speed for each part, and ❄ Freeze.
+- **Measure**: a Measure tab with values, histograms, whether a loop is seamless, and where the GPU time goes.
 - **Reuse and export**: add any animation to another scene; export MP4 (exact frames), GIF, animated PNG, stills, sprite sheets, a web page that plays the scene, or code for twigl. **High contrast** mode throughout.
 
-It animates parameters with keyframes and exports stills, animations, videos with exact frames, web pages and code, with the full project embedded where the format allows. It works on wide screens, laptops, tablets and phones. The [editor guide](docs/EDITOR_GUIDE.md) covers every control, and every control in the app explains itself when hovered (or pressed and held on a touch screen).
+It animates settings with keyframes and exports stills, animations, videos with exact frames, web pages and code, with the full scene embedded where the format allows. It works on wide screens, laptops, tablets and phones. The [editor guide](docs/EDITOR_GUIDE.md) covers every control, **? Help** in the app sums it up, and every control explains itself when hovered (or pressed and held on a touch screen).
 
 ## Open the app
 
@@ -68,48 +82,50 @@ There are **30 editable scenes (12 constructions and 18 animation works) and 45 
 
 ## First fifteen minutes
 
-1. The **Bipolar Nebula** opens first. The **Pipeline** below the canvas shows its nine components in evaluation order, each with a live picture of its output. Click *Folded star lattices*: the panel on the right explains it (*Step 7 of 9*), while the canvas keeps showing the final image, as its label says. The equation takes three steps: fold the plane with arccos(cos ·) so that every lattice cell looks the same, measure the squared distance to the cell center, and put a star core and halo there. Hover a symbol to find it everywhere.
-2. Choose **This step** above the canvas: now it shows the stars alone. Press `[` a few times to walk back through the construction step by step; the canvas follows, and the legend explains the colors of steps that have none of their own (a colormap for numbers, a warped grid for coordinates). Choose **What it changes**, then select the stars again: only the pixels they change stay in color. `Esc` returns to the final image.
-3. In the panel, open **In & out**: the stars' output *T* is read by *Add light* as *B*, in RGB = A + gB. Open **Ideas** and turn the knob of *Folding with arccos(cos t)*.
-4. Double-click *Pinched shell family* to open the **Equation Playground**: the panel widens, the canvas shows the shell geometry, and the profile under it plots its actual values along the line through the cursor. Drag the peach **η** in the equation sideways and watch the lobes pinch, or press **▦** next to *Neck pinch* to see the whole range at once. Hover a thumbnail to preview it, click to use it, then **↺** to put it back. `Esc` twice leaves the Playground.
-5. Press **Only structure** in the pipeline bar, then tick *Folded star lattices*, then *Gas emission*. The image builds up one layer at a time, and ticking a component also includes what it needs. None of this recompiles the shader.
-6. Open **☰ Scenes ▸ Living mineral**, select *Turbulent coordinate warp* and press **✎ Edit**. The warp opens as its own equation: two fractal noises make a displacement `d`, and the result is `p + A*d`. Change the last line to `p + A*d*(1 + 0.8*sin(3*theta))`: the canvas previews the draft. **Apply** keeps it (Undo restores the original), **Cancel** discards it.
-7. Open **Kaleidoscope garden** and select *Interference petals*: an equation written with sliders, a definition and captions. Change `sharpness` with its slider, or edit a line. Open **Formulas** to read the whole scene as equations.
-8. Open **Galaxy behind a star cluster**. Play the timeline and inspect the lens-strength keys. Untick the lens: a bypassed coordinate map passes its input through, so the galaxy appears unlensed while the foreground cluster stays in place. Select a numeric control and click **◆** to make a key; move the playhead, change the control, and a new key appears. Drag keys along their lane to retime them.
-9. Press **Snapshot** before a risky change; the library's Snapshots tab brings the state back, and **⟲ Revert** restores the whole scene (undoably). Save the project JSON, then export PNG or a PNG sequence. PNG files from the Export dialog include the complete project and render settings as embedded text metadata.
+1. On a first visit the **Scenes** gallery opens by itself, with *Start here · easy ones* at the top. Click **Vortex** (Easy): it starts playing, and the panel on the right tells you what you are seeing. Under **Try this**, press **Try it** next to *Make every ring spin at the same speed*: the code changes and the swirl turns like one stiff wheel. **Undo** (`Ctrl/⌘ Z`, or ↶ at the top) takes it back.
+2. Under **How it works**, click *Distance to an arc*. The step shows the lines of code it explains, and the picture shows the value `v` it is about instead of the colors. Press **See it in the whole code ›**: the part opens with the same lines highlighted. Drag an orange number in the code sideways and the picture follows at once. Under **Loops**, press **▶** to watch the rings appear one at a time. **‹ Whole scene** goes back to the story.
+3. Open **☰ Scenes ▸ Bipolar nebula** (Expert). The parts strip under the picture shows its nine parts in order, each with a live picture of what it makes. Click *Folded star lattices*: the panel explains it (*Part 7 of 9*), while the picture keeps showing the whole scene, as its label says. Its settings come first, then its math in three steps: fold the plane with arccos(cos ·) so that every cell of the lattice looks the same, measure the squared distance to the center of the cell, and put a star core and halo there. Hover a letter to find it everywhere.
+4. Choose **Just this part** above the picture: now it shows the stars alone. Press `[` a few times to walk back through the parts one at a time. The picture follows, and the legend explains the colors of parts that make no colors of their own (a color scale for numbers, a bent grid for positions). Choose **What this part adds**, then open the stars again: only the pixels they change stay in color. `Esc` goes back to the whole picture.
+5. In the panel, open **Connections**: the stars’ result *T* is used by *Add light* as *B*, in RGB = A + gB. Open **Big ideas** and move the slider of *Folding with arccos(cos t)*.
+6. Double-click *Pinched shell family* to open the **wide panel**: the panel widens, the picture shows the shell shape, and the graph under it plots its actual values along the line through the pointer. Drag the orange **η** in the math sideways and watch the lobes pinch, or press **▦** next to *Neck pinch* to see its whole range at once. Hover a small picture to see it large, click to keep it, then **↺** to put it back. `Esc` twice leaves the wide panel.
+7. Press **Start empty** above the parts strip, then switch on *Folded star lattices*, then *Gas emission*. The picture builds up one layer at a time, and switching a part on also switches on what it needs. None of this recompiles the shader.
+8. Open **☰ Scenes ▸ Living mineral**, open *Turbulent coordinate warp* and press **✎ Edit**. The warp opens as math of its own: two fractal noises make a displacement `d`, and the result is `p + A*d`. Change the last line to `p + A*d*(1 + 0.8*sin(3*theta))`: the picture shows the draft. **Apply** keeps it (Undo brings back the original), and **Cancel** throws it away.
+9. Open **Kaleidoscope garden** and its part *Interference petals*: math written with sliders, a definition and captions. Change `sharpness` with its slider, or edit a line. Open **All the math** to read the whole scene as equations.
+10. Open **Galaxy behind a star cluster**. Play it and look at the keyframes of the lens strength on the time bar. Switch the lens off: a part that moves positions passes them through unchanged when it is off, so the galaxy appears unbent while the cluster in front stays in place. Click **◆** next to a setting to make a keyframe, move the time, change the setting, and a new keyframe appears. Drag keyframes along their lane to move them in time.
+11. Take a **Snapshot** (View menu) before a risky change: **Scenes ▸ Snapshots** brings that moment back, and **⟲ Start over** brings back the whole scene (Undo reverses it). **Save** the scene as a .json file, then export a PNG or a PNG sequence. PNG files from the Export dialog include the complete scene and render settings as embedded text metadata.
 
 ## Editing and inspection
 
-The top bar names the scene; **☰ Scenes** opens the library of scenes, components and snapshots as a drawer (dock it to keep it open). The center holds the live canvas and, below it, the Pipeline, the typed function graph, the formula sheet and the generated shader. The panel on the right explains the selected component in four tabs: **Equation** (its steps, parameters and key function), **In & out** (where its values come from and where its output goes), **Ideas** (why it is written that way) and **More** (its shader code, animation tracks, replace, duplicate, delete). Every control has a hover explanation.
+The top bar names the scene and says where it comes from (click that line for the sources). **☰ Scenes** opens the library as a drawer, with the scene gallery, the parts to build with and your snapshots; **⇥ Keep open** keeps it as a column. The center holds the live picture and, below it, the parts strip, the **Wiring** view, **All the math** and the **Shader code** the GPU runs. The side panel on the right shows either the whole scene or one part. **About this scene** tells what you are seeing, offers **Try this** challenges, walks through **How it works**, and lists how the scene is built, the big ideas it uses and where it comes from. A part has the tabs **Math** or **Code** (its settings, its math or code, its key curve), **Look inside** (every value the code computes), **Big ideas** (why it is written that way), **Connections** (where its values come from and where its result goes), **Measure** and **More** (its shader code, keyframes, swap, duplicate, delete). Every control explains itself when hovered.
 
-Clicking a component selects it; the canvas shows what you choose above it: the **final image**, **this step** (the selected component's own output) or **what it changes**, and the last two follow the selection. Unticking a component bypasses it: a modifier such as a coordinate warp, tint or mask passes its input through unchanged, a combiner passes its main input, and content such as a field or star layer contributes nothing.
+Clicking a part opens it in the panel without changing the picture. The switch above the picture chooses what it shows: the **Whole picture**, **Just this part** (what the open part makes), **What this part adds** or **What moves**; the middle two follow the part you open. Switching a part off bypasses it: a part that changes what comes in, such as a warp, tint or mask, passes it through unchanged; a part that combines two things passes its main input; and a part that draws something, such as a pattern or a star layer, adds nothing.
 
-Wire components by dragging between dots, by clicking an output dot and then an input dot, or by choosing the input in the panel; drag a library entry onto a socket to add and connect in one step, use **＋** on an input to insert a modifier, and **Replace with…** to swap a component. Cycles and mismatched types are rejected. Graph layout is automatic and scrollable; this is not a free-position node-canvas editor. Parameter changes, bypassing and switching views update uniforms of one compiled program; wiring and equation changes compile a new one in the background. An equation with an error is never applied.
+Wire parts by dragging between dots in the Wiring view, by clicking an output dot and then an input dot, or by choosing the input in the Connections tab. Drag a library entry onto an input to add and connect it in one step, use **＋** on an input to put a part in between, and **Swap for…** to swap a part. Cycles and mismatched types are rejected. The Wiring layout is automatic and scrollable; this is not a free-position node-canvas editor. Changing settings, switching parts on and off, and switching views update uniforms of one compiled program; wiring and equation changes compile a new one in the background. An equation with an error is never applied.
 
-Drag the artwork to pan; scroll or pinch to zoom about the cursor; **Fit** resets the camera. **Rulers** and **Grid**, on by default, overlay world coordinates with a crosshair readout of position, pixel, color and raw field values; a click pins the readout. **Profile** plots raw values along a line. **Compare with a picture** (in the ⋯ menu) loads a local PNG/JPEG/WebP overlay or difference view. It does not infer equations, fit parameters, or affect exported artwork. Crop a reference before loading; the overlay is stretched to the canvas rectangle.
+Drag the picture to move the view; scroll or pinch to zoom about the pointer; **Fit** resets the camera. Clicking the picture pins a reading of its position, pixel, color and actual value. The **View ▾** menu holds **Rulers** and **Grid** (off by default: world coordinates with a crosshair reading), **Measure along a line** (a graph of the actual values along a line, or at one point over time), **Brightness**, **Light to color**, **Sharpness**, the frames on the time bar, **Snapshot**, **Compare with a picture…**, **Copy image** and **Expand the picture**. *Compare with a picture* loads a local PNG/JPEG/WebP overlay or difference view. It does not infer equations, fit parameters, or affect exported artwork. Crop a reference before loading; the overlay is stretched to the picture’s rectangle.
 
-Projects autosave opportunistically to browser storage. Browser storage can be unavailable or cleared; **Save project** is the portable backup. Reference images are session-only and are not included in the saved project; snapshots and preferences stay in the browser. The complete list of controls and keyboard shortcuts is in the [editor guide](docs/EDITOR_GUIDE.md).
+Scenes autosave opportunistically to browser storage, and the footer says whether that works here. Browser storage can be unavailable or cleared; **Save** is the portable backup. Reference images are session-only and are not included in the saved scene; snapshots and preferences stay in the browser. The complete list of controls and keyboard shortcuts is in the [editor guide](docs/EDITOR_GUIDE.md).
 
 ## Animation and export
 
-**Animation is stateless:** a frame is a function of project parameters and time. Scrubbing backward does not require replaying a simulation. Most studies animate directly through a flow-speed parameter; the source nebula's default time dependence is zero to preserve its static source construction. Add keys or change its motion control to animate it.
+**Animation is stateless:** a frame is a function of the scene’s settings (parameters) and time. Dragging the time bar backward does not require replaying a simulation. Most studies animate directly through a flow-speed setting; the source nebula's default time dependence is zero to preserve its static source construction. Add keyframes or change its speed setting to animate it (one of its Try this challenges does).
 
 | Export | Behavior |
 |---|---|
-| PNG | Current playhead; opaque displayed RGB; up to the lower of GPU limits and 4096 pixels per side; embedded project/settings metadata |
+| PNG | The current time; opaque displayed RGB; up to the lower of GPU limits and 4096 pixels per side; embedded project/settings metadata |
 | PNG sequence ZIP | Explicit times `i/FPS`, end point excluded; PNGs, project JSON, and manifest; at most 240 frames, 1280 pixels per side, and 150 MB of compressed frame bytes |
-| JPEG, WebP | Current playhead, smaller files |
+| JPEG, WebP | The current time, smaller files |
 | MP4 | Every frame at its exact time i/FPS, encoded on the device (H.264 through WebCodecs); faster than real time |
-| GIF | The whole timeline, looping, one 256-color palette with light dithering; at most 800 pixels and 300 frames |
+| GIF | The whole animation, looping, one 256-color palette with light dithering; at most 800 pixels and 300 frames |
 | Animated PNG | Looping, full color, lossless; at most 1280 pixels and 240 frames |
 | Sprite sheet | Frames across the loop in one PNG grid, with a JSON of times and positions |
 | Web page | One HTML file that plays the scene live on any WebGL 2 device, with its credits |
 | Shader code | The selected component’s code for twigl.app, with its author’s credit |
-| Browser video | One real-time timeline pass using a supported MediaRecorder codec (WebM); may drop frames on a slow device |
+| Browser video | One real-time pass through the animation using a supported MediaRecorder codec (WebM); may drop frames on a slow device |
 
-Use PNG sequences for reproducible frame times and lossless stills. Video support depends on browser codecs. A looping playhead does **not** guarantee a seamless visual loop: endpoint keys and procedural phases must also agree. See [Animation and export](docs/ANIMATION.md).
+Use PNG sequences for reproducible frame times and lossless stills. Video support depends on browser codecs. Looping the time bar does **not** guarantee a seamless visual loop: endpoint keys and procedural phases must also agree. See [Animation and export](docs/ANIMATION.md).
 
-Each scene has its own aspect ratio (5:3 for the constructions, the clip’s ratio for the works). Exporting another aspect ratio preserves horizontal world-space scale and reveals/crops the vertical extent; it does not stretch the scene. Preview resolution changes sample locations, not the number of original formula terms. Fine lines and stars can alias at low resolutions; there is no hidden temporal antialiasing or band removal.
+Each scene has its own aspect ratio (5:3 for the constructions, the clip’s ratio for the works). Exporting another aspect ratio preserves horizontal world-space scale and reveals/crops the vertical extent; it does not stretch the scene. Sharpness (the preview resolution) changes sample locations, not the number of original formula terms. Fine lines and stars can alias at low resolutions; there is no hidden temporal antialiasing or band removal.
 
 ## Project structure
 
@@ -121,7 +137,8 @@ src/
   catalog.js               45 component definitions: sockets, parameters, captioned steps, symbols, ideas,
                            key-function curves, GLSL emitters
   concepts.js              The 47 ideas behind the equations, with formulas and interactive plots
-  works.js                 The 18 studied animations: credits, original and readable code, explanations
+  works.js                 The 18 studied animations: credits, original and readable code, explanations,
+                           difficulty levels and Try this challenges
   glsl.js                  The shader-code language: parser, checker, loop analysis, printer, formatter
   twigl-glsl.js            twigl's helper library (noise, hsv, rotations)
   shader-link.js           Keeps only the library functions a program uses
@@ -144,16 +161,20 @@ src/
   nebula-glsl.js           Original source nebula GPU kernels
   motifs-glsl.js           New subject-based kernels
   timeline.js              Deterministic parameter interpolation and key editing
-  presets.js               Editable scene graphs
+  presets.js               Editable scene graphs, and the guides of the constructions (story, level, Try this)
   export.js                PNG metadata and dependency-free ZIP export
   snapshots.js             Session bookmarks
-  editor.js                Shared editor state, event bus and model operations
-  ui-component-view.js     The component panel: header, tabs, steps, in-place equation editing (panel, pop-out)
+  editor.js                Shared editor state (including what the side panel shows), event bus and model operations
+  ui-scene-view.js         The scene panel: About this scene, How it works, how it is built, big ideas
+  ui-try.js                The scene's guide and the Try this challenges
+  ui-component-view.js     The part panel: header, tabs, settings, steps, in-place equation editing (panel, pop-out)
   ui-code-view.js          Shader code: highlighted code, draggable numbers, loops, tour, Look inside
-  ui-stats.js, ui-filmstrip.js, ui-settings.js   The Stats tab, the filmstrip, contrast and playback settings
-  ui-*.js                  One module per panel or tool: library, canvas, looks and legend, profile,
-                           pipeline, graph, formulas, previews, inspector, playground, pop-out, explorer,
-                           performance, phone layout, tooltips, timeline, export, toolbar
+  ui-stats.js, ui-filmstrip.js, ui-settings.js   The Measure tab, the frames on the time bar, contrast and playback settings
+  ui-*.js                  One module per panel or tool: library, canvas, looks and legend, scope (Measure
+                           along a line), pipeline (the parts strip), graph (Wiring), formulas (All the math),
+                           previews, inspector (the side panel), playground (the wide panel), pop-out,
+                           explorer, performance, phone layout, tooltips, timeline (the time bar), export,
+                           toolbar
   app.js                   Boot, frame loop and integration hooks
   research.js              Evidence/provenance ledger displayed inside the app
 examples/                  Saved projects and an embeddable renderer example
@@ -165,7 +186,7 @@ docs/                      Guides, theory, recipes, API, research and measured v
 
 Browser-readable copies are included as `README.html` and `docs/*.html`, with typeset equations and no online scripts. Regenerating those reading pages is optional and uses `python3 tools/build_docs.py` with Pandoc installed.
 
-Read the [Editor guide](docs/EDITOR_GUIDE.md), [Architecture and API](docs/ARCHITECTURE.md), [Construction recipes](docs/RECIPES.md), the [generated component catalog](docs/COMPONENTS.md) (every component's steps and the ideas behind them) and, for working on the code, the [Development guide](docs/DEVELOPMENT.md). The retained [original formula reference](reference/nebula_rewrite/docs/FORMULA_REFERENCE.md) maps every source symbol to its purpose. Changes are listed in the [changelog](CHANGELOG.md).
+Read the [Editor guide](docs/EDITOR_GUIDE.md), [Architecture and API](docs/ARCHITECTURE.md), [Construction recipes](docs/RECIPES.md), the [generated component catalog](docs/COMPONENTS.md) (every component's steps and the ideas behind them) and, for working on the code, the [Development guide](docs/DEVELOPMENT.md). The retained [original formula reference](reference/nebula_rewrite/docs/FORMULA_REFERENCE.md) maps every source symbol to its purpose. Changes are listed in the [changelog](CHANGELOG.md). Two reports explain the recent releases: the [2.0 animation report](docs/ANIMATION_REPORT.md) and the [2.1 UX review](docs/UX_REVIEW.md) (the studio seen through a curious thirteen-year-old’s eyes, with a checklist of every change).
 
 ## Development and verification
 
@@ -183,9 +204,9 @@ Optional browser tests need Python Playwright, NumPy and Pillow, and a Chromium 
 
 ## Performance and portability
 
-This is WebGL 2, not WebGPU. All per-pixel math runs in fragment shaders on the GPU; there are no remote services or CPU-rendered preview substitutes. Web pages cannot run this kind of per-pixel work on a neural processing unit (NPU), so the GPU is the accelerator that matters; the LIVE badge, the footer and the **GPU & performance** dialog say which GPU is used and warn when the browser has fallen back to software rendering, with advice for enabling hardware acceleration.
+This is WebGL 2, not WebGPU. All per-pixel math runs in fragment shaders on the GPU; there are no remote services or CPU-rendered preview substitutes. Web pages cannot run this kind of per-pixel work on a neural processing unit (NPU), so the GPU is the accelerator that matters; the LIVE badge, the footer and the **GPU dialog** (*Your GPU and how fast it draws*) say which GPU is used and warn when the browser has fallen back to software rendering, with advice for enabling hardware acceleration.
 
-A scene is compiled into **one** shader program that serves every view of it: parameters, bypass checkboxes, the stage shown, “what it changes”, thumbnails and probes are uniforms. Shader compilation, the one expensive operation, therefore happens only when the wiring or an equation changes, and then **in the background** where the browser supports it (`KHR_parallel_shader_compile`): the last image stays up with a *Compiling shader…* indicator and a progress cursor. On a Windows machine with an NVIDIA GPU (Direct3D 11 through ANGLE), the whole Bipolar Nebula compiles in about 0.4 s, and bypassing a component, which used to freeze the page for several seconds, takes a few milliseconds. **Auto quality** renders at the display's pixel density and lowers the resolution during a drag or playback when frames are slow, refining when you let go. Dense source formulas and a large peacock fan remain expensive on weak GPUs; choose a fixed lower quality there.
+A scene is compiled into **one** shader program that serves every view of it: settings, which parts are switched on or off (bypassed), the part shown, “what this part adds”, thumbnails and probes are uniforms. Shader compilation, the one expensive operation, therefore happens only when the wiring or an equation changes, and then **in the background** where the browser supports it (`KHR_parallel_shader_compile`): the last image stays up with a *Compiling shader…* indicator and a progress cursor. On a Windows machine with an NVIDIA GPU (Direct3D 11 through ANGLE), the whole Bipolar Nebula compiles in about 0.4 s, and switching a part off, which used to freeze the page for several seconds, takes a few milliseconds. **Auto sharpness** renders at the display's pixel density and lowers the resolution during a drag or playback when frames are slow, refining when you let go. Dense source formulas and a large peacock fan remain expensive on weak GPUs; choose a fixed lower **Sharpness** there.
 
 The published measurements in [Validation](docs/VALIDATION.md) were made in Chromium with the **ANGLE/SwiftShader software backend**, including full-resolution source comparison, so they are comparable between machines. The browser suites were also run on a hardware GPU (NVIDIA, Direct3D 11). Automated UI testing loads the actual bundled HTML into an in-memory page, so no browser policy is involved; file-URL and localhost browser navigation were not end-to-end tested by those suites. The HTTP launcher itself was tested separately. Phone and tablet layouts were checked in Chromium with touch emulation at iPhone and iPad sizes, not on physical devices; Safari, Firefox and iOS remain untested. WebGL absence, missing float support, recording codec errors, and context loss have explicit handling.
 

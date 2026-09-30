@@ -4,7 +4,7 @@ import { frameLook } from './ui-look.js';
 /** The filmstrip under the timeline: the canvas's view at evenly spaced moments
  * of the timeline, so the whole animation is visible at a glance. Click a frame
  * to move the playhead there. The frames are redrawn (without blocking) when the
- * scene, the view or the duration change, never during playback.
+ * scene, the view or the duration change, also while it plays, since scenes open playing.
  */
 const FRAMES = 12, TILE_HEIGHT = 54;
 let key = '', timer = null, token = 0;
@@ -29,8 +29,8 @@ function schedule() {
 }
 function draw(next) {
     const renderer = state.renderer;
-    if (!renderer || state.busy || state.playing) {
-        timer = setTimeout(() => draw(next), 800); // not while playing or exporting
+    if (!renderer || state.busy) {
+        timer = setTimeout(() => draw(next), 800); // not while exporting
         return;
     }
     const aspect = aspectOf(state.project), height = TILE_HEIGHT * 2, width = Math.max(8, Math.round(height * aspect));
@@ -60,7 +60,7 @@ function paint(images) {
     const strip = $('filmstrip');
     strip.innerHTML = images.map((img, k) => {
         const t = times()[k];
-        return `<button class="film-frame" data-film-time="${t}" aria-label="Go to ${t.toFixed(2)} seconds" data-tip="${t.toFixed(2)} s|Click to move the playhead here."><canvas width="${img.width}" height="${img.height}"></canvas><span>${t.toFixed(1)}</span></button>`;
+        return `<button class="film-frame" data-film-time="${t}" aria-label="Go to ${t.toFixed(2)} seconds" data-tip="The picture at ${t.toFixed(1)} s|Click to go to this moment."><canvas width="${img.width}" height="${img.height}"></canvas></button>`;
     }).join('') + '<span class="film-playhead" aria-hidden="true"></span>';
     strip.querySelectorAll('canvas').forEach((canvas, k) => canvas.getContext('2d').putImageData(new ImageData(images[k].data, images[k].width, images[k].height), 0, 0));
     movePlayhead();

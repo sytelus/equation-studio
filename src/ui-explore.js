@@ -40,11 +40,11 @@ function build() {
 }
 export function openSweep(nodeId, key) {
     const node = nodeById(nodeId), spec = catalog[node.type].params[key];
-    session = { kind: 'sweep', nodeId, key, title: `${spec.label} across its range (${spec.min} → ${spec.max})`, subtitle: node.label };
+    session = { kind: 'sweep', nodeId, key, title: `${spec.label}: many values at once, from ${spec.min} to ${spec.max}`, subtitle: node.label };
     build();
 }
 export function openVariations(nodeId, scope = 'node') {
-    session = { kind: 'variations', nodeId, scope, amount: 0.25, seed: Math.floor(Math.random() * 1e9), title: 'Variations', subtitle: nodeById(nodeId).label };
+    session = { kind: 'variations', nodeId, scope, amount: 0.25, seed: Math.floor(Math.random() * 1e9), title: '🎲 Surprise me', subtitle: `random settings for ${nodeById(nodeId).label}` };
     build();
 }
 export function closeExplore() {

@@ -17,7 +17,7 @@ import { frameLook } from './ui-look.js';
 /** Per-format limits that keep memory and time bounded. */
 const LIMITS = { gif: { side: 800, frames: 300 }, apng: { side: 1280, frames: 240 }, sheet: { side: 1024 }, mp4: { frames: 7200 } };
 const FORMAT_ADVICE = {
-    png: 'PNG exports the current playhead at the selected resolution, with the whole project embedded (Open reads it back). Reference overlays are never included.',
+    png: 'A picture of this moment at the size you choose. The whole scene is saved inside the file too, so Open can bring it back. Pictures you laid over the canvas are never included.',
     jpeg: 'JPEG: the current frame, much smaller than PNG and slightly lossy. Quality 90 is visually lossless for most scenes.',
     webp: 'WebP: the current frame, smaller than JPEG at the same quality. Quality 100 is lossless.',
     mp4: 'MP4 (H.264): every frame rendered at its exact time i/FPS and encoded on this device, so the result is smooth even when rendering is slow. Plays everywhere. Quality sets the bitrate.',
@@ -27,7 +27,7 @@ const FORMAT_ADVICE = {
     sequence: 'Exports the whole timeline, end point excluded. Up to 240 PNG frames and 1280 pixels per side; the ZIP holds the frames, the project and a manifest.',
     sheet: 'Sprite sheet: Frames moments spread over the loop, in one PNG grid, with a JSON file of their times and positions. For games, slides and printed comparisons.',
     html: 'Web page: one HTML file that plays this scene live on any device with WebGL 2, with its credits. Its shaders are compiled from the scene; nothing is fetched.',
-    code: 'Shader code: the selected component’s code, with its author’s credit, ready to paste into twigl.app (mode geekest 300 es).'
+    code: 'The code of the Shader code part that is open, with its artist’s credit, ready to paste into twigl.app (choose the mode “geekest 300 es” there).'
 };
 const app = $('app'), canvas = $('artCanvas');
 let recording = null, abortExport = false;
@@ -390,7 +390,7 @@ function exportPage(scene, stem) {
 function exportCode(stem) {
     const node = currentNode();
     if (!catalog[node.type].code) {
-        throw new Error('Select a Shader code component first: this exports its code.');
+        throw new Error('Open a Shader code part first (click it under the picture): this exports its code.');
     }
     download(new Blob([codeFile(node)], { type: 'text/plain' }), `${fileStem(node.label) || stem}.glsl`);
     $('exportMessage').textContent = `Saved the code of ${node.label}, ready for twigl.app.`;

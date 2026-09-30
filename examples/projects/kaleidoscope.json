@@ -1,7 +1,7 @@
 {
   "id": "kaleidoscope",
   "title": "Kaleidoscope garden",
-  "description": "Angular mirror → domain warp → interference field → custom color expression. Fully editable typed equations.",
+  "description": "Two short equations you can edit, a petal pattern and a rainbow, repeated in eight mirrored wedges.",
   "status": "Component remix",
   "schemaVersion": 1,
   "nodes": [

@@ -1,7 +1,7 @@
 {
   "id": "jellyfish-lattice",
   "title": "Jellyfish lattice",
-  "description": "A raymarcher that never shades a surface: every one of its 200 steps adds a little light that grows as the ray passes close to a jellyfish, so bodies glow like neon. By yonatan (@zozuar).",
+  "description": "You are looking into an endless swarm of glowing jellyfish that drift slowly upward while their bells pulse. By yonatan (@zozuar).",
   "status": "Reproduction · original code",
   "schemaVersion": 1,
   "nodes": [
@@ -21,7 +21,7 @@
         "p": "space"
       },
       "params": {
-        "code": "// Jellyfish lattice · yonatan (@zozuar), 25 Aug 2021 · readable version, same image\nvec2 uv = (FC.xy - r*.5)/r.y;        // this pixel as a direction: the center is 0, the image 1 high\nfloat depth = 0., dist = 0., scale;   // how far the ray has gone; the last distance to a jellyfish\nfor (float i = 0.; i++ < 2e2;) {      // march 200 steps along the ray\n  vec3 p = vec3(uv*depth + .7, depth += dist);   // the point on the ray (the camera looks along z)\n  p.y -= t*.1;                        // the swarm drifts with time\n  p -= round(p);                      // one jellyfish per unit cell: an endless lattice\n  p.xz *= 1. + sin(t*PI + (round(depth) + p.y)*9.)*.2;   // pulse: each bell squeezes and relaxes, a wave running down its body\n  for (dist = scale = 9.; scale < 4e2; scale += scale) {   // levels of detail at scales 9, 18, 36, 72, 144, 288\n    dist = scale/2e6 + min(dist, max(-p.y, abs(length(p) - .2))/scale);   // a thin dome (radius .2, cut at y = 0) at this scale; keep the nearest\n    p.y += length(p.xz)*2.;           // lift points away from the axis: the dome becomes a bell\n    p = .2 - abs(p*3.);               // mirror and enlarge 3×: the next level is a smaller copy (the tentacles)\n  }\n  o.rgb += hsv(.6 + .9/p.y, .9, 4e-6/dist);   // glow: bright where the ray passes close, blue to green by the last height\n}",
+        "code": "// Jellyfish lattice · yonatan (@zozuar), 25 Aug 2021 · readable version, same image\nvec2 uv = (FC.xy - r*.5)/r.y;        // The pixel's direction: 0 in the center, and the image is 1 high.\nfloat depth = 0., dist = 0., scale;   // How far the ray has gone, and how far it was from a jellyfish.\nfor (float i = 0.; i++ < 2e2;) {      // March 200 steps along the ray\n  vec3 p = vec3(uv*depth + .7, depth += dist);   // The point on the ray; depth grows by the last distance.\n  p.y -= t*.1;                        // Slide space down as time runs, so the jellyfish drift up.\n  p -= round(p);                      // Wrap space into one box: every box holds the same jellyfish.\n  p.xz *= 1. + sin(t*PI + (round(depth) + p.y)*9.)*.2;   // Narrow and widen the bell: a pulse runs down the body.\n  for (dist = scale = 9.; scale < 4e2; scale += scale) {   // Six levels of detail, scale 9 to 288\n    dist = scale/2e6 + min(dist, max(-p.y, abs(length(p) - .2))/scale);   // Distance to a thin dome of radius 0.2; keep the nearest.\n    p.y += length(p.xz)*2.;           // Bend space: raise each point by twice its distance from the middle.\n    p = .2 - abs(p*3.);               // Mirror, flip and enlarge 3 times: the next level draws smaller copies.\n  }\n  o.rgb += hsv(.6 + .9/p.y, .9, 4e-6/dist);   // Add glow: a lot when the ray passes close; the hue starts at blue.\n}",
         "speed": 1,
         "phase": 0,
         "steps1": 200,

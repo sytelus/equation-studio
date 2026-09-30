@@ -1,7 +1,7 @@
 {
   "id": "vortex",
   "title": "Vortex",
-  "description": "Sixteen glowing arcs, one per radius from 0.2 to 0.95, each spinning at a speed equal to its radius, so the inner arcs lag and the rings shear into a vortex. By Xor (@XorDev).",
+  "description": "Sixteen glowing rings of light swirl around a black hole, orange on the inside and blue-white on the outside. By Xor (@XorDev).",
   "status": "Reproduction · original code",
   "schemaVersion": 1,
   "nodes": [
@@ -21,7 +21,7 @@
         "p": "space"
       },
       "params": {
-        "code": "// Vortex · Xor (@XorDev), 19 Nov 2023 · readable version, same image\nvec2 p = (FC.xy*2. - r)/r.y, v;       // this pixel: the center is 0, the image 2 high\nfor (float i = .2, l; i < 1.;) {      // 16 rings of radius i = .2, .25, … , .95\n  float angle = mod(atan(p.y, p.x) + i + i*t, PI2) - PI;   // angle around the center, turned by i and spinning at speed i\n  v = vec2(angle, 1)*length(p) - i;   // (distance along the ring, distance from the ring)\n  v.x -= clamp(v.x += i, -i, i);      // … measured from an arc 2i long instead of the whole ring\n  i += .05;                           // (the color below already uses the next ring's i)\n  o += (cos(i*5. + vec4(0, 1, 2, 3)) + 1.)*(1. + v.y/(l = length(v) + .003))/l/1e2;   // neon glow ~ 1/distance, colored by i, brighter outside the arc\n}\no = tanh(o);                          // soft clip: bright cores keep their color",
+        "code": "// Vortex · Xor (@XorDev), 19 Nov 2023 · readable version, same image\nvec2 p = (FC.xy*2. - r)/r.y, v;       // The pixel's position: 0 in the center, and the image is 2 high.\nfor (float i = .2, l; i < 1.;) {      // 16 rings, radius i = 0.2 to 0.95\n  float angle = mod(atan(p.y, p.x) + i + i*t, PI2) - PI;   // The pixel's angle around the center, turned by i and spinning at speed i.\n  v = vec2(angle, 1)*length(p) - i;   // v.y is how far the pixel is outside ring i; v.x measures along the ring.\n  v.x -= clamp(v.x += i, -i, i);      // Make v.x zero all along an arc 2i long, so only the arc glows.\n  i += .05;                           // Move on to the next ring (the color below already uses the new i).\n  o += (cos(i*5. + vec4(0, 1, 2, 3)) + 1.)*(1. + v.y/(l = length(v) + .003))/l/1e2;   // Glow: 1 ÷ distance, colored by the ring, lit only outside the arc.\n}\no = tanh(o);                          // Squeeze the brightness into 0 to 1, so bright spots fade smoothly into white.",
         "speed": 1,
         "phase": 0,
         "steps1": 16
